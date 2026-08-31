@@ -42,11 +42,9 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "${{ secrets.SATIS_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          printf '%s\n' '[packages.phpinnacle.com]:2222 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFjPJ3tLfme/nORFm//qYTLN1BRO9F15Rsz61PDKTvS0' > ~/.ssh/known_hosts
+          printf '%s\n' 'packages.phpinnacle.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFjPJ3tLfme/nORFm//qYTLN1BRO9F15Rsz61PDKTvS0' > ~/.ssh/known_hosts
 
       - name: Deploy Satis repository
-        env:
-          RSYNC_RSH: ssh -p 2222
         run: |
           rsync -az build/satis/dist/ deploy@packages.phpinnacle.com:/srv/packages.phpinnacle.com/dist/
           rsync -az --exclude dist --exclude packages.json build/satis/ deploy@packages.phpinnacle.com:/srv/packages.phpinnacle.com/
