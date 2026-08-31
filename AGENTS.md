@@ -10,7 +10,7 @@
 ## Scope and Instruction Precedence
 
 - These instructions apply to the monorepo root and every package below it.
-- Each top-level package is independently releasable. A package's own `AGENTS.md` adds to or overrides these rules for files inside that package.
+- Each package under `packages/` is independently releasable. A package's own `AGENTS.md` adds to or overrides these rules for files inside that package.
 - Before changing a package, read its `AGENTS.md` when present, `README.md`, `composer.json`, tests, and the relevant service provider, plugin, or public entry point.
 - Keep behavior in the package that owns it. Cross-package use must go through public APIs and preserve one-way dependency boundaries.
 
@@ -33,6 +33,7 @@
 - Prefer existing Laravel, Filament, Livewire, and package components over local framework-like abstractions.
 - Use arrays for lists, maps, and serialization boundaries. Convert structured domain state into typed value objects before domain behavior begins.
 - Use explicit parameter and return types on named methods, constructor property promotion, descriptive names, and PHPDoc array shapes where arrays are intentional.
+- Do not declare return types on anonymous functions or arrow functions.
 - Let Eloquent models own their persisted state, relationships, lifecycle defaults, model-scoped reads, and cohesive state transitions.
 - Use services for external APIs, provider protocols, registries, reflection or storage adapters, parsing and formatting, authorization orchestration, and cross-boundary transactions.
 - Never store request-, user-, or tenant-specific state in static properties or singleton services under Octane.
@@ -75,6 +76,6 @@
 - Make surgical changes: every changed line must serve the requested outcome, its verification, or cleanup made necessary by the change. Preserve unrelated user work and report unrelated defects instead of fixing them.
 - Remove only imports, code, tests, assets, and configuration made obsolete by the current change.
 - Define observable success before implementation. Reproduce bugs with the narrowest practical test, cover invalid inputs for validation changes, and establish a passing baseline before refactors.
-- Run the narrowest relevant checks first, then broaden according to risk. For changed PHP, run `vendor/bin/pint --dirty --format agent`; run the package's focused Pest tests and PHPStan configuration, plus asset or JavaScript checks when frontend behavior changes.
+- Run the narrowest relevant checks first, then broaden according to risk. For changed PHP, run `composer format`; before finishing, run the repository-wide `composer lint`. Run the package's focused Pest tests and PHPStan configuration, plus asset or JavaScript checks when frontend behavior changes.
 - Finish by inspecting the diff for scope drift, hidden behavior changes, unnecessary complexity, and incomplete cleanup, and run `git diff --check`.
 - Update an existing README when the public API or documented user-facing behavior changes. Do not create new documentation files unless explicitly requested.

@@ -1,0 +1,14 @@
+#:schema vendor/carthage-software/mago/schema.json
+
+version = "1.47.4"
+php-version = "8.4"
+
+[source]
+paths = ["packages"]
+excludes = ["packages/*/node_modules/**", "packages/*/vendor/**"]
+
+[formatter]
+preset = "laravel"
+sort-class-methods = true
+space-after-logical-not-unary-prefix-operator = false
+space-around-concatenation-binary-operator = true

@@ -1,0 +1,19 @@
+{
+    "name": "phpinnacle/packages-dev",
+    "description": "Development tooling for the PHPinnacle package monorepo.",
+    "type": "project",
+    "license": "proprietary",
+    "require-dev": {
+        "carthage-software/mago": "1.47.4"
+    },
+    "scripts": {
+        "lint": [
+            "mago format --check",
+            "mago lint --semantics"
+        ],
+        "format": "mago format"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
