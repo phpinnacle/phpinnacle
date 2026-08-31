@@ -1,0 +1,45 @@
+.phpinnacle-icon-picker .fi-dropdown-panel {
+    max-height: var(--phpinnacle-icon-picker-max-height);
+}
+
+.phpinnacle-icon-picker .fi-dropdown-panel > .fi-dropdown-list {
+    display: grid;
+    grid-template-columns: repeat(var(--phpinnacle-icon-picker-columns, 6), minmax(0, 1fr));
+    gap: 0.125rem;
+    padding: 0.25rem;
+}
+
+.phpinnacle-icon-picker .fi-dropdown-panel > .fi-dropdown-list > .fi-select-input-option {
+    min-height: 2.5rem;
+    justify-content: center;
+    padding: 0.5rem;
+}
+
+.phpinnacle-icon-picker .fi-dropdown-panel > .fi-dropdown-list > .fi-select-input-option > span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.phpinnacle-icon-picker-load-more {
+    position: relative;
+    width: 100%;
+    min-height: 2rem;
+    flex-shrink: 0;
+    cursor: pointer;
+    border: 0;
+    background: transparent;
+    color: currentColor;
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+.phpinnacle-icon-picker-load-more:hover,
+.phpinnacle-icon-picker-load-more:focus-visible {
+    background: color-mix(in srgb, currentColor 8%, transparent);
+    opacity: 1;
+}
+
+.phpinnacle-icon-picker-load-more:disabled {
+    cursor: wait;
+}

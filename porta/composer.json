@@ -1,0 +1,48 @@
+{
+    "name": "phpinnacle/porta",
+    "description": "Webhook integration management for Laravel Filament.",
+    "keywords": [
+        "phpinnacle",
+        "laravel",
+        "filament"
+    ],
+    "homepage": "https://github.com/phpinnacle/porta",
+    "support": {
+        "issues": "https://github.com/phpinnacle/porta/issues",
+        "source": "https://github.com/phpinnacle/porta"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "PHPinnacle Devs",
+            "email": "dev@phpinnacle.edu.pl",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "filament/filament": "^5.0",
+        "galbar/jsonpath": "^3.0",
+        "phiki/phiki": "^2.1",
+        "phpinnacle/common": "^1.0",
+        "phpinnacle/intl": "^1.0",
+        "phpinnacle/tempo": "^1.0",
+        "spatie/laravel-package-tools": "^1.92"
+    },
+    "autoload": {
+        "psr-4": {
+            "PHPinnacle\\Porta\\": "src/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "PHPinnacle\\Porta\\PortaServiceProvider"
+            ]
+        }
+    },
+    "prefer-stable": true
+}

@@ -1,0 +1,19 @@
+{
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "node bin/build.js",
+        "watch": "node bin/build.js --dev",
+        "test": "node --test tests-js/**/*.test.js"
+    },
+    "dependencies": {
+        "fullcalendar": "^7.0.0",
+        "temporal-polyfill": "^1.0.1"
+    },
+    "devDependencies": {
+        "air-datepicker": "^3.6.0",
+        "esbuild": "^0.25.1",
+        "imask": "^7.6.1",
+        "moment": "^2.30.1"
+    }
+}

@@ -1,0 +1,47 @@
+{
+    "name": "phpinnacle/sequentia",
+    "description": "Scoped and date-aware sequence numbers for Laravel applications.",
+    "keywords": [
+        "phpinnacle",
+        "laravel",
+        "sequences",
+        "counters",
+        "numbering"
+    ],
+    "homepage": "https://github.com/phpinnacle/sequentia",
+    "support": {
+        "issues": "https://github.com/phpinnacle/sequentia/issues",
+        "source": "https://github.com/phpinnacle/sequentia"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "PHPinnacle Devs",
+            "email": "dev@phpinnacle.edu.pl",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "illuminate/console": "^13.0",
+        "illuminate/database": "^13.0",
+        "illuminate/support": "^13.0",
+        "spatie/laravel-package-tools": "^1.92"
+    },
+    "autoload": {
+        "psr-4": {
+            "PHPinnacle\\Sequentia\\": "src/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "PHPinnacle\\Sequentia\\SequentiaServiceProvider"
+            ]
+        }
+    },
+    "prefer-stable": true
+}

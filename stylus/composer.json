@@ -1,0 +1,44 @@
+{
+    "name": "phpinnacle/stylus",
+    "description": "Filament rich editor extensions for structured editorial content and Twig templates.",
+    "keywords": [
+        "phpinnacle",
+        "laravel",
+        "filament"
+    ],
+    "homepage": "https://github.com/phpinnacle/stylus",
+    "support": {
+        "issues": "https://github.com/phpinnacle/stylus/issues",
+        "source": "https://github.com/phpinnacle/stylus"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "PHPinnacle Devs",
+            "email": "dev@phpinnacle.edu.pl",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "filament/filament": "^4.0|^5.0",
+        "spatie/laravel-package-tools": "^1.92",
+        "twig/twig": "^3.21"
+    },
+    "autoload": {
+        "psr-4": {
+            "PHPinnacle\\Stylus\\": "src/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "PHPinnacle\\Stylus\\StylusServiceProvider"
+            ]
+        }
+    },
+    "prefer-stable": true
+}

@@ -1,0 +1,50 @@
+{
+    "name": "phpinnacle/money",
+    "description": "Money value objects with Laravel, Livewire, and Filament integration.",
+    "keywords": [
+        "phpinnacle",
+        "laravel",
+        "livewire",
+        "filament",
+        "money",
+        "currency"
+    ],
+    "homepage": "https://github.com/phpinnacle/money",
+    "support": {
+        "issues": "https://github.com/phpinnacle/money/issues",
+        "source": "https://github.com/phpinnacle/money"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "PHPinnacle Devs",
+            "email": "dev@phpinnacle.edu.pl",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "ext-intl": "*",
+        "codeat3/blade-phosphor-icons": "^2.4",
+        "filament/filament": "^4.0|^5.0",
+        "kwn/number-to-words": "^2.12",
+        "spatie/laravel-package-tools": "^1.92",
+        "symfony/intl": "^7.2|^8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PHPinnacle\\Money\\": "src/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "PHPinnacle\\Money\\MoneyServiceProvider"
+            ]
+        }
+    },
+    "prefer-stable": true
+}

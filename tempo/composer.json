@@ -1,0 +1,25 @@
+{
+    "name": "phpinnacle/tempo",
+    "description": "Date and time utilities with Filament fields, filters, and an extensible calendar widget for Laravel.",
+    "keywords": ["phpinnacle", "laravel", "filament", "date", "time", "calendar"],
+    "homepage": "https://github.com/phpinnacle/tempo",
+    "support": {
+        "issues": "https://github.com/phpinnacle/tempo/issues",
+        "source": "https://github.com/phpinnacle/tempo"
+    },
+    "license": "MIT",
+    "authors": [{"name": "PHPinnacle Devs", "email": "dev@phpinnacle.edu.pl", "role": "Developer"}],
+    "require": {
+        "php": "^8.4",
+        "cmixin/business-day": "^1.20",
+        "danharrin/date-format-converter": "^0.3.1",
+        "filament/filament": "^4.0|^5.0",
+        "phpinnacle/iconic": "^1.0",
+        "rlanvin/php-rrule": "^2.6",
+        "spatie/laravel-package-tools": "^1.92"
+    },
+    "autoload": {"psr-4": {"PHPinnacle\\Tempo\\": "src/"}},
+    "config": {"sort-packages": true},
+    "extra": {"laravel": {"providers": ["PHPinnacle\\Tempo\\TempoServiceProvider"]}},
+    "prefer-stable": true
+}

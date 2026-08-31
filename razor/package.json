@@ -1,0 +1,15 @@
+{
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "node bin/build.js --dev",
+        "build": "node bin/build.js"
+    },
+    "devDependencies": {
+        "esbuild": "^0.17.19"
+    },
+    "dependencies": {
+        "@tiptap/core": "^2.11.5",
+        "tiptap-extension-pagination": "^2.1.4"
+    }
+}

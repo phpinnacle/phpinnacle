@@ -1,0 +1,43 @@
+{
+    "name": "phpinnacle/tags",
+    "description": "A plugin for Laravel Filament that adds tags to your application.",
+    "keywords": [
+        "phpinnacle",
+        "laravel",
+        "filament"
+    ],
+    "homepage": "https://github.com/phpinnacle/tags",
+    "support": {
+        "issues": "https://github.com/phpinnacle/tags/issues",
+        "source": "https://github.com/phpinnacle/tags"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "PHPinnacle Devs",
+            "email": "dev@phpinnacle.edu.pl",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "filament/filament": "^4.0|^5.0",
+        "phpinnacle/palette": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PHPinnacle\\Tags\\": "src/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "PHPinnacle\\Tags\\TagsServiceProvider"
+            ]
+        }
+    },
+    "prefer-stable": true
+}
