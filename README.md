@@ -58,3 +58,32 @@ composer test
 `composer test` runs all package PHPUnit and Pest suites.
 
 Run `composer format` to apply the repository's Mago formatting rules.
+
+## Composer Repository
+
+Build all packages into the Satis repository:
+
+```bash
+composer satis:build
+```
+
+The CD workflow deploys successful `master` builds to `packages.phpinnacle.com` and can also be started manually. Consumer projects can replace their local path repository with:
+
+```json
+{
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://packages.phpinnacle.com"
+        }
+    ]
+}
+```
+
+Configure the shared repository credentials outside `composer.json`:
+
+```bash
+composer config --global http-basic.packages.phpinnacle.com composer PASSWORD
+```
+
+The generated files under `build/satis/` are not committed.
