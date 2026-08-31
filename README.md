@@ -47,11 +47,14 @@ All other packages are governed by the license declared in their own directory u
 
 Work inside the package that owns the behavior and use its README and `composer.json` for package-specific setup and verification. Consumer applications should install these packages through Composer and must not modify copies under `vendor/`.
 
-Install the monorepo development tools and check PHP code style from the repository root:
+Install the monorepo development tools and run the PHP checks from the repository root:
 
 ```bash
 composer install
 composer lint
+composer test
 ```
+
+`composer test` runs all package PHPUnit and Pest suites.
 
 Run `composer format` to apply the repository's Mago formatting rules.

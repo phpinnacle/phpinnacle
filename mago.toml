@@ -4,7 +4,7 @@ version = "1.47.4"
 php-version = "8.4"
 
 [source]
-paths = ["packages"]
+paths = ["packages", "tests"]
 excludes = ["packages/*/node_modules/**", "packages/*/vendor/**"]
 
 [formatter]

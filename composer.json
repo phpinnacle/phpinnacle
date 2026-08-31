@@ -3,17 +3,101 @@
     "description": "Development tooling for the PHPinnacle package monorepo.",
     "type": "project",
     "license": "proprietary",
-    "require-dev": {
-        "carthage-software/mago": "1.47.4"
+    "require": {
+        "php": "^8.4"
     },
+    "require-dev": {
+        "carthage-software/mago": "1.47.4",
+        "orchestra/testbench": "^11.0",
+        "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-laravel": "^4.0",
+        "phpinnacle/atlas": "*",
+        "phpinnacle/babylon": "*",
+        "phpinnacle/cabeiro": "*",
+        "phpinnacle/casus": "*",
+        "phpinnacle/cerber": "*",
+        "phpinnacle/comments": "*",
+        "phpinnacle/common": "*",
+        "phpinnacle/dendros": "*",
+        "phpinnacle/iconic": "*",
+        "phpinnacle/intl": "*",
+        "phpinnacle/langcat": "*",
+        "phpinnacle/minos": "*",
+        "phpinnacle/money": "*",
+        "phpinnacle/openapi": "*",
+        "phpinnacle/palette": "*",
+        "phpinnacle/pinax": "*",
+        "phpinnacle/recens": "*",
+        "phpinnacle/rosetta": "*",
+        "phpinnacle/sequentia": "*",
+        "phpinnacle/settings": "*",
+        "phpinnacle/signum": "*",
+        "phpinnacle/skeleton": "*",
+        "phpinnacle/stylus": "*",
+        "phpinnacle/tags": "*",
+        "phpinnacle/tempo": "*",
+        "phpinnacle/vulcan": "*",
+        "spatie/laravel-activitylog": "^5.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PHPinnacle\\Chronica\\": "packages/chronica/src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "packages/*",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "phpinnacle/atlas": "1.0.0",
+                    "phpinnacle/babylon": "1.0.0",
+                    "phpinnacle/cabeiro": "1.0.0",
+                    "phpinnacle/casus": "1.0.0",
+                    "phpinnacle/cerber": "1.0.0",
+                    "phpinnacle/comments": "1.0.0",
+                    "phpinnacle/common": "1.0.0",
+                    "phpinnacle/dendros": "1.0.0",
+                    "phpinnacle/iconic": "1.0.0",
+                    "phpinnacle/intl": "1.0.0",
+                    "phpinnacle/langcat": "1.0.0",
+                    "phpinnacle/minos": "1.0.0",
+                    "phpinnacle/money": "1.0.0",
+                    "phpinnacle/openapi": "1.0.0",
+                    "phpinnacle/palette": "1.0.0",
+                    "phpinnacle/pinax": "1.0.0",
+                    "phpinnacle/recens": "1.0.0",
+                    "phpinnacle/rosetta": "1.0.0",
+                    "phpinnacle/sequentia": "1.0.0",
+                    "phpinnacle/settings": "1.0.0",
+                    "phpinnacle/signum": "1.0.0",
+                    "phpinnacle/skeleton": "1.0.0",
+                    "phpinnacle/stylus": "1.0.0",
+                    "phpinnacle/tags": "1.0.0",
+                    "phpinnacle/tempo": "1.0.0",
+                    "phpinnacle/vulcan": "1.0.0"
+                }
+            }
+        }
+    ],
     "scripts": {
         "lint": [
             "mago format --check",
             "mago lint --semantics"
         ],
-        "format": "mago format"
+        "format": "mago format",
+        "test": "pest packages/*/tests"
     },
     "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        },
         "sort-packages": true
     }
 }
