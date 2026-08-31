@@ -2,14 +2,14 @@
 
 namespace PHPinnacle\Chronica\Actions;
 
+use Filament\Actions\Action;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use PHPinnacle\Chronica\Timeline;
-use RalphJSmit\Filament\Activitylog\Filament\Actions\TimelineAction;
-use RalphJSmit\Filament\Activitylog\Filament\Infolists\Components\Timeline as Component;
 
-class HistoryAction extends TimelineAction
+class HistoryAction extends Action
 {
     private ?Timeline $timeline = null;
 
@@ -33,14 +33,12 @@ class HistoryAction extends TimelineAction
             ->label(__('phpinnacle-chronica::messages.action.label'))
             ->icon(config('phpinnacle-chronica.icon', Heroicon::OutlinedArrowsUpDown))
             ->color('gray')
-            ->visible(fn (Model $record) => Gate::allows('history', $record))
-            ->modifyTimelineUsing($this->applyModify(...));
-    }
-
-    private function applyModify(Component $timeline): Component
-    {
-        $builder = $this->timeline ?? new Timeline($this->getModel());
-
-        return $builder->apply($timeline);
+            ->slideOver()
+            ->modalHeading(__('phpinnacle-chronica::messages.action.label'))
+            ->modalWidth(Width::ExtraLarge)
+            ->modalSubmitAction(false)
+            ->modalCancelAction(false)
+            ->modalContent(fn (Model $record) => ($this->timeline ?? Timeline::make($record::class))->render($record))
+            ->visible(fn (Model $record) => Gate::allows('history', $record));
     }
 }

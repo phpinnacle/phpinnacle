@@ -4,7 +4,6 @@ namespace PHPinnacle\Chronica;
 
 use Filament\Contracts\Plugin;
 use Filament\Panel;
-use RalphJSmit\Filament\Activitylog\FilamentActivitylog;
 
 class ChronicaPlugin implements Plugin
 {
@@ -28,8 +27,5 @@ class ChronicaPlugin implements Plugin
         return 'phpinnacle/chronica';
     }
 
-    public function register(Panel $panel): void
-    {
-        $panel->plugin(FilamentActivitylog::make());
-    }
+    public function register(Panel $panel): void {}
 }

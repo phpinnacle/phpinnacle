@@ -16,6 +16,7 @@
         "phpinnacle/cabeiro": "*",
         "phpinnacle/casus": "*",
         "phpinnacle/cerber": "*",
+        "phpinnacle/chronica": "*",
         "phpinnacle/comments": "*",
         "phpinnacle/common": "*",
         "phpinnacle/dendros": "*",
@@ -36,13 +37,7 @@
         "phpinnacle/stylus": "*",
         "phpinnacle/tags": "*",
         "phpinnacle/tempo": "*",
-        "phpinnacle/vulcan": "*",
-        "spatie/laravel-activitylog": "^5.0"
-    },
-    "autoload": {
-        "psr-4": {
-            "PHPinnacle\\Chronica\\": "packages/chronica/src/"
-        }
+        "phpinnacle/vulcan": "*"
     },
     "autoload-dev": {
         "psr-4": {
@@ -61,6 +56,7 @@
                     "phpinnacle/cabeiro": "1.0.0",
                     "phpinnacle/casus": "1.0.0",
                     "phpinnacle/cerber": "1.0.0",
+                    "phpinnacle/chronica": "1.0.0",
                     "phpinnacle/comments": "1.0.0",
                     "phpinnacle/common": "1.0.0",
                     "phpinnacle/dendros": "1.0.0",

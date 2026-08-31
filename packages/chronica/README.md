@@ -29,7 +29,7 @@ php artisan vendor:publish --tag="phpinnacle-chronica-config"
 
 ## Registering and using history
 
-Register the plugin in a Filament panel:
+Chronica is discovered by Laravel automatically, so panel registration is not required. Existing applications may keep their plugin registration for compatibility:
 
 ```php
 use PHPinnacle\Chronica\ChronicaPlugin;
@@ -48,7 +48,7 @@ class Order extends Model
 }
 ```
 
-Add the action to a resource page or table using `HistoryAction::make()`. Chronica stores events in `activity_log`; use `icon`, `connection` and `tenancy` in `phpinnacle-chronica.php` to adapt presentation and persistence.
+Add the action to a resource page or table using `HistoryAction::make()`. It opens Chronica's native Filament timeline in a slide-over. Chronica stores events in `activity_log`; use `icon`, `connection` and `tenancy` in `phpinnacle-chronica.php` to adapt presentation and persistence.
 
 ## Testing
 

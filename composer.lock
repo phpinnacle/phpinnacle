@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f68a5d0815a931ad5fe6cd42db06d737",
+    "content-hash": "b4c5f3c61fc3ce8b90182687e1154281",
     "packages": [],
     "packages-dev": [
         {
@@ -7305,7 +7305,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/atlas",
-                "reference": "3e518308a343b072ce5f43e784ed132c0a3efb24"
+                "reference": "d3d06fe521fc2132d0911eb69445010de811319a"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -7361,7 +7361,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/babylon",
-                "reference": "b816ad0ec77d38163c36ffec151d07002c75f7d4"
+                "reference": "363325575987ff1fc61c596d4304943168cec89e"
             },
             "require": {
                 "php": "^8.4",
@@ -7414,7 +7414,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/cabeiro",
-                "reference": "165955178521686e9c0d18ce33a6d4b065d2fd93"
+                "reference": "5466fcc72fd411eabe25066b49bb90b7677160d6"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -7470,7 +7470,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/casus",
-                "reference": "77a542c4dab9ae7626be51946236e44a0a02f14b"
+                "reference": "ec966fe693d64f6d5cb344ad92ab58336bd9319d"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -7524,7 +7524,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/cerber",
-                "reference": "b746efdd41b8218c178c8ebfcb83b13e3f374a75"
+                "reference": "16be360c7339b21005a5afd6e87e57858b86825c"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -7577,12 +7577,65 @@
             }
         },
         {
+            "name": "phpinnacle/chronica",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "packages/chronica",
+                "reference": "b9928bc17c3e40f9daff265f35746861f82c7564"
+            },
+            "require": {
+                "filament/filament": "^4.0|^5.0",
+                "php": "^8.4",
+                "spatie/laravel-activitylog": "^5.0",
+                "spatie/laravel-package-tools": "^1.92"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "PHPinnacle\\Chronica\\ChronicaServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "PHPinnacle\\Chronica\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHPinnacle Devs",
+                    "email": "dev@phpinnacle.edu.pl",
+                    "role": "Developer"
+                }
+            ],
+            "description": "A plugin for Laravel Filament that adds chronica to your application.",
+            "homepage": "https://github.com/phpinnacle/chronica",
+            "keywords": [
+                "filament",
+                "laravel",
+                "phpinnacle"
+            ],
+            "support": {
+                "issues": "https://github.com/phpinnacle/chronica/issues",
+                "source": "https://github.com/phpinnacle/chronica"
+            },
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
             "name": "phpinnacle/comments",
             "version": "1.0.0",
             "dist": {
                 "type": "path",
                 "url": "packages/comments",
-                "reference": "0d0f9b3b81f25f0865e7c382cc587256e46febd6"
+                "reference": "e9c69a6e8d8d816fcca3cf111234b5391c8259dc"
             },
             "require": {
                 "php": "^8.4",
@@ -7633,7 +7686,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/common",
-                "reference": "bf5ac4656007fa304efc6945d5ab58938336a906"
+                "reference": "632b96e31d335e3a96a95c551a8e24288619e552"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -7688,7 +7741,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/dendros",
-                "reference": "23a997885c1267281402a09a8d0bb4c128dc62a6"
+                "reference": "191c02476bd79b922661f61536110145a67b328e"
             },
             "require": {
                 "codewithdennis/filament-select-tree": "^4.0",
@@ -7741,7 +7794,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/iconic",
-                "reference": "629892497da05caf6e0bd53a0f214db4ab2e969d"
+                "reference": "c733c669a2e126fcbb4f2811e84c27fd56a4ae23"
             },
             "require": {
                 "codeat3/blade-phosphor-icons": "^2.4",
@@ -7796,7 +7849,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/intl",
-                "reference": "c3c6ffe8210f684788d28e929166bae76144c577"
+                "reference": "ebdbd1024ad025ab7c7857fcaecd1725041a3ab0"
             },
             "require": {
                 "codeat3/blade-phosphor-icons": "^2.4",
@@ -7856,7 +7909,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/langcat",
-                "reference": "ea6a92e2c4c4557a5a3b744a54ed9a44cdaa2651"
+                "reference": "568ed1004870bd16e22f71e7d93f8ef57ce9cb2d"
             },
             "require": {
                 "php": "^8.4",
@@ -7903,7 +7956,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/minos",
-                "reference": "413ca95d98de070a65193c0b224d21f5db5c59a4"
+                "reference": "ba35e203c5a44bdd16fc2c84814fbef875d89694"
             },
             "require": {
                 "laravel/cashier": "^16.5",
@@ -7959,7 +8012,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/money",
-                "reference": "6108e938b6f4d833e04366cec6966d943ee9da19"
+                "reference": "4db03e4bcbf57a31cee6989fd282936925356a76"
             },
             "require": {
                 "codeat3/blade-phosphor-icons": "^2.4",
@@ -8018,7 +8071,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/openapi",
-                "reference": "46a1c3943969c7a001695dfdfabde5e78ff3d959"
+                "reference": "689c0d90e5d346dde24275044fd680466a4437a3"
             },
             "require": {
                 "darkaonline/l5-swagger": "^11.0",
@@ -8070,7 +8123,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/palette",
-                "reference": "b97c15ae70f46dc477a4fdea1091f4471ae197a2"
+                "reference": "b2a6915b1e4281dc0386f2dabf918ba692b06edd"
             },
             "require": {
                 "filament/forms": "^4.0|^5.0",
@@ -8124,7 +8177,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/pinax",
-                "reference": "d10b3711b5e276569543079305420a83c1d58aa5"
+                "reference": "0677814ea644803d2e32c60f3b26bb1df556f396"
             },
             "require": {
                 "php": "^8.4",
@@ -8175,7 +8228,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/recens",
-                "reference": "d99a47860739483756feb2ee597b11004c737021"
+                "reference": "c42d9cb1e184779125c89dfaea7408b5c8870bd6"
             },
             "require": {
                 "php": "^8.4",
@@ -8226,7 +8279,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/rosetta",
-                "reference": "855c9a16501cff920b65739c5df8b380b800ee45"
+                "reference": "53a92b255730ced33c5130764514bcab21ce55e6"
             },
             "require": {
                 "ext-pdo": "*",
@@ -8281,7 +8334,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/sequentia",
-                "reference": "0167648c21a64afb109ea707a40593d804c3c2d7"
+                "reference": "19574b997d28e06290ee43db817ea7506ceddbae"
             },
             "require": {
                 "illuminate/console": "^13.0",
@@ -8337,7 +8390,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/settings",
-                "reference": "784c8a245b70aa3cd23f936ce4c71f429eca7b9a"
+                "reference": "48f7b82ea01833deb7634216cd2b51a3c37c621c"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8389,7 +8442,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/signum",
-                "reference": "f60ca9409e25f218a4cdf07b1819706cf20d34ca"
+                "reference": "9bc80c176f6b29e2fa57e0f5887b656d245bb482"
             },
             "require": {
                 "php": "^8.4",
@@ -8440,7 +8493,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/skeleton",
-                "reference": "3497e39d6046d31401179850000bb0270775b8af"
+                "reference": "cbea6da6cbde5dd9b33796a89668184a6deb0e6a"
             },
             "require": {
                 "php": "^8.4",
@@ -8491,7 +8544,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/stylus",
-                "reference": "806a76e0239d325b93a685a9688a9d8a241dae84"
+                "reference": "b5ba54abe72505240622f6abf3bc8bbb0b819f44"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8544,7 +8597,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/tags",
-                "reference": "a63a69c8ff691c034063582c4651c903febbef81"
+                "reference": "f19a9cbe7945234ebdc73299c946e907c530f157"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8596,7 +8649,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/tempo",
-                "reference": "456cd709354859f46aa710751e88620ea06d6a2e"
+                "reference": "58c717962d80b10741a7c49471cb043487669a63"
             },
             "require": {
                 "cmixin/business-day": "^1.20",
@@ -8655,7 +8708,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/vulcan",
-                "reference": "4bf5902cce76b105da657743f49df744f76c599e"
+                "reference": "6880ed08cca05f64142f13df2ff94005de722c28"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",

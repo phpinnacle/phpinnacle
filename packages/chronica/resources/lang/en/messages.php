@@ -16,4 +16,7 @@ return [
         'heading' => 'No activity recorded',
         'description' => 'Activity records will appear here once changes are made.',
     ],
+    'search' => [
+        'placeholder' => 'Search activity',
+    ],
 ];

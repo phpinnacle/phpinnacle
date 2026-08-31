@@ -22,7 +22,6 @@
     "require": {
         "php": "^8.4",
         "filament/filament": "^4.0|^5.0",
-        "ralphjsmit/laravel-filament-activitylog": "^3.0",
         "spatie/laravel-activitylog": "^5.0",
         "spatie/laravel-package-tools": "^1.92"
     },
