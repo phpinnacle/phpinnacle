@@ -1,0 +1,41 @@
+{
+    "name": "phpinnacle/canvio",
+    "type": "library",
+    "description": "Framework-agnostic PHP client for the Canvas LMS REST API.",
+    "keywords": [
+        "phpinnacle",
+        "canvas-lms",
+        "education",
+        "lms",
+        "api"
+    ],
+    "homepage": "https://github.com/phpinnacle/canvio",
+    "support": {
+        "issues": "https://github.com/phpinnacle/canvio/issues",
+        "source": "https://github.com/phpinnacle/canvio"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "PHPinnacle Devs",
+            "email": "dev@phpinnacle.edu.pl",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "psr/http-client": "^1.0",
+        "psr/http-factory": "^1.1",
+        "psr/http-message": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PHPinnacle\\Canvio\\": "src/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {"branch-alias": {"dev-master": "1.x-dev"}},
+    "prefer-stable": true
+}

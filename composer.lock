@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "048a873266d20f77053eb50f908b5a8c",
+    "content-hash": "2e2ba35a1644cce018a158ab3a5d96ae",
     "packages": [],
     "packages-dev": [
         {
@@ -7987,7 +7987,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/babylon",
-                "reference": "b294d603bf8f8b99ed2ec48c5af160a7ab493936"
+                "reference": "c7ec9f9bd3535a5e55b19c6b4ad562006ab5d1c4"
             },
             "require": {
                 "php": "^8.4",
@@ -8021,7 +8021,7 @@
                     "role": "Developer"
                 }
             ],
-            "description": "A plugin for Laravel Filament that adds babylon to your application.",
+            "description": "Locale selection and session-based localization for Laravel Filament panels.",
             "homepage": "https://github.com/phpinnacle/babylon",
             "keywords": [
                 "filament",
@@ -8097,12 +8097,65 @@
             }
         },
         {
+            "name": "phpinnacle/canvio",
+            "version": "dev-master",
+            "dist": {
+                "type": "path",
+                "url": "packages/canvio",
+                "reference": "3f79277bf2aa4e2282f8035ba676e724e5fd99fd"
+            },
+            "require": {
+                "php": "^8.4",
+                "psr/http-client": "^1.0",
+                "psr/http-factory": "^1.1",
+                "psr/http-message": "^2.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "PHPinnacle\\Canvio\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHPinnacle Devs",
+                    "email": "dev@phpinnacle.edu.pl",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Framework-agnostic PHP client for the Canvas LMS REST API.",
+            "homepage": "https://github.com/phpinnacle/canvio",
+            "keywords": [
+                "api",
+                "canvas-lms",
+                "education",
+                "lms",
+                "phpinnacle"
+            ],
+            "support": {
+                "issues": "https://github.com/phpinnacle/canvio/issues",
+                "source": "https://github.com/phpinnacle/canvio"
+            },
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
             "name": "phpinnacle/casus",
             "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/casus",
-                "reference": "1f82b049786120bdcdc5a9314ff01401fa4dc2c5"
+                "reference": "ce71c8b2614eb04fa84d024c845c79dd09efe56c"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8137,7 +8190,7 @@
                     "role": "Developer"
                 }
             ],
-            "description": "A plugin for Laravel Filament that adds error tracking to your application.",
+            "description": "Exception recording and inspection for Laravel Filament applications.",
             "homepage": "https://github.com/phpinnacle/casus",
             "keywords": [
                 "filament",
@@ -8159,7 +8212,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/cerber",
-                "reference": "c1d7ff6ef8b229337a140f70cdd4fe1bac583142"
+                "reference": "7f278ca90795fe6d1b952a443ace02fdbf6824a4"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8198,7 +8251,7 @@
                     "role": "Developer"
                 }
             ],
-            "description": "A plugin for Laravel Filament that adds users and roles to your application.",
+            "description": "Authentication and authorization management for Laravel Filament applications.",
             "homepage": "https://github.com/phpinnacle/cerber",
             "keywords": [
                 "filament",
@@ -8220,7 +8273,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/chronica",
-                "reference": "6f136785d98ebee2a1f9b41f0c6e5b9d71836884"
+                "reference": "70243bb4539b2f46b9f113a372c43ca2ab48a212"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8254,7 +8307,7 @@
                     "role": "Developer"
                 }
             ],
-            "description": "A plugin for Laravel Filament that adds chronica to your application.",
+            "description": "Auditable Eloquent record histories for Laravel Filament applications.",
             "homepage": "https://github.com/phpinnacle/chronica",
             "keywords": [
                 "filament",
@@ -8276,7 +8329,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/comments",
-                "reference": "c68663cb873516fc2ab5521971c160e8ff9a8a7f"
+                "reference": "59b65247426db34ec1f044bba6b891f417ceca55"
             },
             "require": {
                 "php": "^8.4",
@@ -8308,7 +8361,7 @@
                     "role": "Developer"
                 }
             ],
-            "description": "A plugin for Laravel Filament that adds comments to your application.",
+            "description": "Polymorphic record discussions for Laravel Livewire and Filament.",
             "homepage": "https://github.com/phpinnacle/comments",
             "keywords": [
                 "filament",
@@ -8330,7 +8383,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/common",
-                "reference": "a05377dbdfd9e30a3e280df61f187a0a0f1b6a7b"
+                "reference": "e22948d8fd1b2a1e1ca73bc6581ed79a6fdc7d3f"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8366,7 +8419,7 @@
                     "role": "Developer"
                 }
             ],
-            "description": "A plugin for Laravel Filament that adds common utilities to your application.",
+            "description": "Shared Laravel and Filament filters, columns, concerns, and utilities.",
             "homepage": "https://github.com/phpinnacle/common",
             "keywords": [
                 "filament",
@@ -8617,7 +8670,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/minos",
-                "reference": "84f19cfbeff6bf1c632410dcca20945662f280d2"
+                "reference": "0d79cbf77ee5c47bc043326927787d73905d1f28"
             },
             "require": {
                 "laravel/cashier": "^16.5",
@@ -8654,7 +8707,7 @@
                     "role": "Developer"
                 }
             ],
-            "description": "A plugin for Laravel Filament that adds minos to your application.",
+            "description": "Payment orchestration and operational configuration for Laravel Filament applications.",
             "homepage": "https://github.com/phpinnacle/minos",
             "keywords": [
                 "filament",
@@ -8738,7 +8791,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/openapi",
-                "reference": "125bb81c7d4558d8acf3b736838b320b34e3e372"
+                "reference": "c8a9522d66e760bfb96dcd596f8dcb8f0f60a114"
             },
             "require": {
                 "darkaonline/l5-swagger": "^11.0",
@@ -8771,7 +8824,7 @@
                     "role": "Developer"
                 }
             ],
-            "description": "A plugin for Laravel Filament that adds openapi to your application.",
+            "description": "OpenAPI schema conversion to Laravel validation rules.",
             "homepage": "https://github.com/phpinnacle/openapi",
             "keywords": [
                 "filament",
@@ -8850,7 +8903,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/pinax",
-                "reference": "801a7838fe4282a58ec01429f32aea7845bcb293"
+                "reference": "38769f485d857a59ecc8e0baa958fc1bb71c06dd"
             },
             "require": {
                 "php": "^8.4",
@@ -8882,7 +8935,7 @@
                     "role": "Developer"
                 }
             ],
-            "description": "A plugin for Laravel Filament that adds pinax to your application.",
+            "description": "Polymorphic media management for Laravel Filament applications.",
             "homepage": "https://github.com/phpinnacle/pinax",
             "keywords": [
                 "filament",
@@ -8904,7 +8957,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/recens",
-                "reference": "9373e589d45d9def9e00570f84a6560f306f331c"
+                "reference": "830596b29831c9b1c1e6f945aeb48e0e2c60177b"
             },
             "require": {
                 "php": "^8.4",
@@ -8936,7 +8989,7 @@
                     "role": "Developer"
                 }
             ],
-            "description": "A plugin for Laravel Filament that adds recens to your application.",
+            "description": "Per-user recent page history for Laravel Filament panels.",
             "homepage": "https://github.com/phpinnacle/recens",
             "keywords": [
                 "filament",
@@ -9077,7 +9130,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/settings",
-                "reference": "e01394d28f71c879a3b9124bf84859416007486e"
+                "reference": "442acbf1a7f7680da091da580e8ec563b37cfbf9"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -9110,7 +9163,7 @@
                     "role": "Developer"
                 }
             ],
-            "description": "A plugin for Laravel Filament that adds settings to your application.",
+            "description": "Registry-driven application settings and user preferences for Laravel Filament.",
             "homepage": "https://github.com/phpinnacle/settings",
             "keywords": [
                 "filament",
@@ -9132,7 +9185,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/signum",
-                "reference": "fcf2b2f8f7b08864fec302b241f7ee23af81a614"
+                "reference": "6ed09ca4231a0892ac88e77409a9505e0fdc1f43"
             },
             "require": {
                 "php": "^8.4",
@@ -9164,7 +9217,7 @@
                     "role": "Developer"
                 }
             ],
-            "description": "A plugin for Laravel Filament that adds signum to your application.",
+            "description": "Persistent record-scoped alerts for Laravel Filament applications.",
             "homepage": "https://github.com/phpinnacle/signum",
             "keywords": [
                 "filament",
@@ -9186,7 +9239,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/skeleton",
-                "reference": "87ba646c04c098338dc6e1ee2d892f40dbe2ca66"
+                "reference": "6823753b711b94da94f3988e6e7b432398365619"
             },
             "require": {
                 "php": "^8.4",
@@ -9218,7 +9271,7 @@
                     "role": "Developer"
                 }
             ],
-            "description": "A plugin for Laravel Filament that adds skeleton to your application.",
+            "description": "Starting template for PHPinnacle Laravel Filament plugins.",
             "homepage": "https://github.com/phpinnacle/skeleton",
             "keywords": [
                 "filament",
@@ -9296,7 +9349,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/tags",
-                "reference": "6643c9dcc85a52c69a79c6b763fe5ee274f77c1f"
+                "reference": "d416845bab44fc20d55518b0d6b8b54683a0214b"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -9329,7 +9382,7 @@
                     "role": "Developer"
                 }
             ],
-            "description": "A plugin for Laravel Filament that adds tags to your application.",
+            "description": "Polymorphic record tagging and management for Laravel Filament applications.",
             "homepage": "https://github.com/phpinnacle/tags",
             "keywords": [
                 "filament",

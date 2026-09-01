@@ -15,6 +15,7 @@
         "phpinnacle/atlas": "*",
         "phpinnacle/babylon": "*",
         "phpinnacle/cabeiro": "*",
+        "phpinnacle/canvio": "*",
         "phpinnacle/casus": "*",
         "phpinnacle/cerber": "*",
         "phpinnacle/chronica": "*",

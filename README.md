@@ -9,6 +9,7 @@ This repository is the source of truth for the PHPinnacle package collection. Ea
 | [`phpinnacle/atlas`](packages/atlas/) | Configurable analytics and dashboard builder for Filament with governed datasets, tables, charts, and statistics. |
 | [`phpinnacle/babylon`](packages/babylon/) | Filament panel localization with session middleware, locale selection, and profile integration. |
 | [`phpinnacle/cabeiro`](packages/cabeiro/) | Visual Filament table builder that stores renderer-independent schemas for columns, filters, groups, and summaries. |
+| [`phpinnacle/canvio`](packages/canvio/) | Framework-agnostic PHP client for the Canvas LMS REST API with typed core resources and generic endpoint access. |
 | [`phpinnacle/casus`](packages/casus/) | Application exception recorder and Filament browser for failures, request context, and recurring exceptions. |
 | [`phpinnacle/cerber`](packages/cerber/) | Filament authentication and authorization for users, roles, permissions, OAuth, API tokens, and impersonation. |
 | [`phpinnacle/chronica`](packages/chronica/) | Auditable Eloquent activity history and Filament timelines built on Spatie Activitylog. |
