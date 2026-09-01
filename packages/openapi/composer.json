@@ -1,6 +1,6 @@
 {
     "name": "phpinnacle/openapi",
-    "description": "A plugin for Laravel Filament that adds openapi to your application.",
+    "description": "OpenAPI schema conversion to Laravel validation rules.",
     "keywords": [
         "phpinnacle",
         "laravel",

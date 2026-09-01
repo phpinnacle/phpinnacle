@@ -1,6 +1,6 @@
 {
     "name": "phpinnacle/signum",
-    "description": "A plugin for Laravel Filament that adds signum to your application.",
+    "description": "Persistent record-scoped alerts for Laravel Filament applications.",
     "keywords": [
         "phpinnacle",
         "laravel",

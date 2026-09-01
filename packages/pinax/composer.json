@@ -1,6 +1,6 @@
 {
     "name": "phpinnacle/pinax",
-    "description": "A plugin for Laravel Filament that adds pinax to your application.",
+    "description": "Polymorphic media management for Laravel Filament applications.",
     "keywords": [
         "phpinnacle",
         "laravel",

@@ -1,6 +1,6 @@
 {
     "name": "phpinnacle/comments",
-    "description": "A plugin for Laravel Filament that adds comments to your application.",
+    "description": "Polymorphic record discussions for Laravel Livewire and Filament.",
     "keywords": [
         "phpinnacle",
         "laravel",

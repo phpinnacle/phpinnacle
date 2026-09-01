@@ -1,6 +1,6 @@
 {
     "name": "phpinnacle/chronica",
-    "description": "A plugin for Laravel Filament that adds chronica to your application.",
+    "description": "Auditable Eloquent record histories for Laravel Filament applications.",
     "keywords": [
         "phpinnacle",
         "laravel",

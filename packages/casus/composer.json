@@ -1,6 +1,6 @@
 {
     "name": "phpinnacle/casus",
-    "description": "A plugin for Laravel Filament that adds error tracking to your application.",
+    "description": "Exception recording and inspection for Laravel Filament applications.",
     "keywords": [
         "phpinnacle",
         "laravel",

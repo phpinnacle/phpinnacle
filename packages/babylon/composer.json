@@ -1,6 +1,6 @@
 {
     "name": "phpinnacle/babylon",
-    "description": "A plugin for Laravel Filament that adds babylon to your application.",
+    "description": "Locale selection and session-based localization for Laravel Filament panels.",
     "keywords": [
         "phpinnacle",
         "laravel",

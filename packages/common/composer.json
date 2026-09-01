@@ -1,6 +1,6 @@
 {
     "name": "phpinnacle/common",
-    "description": "A plugin for Laravel Filament that adds common utilities to your application.",
+    "description": "Shared Laravel and Filament filters, columns, concerns, and utilities.",
     "keywords": [
         "phpinnacle",
         "laravel",

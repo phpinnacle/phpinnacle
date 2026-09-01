@@ -1,76 +1,93 @@
-# This is my package porta
+# Porta for Filament
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/phpinnacle/porta.svg?style=flat-square)](https://packagist.org/packages/phpinnacle/porta)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/phpinnacle/porta/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/phpinnacle/porta/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/phpinnacle/porta/fix-php-code-styling.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/phpinnacle/porta/actions?query=workflow%3A"Fix+PHP+code+styling"+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/phpinnacle/porta.svg?style=flat-square)](https://packagist.org/packages/phpinnacle/porta)
 
+Porta receives JSON webhooks through integrations managed in Filament. Each integration controls authentication, response behavior, and payload transforms before an accepted webhook is dispatched to an application-defined handler through Laravel's queue.
 
+## Features
 
-This is where your description should go. Limit it to a paragraph or two. Consider adding a small example.
+- Filament resource for configuring and testing webhook integrations.
+- Header, query-string, or unauthenticated webhook endpoints.
+- JSONPath-based mapping, dropping, moving, casting, trimming, date conversion, renaming, and insertion.
+- Configurable empty, identity-only, or webhook-detail responses and HTTP status codes.
+- Queued processing with persisted status, error details, retry actions, and delivery history.
+- Handler registry for routing transformed payloads into application code.
+- Optional tenancy and policy-backed integration management.
+
+## Requirements
+
+- PHP 8.4 or later
+- Laravel 13
+- Filament 5
+- A queue worker when using an asynchronous queue connection
 
 ## Installation
 
-You can install the package via composer:
-
 ```bash
 composer require phpinnacle/porta
-```
-
-You can publish and run the migrations with:
-
-```bash
 php artisan vendor:publish --tag="phpinnacle-porta-migrations"
 php artisan migrate
 ```
 
-You can publish the config file with:
+Publish the configuration when the navigation or tenancy defaults need to change:
 
 ```bash
 php artisan vendor:publish --tag="phpinnacle-porta-config"
 ```
 
-This is the contents of the published config file:
+## Registering handlers
+
+Register the plugin and every accepted webhook type in the target panel:
 
 ```php
-return [
-];
+use App\Jobs\SyncContact;
+use PHPinnacle\Porta\Handler;
+use PHPinnacle\Porta\PortaPlugin;
+
+$panel->plugin(
+    PortaPlugin::make()->handle(
+        new Handler(
+            type: 'crm.contact.updated',
+            label: 'CRM contact updated',
+            invoker: function (array $payload) {
+                SyncContact::dispatch($payload);
+            },
+            example: '{"contact":{"id":"example-id"}}',
+        ),
+    ),
+);
 ```
 
-Optionally, you can publish the views using
+The invoker receives the transformed payload. Handler types are stable identifiers: an integration selects one type, and the queued job resolves that type from the registry when processing begins.
+
+## Receiving webhooks
+
+Create an integration in Filament, select a registered handler, and configure its authentication, response, and transforms. The edit page shows the generated endpoint:
+
+```text
+POST /webhook/{integration-id}
+```
+
+Porta stores the raw body and request headers, then dispatches `ProcessWebhook`. Run the application's queue worker so scheduled webhooks can reach their handlers:
 
 ```bash
-php artisan vendor:publish --tag="phpinnacle-porta-views"
+php artisan queue:work
 ```
 
-## Usage
+Only JSON payloads are currently supported. Transforms run in their configured order before the handler is invoked. A JSON payload containing `{"test":"test"}` exercises endpoint authentication and returns immediately without creating a webhook record.
 
-```php
-```
+Integration access is controlled by `IntegrationPolicy`. Webhook records may contain credentials or personal data from request headers and bodies, so restrict the Filament resource, logs, and database access and define an appropriate retention policy.
 
-## Testing
+## Development
+
+Run the repository checks from the monorepo root:
 
 ```bash
+composer lint
 composer test
 ```
 
-## Changelog
+## Changelog and license
 
-Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
-
-## Contributing
-
-Please see [CONTRIBUTING](.github/CONTRIBUTING.md) for details.
-
-## Security Vulnerabilities
-
-Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
-
-## Credits
-
-- [PHPinnacle](https://github.com/phpinnacle)
-- [All Contributors](../../contributors)
-
-## License
-
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+See [CHANGELOG](CHANGELOG.md). Released under the [MIT License](LICENSE.md).

@@ -1,6 +1,6 @@
 {
     "name": "phpinnacle/settings",
-    "description": "A plugin for Laravel Filament that adds settings to your application.",
+    "description": "Registry-driven application settings and user preferences for Laravel Filament.",
     "keywords": [
         "phpinnacle",
         "laravel",

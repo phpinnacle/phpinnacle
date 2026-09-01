@@ -1,76 +1,118 @@
-# This is my package razor
+# Razor for Filament
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/phpinnacle/razor.svg?style=flat-square)](https://packagist.org/packages/phpinnacle/razor)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/phpinnacle/razor/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/phpinnacle/razor/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/phpinnacle/razor/fix-php-code-styling.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/phpinnacle/razor/actions?query=workflow%3A"Fix+PHP+code+styling"+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/phpinnacle/razor.svg?style=flat-square)](https://packagist.org/packages/phpinnacle/razor)
 
+Razor manages reusable document templates in Filament and renders persisted document snapshots from application records. Applications define document sections and context, while Razor provides template editing, numbering, version history, Twig and Handlebars rendering, and related-record document management.
 
+## Features
 
-This is where your description should go. Limit it to a paragraph or two. Consider adding a small example.
+- Filament resource for creating, previewing, activating, and versioning templates.
+- Application-defined template sections with custom variables, forms, previews, and document factories.
+- Built-in Twig and Handlebars rendering engines.
+- Sequence-backed document numbering through `phpinnacle/sequentia`.
+- Persisted document snapshots with parent documents and issue, signature, and expiry dates.
+- Reusable `ManageDocuments` page for Eloquent record resources.
+- Optional tenancy and policy-backed template management.
+
+## Requirements
+
+- PHP 8.4 or later
+- Laravel 13
+- Filament 5
 
 ## Installation
 
-You can install the package via composer:
-
 ```bash
 composer require phpinnacle/razor
-```
-
-You can publish and run the migrations with:
-
-```bash
 php artisan vendor:publish --tag="phpinnacle-razor-migrations"
 php artisan migrate
 ```
 
-You can publish the config file with:
+Publish the configuration when the user model, navigation, or tenancy defaults need to change:
 
 ```bash
 php artisan vendor:publish --tag="phpinnacle-razor-config"
 ```
 
-This is the contents of the published config file:
+## Registering document sections
+
+A section connects templates to an application record and defines how a `Document` is created:
 
 ```php
-return [
-];
+use App\Models\Order;
+use PHPinnacle\Razor\Models\Document;
+use PHPinnacle\Razor\Models\Section;
+use PHPinnacle\Razor\RazorPlugin;
+
+$panel->plugin(
+    RazorPlugin::make()->sections(
+        Section::make('Orders')
+            ->key('orders')
+            ->render(function (Order $record, array $data) {
+                return new Document([
+                    ...$data,
+                    'holder_type' => $record->getMorphClass(),
+                    'holder_id' => $record->getKey(),
+                    'entity_type' => $record->getMorphClass(),
+                    'entity_id' => $record->getKey(),
+                    'context' => ['order' => $record->toArray()],
+                ]);
+            }),
+    ),
+);
 ```
 
-Optionally, you can publish the views using
+The section key is stored on each template and must remain stable. Use `form()` to collect section-specific document data, `variables()` to describe editor variables, and `preview()` when template authors should render a preview with sample data.
 
-```bash
-php artisan vendor:publish --tag="phpinnacle-razor-views"
-```
+## Adding documents to a resource
 
-## Usage
+The owner model exposes documents through a polymorphic relationship:
 
 ```php
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use PHPinnacle\Razor\Models\Document;
+
+public function documents(): MorphMany
+{
+    return $this->morphMany(Document::class, 'holder');
+}
 ```
 
-## Testing
+Add a resource page by extending `ManageDocuments` and returning the section keys supported by that resource:
+
+```php
+use App\Filament\Resources\Orders\OrderResource;
+use PHPinnacle\Razor\Pages\ManageDocuments;
+
+final class ManageOrderDocuments extends ManageDocuments
+{
+    protected static string $resource = OrderResource::class;
+
+    protected function getSections(): array
+    {
+        return ['orders'];
+    }
+}
+```
+
+Register the page in the resource's `getPages()` array. The page creates a document from an active template, renders it once with the document context, and stores the resulting HTML snapshot.
+
+## Templates and rendering
+
+Registering `RazorPlugin` adds the Templates resource to the panel. Twig templates have access to the document context, the Twig Intl extension, and a `money` filter backed by `phpinnacle/money`. Handlebars templates include a `date` helper. Updating template content creates a version-history record; existing documents keep their previously rendered content.
+
+The bundled `documents.show` route renders stored document HTML without escaping it. Treat template authors as trusted, add appropriate access control for document URLs, and use a Twig sandbox or equivalent restrictions before accepting templates from untrusted users.
+
+## Development
+
+Run the repository checks from the monorepo root:
 
 ```bash
+composer lint
 composer test
 ```
 
-## Changelog
+## Changelog and license
 
-Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
-
-## Contributing
-
-Please see [CONTRIBUTING](.github/CONTRIBUTING.md) for details.
-
-## Security Vulnerabilities
-
-Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
-
-## Credits
-
-- [PHPinnacle](https://github.com/phpinnacle)
-- [All Contributors](../../contributors)
-
-## License
-
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+See [CHANGELOG](CHANGELOG.md). Released under the [MIT License](LICENSE.md).

@@ -1,6 +1,6 @@
 {
     "name": "phpinnacle/tags",
-    "description": "A plugin for Laravel Filament that adds tags to your application.",
+    "description": "Polymorphic record tagging and management for Laravel Filament applications.",
     "keywords": [
         "phpinnacle",
         "laravel",

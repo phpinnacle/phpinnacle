@@ -1,6 +1,6 @@
 {
     "name": "phpinnacle/skeleton",
-    "description": "A plugin for Laravel Filament that adds skeleton to your application.",
+    "description": "Starting template for PHPinnacle Laravel Filament plugins.",
     "keywords": [
         "phpinnacle",
         "laravel",

@@ -1,6 +1,6 @@
 {
     "name": "phpinnacle/recens",
-    "description": "A plugin for Laravel Filament that adds recens to your application.",
+    "description": "Per-user recent page history for Laravel Filament panels.",
     "keywords": [
         "phpinnacle",
         "laravel",

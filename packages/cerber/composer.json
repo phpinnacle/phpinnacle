@@ -1,6 +1,6 @@
 {
     "name": "phpinnacle/cerber",
-    "description": "A plugin for Laravel Filament that adds users and roles to your application.",
+    "description": "Authentication and authorization management for Laravel Filament applications.",
     "keywords": [
         "phpinnacle",
         "laravel",
