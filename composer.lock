@@ -7928,7 +7928,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/atlas",
-                "reference": "d3d06fe521fc2132d0911eb69445010de811319a"
+                "reference": "3357a1d566410de0b448513ae7b0ae2097ff7080"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -7941,6 +7941,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Atlas\\AtlasServiceProvider"
@@ -7984,7 +7987,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/babylon",
-                "reference": "363325575987ff1fc61c596d4304943168cec89e"
+                "reference": "3208b0e960c004eb0ed9d065ae2d106bbbfd4642"
             },
             "require": {
                 "php": "^8.4",
@@ -7994,6 +7997,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Babylon\\BabylonServiceProvider"
@@ -8037,7 +8043,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/cabeiro",
-                "reference": "5466fcc72fd411eabe25066b49bb90b7677160d6"
+                "reference": "9cde3dc0801e11db0ecf6df6a860e150da47b9b8"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8048,6 +8054,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Cabeiro\\CabeiroServiceProvider"
@@ -8093,7 +8102,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/casus",
-                "reference": "ec966fe693d64f6d5cb344ad92ab58336bd9319d"
+                "reference": "15d436e5566579ea5f2bc82d69a1d92d19995747"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8104,6 +8113,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Casus\\CasusServiceProvider"
@@ -8147,7 +8159,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/cerber",
-                "reference": "16be360c7339b21005a5afd6e87e57858b86825c"
+                "reference": "bb1f00658a123e547af5f02c60f148507264c030"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8162,6 +8174,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Cerber\\CerberServiceProvider"
@@ -8205,7 +8220,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/chronica",
-                "reference": "b9928bc17c3e40f9daff265f35746861f82c7564"
+                "reference": "b371572e6c1795d2f1dade824bed6b80bc255850"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8215,6 +8230,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Chronica\\ChronicaServiceProvider"
@@ -8258,7 +8276,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/comments",
-                "reference": "e9c69a6e8d8d816fcca3cf111234b5391c8259dc"
+                "reference": "2293d5ef34439f2beff57b801eac05bcff8d4206"
             },
             "require": {
                 "php": "^8.4",
@@ -8266,6 +8284,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Comments\\CommentsServiceProvider"
@@ -8309,7 +8330,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/common",
-                "reference": "632b96e31d335e3a96a95c551a8e24288619e552"
+                "reference": "a40255e1ad01451ca9ba6e44d27928de8433d0b0"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8318,6 +8339,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Common\\CommonServiceProvider"
@@ -8364,7 +8388,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/dendros",
-                "reference": "191c02476bd79b922661f61536110145a67b328e"
+                "reference": "eae12ee6fc78d019ee3e7dc47f17e296e588c2b0"
             },
             "require": {
                 "codewithdennis/filament-select-tree": "^4.0",
@@ -8374,6 +8398,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Dendros\\DendrosServiceProvider"
@@ -8417,7 +8444,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/iconic",
-                "reference": "c733c669a2e126fcbb4f2811e84c27fd56a4ae23"
+                "reference": "d532178be45fe7bcc2df25b855b1c0a029f0d8bf"
             },
             "require": {
                 "codeat3/blade-phosphor-icons": "^2.4",
@@ -8427,6 +8454,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Iconic\\IconicServiceProvider"
@@ -8472,7 +8502,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/intl",
-                "reference": "ebdbd1024ad025ab7c7857fcaecd1725041a3ab0"
+                "reference": "af44a0615f23294b84dd2c5747a38dc7c5bcc105"
             },
             "require": {
                 "codeat3/blade-phosphor-icons": "^2.4",
@@ -8484,6 +8514,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Intl\\IntlServiceProvider"
@@ -8532,7 +8565,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/langcat",
-                "reference": "568ed1004870bd16e22f71e7d93f8ef57ce9cb2d"
+                "reference": "1a134980f21046a922eb8aff88f7f9e6bdedeefc"
             },
             "require": {
                 "php": "^8.4",
@@ -8541,6 +8574,11 @@
                 "psr/http-message": "^2.0"
             },
             "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                }
+            },
             "autoload": {
                 "psr-4": {
                     "PHPinnacle\\Langcat\\": "src/"
@@ -8579,7 +8617,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/minos",
-                "reference": "ba35e203c5a44bdd16fc2c84814fbef875d89694"
+                "reference": "856196548a58ec79a5ec65f1f5b4a209f110cd0f"
             },
             "require": {
                 "laravel/cashier": "^16.5",
@@ -8592,6 +8630,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Minos\\MinosServiceProvider"
@@ -8635,7 +8676,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/money",
-                "reference": "4db03e4bcbf57a31cee6989fd282936925356a76"
+                "reference": "6271fea35df581ecc596f04e85c71a56a0c0374d"
             },
             "require": {
                 "codeat3/blade-phosphor-icons": "^2.4",
@@ -8648,6 +8689,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Money\\MoneyServiceProvider"
@@ -8694,7 +8738,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/openapi",
-                "reference": "689c0d90e5d346dde24275044fd680466a4437a3"
+                "reference": "204e5aefcbdc07042ed50d8b8ec07634274aa0b1"
             },
             "require": {
                 "darkaonline/l5-swagger": "^11.0",
@@ -8703,6 +8747,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\OpenApi\\OpenApiServiceProvider"
@@ -8746,7 +8793,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/palette",
-                "reference": "b2a6915b1e4281dc0386f2dabf918ba692b06edd"
+                "reference": "25068caa6785d6ad84dc1aa962ee4c20e58e5577"
             },
             "require": {
                 "filament/forms": "^4.0|^5.0",
@@ -8756,6 +8803,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Palette\\PaletteServiceProvider"
@@ -8800,7 +8850,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/pinax",
-                "reference": "0677814ea644803d2e32c60f3b26bb1df556f396"
+                "reference": "e46639139a17794d3f0d30c0cc9761107396ac56"
             },
             "require": {
                 "php": "^8.4",
@@ -8808,6 +8858,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Pinax\\PinaxServiceProvider"
@@ -8851,7 +8904,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/recens",
-                "reference": "c42d9cb1e184779125c89dfaea7408b5c8870bd6"
+                "reference": "1f7a18d33832078fc918e7eca81734853728037a"
             },
             "require": {
                 "php": "^8.4",
@@ -8859,6 +8912,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Recens\\RecensServiceProvider"
@@ -8902,7 +8958,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/rosetta",
-                "reference": "53a92b255730ced33c5130764514bcab21ce55e6"
+                "reference": "88ebb2af126916dab4733dabf2dd0c46404f270c"
             },
             "require": {
                 "ext-pdo": "*",
@@ -8913,6 +8969,11 @@
                 "phpunit/phpunit": "^11.5|^12.0"
             },
             "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                }
+            },
             "autoload": {
                 "psr-4": {
                     "PHPinnacle\\Rosetta\\": "src/"
@@ -8957,7 +9018,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/sequentia",
-                "reference": "19574b997d28e06290ee43db817ea7506ceddbae"
+                "reference": "eac559b9967c40ebe45bb03c8f4c6dfedbce72fa"
             },
             "require": {
                 "illuminate/console": "^13.0",
@@ -8968,6 +9029,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Sequentia\\SequentiaServiceProvider"
@@ -9013,7 +9077,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/settings",
-                "reference": "48f7b82ea01833deb7634216cd2b51a3c37c621c"
+                "reference": "5b0288532f42e93cfc2ae4a953d53be56d4a44c7"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -9022,6 +9086,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Settings\\SettingsServiceProvider"
@@ -9065,7 +9132,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/signum",
-                "reference": "9bc80c176f6b29e2fa57e0f5887b656d245bb482"
+                "reference": "fc5613c4c0bd7e07fbe01bdf78c7938cf225d24b"
             },
             "require": {
                 "php": "^8.4",
@@ -9073,6 +9140,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Signum\\SignumServiceProvider"
@@ -9116,7 +9186,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/skeleton",
-                "reference": "cbea6da6cbde5dd9b33796a89668184a6deb0e6a"
+                "reference": "d54ed8630686d76eb521767d44755d5403200d05"
             },
             "require": {
                 "php": "^8.4",
@@ -9124,6 +9194,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Skeleton\\SkeletonServiceProvider"
@@ -9167,7 +9240,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/stylus",
-                "reference": "b5ba54abe72505240622f6abf3bc8bbb0b819f44"
+                "reference": "201bc7780217ae11e96cf2144a30447619b6bc3f"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -9177,6 +9250,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Stylus\\StylusServiceProvider"
@@ -9220,7 +9296,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/tags",
-                "reference": "f19a9cbe7945234ebdc73299c946e907c530f157"
+                "reference": "00d2c289778df3f835d349cd40e0509584c85b9c"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -9229,6 +9305,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Tags\\TagsServiceProvider"
@@ -9272,7 +9351,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/tempo",
-                "reference": "58c717962d80b10741a7c49471cb043487669a63"
+                "reference": "8e67bfc4233053c2727066d9d7f8dd9c0c5e5455"
             },
             "require": {
                 "cmixin/business-day": "^1.20",
@@ -9285,6 +9364,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Tempo\\TempoServiceProvider"
@@ -9331,7 +9413,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/vulcan",
-                "reference": "6880ed08cca05f64142f13df2ff94005de722c28"
+                "reference": "0d09e2a9c0dc174e0f607763326606ccae10c3de"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -9343,6 +9425,9 @@
             },
             "type": "library",
             "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
                 "laravel": {
                     "providers": [
                         "PHPinnacle\\Vulcan\\VulcanServiceProvider"

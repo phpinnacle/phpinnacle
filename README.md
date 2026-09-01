@@ -67,7 +67,9 @@ Build all packages into the Satis repository:
 composer satis:build
 ```
 
-The CD workflow deploys successful `master` builds to `packages.phpinnacle.com` and can also be started manually. Consumer projects can replace their local path repository with:
+The CD workflow splits each package to its generated GitHub repository on `master`, then deploys successful builds to `packages.phpinnacle.com`. Package mirrors are deployment artifacts; changes belong in this monorepo. Configure the `PACKAGE_SPLIT_TOKEN` repository secret with read and write access to the package mirrors.
+
+Active development packages are published as `dev-master` with a `1.x-dev` branch alias. Consumer projects can replace their local path repository with:
 
 ```json
 {
@@ -78,6 +80,12 @@ The CD workflow deploys successful `master` builds to `packages.phpinnacle.com` 
         }
     ]
 }
+```
+
+Require the active development line explicitly:
+
+```bash
+composer require phpinnacle/tempo:1.x-dev
 ```
 
 Configure the shared repository credentials outside `composer.json`:

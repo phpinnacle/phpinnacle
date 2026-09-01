@@ -20,6 +20,6 @@
     },
     "autoload": {"psr-4": {"PHPinnacle\\Tempo\\": "src/"}},
     "config": {"sort-packages": true},
-    "extra": {"laravel": {"providers": ["PHPinnacle\\Tempo\\TempoServiceProvider"]}},
+    "extra": {"branch-alias": {"dev-master": "1.x-dev"}, "laravel": {"providers": ["PHPinnacle\\Tempo\\TempoServiceProvider"]}},
     "prefer-stable": true
 }
