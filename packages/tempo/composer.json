@@ -14,7 +14,7 @@
         "cmixin/business-day": "^1.20",
         "danharrin/date-format-converter": "^0.3.1",
         "filament/filament": "^4.0|^5.0",
-        "phpinnacle/iconic": "^1.0",
+        "phpinnacle/iconic": "1.x-dev",
         "rlanvin/php-rrule": "^2.6",
         "spatie/laravel-package-tools": "^1.92"
     },

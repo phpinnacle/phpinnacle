@@ -50,39 +50,12 @@
             "type": "path",
             "url": "packages/*",
             "options": {
-                "symlink": true,
-                "versions": {
-                    "phpinnacle/atlas": "1.0.0",
-                    "phpinnacle/babylon": "1.0.0",
-                    "phpinnacle/cabeiro": "1.0.0",
-                    "phpinnacle/casus": "1.0.0",
-                    "phpinnacle/cerber": "1.0.0",
-                    "phpinnacle/chronica": "1.0.0",
-                    "phpinnacle/comments": "1.0.0",
-                    "phpinnacle/common": "1.0.0",
-                    "phpinnacle/dendros": "1.0.0",
-                    "phpinnacle/iconic": "1.0.0",
-                    "phpinnacle/intl": "1.0.0",
-                    "phpinnacle/langcat": "1.0.0",
-                    "phpinnacle/minos": "1.0.0",
-                    "phpinnacle/money": "1.0.0",
-                    "phpinnacle/openapi": "1.0.0",
-                    "phpinnacle/palette": "1.0.0",
-                    "phpinnacle/pinax": "1.0.0",
-                    "phpinnacle/recens": "1.0.0",
-                    "phpinnacle/rosetta": "1.0.0",
-                    "phpinnacle/sequentia": "1.0.0",
-                    "phpinnacle/settings": "1.0.0",
-                    "phpinnacle/signum": "1.0.0",
-                    "phpinnacle/skeleton": "1.0.0",
-                    "phpinnacle/stylus": "1.0.0",
-                    "phpinnacle/tags": "1.0.0",
-                    "phpinnacle/tempo": "1.0.0",
-                    "phpinnacle/vulcan": "1.0.0"
-                }
+                "symlink": true
             }
         }
     ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "scripts": {
         "lint": [
             "mago format --check",

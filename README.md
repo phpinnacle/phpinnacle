@@ -85,6 +85,8 @@ Active development packages are published as `dev-master` with a `1.x-dev` branc
 Require the active development line explicitly:
 
 ```bash
+composer config minimum-stability dev
+composer config prefer-stable true
 composer require phpinnacle/tempo:1.x-dev
 ```
 

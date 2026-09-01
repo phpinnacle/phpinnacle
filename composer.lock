@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ca3bb2ec2be805a304ede421a9be6414",
+    "content-hash": "048a873266d20f77053eb50f908b5a8c",
     "packages": [],
     "packages-dev": [
         {
@@ -7924,19 +7924,19 @@
         },
         {
             "name": "phpinnacle/atlas",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/atlas",
-                "reference": "3357a1d566410de0b448513ae7b0ae2097ff7080"
+                "reference": "7537e3e19b2a5661a8a95173d933aa52d565fdf6"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
-                "phpinnacle/cabeiro": "^1.0",
-                "phpinnacle/common": "^1.0",
-                "phpinnacle/iconic": "^1.0",
-                "phpinnacle/vulcan": "^1.0",
+                "phpinnacle/cabeiro": "1.x-dev",
+                "phpinnacle/common": "1.x-dev",
+                "phpinnacle/iconic": "1.x-dev",
+                "phpinnacle/vulcan": "1.x-dev",
                 "spatie/laravel-package-tools": "^1.92"
             },
             "type": "library",
@@ -7983,16 +7983,16 @@
         },
         {
             "name": "phpinnacle/babylon",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/babylon",
-                "reference": "3208b0e960c004eb0ed9d065ae2d106bbbfd4642"
+                "reference": "306cc504567dabeca8e1b5ee751b440d98bd1958"
             },
             "require": {
                 "php": "^8.4",
-                "phpinnacle/common": "^1.0",
-                "phpinnacle/intl": "^1.0",
+                "phpinnacle/common": "1.x-dev",
+                "phpinnacle/intl": "1.x-dev",
                 "spatie/laravel-package-tools": "^1.92"
             },
             "type": "library",
@@ -8039,17 +8039,17 @@
         },
         {
             "name": "phpinnacle/cabeiro",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/cabeiro",
-                "reference": "9cde3dc0801e11db0ecf6df6a860e150da47b9b8"
+                "reference": "83c736633b458bec72adc72791ced15d3028c055"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
-                "phpinnacle/iconic": "^1.0",
-                "phpinnacle/palette": "^1.0",
+                "phpinnacle/iconic": "1.x-dev",
+                "phpinnacle/palette": "1.x-dev",
                 "spatie/laravel-package-tools": "^1.92"
             },
             "type": "library",
@@ -8098,17 +8098,17 @@
         },
         {
             "name": "phpinnacle/casus",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/casus",
-                "reference": "15d436e5566579ea5f2bc82d69a1d92d19995747"
+                "reference": "42c4617fbbadd330e24b3cf871ea561d79da043a"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
                 "phiki/phiki": "^2.2",
                 "php": "^8.4",
-                "phpinnacle/tempo": "^1.0",
+                "phpinnacle/tempo": "1.x-dev",
                 "spatie/laravel-package-tools": "^1.92"
             },
             "type": "library",
@@ -8155,11 +8155,11 @@
         },
         {
             "name": "phpinnacle/cerber",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/cerber",
-                "reference": "bb1f00658a123e547af5f02c60f148507264c030"
+                "reference": "cee17f992912ef754044f362e1bee2e66b320d09"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8167,8 +8167,8 @@
                 "laravel/sanctum": "^4.0",
                 "laravel/socialite": "^5.0",
                 "php": "^8.4",
-                "phpinnacle/common": "^1.0",
-                "phpinnacle/tempo": "^1.0",
+                "phpinnacle/common": "1.x-dev",
+                "phpinnacle/tempo": "1.x-dev",
                 "socialiteproviders/yandex": "^4.1",
                 "spatie/laravel-package-tools": "^1.92"
             },
@@ -8216,11 +8216,11 @@
         },
         {
             "name": "phpinnacle/chronica",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/chronica",
-                "reference": "b371572e6c1795d2f1dade824bed6b80bc255850"
+                "reference": "6f136785d98ebee2a1f9b41f0c6e5b9d71836884"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8272,11 +8272,11 @@
         },
         {
             "name": "phpinnacle/comments",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/comments",
-                "reference": "2293d5ef34439f2beff57b801eac05bcff8d4206"
+                "reference": "c68663cb873516fc2ab5521971c160e8ff9a8a7f"
             },
             "require": {
                 "php": "^8.4",
@@ -8326,11 +8326,11 @@
         },
         {
             "name": "phpinnacle/common",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/common",
-                "reference": "a40255e1ad01451ca9ba6e44d27928de8433d0b0"
+                "reference": "a05377dbdfd9e30a3e280df61f187a0a0f1b6a7b"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8384,11 +8384,11 @@
         },
         {
             "name": "phpinnacle/dendros",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/dendros",
-                "reference": "eae12ee6fc78d019ee3e7dc47f17e296e588c2b0"
+                "reference": "a7cc018274dad2ce03855e088ff6099daab25acf"
             },
             "require": {
                 "codewithdennis/filament-select-tree": "^4.0",
@@ -8440,11 +8440,11 @@
         },
         {
             "name": "phpinnacle/iconic",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/iconic",
-                "reference": "d532178be45fe7bcc2df25b855b1c0a029f0d8bf"
+                "reference": "8927f46f84cbef6dc121e0aabb2d6d6a360939e2"
             },
             "require": {
                 "codeat3/blade-phosphor-icons": "^2.4",
@@ -8498,11 +8498,11 @@
         },
         {
             "name": "phpinnacle/intl",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/intl",
-                "reference": "af44a0615f23294b84dd2c5747a38dc7c5bcc105"
+                "reference": "17b7636a566284efaf553b52d5f8140b82c9855a"
             },
             "require": {
                 "codeat3/blade-phosphor-icons": "^2.4",
@@ -8561,11 +8561,11 @@
         },
         {
             "name": "phpinnacle/langcat",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/langcat",
-                "reference": "1a134980f21046a922eb8aff88f7f9e6bdedeefc"
+                "reference": "7ca2fee2761839bc985f0a3efc61503f8f6bd4fb"
             },
             "require": {
                 "php": "^8.4",
@@ -8613,19 +8613,19 @@
         },
         {
             "name": "phpinnacle/minos",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/minos",
-                "reference": "856196548a58ec79a5ec65f1f5b4a209f110cd0f"
+                "reference": "d78c7f7e2606fe2797e8f999813440a9417a4193"
             },
             "require": {
                 "laravel/cashier": "^16.5",
                 "php": "^8.4",
-                "phpinnacle/common": "^1.0",
-                "phpinnacle/money": "^1.0",
-                "phpinnacle/palette": "^1.0",
-                "phpinnacle/tempo": "^1.0",
+                "phpinnacle/common": "1.x-dev",
+                "phpinnacle/money": "1.x-dev",
+                "phpinnacle/palette": "1.x-dev",
+                "phpinnacle/tempo": "1.x-dev",
                 "spatie/laravel-package-tools": "^1.92"
             },
             "type": "library",
@@ -8672,11 +8672,11 @@
         },
         {
             "name": "phpinnacle/money",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/money",
-                "reference": "6271fea35df581ecc596f04e85c71a56a0c0374d"
+                "reference": "9db52455eeb2847f99d604e0e2f3889d4e8b9e4b"
             },
             "require": {
                 "codeat3/blade-phosphor-icons": "^2.4",
@@ -8734,11 +8734,11 @@
         },
         {
             "name": "phpinnacle/openapi",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/openapi",
-                "reference": "204e5aefcbdc07042ed50d8b8ec07634274aa0b1"
+                "reference": "125bb81c7d4558d8acf3b736838b320b34e3e372"
             },
             "require": {
                 "darkaonline/l5-swagger": "^11.0",
@@ -8789,11 +8789,11 @@
         },
         {
             "name": "phpinnacle/palette",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/palette",
-                "reference": "25068caa6785d6ad84dc1aa962ee4c20e58e5577"
+                "reference": "d1d71dec4f2fb36e1adceb22182a192c4b6be2da"
             },
             "require": {
                 "filament/forms": "^4.0|^5.0",
@@ -8846,11 +8846,11 @@
         },
         {
             "name": "phpinnacle/pinax",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/pinax",
-                "reference": "e46639139a17794d3f0d30c0cc9761107396ac56"
+                "reference": "801a7838fe4282a58ec01429f32aea7845bcb293"
             },
             "require": {
                 "php": "^8.4",
@@ -8900,11 +8900,11 @@
         },
         {
             "name": "phpinnacle/recens",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/recens",
-                "reference": "1f7a18d33832078fc918e7eca81734853728037a"
+                "reference": "9373e589d45d9def9e00570f84a6560f306f331c"
             },
             "require": {
                 "php": "^8.4",
@@ -8954,11 +8954,11 @@
         },
         {
             "name": "phpinnacle/rosetta",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/rosetta",
-                "reference": "88ebb2af126916dab4733dabf2dd0c46404f270c"
+                "reference": "f0da5277b6507aaa28351e514b5d457a461a874d"
             },
             "require": {
                 "ext-pdo": "*",
@@ -9014,11 +9014,11 @@
         },
         {
             "name": "phpinnacle/sequentia",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/sequentia",
-                "reference": "eac559b9967c40ebe45bb03c8f4c6dfedbce72fa"
+                "reference": "8a4776265837a145749f39eef6ddc0dc9240d711"
             },
             "require": {
                 "illuminate/console": "^13.0",
@@ -9073,11 +9073,11 @@
         },
         {
             "name": "phpinnacle/settings",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/settings",
-                "reference": "5b0288532f42e93cfc2ae4a953d53be56d4a44c7"
+                "reference": "e01394d28f71c879a3b9124bf84859416007486e"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -9128,11 +9128,11 @@
         },
         {
             "name": "phpinnacle/signum",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/signum",
-                "reference": "fc5613c4c0bd7e07fbe01bdf78c7938cf225d24b"
+                "reference": "fcf2b2f8f7b08864fec302b241f7ee23af81a614"
             },
             "require": {
                 "php": "^8.4",
@@ -9182,11 +9182,11 @@
         },
         {
             "name": "phpinnacle/skeleton",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/skeleton",
-                "reference": "d54ed8630686d76eb521767d44755d5403200d05"
+                "reference": "87ba646c04c098338dc6e1ee2d892f40dbe2ca66"
             },
             "require": {
                 "php": "^8.4",
@@ -9236,11 +9236,11 @@
         },
         {
             "name": "phpinnacle/stylus",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/stylus",
-                "reference": "201bc7780217ae11e96cf2144a30447619b6bc3f"
+                "reference": "48dad07670755ccf9a5560389460505e0323f02d"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -9292,16 +9292,16 @@
         },
         {
             "name": "phpinnacle/tags",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/tags",
-                "reference": "00d2c289778df3f835d349cd40e0509584c85b9c"
+                "reference": "ff98f6e739bf882212cf9ee7b34659766e780e14"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
-                "phpinnacle/palette": "^1.0"
+                "phpinnacle/palette": "1.x-dev"
             },
             "type": "library",
             "extra": {
@@ -9347,18 +9347,18 @@
         },
         {
             "name": "phpinnacle/tempo",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/tempo",
-                "reference": "8e67bfc4233053c2727066d9d7f8dd9c0c5e5455"
+                "reference": "e83bca206e2bd2e4f443e7c9944e60964669731c"
             },
             "require": {
                 "cmixin/business-day": "^1.20",
                 "danharrin/date-format-converter": "^0.3.1",
                 "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
-                "phpinnacle/iconic": "^1.0",
+                "phpinnacle/iconic": "1.x-dev",
                 "rlanvin/php-rrule": "^2.6",
                 "spatie/laravel-package-tools": "^1.92"
             },
@@ -9409,18 +9409,18 @@
         },
         {
             "name": "phpinnacle/vulcan",
-            "version": "1.0.0",
+            "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/vulcan",
-                "reference": "0d09e2a9c0dc174e0f607763326606ccae10c3de"
+                "reference": "37f74a93922b1cc18e2f58ac630b1cb1ac6e57c6"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
                 "phiki/phiki": "^2.2",
                 "php": "^8.4",
-                "phpinnacle/iconic": "^1.0",
-                "phpinnacle/palette": "^1.0",
+                "phpinnacle/iconic": "1.x-dev",
+                "phpinnacle/palette": "1.x-dev",
                 "spatie/laravel-package-tools": "^1.92"
             },
             "type": "library",
@@ -17070,11 +17070,11 @@
         }
     ],
     "aliases": [],
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
     "stability-flags": {
         "composer/satis": 20
     },
-    "prefer-stable": false,
+    "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.4"
