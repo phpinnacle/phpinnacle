@@ -20,7 +20,10 @@ class SyncPermissions extends Command
                 ->where('tenant_id', $tenant->getKey())
                 ->where('is_system', true)
                 ->each(function (Role $role) {
-                    $role->grant(...Cerberus::getPermissions(flatten: true));
+                    $role->grant(
+                        ...Cerberus::getPermissions(flatten: true),
+                        ...Cerberus::getGuards(),
+                    );
                 });
         }
     }

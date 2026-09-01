@@ -24,7 +24,11 @@ class PermissionTabs
     public static function make(): Tabs
     {
         $permissions = Cerberus::$permissions;
-        $tabs = [];
+        $tabs = [
+            ...self::resources(),
+            ...self::widgets(),
+            ...self::pages(),
+        ];
 
         foreach ($permissions as $tab => $sections) {
             $schema = [];
@@ -44,19 +48,28 @@ class PermissionTabs
                     ]);
             }
 
-            $tabs[] = Tab::make(__($tab))
+            $label = __($tab);
+            $existingTab = collect($tabs)->first(fn (Tab $tab) => $tab->getLabel() === $label);
+
+            if ($existingTab !== null) {
+                $schema = [...$existingTab->getDefaultChildComponents(), ...$schema];
+                $existingTab->badge(count($schema))->schema($schema)->visible();
+
+                continue;
+            }
+
+            $tabs[] = Tab::make($label)
                 ->badge(count($sections))
                 ->schema($schema);
         }
 
+        foreach ($tabs as $index => $tab) {
+            $tab->key("permission-tab-{$index}", isInheritable: false);
+        }
+
         return Tabs::make()
             ->vertical()
-            ->tabs([
-                ...PermissionTabs::resources(),
-                ...PermissionTabs::widgets(),
-                ...PermissionTabs::pages(),
-                ...$tabs,
-            ])
+            ->tabs($tabs)
             ->columnSpanFull();
     }
 
