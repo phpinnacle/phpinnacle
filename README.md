@@ -61,15 +61,17 @@ Run `composer format` to apply the repository's Mago formatting rules.
 
 ## Composer Repository
 
-Build all packages into the Satis repository:
+Public packages are available from Packagist and require no custom Composer repository. Proprietary packages are distributed through the Satis repository at `packages.phpinnacle.com`.
+
+Build the proprietary package repository:
 
 ```bash
 composer satis:build
 ```
 
-The CD workflow splits each package to its generated GitHub repository on `master`, then deploys successful builds to `packages.phpinnacle.com`. Package mirrors are deployment artifacts; changes belong in this monorepo. Configure the `PACKAGE_SPLIT_TOKEN` repository secret with read and write access to the package mirrors.
+The CD workflow splits each package to its generated GitHub repository on `master`. Public mirrors update Packagist automatically, while proprietary packages are deployed to `packages.phpinnacle.com`. Package mirrors are deployment artifacts; changes belong in this monorepo.
 
-Active development packages are published as `dev-master` with a `1.x-dev` branch alias. Consumer projects can replace their local path repository with:
+Active development packages are published as `dev-master` with a `1.x-dev` branch alias. Consumer projects that install proprietary packages must add the Satis repository:
 
 ```json
 {
@@ -87,10 +89,10 @@ Require the active development line explicitly:
 ```bash
 composer config minimum-stability dev
 composer config prefer-stable true
-composer require phpinnacle/tempo:1.x-dev
+composer require phpinnacle/atlas:1.x-dev
 ```
 
-Stable snapshots are published from `master` with the manual `Release` workflow. Enter one semantic version without a `v` prefix; the workflow tags every package mirror at the same version and redeploys Satis.
+Stable snapshots are published from `master` with the manual `Release` workflow. Enter one semantic version without a `v` prefix; the workflow tags every package mirror at the same version and redeploys the proprietary Satis repository.
 
 Configure the shared repository credentials outside `composer.json`:
 
