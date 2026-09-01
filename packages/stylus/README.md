@@ -186,12 +186,13 @@ Syntax validation does not authorize or sandbox a template. Apply an appropriate
 
 ## Testing
 
-Run the package checks from the monorepo root:
+Run the package checks from the package root:
 
 ```bash
-php artisan test --compact packages/phpinnacle/stylus/tests
-(cd packages/phpinnacle/stylus && ../../../vendor/bin/phpstan analyse -c phpstan.neon.dist --no-progress)
-npm --prefix packages/phpinnacle/stylus run build
+composer install
+composer test
+../../../vendor/bin/phpstan analyse -c phpstan.neon.dist --no-progress
+npm run build
 ```
 
 ## Changelog and license

@@ -24,13 +24,22 @@
         "filament/filament": "^4.0|^5.0",
         "phpinnacle/palette": "^1.0"
     },
+    "require-dev": {
+        "pestphp/pest": "^4.0"
+    },
     "autoload": {
         "psr-4": {
             "PHPinnacle\\Tags\\": "src/"
         }
     },
     "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        },
         "sort-packages": true
+    },
+    "scripts": {
+        "test": "pest --no-coverage"
     },
     "extra": {
         "branch-alias": {

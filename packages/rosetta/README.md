@@ -122,7 +122,8 @@ concerns.
 ## Testing
 
 ```bash
-vendor/bin/phpunit
+composer install
+composer test
 ```
 
 ## License

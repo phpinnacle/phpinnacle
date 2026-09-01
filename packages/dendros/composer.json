@@ -25,13 +25,22 @@
         "kisame76/filament-tree-table": "^1.3",
         "spatie/laravel-package-tools": "^1.92"
     },
+    "require-dev": {
+        "pestphp/pest": "^4.0"
+    },
     "autoload": {
         "psr-4": {
             "PHPinnacle\\Dendros\\": "src/"
         }
     },
     "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        },
         "sort-packages": true
+    },
+    "scripts": {
+        "test": "pest --no-coverage"
     },
     "extra": {
         "branch-alias": {

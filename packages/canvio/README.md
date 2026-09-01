@@ -155,10 +155,11 @@ Non-successful responses throw `PHPinnacle\Canvio\Exception\ApiException` with t
 
 ## Testing
 
-Run the package tests from the monorepo root:
+Run the package tests from the package root:
 
 ```bash
-vendor/bin/phpunit -c packages/canvio/phpunit.xml.dist
+composer install
+composer test
 ```
 
 ## License

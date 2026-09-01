@@ -43,6 +43,9 @@
     "config": {
         "sort-packages": true
     },
+    "scripts": {
+        "test": "phpunit --no-coverage"
+    },
     "extra": {"branch-alias": {"dev-master": "1.x-dev"}},
     "prefer-stable": true
 }
