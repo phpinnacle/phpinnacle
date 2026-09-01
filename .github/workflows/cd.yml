@@ -50,7 +50,8 @@ jobs:
 
       - name: Build Satis repository
         env:
-          COMPOSER_AUTH: '{"http-basic":{"github.com":{"username":"x-access-token","password":"${{ secrets.PACKAGE_SPLIT_TOKEN }}"}}}'
+          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ secrets.PACKAGE_SPLIT_TOKEN }}"}}'
+          GH_TOKEN: ${{ secrets.PACKAGE_SPLIT_TOKEN }}
         run: composer satis:build
 
       - name: Configure SSH
