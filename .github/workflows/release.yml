@@ -68,6 +68,7 @@ jobs:
 
           for package in packages/*; do
             name="${package#packages/}"
+            [[ "$name" == 'skeleton' ]] && continue
             remote="https://github.com/phpinnacle/${name}.git"
             split="$(git subtree split --prefix="$package" "$GITHUB_SHA")"
             existing="$(git ls-remote --refs "$remote" "refs/tags/$VERSION" | awk '{print $1}')"

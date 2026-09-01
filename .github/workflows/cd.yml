@@ -48,6 +48,7 @@ jobs:
 
           for package in packages/*; do
             name="${package#packages/}"
+            [[ "$name" == 'skeleton' ]] && continue
             split="$(git subtree split --prefix="$package" HEAD)"
             git push --force "https://github.com/phpinnacle/${name}.git" "${split}:refs/heads/master"
           done

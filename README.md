@@ -70,7 +70,7 @@ Build the proprietary package repository:
 composer satis:build
 ```
 
-The CD workflow splits each package to its generated GitHub repository on `master`. Public mirrors update Packagist automatically, while proprietary packages are deployed to `packages.phpinnacle.com`. Package mirrors are deployment artifacts; changes belong in this monorepo.
+The CD workflow splits each publishable package to its generated GitHub repository on `master`. Public mirrors update Packagist automatically, while proprietary packages are deployed to `packages.phpinnacle.com`. Package mirrors are deployment artifacts; changes belong in this monorepo. The `skeleton` package remains monorepo-only as the template for new packages.
 
 Active development packages are published as `dev-master` with a `1.x-dev` branch alias. Consumer projects that install proprietary packages must add the Satis repository:
 
@@ -93,7 +93,7 @@ composer config prefer-stable true
 composer require phpinnacle/atlas:1.x-dev
 ```
 
-Stable snapshots are published from `master` with the manual `Release` workflow. Enter one semantic version without a `v` prefix; the workflow tags every package mirror at the same version and redeploys the proprietary Satis repository.
+Stable snapshots are published from `master` with the manual `Release` workflow. Enter one semantic version without a `v` prefix; the workflow tags every publishable package mirror at the same version and redeploys the proprietary Satis repository.
 
 Configure the shared repository credentials outside `composer.json`:
 
