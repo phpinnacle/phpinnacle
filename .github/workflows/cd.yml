@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: packages-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Deploy Satis

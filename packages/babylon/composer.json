@@ -21,8 +21,8 @@
     ],
     "require": {
         "php": "^8.4",
-        "phpinnacle/common": "1.x-dev",
-        "phpinnacle/intl": "1.x-dev",
+        "phpinnacle/common": "^1.0",
+        "phpinnacle/intl": "^1.0",
         "spatie/laravel-package-tools": "^1.92"
     },
     "autoload": {

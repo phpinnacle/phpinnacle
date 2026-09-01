@@ -90,6 +90,8 @@ composer config prefer-stable true
 composer require phpinnacle/tempo:1.x-dev
 ```
 
+Stable snapshots are published from `master` with the manual `Release` workflow. Enter one semantic version without a `v` prefix; the workflow tags every package mirror at the same version and redeploys Satis.
+
 Configure the shared repository credentials outside `composer.json`:
 
 ```bash
