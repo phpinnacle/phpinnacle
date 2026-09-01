@@ -1,6 +1,22 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import tempoCalendar, { eventActionArguments, eventIsActionable, viewSwitcher } from '../resources/js/calendar.js'
+
+test('fills the available height inside a Filament widget', () => {
+    const css = readFileSync(new URL('../resources/css/calendar.css', import.meta.url), 'utf8')
+
+    assert.ok(css.includes(`.fi-wi-calendar .fi-section-content-ctn,
+.fi-wi-calendar .fi-section-content {
+    display: flex;
+    min-height: 0;
+}
+
+.fi-wi-calendar .fi-section-content {
+    flex: 1;
+    overflow: hidden;
+}`))
+})
 
 test('hides the view switcher when only one calendar view is available', () => {
     assert.equal(viewSwitcher(['dayGridMonth']), '')
