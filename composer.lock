@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2e2ba35a1644cce018a158ab3a5d96ae",
+    "content-hash": "19ac276eadbdd8ee3e0f1522c8a5aae1",
     "packages": [],
     "packages-dev": [
         {
@@ -7928,7 +7928,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/atlas",
-                "reference": "8627ed27125d78a10d3fec9a7567cc5efbb70894"
+                "reference": "67141e220dbab55b04298dfee4ae7c49763e1efa"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -7938,6 +7938,10 @@
                 "phpinnacle/iconic": "^1.0",
                 "phpinnacle/vulcan": "^1.0",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -7954,6 +7958,19 @@
                 "psr-4": {
                     "PHPinnacle\\Atlas\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "PHPinnacle\\Atlas\\Tests\\": "tests/"
+                },
+                "files": [
+                    "tests/ApplicationTestCase.php"
+                ]
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "proprietary"
@@ -7987,13 +8004,17 @@
             "dist": {
                 "type": "path",
                 "url": "packages/babylon",
-                "reference": "c7ec9f9bd3535a5e55b19c6b4ad562006ab5d1c4"
+                "reference": "f14052c1a43b8ee77de3acbbf13200f4572fd8b1"
             },
             "require": {
                 "php": "^8.4",
                 "phpinnacle/common": "^1.0",
                 "phpinnacle/intl": "^1.0",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -8010,6 +8031,16 @@
                 "psr-4": {
                     "PHPinnacle\\Babylon\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -8043,7 +8074,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/cabeiro",
-                "reference": "296592acc6356a887e6e2a3315a40559c22fd4f0"
+                "reference": "c4a2788d92577164a4543bc59543f563739a7a10"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8051,6 +8082,10 @@
                 "phpinnacle/iconic": "^1.0",
                 "phpinnacle/palette": "^1.0",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -8067,6 +8102,16 @@
                 "psr-4": {
                     "PHPinnacle\\Cabeiro\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "proprietary"
@@ -8102,13 +8147,17 @@
             "dist": {
                 "type": "path",
                 "url": "packages/canvio",
-                "reference": "3f79277bf2aa4e2282f8035ba676e724e5fd99fd"
+                "reference": "62106921c67a9bb75ac20f7f9d283547a8d314e4"
             },
             "require": {
                 "php": "^8.4",
                 "psr/http-client": "^1.0",
                 "psr/http-factory": "^1.1",
                 "psr/http-message": "^2.0"
+            },
+            "require-dev": {
+                "guzzlehttp/psr7": "^2.7",
+                "phpunit/phpunit": "^12.0"
             },
             "type": "library",
             "extra": {
@@ -8120,6 +8169,11 @@
                 "psr-4": {
                     "PHPinnacle\\Canvio\\": "src/"
                 }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -8155,7 +8209,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/casus",
-                "reference": "ce71c8b2614eb04fa84d024c845c79dd09efe56c"
+                "reference": "b0a9cac1d8a68591830f43e9d7e704c951a14aa5"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8163,6 +8217,9 @@
                 "php": "^8.4",
                 "phpinnacle/tempo": "^1.0",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -8179,6 +8236,11 @@
                 "psr-4": {
                     "PHPinnacle\\Casus\\": "src/"
                 }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -8212,7 +8274,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/cerber",
-                "reference": "7f278ca90795fe6d1b952a443ace02fdbf6824a4"
+                "reference": "28c3cdd0e35de249a379fdc5ee200fc8710eaaf7"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8224,6 +8286,10 @@
                 "phpinnacle/tempo": "^1.0",
                 "socialiteproviders/yandex": "^4.1",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -8240,6 +8306,16 @@
                 "psr-4": {
                     "PHPinnacle\\Cerber\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -8273,13 +8349,18 @@
             "dist": {
                 "type": "path",
                 "url": "packages/chronica",
-                "reference": "70243bb4539b2f46b9f113a372c43ca2ab48a212"
+                "reference": "c45f2fff52b652b48e35be72b6c5ac837369a24d"
             },
             "require": {
+                "codeat3/blade-phosphor-icons": "^2.4",
                 "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
                 "spatie/laravel-activitylog": "^5.0",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -8296,6 +8377,16 @@
                 "psr-4": {
                     "PHPinnacle\\Chronica\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -8329,11 +8420,16 @@
             "dist": {
                 "type": "path",
                 "url": "packages/comments",
-                "reference": "59b65247426db34ec1f044bba6b891f417ceca55"
+                "reference": "4ad2712902d4617ea380dee576cce6cdb8c257ab"
             },
             "require": {
+                "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -8350,6 +8446,16 @@
                 "psr-4": {
                     "PHPinnacle\\Comments\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -8383,12 +8489,16 @@
             "dist": {
                 "type": "path",
                 "url": "packages/common",
-                "reference": "e22948d8fd1b2a1e1ca73bc6581ed79a6fdc7d3f"
+                "reference": "452698eb9276f3f8c9fcc2081123dad54d1d570f"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -8407,6 +8517,16 @@
                 },
                 "files": [
                     "src/helpers.php"
+                ]
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
                 ]
             },
             "license": [
@@ -8441,13 +8561,16 @@
             "dist": {
                 "type": "path",
                 "url": "packages/dendros",
-                "reference": "a7cc018274dad2ce03855e088ff6099daab25acf"
+                "reference": "918f6302675ccc7ad44861a18d74e1fe6901aafe"
             },
             "require": {
                 "codewithdennis/filament-select-tree": "^4.0",
                 "kisame76/filament-tree-table": "^1.3",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -8464,6 +8587,11 @@
                 "psr-4": {
                     "PHPinnacle\\Dendros\\": "src/"
                 }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -8492,18 +8620,77 @@
             }
         },
         {
+            "name": "phpinnacle/ferry",
+            "version": "dev-ferry-1c-structure",
+            "dist": {
+                "type": "path",
+                "url": "packages/ferry",
+                "reference": "2a58b0707ca1a3f3f66f7ce7c2baadc770294892"
+            },
+            "require": {
+                "ext-pdo": "*",
+                "filament/filament": "^4.0|^5.0",
+                "php": "^8.4",
+                "phpinnacle/common": "^1.0",
+                "phpinnacle/rosetta": "^1.0",
+                "spatie/laravel-package-tools": "^1.92"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "PHPinnacle\\Ferry\\FerryServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "PHPinnacle\\Ferry\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHPinnacle Devs",
+                    "email": "dev@phpinnacle.edu.pl",
+                    "role": "Developer"
+                }
+            ],
+            "description": "A plugin for Laravel Filament that manages data source connections.",
+            "homepage": "https://github.com/phpinnacle/ferry",
+            "keywords": [
+                "filament",
+                "laravel",
+                "phpinnacle"
+            ],
+            "support": {
+                "issues": "https://github.com/phpinnacle/ferry/issues",
+                "source": "https://github.com/phpinnacle/ferry"
+            },
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
             "name": "phpinnacle/iconic",
             "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "packages/iconic",
-                "reference": "8927f46f84cbef6dc121e0aabb2d6d6a360939e2"
+                "reference": "7f50401c2f1038af8099b8ada276c939c2c4933b"
             },
             "require": {
                 "codeat3/blade-phosphor-icons": "^2.4",
                 "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -8520,6 +8707,16 @@
                 "psr-4": {
                     "PHPinnacle\\Iconic\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -8555,7 +8752,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/intl",
-                "reference": "17b7636a566284efaf553b52d5f8140b82c9855a"
+                "reference": "e381e97e595f900b677f16bdc8dd447c73cb39ab"
             },
             "require": {
                 "codeat3/blade-phosphor-icons": "^2.4",
@@ -8564,6 +8761,10 @@
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92",
                 "symfony/intl": "^7.2|^8.0"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -8580,6 +8781,16 @@
                 "psr-4": {
                     "PHPinnacle\\Intl\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -8618,13 +8829,17 @@
             "dist": {
                 "type": "path",
                 "url": "packages/langcat",
-                "reference": "7ca2fee2761839bc985f0a3efc61503f8f6bd4fb"
+                "reference": "d896dc1b79470838aabf9c4d526a848f52b5ba52"
             },
             "require": {
                 "php": "^8.4",
                 "psr/http-client": "^1.0",
                 "psr/http-factory": "^1.1",
                 "psr/http-message": "^2.0"
+            },
+            "require-dev": {
+                "guzzlehttp/psr7": "^2.7",
+                "phpunit/phpunit": "^12.0"
             },
             "type": "library",
             "extra": {
@@ -8636,6 +8851,11 @@
                 "psr-4": {
                     "PHPinnacle\\Langcat\\": "src/"
                 }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -8670,7 +8890,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/minos",
-                "reference": "0d79cbf77ee5c47bc043326927787d73905d1f28"
+                "reference": "4e82b45ba4cbe8fefbd5142efb9f907735dd16f9"
             },
             "require": {
                 "laravel/cashier": "^16.5",
@@ -8680,6 +8900,10 @@
                 "phpinnacle/palette": "^1.0",
                 "phpinnacle/tempo": "^1.0",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -8696,6 +8920,16 @@
                 "psr-4": {
                     "PHPinnacle\\Minos\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -8729,7 +8963,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/money",
-                "reference": "9db52455eeb2847f99d604e0e2f3889d4e8b9e4b"
+                "reference": "e048b37f0513746677f4d4db7e3c3cbeaf18e88e"
             },
             "require": {
                 "codeat3/blade-phosphor-icons": "^2.4",
@@ -8739,6 +8973,10 @@
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92",
                 "symfony/intl": "^7.2|^8.0"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -8755,6 +8993,16 @@
                 "psr-4": {
                     "PHPinnacle\\Money\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -8791,12 +9039,15 @@
             "dist": {
                 "type": "path",
                 "url": "packages/openapi",
-                "reference": "c8a9522d66e760bfb96dcd596f8dcb8f0f60a114"
+                "reference": "01d72e81ffdb6c32a57df78becfd254d5b993113"
             },
             "require": {
                 "darkaonline/l5-swagger": "^11.0",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -8813,6 +9064,11 @@
                 "psr-4": {
                     "PHPinnacle\\OpenApi\\": "src/"
                 }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -8846,13 +9102,17 @@
             "dist": {
                 "type": "path",
                 "url": "packages/palette",
-                "reference": "d1d71dec4f2fb36e1adceb22182a192c4b6be2da"
+                "reference": "e6a4059ced0cdc1c3b37a630b3a4e0dacd441bf8"
             },
             "require": {
                 "filament/forms": "^4.0|^5.0",
                 "php": "^8.4",
                 "spatie/color": "^1.8",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -8869,6 +9129,16 @@
                 "psr-4": {
                     "PHPinnacle\\Palette\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -8903,11 +9173,15 @@
             "dist": {
                 "type": "path",
                 "url": "packages/pinax",
-                "reference": "38769f485d857a59ecc8e0baa958fc1bb71c06dd"
+                "reference": "63fbc69818e1987cd2bc0a941acaf3b96a7676c5"
             },
             "require": {
+                "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -8924,6 +9198,11 @@
                 "psr-4": {
                     "PHPinnacle\\Pinax\\": "src/"
                 }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -8957,11 +9236,15 @@
             "dist": {
                 "type": "path",
                 "url": "packages/recens",
-                "reference": "830596b29831c9b1c1e6f945aeb48e0e2c60177b"
+                "reference": "821e43a03c2e2e141e7ba4263ab73a9e79c7ea66"
             },
             "require": {
+                "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -8978,6 +9261,11 @@
                 "psr-4": {
                     "PHPinnacle\\Recens\\": "src/"
                 }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -9011,7 +9299,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/rosetta",
-                "reference": "f0da5277b6507aaa28351e514b5d457a461a874d"
+                "reference": "692d1bedb118a6aa94e3c068c61032fd060ae135"
             },
             "require": {
                 "ext-pdo": "*",
@@ -9036,6 +9324,11 @@
                 "psr-4": {
                     "PHPinnacle\\Rosetta\\Tests\\": "tests/"
                 }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -9071,7 +9364,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/sequentia",
-                "reference": "8a4776265837a145749f39eef6ddc0dc9240d711"
+                "reference": "a8f0dd95d10f2e496b308ca4554323ca7c0bb38f"
             },
             "require": {
                 "illuminate/console": "^13.0",
@@ -9079,6 +9372,10 @@
                 "illuminate/support": "^13.0",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -9095,6 +9392,16 @@
                 "psr-4": {
                     "PHPinnacle\\Sequentia\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -9130,12 +9437,15 @@
             "dist": {
                 "type": "path",
                 "url": "packages/settings",
-                "reference": "442acbf1a7f7680da091da580e8ec563b37cfbf9"
+                "reference": "774ae9b22b41b364020cc3b42fe851e38ed32594"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -9152,6 +9462,11 @@
                 "psr-4": {
                     "PHPinnacle\\Settings\\": "src/"
                 }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -9185,11 +9500,15 @@
             "dist": {
                 "type": "path",
                 "url": "packages/signum",
-                "reference": "6ed09ca4231a0892ac88e77409a9505e0fdc1f43"
+                "reference": "aadb64c91aad7afc77d19c21d89087f8fdacb0db"
             },
             "require": {
+                "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -9206,6 +9525,11 @@
                 "psr-4": {
                     "PHPinnacle\\Signum\\": "src/"
                 }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -9239,11 +9563,15 @@
             "dist": {
                 "type": "path",
                 "url": "packages/skeleton",
-                "reference": "6823753b711b94da94f3988e6e7b432398365619"
+                "reference": "981c6de8f692c1b580ab8a769155bc0d73ffff1c"
             },
             "require": {
+                "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -9260,6 +9588,11 @@
                 "psr-4": {
                     "PHPinnacle\\Skeleton\\": "src/"
                 }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -9293,13 +9626,17 @@
             "dist": {
                 "type": "path",
                 "url": "packages/stylus",
-                "reference": "48dad07670755ccf9a5560389460505e0323f02d"
+                "reference": "2caee4976e995398e31fd1169bac675cea791b7b"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92",
                 "twig/twig": "^3.21"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -9316,6 +9653,16 @@
                 "psr-4": {
                     "PHPinnacle\\Stylus\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -9349,12 +9696,15 @@
             "dist": {
                 "type": "path",
                 "url": "packages/tags",
-                "reference": "d416845bab44fc20d55518b0d6b8b54683a0214b"
+                "reference": "11e92a619b931332e6276f8aa0b2c5877dfe5615"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
                 "phpinnacle/palette": "^1.0"
+            },
+            "require-dev": {
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -9371,6 +9721,11 @@
                 "psr-4": {
                     "PHPinnacle\\Tags\\": "src/"
                 }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -9404,7 +9759,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/tempo",
-                "reference": "60f442d10ddcde773e9d5ce549c56dee3f03e157"
+                "reference": "fcbc950df7344b0a18960b5ac7c1ec43d3b802c0"
             },
             "require": {
                 "cmixin/business-day": "^1.20",
@@ -9414,6 +9769,10 @@
                 "phpinnacle/iconic": "^1.0",
                 "rlanvin/php-rrule": "^2.6",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -9430,6 +9789,16 @@
                 "psr-4": {
                     "PHPinnacle\\Tempo\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "MIT"
@@ -9466,7 +9835,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/vulcan",
-                "reference": "70c17bdaa11fd7d17e4a4a09e61d8265fcb088d6"
+                "reference": "2dbf9f10055be24885a691595547940cf185dffd"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -9475,6 +9844,10 @@
                 "phpinnacle/iconic": "^1.0",
                 "phpinnacle/palette": "^1.0",
                 "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
             },
             "type": "library",
             "extra": {
@@ -9491,6 +9864,16 @@
                 "psr-4": {
                     "PHPinnacle\\Vulcan\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
             },
             "license": [
                 "proprietary"
@@ -17133,5 +17516,5 @@
         "php": "^8.4"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }

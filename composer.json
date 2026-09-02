@@ -22,6 +22,7 @@
         "phpinnacle/comments": "*",
         "phpinnacle/common": "*",
         "phpinnacle/dendros": "*",
+        "phpinnacle/ferry": "*",
         "phpinnacle/iconic": "*",
         "phpinnacle/intl": "*",
         "phpinnacle/langcat": "*",
