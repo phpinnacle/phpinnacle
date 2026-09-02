@@ -16,6 +16,9 @@ test('fills the available height inside a Filament widget', () => {
     flex: 1;
     overflow: hidden;
 }`))
+    assert.ok(css.includes(`.tempo-calendar__canvas :has(> [role='rowgroup']) {
+    scrollbar-gutter: stable;
+}`))
 })
 
 test('hides the view switcher when only one calendar view is available', () => {

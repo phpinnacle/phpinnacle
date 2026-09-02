@@ -35,6 +35,11 @@
     flex: 1;
 }
 
+/* Keep Breezy's responsive day layout from toggling when its scrollbar appears. */
+.tempo-calendar__canvas :has(> [role='rowgroup']) {
+    scrollbar-gutter: stable;
+}
+
 .tempo-calendar__filters {
     display: flex;
     flex-wrap: wrap;
