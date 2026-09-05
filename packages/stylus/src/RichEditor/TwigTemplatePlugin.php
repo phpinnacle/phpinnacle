@@ -302,18 +302,19 @@ class TwigTemplatePlugin implements RichContentPlugin
      * @return list<Component>
      */
     private function conditionOperandSchema(
-        string $prefix,
+        string $side,
         TwigEditor $component,
         array $loopStack,
-        bool $literals = false,
-        array $types = [],
-        ?string $matchVariable = null,
-        ?string $resetVariable = null,
-        ?string $literalVariable = null,
-        ?string $resetType = null,
+        Condition $condition,
     ): array {
+        $literals = $side === 'right';
+        $types = $condition->getTypes();
+        $matchVariable = $literals && $condition->matchesVariableTypes() ? 'left_variable' : null;
+        $resetVariable = $side === 'left' && $condition->matchesVariableTypes() ? 'right_variable' : null;
+        $literalVariable = $literals ? 'left_variable' : null;
+        $resetType = $side === 'left' ? 'right_type' : null;
         $scope = $component->getVariableScope($loopStack);
-        $variableField = Select::make("{$prefix}_variable")
+        $variableField = Select::make("{$side}_variable")
             ->label(__('phpinnacle-stylus::forms.twig_editor.fields.variable'))
             ->options(function (Get $get) use ($matchVariable, $scope, $types) {
                 if ($matchVariable === null) {
@@ -333,7 +334,7 @@ class TwigTemplatePlugin implements RichContentPlugin
             })
             ->native()
             ->required()
-            ->visible(fn (Get $get) => !$literals || $get("{$prefix}_type") === 'variable');
+            ->visible(fn (Get $get) => !$literals || $get("{$side}_type") === 'variable');
 
         if ($resetVariable !== null || $resetType !== null) {
             $variableField
@@ -353,7 +354,7 @@ class TwigTemplatePlugin implements RichContentPlugin
             ...(
                 $literals
                     ? [
-                        Select::make("{$prefix}_type")
+                        Select::make("{$side}_type")
                             ->label(__('phpinnacle-stylus::forms.twig_editor.fields.operand_type'))
                             ->options(function (Get $get) use ($literalVariable, $scope) {
                                 $options = [
@@ -380,17 +381,17 @@ class TwigTemplatePlugin implements RichContentPlugin
         ];
 
         if ($literals) {
-            $fields[] = TextInput::make("{$prefix}_string")
+            $fields[] = TextInput::make("{$side}_string")
                 ->label(__('phpinnacle-stylus::forms.twig_editor.fields.value'))
                 ->required()
                 ->maxLength(500)
-                ->visible(fn (Get $get) => $get("{$prefix}_type") === 'string');
-            $fields[] = TextInput::make("{$prefix}_number")
+                ->visible(fn (Get $get) => $get("{$side}_type") === 'string');
+            $fields[] = TextInput::make("{$side}_number")
                 ->label(__('phpinnacle-stylus::forms.twig_editor.fields.value'))
                 ->required()
                 ->numeric()
-                ->visible(fn (Get $get) => $get("{$prefix}_type") === 'number');
-            $fields[] = Select::make("{$prefix}_boolean")
+                ->visible(fn (Get $get) => $get("{$side}_type") === 'number');
+            $fields[] = Select::make("{$side}_boolean")
                 ->label(__('phpinnacle-stylus::forms.twig_editor.fields.value'))
                 ->boolean(
                     trueLabel: __('phpinnacle-stylus::forms.twig_editor.condition.true'),
@@ -399,7 +400,7 @@ class TwigTemplatePlugin implements RichContentPlugin
                 ->default(false)
                 ->selectablePlaceholder(false)
                 ->required()
-                ->visible(fn (Get $get) => $get("{$prefix}_type") === 'boolean');
+                ->visible(fn (Get $get) => $get("{$side}_type") === 'boolean');
         }
 
         return (
@@ -430,18 +431,13 @@ class TwigTemplatePlugin implements RichContentPlugin
                     'left',
                     $component,
                     $loopStack,
-                    types: $condition->getTypes(),
-                    resetVariable: $condition->matchesVariableTypes() ? 'right_variable' : null,
-                    resetType: 'right_type',
+                    $condition,
                 ),
                 ...$this->conditionOperandSchema(
                     'right',
                     $component,
                     $loopStack,
-                    literals: true,
-                    types: $condition->getTypes(),
-                    matchVariable: $condition->matchesVariableTypes() ? 'left_variable' : null,
-                    literalVariable: 'left_variable',
+                    $condition,
                 ),
             ];
         }
@@ -451,7 +447,7 @@ class TwigTemplatePlugin implements RichContentPlugin
                 'subject',
                 $component,
                 $loopStack,
-                types: $condition->getTypes(),
+                $condition,
             ))->columns(1),
         ];
     }

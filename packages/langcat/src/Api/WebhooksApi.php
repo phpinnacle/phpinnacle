@@ -10,6 +10,7 @@ use PHPinnacle\Langcat\Response\Webhooks\WebhookResponse;
 use PHPinnacle\Langcat\Response\Webhooks\WebhooksResponse;
 use PHPinnacle\Langcat\Support\ResourcePath;
 use PHPinnacle\Langcat\Support\Transport;
+use PHPinnacle\Langcat\Support\TransportMode;
 
 final readonly class WebhooksApi
 {
@@ -32,7 +33,7 @@ final readonly class WebhooksApi
         return EmptyResponse::fromArray($this->transport->send(
             'DELETE',
             ResourcePath::id('webhooks', $webhookId),
-            allowEmptyResponse: true,
+            mode: TransportMode::EmptyResponse,
         ));
     }
 

@@ -31,6 +31,7 @@ use PHPinnacle\Langcat\Response\Shared\EmptyResponse;
 use PHPinnacle\Langcat\Response\Shared\IdResponse;
 use PHPinnacle\Langcat\Support\ResourcePath;
 use PHPinnacle\Langcat\Support\Transport;
+use PHPinnacle\Langcat\Support\TransportMode;
 
 final readonly class GroupsApi
 {
@@ -49,7 +50,7 @@ final readonly class GroupsApi
             'POST',
             $this->groupPath($groupId) . '/students',
             body: $request->toArray(),
-            allowEmptyResponse: true,
+            mode: TransportMode::EmptyResponse,
         ));
     }
 
@@ -62,7 +63,7 @@ final readonly class GroupsApi
             'PATCH',
             $this->studentPath($groupId, $studentId) . '/assign-type',
             body: $request->toArray(),
-            allowEmptyResponse: true,
+            mode: TransportMode::EmptyResponse,
         ));
     }
 
@@ -72,7 +73,7 @@ final readonly class GroupsApi
             'POST',
             '/groups',
             body: $request->toArray(),
-            allowEmptyResponse: true,
+            mode: TransportMode::EmptyResponse,
         ));
     }
 

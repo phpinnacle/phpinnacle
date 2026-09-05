@@ -67,6 +67,7 @@ class SettingsPage extends Page
         return 'settings';
     }
 
+    // @mago-expect lint:excessive-parameter-list
     public static function getUrl(
         array $parameters = [],
         bool $isAbsolute = true,
@@ -77,7 +78,14 @@ class SettingsPage extends Page
     ): string {
         $parameters['group'] ??= app(DefinitionRegistry::class)->default();
 
-        return parent::getUrl($parameters, $isAbsolute, $panel, $tenant);
+        return parent::getUrl(
+            $parameters,
+            $isAbsolute,
+            $panel,
+            $tenant,
+            $shouldGuessMissingParameters,
+            $configuration,
+        );
     }
 
     public function form(Schema $schema): Schema

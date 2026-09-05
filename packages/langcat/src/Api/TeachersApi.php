@@ -12,6 +12,7 @@ use PHPinnacle\Langcat\Response\Teachers\TeacherResponse;
 use PHPinnacle\Langcat\Response\Teachers\TeachersResponse;
 use PHPinnacle\Langcat\Support\ResourcePath;
 use PHPinnacle\Langcat\Support\Transport;
+use PHPinnacle\Langcat\Support\TransportMode;
 
 final readonly class TeachersApi
 {
@@ -52,7 +53,7 @@ final readonly class TeachersApi
             'PATCH',
             ResourcePath::id('teachers', $teacherId) . '/details',
             body: $request->toArray(),
-            allowEmptyResponse: true,
+            mode: TransportMode::EmptyResponse,
         ));
     }
 }

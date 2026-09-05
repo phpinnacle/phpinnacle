@@ -114,6 +114,7 @@ final class MetadataFixture
      * @param  non-empty-list<int>  $referencePath
      * @return array<int, mixed>
      */
+    // @mago-expect lint:excessive-parameter-list
     public static function metadataStructure(
         array $identityPath,
         string $id,

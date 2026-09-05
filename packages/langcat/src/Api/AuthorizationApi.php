@@ -7,6 +7,7 @@ use PHPinnacle\Langcat\Request\Authorization\RefreshTokenRequest;
 use PHPinnacle\Langcat\Response\Authorization\MeResponse;
 use PHPinnacle\Langcat\Response\Authorization\TokenResponse;
 use PHPinnacle\Langcat\Support\Transport;
+use PHPinnacle\Langcat\Support\TransportMode;
 
 final readonly class AuthorizationApi
 {
@@ -20,8 +21,7 @@ final readonly class AuthorizationApi
             'POST',
             '/token',
             body: $request->toArray(),
-            form: true,
-            authenticated: false,
+            mode: TransportMode::AnonymousForm,
         ));
     }
 
@@ -36,8 +36,7 @@ final readonly class AuthorizationApi
             'POST',
             '/token/refresh',
             body: $request->toArray(),
-            form: true,
-            authenticated: false,
+            mode: TransportMode::AnonymousForm,
         ));
     }
 }

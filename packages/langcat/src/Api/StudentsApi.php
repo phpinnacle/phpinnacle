@@ -22,6 +22,7 @@ use PHPinnacle\Langcat\Response\Students\ParentsResponse;
 use PHPinnacle\Langcat\Response\Students\StudentResponse;
 use PHPinnacle\Langcat\Response\Students\StudentsResponse;
 use PHPinnacle\Langcat\Support\Transport;
+use PHPinnacle\Langcat\Support\TransportMode;
 
 final readonly class StudentsApi
 {
@@ -44,7 +45,7 @@ final readonly class StudentsApi
         return EmptyResponse::fromArray($this->transport->send(
             'POST',
             $this->studentPath($studentId) . '/archive',
-            allowEmptyResponse: true,
+            mode: TransportMode::EmptyResponse,
         ));
     }
 
@@ -54,7 +55,7 @@ final readonly class StudentsApi
             'POST',
             $this->studentPath($studentId) . '/schools',
             body: $request->toArray(),
-            allowEmptyResponse: true,
+            mode: TransportMode::EmptyResponse,
         ));
     }
 
@@ -77,7 +78,7 @@ final readonly class StudentsApi
         return EmptyResponse::fromArray($this->transport->send(
             'DELETE',
             $this->studentPath($studentId),
-            allowEmptyResponse: true,
+            mode: TransportMode::EmptyResponse,
         ));
     }
 
@@ -134,7 +135,7 @@ final readonly class StudentsApi
         return EmptyResponse::fromArray($this->transport->send(
             'POST',
             $this->studentPath($studentId) . '/restore',
-            allowEmptyResponse: true,
+            mode: TransportMode::EmptyResponse,
         ));
     }
 
@@ -153,7 +154,7 @@ final readonly class StudentsApi
             'PATCH',
             $this->studentPath($studentId),
             body: $request->toArray(),
-            allowEmptyResponse: true,
+            mode: TransportMode::EmptyResponse,
         ));
     }
 
@@ -163,7 +164,7 @@ final readonly class StudentsApi
             'PATCH',
             $this->studentPath($studentId) . '/details',
             body: $request->toArray(),
-            allowEmptyResponse: true,
+            mode: TransportMode::EmptyResponse,
         ));
     }
 
@@ -185,7 +186,7 @@ final readonly class StudentsApi
             'PATCH',
             $this->parentPath($studentId, $parentId) . '/details',
             body: $request->toArray(),
-            allowEmptyResponse: true,
+            mode: TransportMode::EmptyResponse,
         ));
     }
 

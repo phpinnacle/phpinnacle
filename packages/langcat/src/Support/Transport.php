@@ -49,9 +49,7 @@ final readonly class Transport
         string $path,
         array $query = [],
         ?array $body = null,
-        bool $form = false,
-        bool $authenticated = true,
-        bool $allowEmptyResponse = false,
+        TransportMode $mode = TransportMode::Json,
     ): array {
         $uri = $this->baseUri . $path;
 
@@ -63,7 +61,7 @@ final readonly class Transport
             ->createRequest($method, $uri)
             ->withHeader('Accept', 'application/json');
 
-        if ($authenticated) {
+        if ($mode !== TransportMode::AnonymousForm) {
             $accessToken = $this->accessToken ?? throw new LogicException(
                 'An access token is required for this request.',
             );
@@ -71,11 +69,14 @@ final readonly class Transport
         }
 
         if ($body !== null) {
-            $content = $form
+            $content = $mode === TransportMode::AnonymousForm
                 ? http_build_query($body, encoding_type: PHP_QUERY_RFC3986)
                 : json_encode($body, JSON_THROW_ON_ERROR);
             $request = $request
-                ->withHeader('Content-Type', $form ? 'application/x-www-form-urlencoded' : 'application/json')
+                ->withHeader(
+                    'Content-Type',
+                    $mode === TransportMode::AnonymousForm ? 'application/x-www-form-urlencoded' : 'application/json',
+                )
                 ->withBody($this->streamFactory->createStream($content));
         }
 
@@ -90,7 +91,7 @@ final readonly class Transport
             );
         }
 
-        if ($responseBody === '' && $allowEmptyResponse) {
+        if ($responseBody === '' && $mode === TransportMode::EmptyResponse) {
             return [];
         }
 
