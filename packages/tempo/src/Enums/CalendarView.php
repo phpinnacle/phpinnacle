@@ -53,9 +53,13 @@ enum CalendarView: string implements HasLabel
         $normalized = [];
 
         foreach ($values as $value) {
-            $view = $value instanceof self
-                ? $value
-                : (is_string($value) ? self::tryFrom($value) : null);
+            if ($value instanceof self) {
+                $view = $value;
+            } elseif (is_string($value)) {
+                $view = self::tryFrom($value);
+            } else {
+                $view = null;
+            }
 
             if ($view !== null) {
                 $normalized[$view->value] = $view->value;

@@ -7,7 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 if (!function_exists('clean_up_html')) {
     function clean_up_html(?string $html): ?string
     {
-        return $html !== null ? (trim($html) !== '<p></p>' ? $html : null) : null;
+        if ($html === null) {
+            return null;
+        }
+
+        return trim($html) !== '<p></p>' ? $html : null;
     }
 }
 
