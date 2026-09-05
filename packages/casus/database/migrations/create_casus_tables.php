@@ -6,16 +6,6 @@ use Illuminate\Support\Facades\Schema;
 use PHPinnacle\Casus\Models\Exception;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::dropIfExists('exceptions');
-    }
-
-    public function getConnection(): ?string
-    {
-        return config('phpinnacle-casus.connection');
-    }
-
     public function up(): void
     {
         /** @see Exception */
@@ -40,6 +30,16 @@ return new class extends Migration {
 
             $this->addTenancy($table);
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('exceptions');
+    }
+
+    public function getConnection(): ?string
+    {
+        return config('phpinnacle-casus.connection');
     }
 
     private function addTenancy(Blueprint $table): void

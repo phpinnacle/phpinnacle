@@ -6,16 +6,6 @@ use Illuminate\Support\Facades\Schema;
 use PHPinnacle\Comments\Models\Comment;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::dropIfExists('comments');
-    }
-
-    public function getConnection(): ?string
-    {
-        return config('phpinnacle-comments.connection');
-    }
-
     public function up(): void
     {
         /** @see Comment */
@@ -30,5 +20,15 @@ return new class extends Migration {
             $table->longText('text');
             $table->timestamps();
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('comments');
+    }
+
+    public function getConnection(): ?string
+    {
+        return config('phpinnacle-comments.connection');
     }
 };

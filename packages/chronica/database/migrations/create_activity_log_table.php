@@ -5,16 +5,6 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::dropIfExists('activity_log');
-    }
-
-    public function getConnection(): ?string
-    {
-        return config('phpinnacle-chronica.connection');
-    }
-
     public function up(): void
     {
         Schema::create('activity_log', function (Blueprint $table) {
@@ -30,6 +20,16 @@ return new class extends Migration {
 
             $this->addTenancy($table);
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('activity_log');
+    }
+
+    public function getConnection(): ?string
+    {
+        return config('phpinnacle-chronica.connection');
     }
 
     private function addTenancy(Blueprint $table): bool

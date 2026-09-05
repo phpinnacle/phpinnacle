@@ -5,16 +5,6 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::drop('recent');
-    }
-
-    public function getConnection(): ?string
-    {
-        return config('phpinnacle-recens.connection');
-    }
-
     public function up(): void
     {
         Schema::create('recent', function (Blueprint $table) {
@@ -35,6 +25,16 @@ return new class extends Migration {
 
             $this->addTenancy($table);
         });
+    }
+
+    public function down(): void
+    {
+        Schema::drop('recent');
+    }
+
+    public function getConnection(): ?string
+    {
+        return config('phpinnacle-recens.connection');
     }
 
     private function addTenancy(Blueprint $table): void

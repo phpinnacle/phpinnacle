@@ -1,0 +1,46 @@
+{
+    "name": "phpinnacle/grimoire",
+    "description": "Project-specific Mago linter rules and analyzer extensions.",
+    "keywords": [
+        "phpinnacle",
+        "mago",
+        "lint"
+    ],
+    "homepage": "https://github.com/phpinnacle/grimoire",
+    "support": {
+        "issues": "https://github.com/phpinnacle/grimoire/issues",
+        "source": "https://github.com/phpinnacle/grimoire"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "PHPinnacle Devs",
+            "email": "dev@phpinnacle.edu.pl",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "carthage-software/mago": "^1.47"
+    },
+    "autoload": {
+        "psr-4": {
+            "PHPinnacle\\Grimoire\\": "src/"
+        }
+    },
+    "bin": [
+        "bin/grimoire"
+    ],
+    "config": {
+        "sort-packages": true
+    },
+    "scripts": {
+        "test": "mago --config tests/corpus/mago.toml lint --only phpinnacle/class-method-order,phpinnacle/compact-empty-method-body --minimum-fail-level warning"
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "1.x-dev"
+        }
+    },
+    "prefer-stable": true
+}

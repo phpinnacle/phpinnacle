@@ -6,16 +6,6 @@ use Illuminate\Support\Facades\Schema;
 use PHPinnacle\Pinax\Models\Media;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::dropIfExists('media');
-    }
-
-    public function getConnection(): ?string
-    {
-        return config('phpinnacle-pinax.connection');
-    }
-
     public function up(): void
     {
         /** @see Media */
@@ -34,6 +24,16 @@ return new class extends Migration {
 
             $this->addTenancy($table);
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('media');
+    }
+
+    public function getConnection(): ?string
+    {
+        return config('phpinnacle-pinax.connection');
     }
 
     private function addTenancy(Blueprint $table): bool

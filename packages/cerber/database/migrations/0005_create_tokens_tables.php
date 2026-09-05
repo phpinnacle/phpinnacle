@@ -6,16 +6,6 @@ use Illuminate\Support\Facades\Schema;
 use PHPinnacle\Cerber\Models\AccessToken;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::dropIfExists('access_tokens');
-    }
-
-    public function getConnection(): ?string
-    {
-        return config('phpinnacle-cerber.connection');
-    }
-
     public function up(): void
     {
         /** @see AccessToken */
@@ -29,5 +19,15 @@ return new class extends Migration {
             $table->timestamp('expires_at')->nullable();
             $table->timestamps();
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('access_tokens');
+    }
+
+    public function getConnection(): ?string
+    {
+        return config('phpinnacle-cerber.connection');
     }
 };

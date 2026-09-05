@@ -5,16 +5,6 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::dropIfExists('sequences');
-    }
-
-    public function getConnection(): ?string
-    {
-        return config('phpinnacle-sequentia.connection');
-    }
-
     public function up(): void
     {
         Schema::create('sequences', function (Blueprint $table) {
@@ -31,5 +21,15 @@ return new class extends Migration {
                 'key',
             ]);
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('sequences');
+    }
+
+    public function getConnection(): ?string
+    {
+        return config('phpinnacle-sequentia.connection');
     }
 };

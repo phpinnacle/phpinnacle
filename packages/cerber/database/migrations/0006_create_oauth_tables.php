@@ -8,17 +8,6 @@ use PHPinnacle\Cerber\Models\SocialAccount;
 use PHPinnacle\Cerber\Models\User;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::dropIfExists('social_accounts');
-        Schema::dropIfExists('oauth_providers');
-    }
-
-    public function getConnection(): ?string
-    {
-        return config('phpinnacle-cerber.connection');
-    }
-
     public function up(): void
     {
         /** @see Provider */
@@ -61,6 +50,17 @@ return new class extends Migration {
             $table->index(['user_id', 'provider_id']);
             $table->unique(['provider_id', 'external_id']);
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('social_accounts');
+        Schema::dropIfExists('oauth_providers');
+    }
+
+    public function getConnection(): ?string
+    {
+        return config('phpinnacle-cerber.connection');
     }
 
     private function addTenancy(Blueprint $table): bool

@@ -1,0 +1,10 @@
+#:schema ../../vendor/carthage-software/mago/schema.json
+
+version = "1.47"
+php-version = "8.4"
+
+[source]
+paths = ["tests/corpus"]
+
+[extension-hosts.grimoire]
+command = ["../../bin/grimoire", "grimoire.json"]

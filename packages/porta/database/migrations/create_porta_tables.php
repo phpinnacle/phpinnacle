@@ -10,12 +10,6 @@ use PHPinnacle\Porta\Models\Integration;
 use PHPinnacle\Porta\Models\Webhook;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::dropIfExists('webhooks');
-        Schema::dropIfExists('integrations');
-    }
-
     public function up(): void
     {
         /** @see Integration */
@@ -55,6 +49,12 @@ return new class extends Migration {
             $table->dateTime('processed_at')->nullable();
             $table->timestamps();
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('webhooks');
+        Schema::dropIfExists('integrations');
     }
 
     private function addTenancy(Blueprint $table): void

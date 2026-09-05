@@ -1,0 +1,10 @@
+#:schema https://mago.carthage.software/1.47.4/schema.json
+
+[extension-hosts.grimoire]
+command = ["vendor/bin/grimoire", "grimoire.json"]
+
+[linter.rules.strict-types]
+enabled = false
+
+[linter.rules.prefer-static-closure]
+enabled = false

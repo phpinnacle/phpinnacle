@@ -1,11 +1,13 @@
 #:schema vendor/carthage-software/mago/schema.json
 
+extends = "vendor/phpinnacle/grimoire/mago.toml"
+
 version = "1.47.4"
 php-version = "8.4"
 
 [source]
 paths = ["packages", "tests"]
-excludes = ["packages/*/node_modules/**", "packages/*/vendor/**"]
+excludes = ["packages/*/node_modules/**", "packages/*/vendor/**", "packages/grimoire/tests/corpus/**"]
 
 [formatter]
 preset = "laravel"

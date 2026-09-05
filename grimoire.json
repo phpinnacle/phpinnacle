@@ -1,0 +1,20 @@
+{
+    "rules": {
+        "class-method-order": [
+            {
+                "extends": "Illuminate\\Database\\Migrations\\Migration",
+                "order": [
+                    "up",
+                    "down",
+                    "getConnection",
+                    "public:*",
+                    "protected:*",
+                    "private:*"
+                ]
+            }
+        ],
+        "compact-empty-method-body": {
+            "method-pattern": "__construct"
+        }
+    }
+}

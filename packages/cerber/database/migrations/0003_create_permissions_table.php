@@ -9,20 +9,6 @@ use PHPinnacle\Cerber\Models\Tenant;
 use PHPinnacle\Cerber\Models\User;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::dropIfExists('users_permissions');
-        Schema::dropIfExists('users_roles');
-        Schema::dropIfExists('roles_permissions');
-        Schema::dropIfExists('roles');
-        Schema::dropIfExists('permissions');
-    }
-
-    public function getConnection(): ?string
-    {
-        return config('phpinnacle-cerber.connection');
-    }
-
     public function up(): void
     {
         /** @see Permission */
@@ -91,5 +77,19 @@ return new class extends Migration {
 
             $table->primary(['user_id', 'permission_id']);
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('users_permissions');
+        Schema::dropIfExists('users_roles');
+        Schema::dropIfExists('roles_permissions');
+        Schema::dropIfExists('roles');
+        Schema::dropIfExists('permissions');
+    }
+
+    public function getConnection(): ?string
+    {
+        return config('phpinnacle-cerber.connection');
     }
 };

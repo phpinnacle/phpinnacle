@@ -7,16 +7,6 @@ use PHPinnacle\Cerber\Enums\TenantStatus;
 use PHPinnacle\Cerber\Models\Tenant;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::dropIfExists('tenants');
-    }
-
-    public function getConnection(): ?string
-    {
-        return config('phpinnacle-cerber.connection');
-    }
-
     public function up(): void
     {
         /** @see Tenant */
@@ -31,5 +21,15 @@ return new class extends Migration {
             $table->string('logo')->nullable();
             $table->timestamps();
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('tenants');
+    }
+
+    public function getConnection(): ?string
+    {
+        return config('phpinnacle-cerber.connection');
     }
 };

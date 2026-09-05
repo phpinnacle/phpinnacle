@@ -6,16 +6,6 @@ use Illuminate\Support\Facades\Schema;
 use PHPinnacle\Signum\Models\Alert;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::dropIfExists('alerts');
-    }
-
-    public function getConnection(): ?string
-    {
-        return config('phpinnacle-signum.connection');
-    }
-
     public function up(): void
     {
         /** @see Alert */
@@ -35,6 +25,16 @@ return new class extends Migration {
 
             $this->addTenancy($table);
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('alerts');
+    }
+
+    public function getConnection(): ?string
+    {
+        return config('phpinnacle-signum.connection');
     }
 
     private function addTenancy(Blueprint $table): void

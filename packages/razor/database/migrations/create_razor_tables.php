@@ -9,12 +9,6 @@ use PHPinnacle\Razor\Models\Document;
 use PHPinnacle\Razor\Models\Template;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::dropIfExists('documents');
-        Schema::dropIfExists('templates');
-    }
-
     public function up(): void
     {
         /** @see Template */
@@ -75,6 +69,12 @@ return new class extends Migration {
             $table->date('expires_at')->nullable();
             $table->timestamps();
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('documents');
+        Schema::dropIfExists('templates');
     }
 
     private function addTenancy(Blueprint $table): void

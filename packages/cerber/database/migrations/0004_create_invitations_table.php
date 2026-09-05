@@ -8,16 +8,6 @@ use PHPinnacle\Cerber\Models\Role;
 use PHPinnacle\Cerber\Models\Tenant;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::dropIfExists('invitations');
-    }
-
-    public function getConnection(): ?string
-    {
-        return config('phpinnacle-cerber.connection');
-    }
-
     public function up(): void
     {
         /** @see Invitation */
@@ -39,5 +29,15 @@ return new class extends Migration {
 
             $table->unique(['tenant_id', 'email']);
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('invitations');
+    }
+
+    public function getConnection(): ?string
+    {
+        return config('phpinnacle-cerber.connection');
     }
 };

@@ -5,21 +5,6 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::dropIfExists('comment_subscriptions');
-
-        Schema::table('comments', function (Blueprint $table) {
-            $table->dropForeign(['parent_id']);
-            $table->dropColumn(['parent_id', 'edited_at']);
-        });
-    }
-
-    public function getConnection(): ?string
-    {
-        return config('phpinnacle-comments.connection');
-    }
-
     public function up(): void
     {
         Schema::table('comments', function (Blueprint $table) {
@@ -40,5 +25,20 @@ return new class extends Migration {
             $table->uuidMorphs('subject');
             $table->unique(['user_id', 'subject_type', 'subject_id']);
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('comment_subscriptions');
+
+        Schema::table('comments', function (Blueprint $table) {
+            $table->dropForeign(['parent_id']);
+            $table->dropColumn(['parent_id', 'edited_at']);
+        });
+    }
+
+    public function getConnection(): ?string
+    {
+        return config('phpinnacle-comments.connection');
     }
 };

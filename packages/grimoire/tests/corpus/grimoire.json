@@ -1,0 +1,29 @@
+{
+    "rules": {
+        "class-method-order": [
+            {
+                "extends": "Illuminate\\Database\\Migrations\\Migration",
+                "order": [
+                    "getConnection",
+                    "up",
+                    "down",
+                    "public:static:*",
+                    "public:*",
+                    "protected:*",
+                    "private:*"
+                ]
+            },
+            {
+                "extends": "FrameworkHandler",
+                "order": [
+                    "start",
+                    "public:static:*",
+                    "public:*"
+                ]
+            }
+        ],
+        "compact-empty-method-body": {
+            "method-pattern": "multi*"
+        }
+    }
+}

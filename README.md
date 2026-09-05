@@ -16,6 +16,7 @@ This repository is the source of truth for the PHPinnacle package collection. Ea
 | [`phpinnacle/comments`](packages/comments/) | Polymorphic discussion threads with Livewire and Filament integrations, policies, and pruning. |
 | [`phpinnacle/common`](packages/common/) | Shared Laravel and Filament utilities, including ranges, filters, columns, and reusable concerns. |
 | [`phpinnacle/dendros`](packages/dendros/) | Hierarchical Eloquent and Filament building blocks using materialized paths and tree-aware interfaces. |
+| [`phpinnacle/grimoire`](packages/grimoire/) | Project-specific linter rules and analyzer extensions for Mago. |
 | [`phpinnacle/iconic`](packages/iconic/) | Searchable Filament icon picker backed by Phosphor icons. |
 | [`phpinnacle/intl`](packages/intl/) | Symfony Intl-backed country, language, locale, and timezone dictionaries with Laravel and Filament integration. |
 | [`phpinnacle/langcat`](packages/langcat/) | Framework-agnostic PHP client for the LangLion API with typed requests and responses. |

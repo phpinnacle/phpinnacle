@@ -5,16 +5,6 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::dropIfExists('settings');
-    }
-
-    public function getConnection(): ?string
-    {
-        return config('phpinnacle-settings.connection');
-    }
-
     public function up(): void
     {
         Schema::create('settings', function (Blueprint $table) {
@@ -42,5 +32,15 @@ return new class extends Migration {
 
             $table->unique(['user_id', 'group', 'key']);
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('settings');
+    }
+
+    public function getConnection(): ?string
+    {
+        return config('phpinnacle-settings.connection');
     }
 };

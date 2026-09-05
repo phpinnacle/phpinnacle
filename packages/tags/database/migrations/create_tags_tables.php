@@ -6,17 +6,6 @@ use Illuminate\Support\Facades\Schema;
 use PHPinnacle\Tags\Models\Tag;
 
 return new class extends Migration {
-    public function down(): void
-    {
-        Schema::dropIfExists('taggables');
-        Schema::dropIfExists('tags');
-    }
-
-    public function getConnection(): ?string
-    {
-        return config('phpinnacle-tags.connection');
-    }
-
     public function up(): void
     {
         /** @see Tag */
@@ -45,6 +34,17 @@ return new class extends Migration {
 
             $table->primary(['tag_id', 'taggable_id']);
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('taggables');
+        Schema::dropIfExists('tags');
+    }
+
+    public function getConnection(): ?string
+    {
+        return config('phpinnacle-tags.connection');
     }
 
     private function addTenancy(Blueprint $table): bool

@@ -23,6 +23,7 @@
         "phpinnacle/common": "*",
         "phpinnacle/dendros": "*",
         "phpinnacle/ferry": "*",
+        "phpinnacle/grimoire": "*",
         "phpinnacle/iconic": "*",
         "phpinnacle/intl": "*",
         "phpinnacle/langcat": "*",

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "19ac276eadbdd8ee3e0f1522c8a5aae1",
+    "content-hash": "3be911fb6727db98ca868fe4167d7cff",
     "packages": [],
     "packages-dev": [
         {
@@ -8668,6 +8668,63 @@
             "support": {
                 "issues": "https://github.com/phpinnacle/ferry/issues",
                 "source": "https://github.com/phpinnacle/ferry"
+            },
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "phpinnacle/grimoire",
+            "version": "dev-master",
+            "dist": {
+                "type": "path",
+                "url": "packages/grimoire",
+                "reference": "845891d88dcfc12ec8ea85a4fd51096f61635822"
+            },
+            "require": {
+                "carthage-software/mago": "^1.47",
+                "php": "^8.4"
+            },
+            "bin": [
+                "bin/grimoire"
+            ],
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "PHPinnacle\\Grimoire\\": "src/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "mago --config tests/corpus/mago.toml lint --only phpinnacle/class-method-order,phpinnacle/compact-empty-method-body --minimum-fail-level warning"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHPinnacle Devs",
+                    "email": "dev@phpinnacle.edu.pl",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Project-specific Mago linter rules and analyzer extensions.",
+            "homepage": "https://github.com/phpinnacle/grimoire",
+            "keywords": [
+                "lint",
+                "mago",
+                "phpinnacle"
+            ],
+            "support": {
+                "issues": "https://github.com/phpinnacle/grimoire/issues",
+                "source": "https://github.com/phpinnacle/grimoire"
             },
             "transport-options": {
                 "symlink": true,
