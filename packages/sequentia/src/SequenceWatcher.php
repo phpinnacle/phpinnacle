@@ -5,6 +5,7 @@ namespace PHPinnacle\Sequentia;
 use DateTimeInterface;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 
 final class SequenceWatcher
@@ -40,6 +41,7 @@ final class SequenceWatcher
             $now = now();
 
             foreach ($scope::query()->lazy() as $record) {
+                /** @var DateTimeInterface $date */
                 $date = $record->getCreatedAtColumn() !== null
                     ? $record->getAttributeValue($record->getCreatedAtColumn())
                     : $now;
@@ -100,6 +102,7 @@ final class SequenceWatcher
      */
     public static function load(string $scope, DateTimeInterface $date, ?string $tenant, array $bucket = []): array
     {
+        /** @var array<string, int|numeric-string> $rows */
         $rows = self::connection()
             ->table('sequences')
             ->where([
@@ -111,7 +114,7 @@ final class SequenceWatcher
             ->all();
 
         return array_map(
-            fn (int $value) => $value + 1,
+            fn (int|string $value) => (int) $value + 1,
             array_replace(array_fill_keys(array_keys(self::COUNTERS), 0), $rows),
         );
     }
@@ -153,6 +156,10 @@ final class SequenceWatcher
 
     private static function connection(): Connection
     {
-        return DB::connection(config('phpinnacle-sequentia.connection'));
+        return DB::connection(
+            config('phpinnacle-sequentia.connection') === null
+                ? null
+                : Config::string('phpinnacle-sequentia.connection'),
+        );
     }
 }

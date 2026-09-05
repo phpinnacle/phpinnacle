@@ -50,6 +50,8 @@ Rebuild registered counters from existing records when necessary:
 php artisan sequentia:rebuild
 ```
 
+Rebuilding reads the model's `CREATED_AT` attribute as a `DateTimeInterface`. Standard Eloquent timestamps provide this automatically, including renamed timestamp columns. If automatic timestamps are disabled, declare a date cast for that attribute. Models without a creation date should set `CREATED_AT` to `null`; rebuilding uses the current period for those records.
+
 ## Configuration
 
 Set `connection` in `phpinnacle-sequentia.php` to store counters on a dedicated database connection. The current atomic upsert implementation requires PostgreSQL.

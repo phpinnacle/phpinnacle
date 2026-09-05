@@ -27,3 +27,20 @@ it('creates immutable tenant and date variants', function () {
         ->and($original->tenant)
         ->toBeNull();
 });
+
+it('reports regular expression execution failures', function () {
+    $limit = ini_get('pcre.backtrack_limit');
+
+    $this->expectException(RuntimeException::class);
+    $this->expectExceptionMessage('Backtrack limit exhausted');
+
+    try {
+        // @mago-expect lint:no-ini-set
+        ini_set('pcre.backtrack_limit', '0');
+
+        PatternFormatter::format('[code]', ['code' => 'abc']);
+    } finally {
+        // @mago-expect lint:no-ini-set
+        ini_set('pcre.backtrack_limit', $limit);
+    }
+});

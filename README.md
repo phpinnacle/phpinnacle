@@ -66,9 +66,9 @@ Run `composer phpstan` to run PHPStan level 6 static analysis across all package
 
 | Command | Level | Packages |
 | --- | --- | --- |
-| `composer phpstan:level7` | 7 | comments, sequentia, tags |
+| `composer phpstan:level7` | 7 | comments, tags |
 | `composer phpstan:level8` | 8 | cabeiro, vulcan |
-| `composer phpstan:level10` | 10 | babylon, canvio, casus, ferry, intl, langcat, openapi, rosetta |
+| `composer phpstan:level10` | 10 | babylon, canvio, casus, ferry, intl, langcat, openapi, rosetta, sequentia |
 
 ## Composer Repository
 

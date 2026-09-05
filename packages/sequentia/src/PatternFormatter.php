@@ -3,6 +3,7 @@
 namespace PHPinnacle\Sequentia;
 
 use Illuminate\Support\Str;
+use RuntimeException;
 
 final class PatternFormatter
 {
@@ -13,7 +14,7 @@ final class PatternFormatter
      */
     public static function format(string $pattern, array $context): string
     {
-        return preg_replace_callback(
+        $formatted = preg_replace_callback(
             self::PATTERN,
             function (array $capture) use ($context) {
                 [$match, $placeholder] = $capture;
@@ -50,5 +51,7 @@ final class PatternFormatter
             },
             $pattern,
         );
+
+        return $formatted ?? throw new RuntimeException(preg_last_error_msg());
     }
 }
