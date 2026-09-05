@@ -69,12 +69,13 @@ class Comments extends Component implements HasActions, HasForms
         /** @var array{text: string} $data */
         $data = $this->form->getState();
 
-        $comment = new Comment;
-        $comment->author_id = $user->getAuthIdentifier();
-        $comment->subject_type = $this->record->getMorphClass();
-        $comment->subject_id = $this->record->getKey();
-        $comment->parent_id = $parent?->getKey();
-        $comment->text = $data['text'];
+        $comment = new Comment([
+            'author_id' => $user->getAuthIdentifier(),
+            'subject_type' => $this->record->getMorphClass(),
+            'subject_id' => $this->record->getKey(),
+            'parent_id' => $parent?->id,
+            'text' => $data['text'],
+        ]);
         $comment->save();
 
         app(CommentNotifier::class)->send($comment, $user);
@@ -128,12 +129,15 @@ class Comments extends Component implements HasActions, HasForms
             return $schema;
         }
 
+        /** @var array<int, array<int, object|string>|object|string>|\Closure|null $toolbar */
+        $toolbar = config('phpinnacle-comments.toolbar');
+
         return $schema
             ->components([
                 RichEditor::make('text')
                     ->hiddenLabel()
                     ->mentions([app(CommentNotifier::class)->mentionProvider()])
-                    ->toolbarButtons(config('phpinnacle-comments.toolbar'))
+                    ->toolbarButtons($toolbar)
                     ->extraInputAttributes([
                         'class' => '!min-h-2',
                     ])
@@ -178,7 +182,7 @@ class Comments extends Component implements HasActions, HasForms
         }
 
         $this->editing = null;
-        $this->replying = $comment->parent_id ?? $comment->getKey();
+        $this->replying = $comment->parent_id ?? $comment->id;
         $this->form->fill();
     }
 

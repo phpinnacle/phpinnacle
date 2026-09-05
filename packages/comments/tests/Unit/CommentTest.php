@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
+use PHPinnacle\Comments\Infolists\CommentsEntry;
 use PHPinnacle\Comments\Livewire\Comments as CommentsComponent;
 use PHPinnacle\Comments\Models\Comment;
 use PHPinnacle\Comments\Models\CommentSubscription;
@@ -261,4 +262,31 @@ it('does not expose or execute comment creation for guests', function () {
         ->call('create');
 
     expect(Comment::query()->count())->toBe(0);
+});
+
+it('hides the comments entry from guests', function () {
+    expect(CommentsEntry::make()->isVisible())->toBeFalse();
+});
+
+it('checks authorization before showing the comments entry', function (bool $allowed) {
+    $author = CommentAuthor::query()->create(['name' => 'Ada']);
+    $this->actingAs($author);
+    request()->setUserResolver(static fn () => $author);
+    $gate = new GateManager(app(), static fn () => auth()->user());
+    app()->instance(GateContract::class, $gate);
+    Gate::swap($gate);
+    Gate::define('viewAny', static fn (AuthenticatableContract $user) => $allowed);
+
+    expect(CommentsEntry::make()->isVisible())->toBe($allowed);
+})->with([true, false]);
+
+it('resolves mention search results and selected user labels', function () {
+    $ada = CommentAuthor::query()->create(['name' => 'Ada']);
+    $grace = CommentAuthor::query()->create(['name' => 'Grace']);
+    $provider = app(CommentNotifier::class)->mentionProvider();
+
+    expect($provider->getSearchResults('Ada'))
+        ->toBe([$ada->getKey() => 'Ada'])
+        ->and($provider->getLabels([(string) $grace->getKey()]))
+        ->toBe([$grace->getKey() => 'Grace']);
 });

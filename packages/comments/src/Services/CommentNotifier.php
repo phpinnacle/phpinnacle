@@ -6,6 +6,7 @@ use Filament\Forms\Components\RichEditor\MentionProvider;
 use Filament\Notifications\Notification;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use PHPinnacle\Comments\Models\Comment;
 use PHPinnacle\Comments\Models\CommentSubscription;
@@ -26,24 +27,31 @@ class CommentNotifier
                     ->all(),
             )
             ->getLabelsUsing(
-                static fn (array $ids) => $userModel::query()
-                    ->whereKey($ids)
-                    ->pluck('name', 'id')
-                    ->all(),
+                static function (array $ids) use ($userModel) {
+                    // @mago-expect lint:inline-variable-return
+                    /** @var array<string, string> $labels */
+                    $labels = $userModel::query()->whereKey($ids)->pluck('name', 'id')->all();
+
+                    return $labels;
+                },
             );
     }
 
     public function send(Comment $comment, Authenticatable $author): void
     {
         $mentionedIds = $comment->mentionedUserIds();
-        $recipientIds = CommentSubscription::query()
+        /** @var int|string $authorId */
+        $authorId = $author->getAuthIdentifier();
+        /** @var Collection<int, int|string> $subscriberIds */
+        $subscriberIds = CommentSubscription::query()
             ->where([
                 'subject_type' => $comment->subject_type,
                 'subject_id' => $comment->subject_id,
             ])
-            ->pluck('user_id')
+            ->pluck('user_id');
+        $recipientIds = $subscriberIds
             ->merge($mentionedIds)
-            ->reject(static fn (mixed $id) => (string) $id === (string) $author->getAuthIdentifier())
+            ->reject(static fn (int|string $id) => (string) $id === (string) $authorId)
             ->unique()
             ->values();
 
@@ -54,9 +62,12 @@ class CommentNotifier
         /** @var class-string<Model> $userModel */
         $userModel = config('phpinnacle-comments.user.model');
         $users = $userModel::query()->whereKey($recipientIds)->get();
-        [$mentioned, $subscribed] = $users->partition(
-            static fn (Model $user) => in_array((string) $user->getKey(), $mentionedIds, strict: true),
-        );
+        [$mentioned, $subscribed] = $users->partition(static function (Model $user) use ($mentionedIds) {
+            /** @var int|string $id */
+            $id = $user->getKey();
+
+            return in_array((string) $id, $mentionedIds, strict: true);
+        })->all();
         $body = Str::limit(trim(strip_tags($comment->text)), 120);
 
         if ($mentioned->isNotEmpty()) {

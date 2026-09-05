@@ -41,6 +41,6 @@ class CommentsEntry extends ViewEntry
         $this
             ->label(__('phpinnacle-comments::forms.heading'))
             ->view('phpinnacle-comments::entry')
-            ->visible(fn (Request $request) => $request->user()->can('viewAny', Comment::class));
+            ->visible(fn (Request $request) => $request->user()?->can('viewAny', Comment::class) ?? false);
     }
 }

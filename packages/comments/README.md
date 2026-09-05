@@ -47,6 +47,8 @@ CommentsEntry::make('comments');
 
 Authorization is delegated to `CommentPolicy`. Its `create`, `update`, and `delete` abilities control the corresponding thread actions; use `update` to limit editing to comment authors. Replies quote one root comment rather than forming an arbitrarily deep tree. If pruning is desired, schedule Laravel's `model:prune` command.
 
+The infolist entry is hidden for guests and checks the `viewAny` ability for authenticated users.
+
 ## Testing
 
 ```bash

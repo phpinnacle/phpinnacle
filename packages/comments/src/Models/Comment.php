@@ -13,7 +13,7 @@ use Illuminate\Support\Collection;
 
 /**
  * @property string $id
- * @property string $author_id
+ * @property int|string $author_id
  * @property string $subject_type
  * @property string $subject_id
  * @property ?string $parent_id
@@ -71,7 +71,11 @@ class Comment extends Model
 
     public function getConnectionName(): ?string
     {
-        return config('phpinnacle-comments.connection', parent::getConnectionName());
+        // @mago-expect lint:inline-variable-return
+        /** @var ?string $connection */
+        $connection = config('phpinnacle-comments.connection', parent::getConnectionName());
+
+        return $connection;
     }
 
     /**
@@ -101,6 +105,7 @@ class Comment extends Model
      */
     public function prunable(): Builder
     {
+        /** @var int $days */
         $days = config('phpinnacle-comments.prune', 365);
 
         return static::query()->where('created_at', '<=', now()->subDays($days));

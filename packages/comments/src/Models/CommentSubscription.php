@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * @property string $user_id
+ * @property int|string $user_id
  * @property string $subject_type
  * @property string $subject_id
  */
@@ -26,7 +26,11 @@ class CommentSubscription extends Model
 
     public function getConnectionName(): ?string
     {
-        return config('phpinnacle-comments.connection', parent::getConnectionName());
+        // @mago-expect lint:inline-variable-return
+        /** @var ?string $connection */
+        $connection = config('phpinnacle-comments.connection', parent::getConnectionName());
+
+        return $connection;
     }
 
     /**
