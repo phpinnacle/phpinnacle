@@ -91,6 +91,18 @@ final class BuiltInCatalog
     public static function filters(): array
     {
         return [
+            ...self::fallbackFilters(),
+            ...self::textFilters(),
+            ...self::dateFilters(),
+            ...self::numberFilters(),
+            ...self::collectionFilters(),
+        ];
+    }
+
+    /** @return list<Filter> */
+    private static function fallbackFilters(): array
+    {
+        return [
             Filter::make('default')
                 ->label(__('phpinnacle-stylus::forms.twig_editor.catalog.filters.default.label'))
                 ->icon(Heroicon::ArrowUturnLeft)
@@ -104,6 +116,13 @@ final class BuiltInCatalog
                         ->helperText(__('phpinnacle-stylus::forms.twig_editor.catalog.filters.default.value_helper'))
                         ->required(),
                 ]),
+        ];
+    }
+
+    /** @return list<Filter> */
+    private static function textFilters(): array
+    {
+        return [
             Filter::make('title')
                 ->label(__('phpinnacle-stylus::forms.twig_editor.catalog.filters.title.label'))
                 ->icon(Heroicon::Language)
@@ -316,6 +335,13 @@ final class BuiltInCatalog
 
                     return [self::quoteTwigString($to), self::quoteTwigString($from)];
                 }),
+        ];
+    }
+
+    /** @return list<Filter> */
+    private static function dateFilters(): array
+    {
+        return [
             Filter::make('date')
                 ->label(__('phpinnacle-stylus::forms.twig_editor.catalog.filters.date.label'))
                 ->icon(Heroicon::CalendarDays)
@@ -364,6 +390,13 @@ final class BuiltInCatalog
 
                     return [self::quoteTwigString($modifier)];
                 }),
+        ];
+    }
+
+    /** @return list<Filter> */
+    private static function numberFilters(): array
+    {
+        return [
             Filter::make('abs')
                 ->label(__('phpinnacle-stylus::forms.twig_editor.catalog.filters.abs.label'))
                 ->icon(Heroicon::Calculator)
@@ -458,6 +491,13 @@ final class BuiltInCatalog
 
                     return $arguments;
                 }),
+        ];
+    }
+
+    /** @return list<Filter> */
+    private static function collectionFilters(): array
+    {
+        return [
             Filter::make('sort')
                 ->label(__('phpinnacle-stylus::forms.twig_editor.catalog.filters.sort.label'))
                 ->icon(Heroicon::BarsArrowDown)

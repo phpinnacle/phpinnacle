@@ -561,85 +561,89 @@ class TwigTemplatePlugin implements RichContentPlugin
                         : []
                 );
             })
-            ->action(function (array $arguments, array $data, TwigEditor $component) {
-                $conditionAst = is_array($arguments['conditionAst'] ?? null)
-                    ? $arguments['conditionAst']
-                    : [];
-                $children = is_array($conditionAst['children'] ?? null)
-                    ? array_values($conditionAst['children'])
-                    : [];
-                $conditionIndex = $arguments['conditionIndex'] ?? null;
-                $operandKey = $arguments['operandKey'] ?? null;
-                $clause = is_int($conditionIndex) && is_array($children[$conditionIndex] ?? null)
-                    ? $children[$conditionIndex]
-                    : null;
-                $operand = is_string($operandKey) && is_array($clause[$operandKey] ?? null)
-                    ? $clause[$operandKey]
-                    : null;
-                $variableName = is_array($operand) && ($operand['type'] ?? null) === 'variable'
-                    ? $operand['name'] ?? null
-                    : null;
-                $variable = is_string($variableName)
-                    ? $component->getVariable($variableName, $this->getLoopStack($arguments))
-                    : null;
-                $filterName = $arguments['filterName'] ?? null;
-                $filter = is_string($filterName) ? $component->getFilter($filterName) : null;
+            ->action($this->applyConditionOperandFilter(...));
+    }
 
-                if (
-                    !$variable
-                    || !$filter
-                    || !$filter->supports($variable->getType())
-                    || $filter->getOutput() !== FilterOutput::Same
-                    || $filter->getSchema() === []
-                ) {
-                    throw ValidationException::withMessages([
-                        'filters' => __('phpinnacle-stylus::forms.twig_editor.validation.filter_unavailable'),
-                    ]);
-                }
+    /** @param array<string, mixed> $arguments */
+    private function applyConditionOperandFilter(array $arguments, array $data, TwigEditor $component): void
+    {
+        $conditionAst = is_array($arguments['conditionAst'] ?? null)
+            ? $arguments['conditionAst']
+            : [];
+        $children = is_array($conditionAst['children'] ?? null)
+            ? array_values($conditionAst['children'])
+            : [];
+        $conditionIndex = $arguments['conditionIndex'] ?? null;
+        $operandKey = $arguments['operandKey'] ?? null;
+        $clause = is_int($conditionIndex) && is_array($children[$conditionIndex] ?? null)
+            ? $children[$conditionIndex]
+            : null;
+        $operand = is_string($operandKey) && is_array($clause[$operandKey] ?? null)
+            ? $clause[$operandKey]
+            : null;
+        $variableName = is_array($operand) && ($operand['type'] ?? null) === 'variable'
+            ? $operand['name'] ?? null
+            : null;
+        $variable = is_string($variableName)
+            ? $component->getVariable($variableName, $this->getLoopStack($arguments))
+            : null;
+        $filterName = $arguments['filterName'] ?? null;
+        $filter = is_string($filterName) ? $component->getFilter($filterName) : null;
 
-                $configuredFilters = $this->filtersToFormState($operand['filters'] ?? []);
-                $filterIndex = $arguments['filterIndex'] ?? null;
+        if (
+            !$variable
+            || !$filter
+            || !$filter->supports($variable->getType())
+            || $filter->getOutput() !== FilterOutput::Same
+            || $filter->getSchema() === []
+        ) {
+            throw ValidationException::withMessages([
+                'filters' => __('phpinnacle-stylus::forms.twig_editor.validation.filter_unavailable'),
+            ]);
+        }
 
-                if (is_int($filterIndex) && ($configuredFilters[$filterIndex]['type'] ?? null) === $filterName) {
-                    $configuredFilters[$filterIndex]['data'] = $data;
-                } else {
-                    $configuredFilters[] = [
-                        'type' => $filterName,
-                        'data' => $data,
-                    ];
-                }
+        $configuredFilters = $this->filtersToFormState($operand['filters'] ?? []);
+        $filterIndex = $arguments['filterIndex'] ?? null;
 
-                $clause[$operandKey]['filters'] = $this->normalizeConditionFilters(
-                    $configuredFilters,
-                    $variable,
-                    $component,
-                );
-                $children[$conditionIndex] = $clause;
-                $conditionAst['children'] = $children;
+        if (is_int($filterIndex) && ($configuredFilters[$filterIndex]['type'] ?? null) === $filterName) {
+            $configuredFilters[$filterIndex]['data'] = $data;
+        } else {
+            $configuredFilters[] = [
+                'type' => $filterName,
+                'data' => $data,
+            ];
+        }
 
-                try {
-                    $condition = $component->serializeCondition($conditionAst, $this->getLoopStack($arguments));
-                } catch (InvalidArgumentException) {
-                    throw ValidationException::withMessages([
-                        'filters' => __('phpinnacle-stylus::forms.twig_editor.validation.condition_invalid'),
-                    ]);
-                }
+        $clause[$operandKey]['filters'] = $this->normalizeConditionFilters(
+            $configuredFilters,
+            $variable,
+            $component,
+        );
+        $children[$conditionIndex] = $clause;
+        $conditionAst['children'] = $children;
 
-                $command = match ($arguments['conditionTarget'] ?? null) {
-                    'row' => 'setTwigTableRowCondition',
-                    default => ($arguments['inline'] ?? false) === true
-                        ? 'updateTwigInlineIf'
-                        : 'updateTwigIf',
-                };
+        try {
+            $condition = $component->serializeCondition($conditionAst, $this->getLoopStack($arguments));
+        } catch (InvalidArgumentException) {
+            throw ValidationException::withMessages([
+                'filters' => __('phpinnacle-stylus::forms.twig_editor.validation.condition_invalid'),
+            ]);
+        }
 
-                $component->runCommands(
-                    [EditorCommand::make($command, arguments: [[
-                        'condition' => $condition,
-                        'conditionAst' => $conditionAst,
-                    ]])],
-                    editorSelection: $arguments['editorSelection'],
-                );
-            });
+        $command = match ($arguments['conditionTarget'] ?? null) {
+            'row' => 'setTwigTableRowCondition',
+            default => ($arguments['inline'] ?? false) === true
+                ? 'updateTwigInlineIf'
+                : 'updateTwigIf',
+        };
+
+        $component->runCommands(
+            [EditorCommand::make($command, arguments: [[
+                'condition' => $condition,
+                'conditionAst' => $conditionAst,
+            ]])],
+            editorSelection: $arguments['editorSelection'],
+        );
     }
 
     private function configureConditionRuleModal(Action $action): Action
@@ -730,77 +734,79 @@ class TwigTemplatePlugin implements RichContentPlugin
                         : []
                 );
             })
-            ->action(function (array $arguments, array $data, TwigEditor $component) {
-                $filterName = $arguments['filterName'] ?? null;
-                $filter = is_string($filterName) ? $component->getFilter($filterName) : null;
+            ->action($this->applyLoopFilter(...));
+    }
 
-                if (
-                    !$filter?->supports('collection')
-                    || $filter->getOutput() === FilterOutput::CollectionItem
-                    || $filter->getSchema() === []
-                ) {
-                    throw ValidationException::withMessages([
-                        'filters' => __(
-                            'phpinnacle-stylus::forms.twig_editor.validation.collection_filter_unavailable',
-                        ),
-                    ]);
-                }
+    /** @param array<string, mixed> $arguments */
+    private function applyLoopFilter(array $arguments, array $data, TwigEditor $component): void
+    {
+        $filterName = $arguments['filterName'] ?? null;
+        $filter = is_string($filterName) ? $component->getFilter($filterName) : null;
 
-                $configuredFilters = $this->filtersToFormState($arguments['filters'] ?? []);
-                $filterIndex = $arguments['filterIndex'] ?? null;
+        if (
+            !$filter?->supports('collection')
+            || $filter->getOutput() === FilterOutput::CollectionItem
+            || $filter->getSchema() === []
+        ) {
+            throw ValidationException::withMessages([
+                'filters' => __('phpinnacle-stylus::forms.twig_editor.validation.collection_filter_unavailable'),
+            ]);
+        }
 
-                if (is_int($filterIndex) && ($configuredFilters[$filterIndex]['type'] ?? null) === $filterName) {
-                    $configuredFilters[$filterIndex]['data'] = $data;
-                } else {
-                    $configuredFilters[] = [
-                        'type' => $filterName,
-                        'data' => $data,
-                    ];
-                }
+        $configuredFilters = $this->filtersToFormState($arguments['filters'] ?? []);
+        $filterIndex = $arguments['filterIndex'] ?? null;
 
-                $item = trim((string) ($arguments['item'] ?? ''));
-                $key = is_string($arguments['key'] ?? null) ? trim($arguments['key']) : null;
-                $iterable = trim((string) ($arguments['iterable'] ?? ''));
+        if (is_int($filterIndex) && ($configuredFilters[$filterIndex]['type'] ?? null) === $filterName) {
+            $configuredFilters[$filterIndex]['data'] = $data;
+        } else {
+            $configuredFilters[] = [
+                'type' => $filterName,
+                'data' => $data,
+            ];
+        }
 
-                if (
-                    preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $item) !== 1
-                    || filled($key)
-                    && preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $key) !== 1
-                ) {
-                    throw ValidationException::withMessages([
-                        'filters' => __('phpinnacle-stylus::forms.twig_editor.validation.loop_identifier'),
-                    ]);
-                }
+        $item = trim((string) ($arguments['item'] ?? ''));
+        $key = is_string($arguments['key'] ?? null) ? trim($arguments['key']) : null;
+        $iterable = trim((string) ($arguments['iterable'] ?? ''));
 
-                $scope = $component->getVariableScope($this->getLoopStack($arguments));
+        if (
+            preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $item) !== 1
+            || filled($key)
+            && preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $key) !== 1
+        ) {
+            throw ValidationException::withMessages([
+                'filters' => __('phpinnacle-stylus::forms.twig_editor.validation.loop_identifier'),
+            ]);
+        }
 
-                if (
-                    blank($iterable)
-                    || mb_strlen($iterable) > 500
-                    || filled($scope->getIterableOptions())
-                    && !$scope->getVariable($iterable)?->isCollection()
-                ) {
-                    throw ValidationException::withMessages([
-                        'filters' => __('phpinnacle-stylus::forms.twig_editor.validation.iterable_unavailable'),
-                    ]);
-                }
+        $scope = $component->getVariableScope($this->getLoopStack($arguments));
 
-                $command = match ($arguments['loopTarget'] ?? 'block') {
-                    'row' => 'setTwigTableRowLoop',
-                    'cell' => 'setTwigTableCellLoop',
-                    default => 'updateTwigFor',
-                };
+        if (
+            blank($iterable)
+            || mb_strlen($iterable) > 500
+            || filled($scope->getIterableOptions())
+            && !$scope->getVariable($iterable)?->isCollection()
+        ) {
+            throw ValidationException::withMessages([
+                'filters' => __('phpinnacle-stylus::forms.twig_editor.validation.iterable_unavailable'),
+            ]);
+        }
 
-                $component->runCommands(
-                    [EditorCommand::make($command, arguments: [[
-                        'item' => $item,
-                        'key' => filled($key) ? $key : null,
-                        'iterable' => $iterable,
-                        'transforms' => $this->normalizeCollectionFilters($configuredFilters, $component),
-                    ]])],
-                    editorSelection: $arguments['editorSelection'],
-                );
-            });
+        $command = match ($arguments['loopTarget'] ?? 'block') {
+            'row' => 'setTwigTableRowLoop',
+            'cell' => 'setTwigTableCellLoop',
+            default => 'updateTwigFor',
+        };
+
+        $component->runCommands(
+            [EditorCommand::make($command, arguments: [[
+                'item' => $item,
+                'key' => filled($key) ? $key : null,
+                'iterable' => $iterable,
+                'transforms' => $this->normalizeCollectionFilters($configuredFilters, $component),
+            ]])],
+            editorSelection: $arguments['editorSelection'],
+        );
     }
 
     private function configureVariableFilterAction(): Action
@@ -1120,25 +1126,7 @@ class TwigTemplatePlugin implements RichContentPlugin
             ->modalHeading($heading)
             ->modalSubmitActionLabel(__('phpinnacle-stylus::forms.twig_editor.actions.apply'))
             ->modalWidth(Width::Large)
-            ->fillForm(fn (array $arguments) => [
-                'item' => $arguments['item'] ?? 'item',
-                'key' => $arguments['key'] ?? null,
-                'iterable' => $arguments['iterable'] ?? '',
-                'filters' => array_map(
-                    static fn (mixed $filter) => (
-                        is_array($filter)
-                            ? [
-                                'type' => $filter['name'] ?? null,
-                                'data' => is_array($filter['configuration'] ?? null)
-                                    ? $filter['configuration']
-                                    : [],
-                            ]
-                            : []
-                    ),
-                    is_array($arguments['transforms'] ?? null) ? $arguments['transforms'] : [],
-                ),
-                'hasElse' => (bool) ($arguments['hasElse'] ?? false),
-            ])
+            ->fillForm($this->loopFormState(...))
             ->schema(function (array $arguments, TwigEditor $component) use ($isExisting, $supportsElse) {
                 $fields = [
                     Group::make([
@@ -1239,6 +1227,33 @@ class TwigTemplatePlugin implements RichContentPlugin
                     editorSelection: $arguments['editorSelection'],
                 );
             });
+    }
+
+    /**
+     * @param  array<string, mixed>  $arguments
+     * @return array<string, mixed>
+     */
+    private function loopFormState(array $arguments): array
+    {
+        return [
+            'item' => $arguments['item'] ?? 'item',
+            'key' => $arguments['key'] ?? null,
+            'iterable' => $arguments['iterable'] ?? '',
+            'filters' => array_map(
+                static fn (mixed $filter) => (
+                    is_array($filter)
+                        ? [
+                            'type' => $filter['name'] ?? null,
+                            'data' => is_array($filter['configuration'] ?? null)
+                                ? $filter['configuration']
+                                : [],
+                        ]
+                        : []
+                ),
+                is_array($arguments['transforms'] ?? null) ? $arguments['transforms'] : [],
+            ),
+            'hasElse' => (bool) ($arguments['hasElse'] ?? false),
+        ];
     }
 
     /** @return list<array{name: string, arguments: list<string>, configuration: array<string, mixed>}> */
