@@ -1,15 +1,20 @@
-# Refactor
+# Refactor plan
 
-Only local, behavior-preserving cleanup is listed here. Public API changes and package-wide redesigns are intentionally excluded.
+Reviewed against the working tree on 2026-09-05. The stale semantic-color cache is the clear priority; most proposed field abstractions are unnecessary.
 
-## 1. Remove the static color registry cache
+## 1. Priority: high — remove the static semantic-color snapshot
 
-Read colors from `FilamentColor` when resolving a semantic color instead of retaining them in `Color::$colors`, avoiding stale cross-request state under Octane.
+`Color::resolve()` populates `Color::$colors` on first use and never refreshes it. The picker itself reads `FilamentColor::getColors()` directly, so a later theme registration can give the picker and `resolve()` different colors in the same process.
 
-## 2. Keep palette conversion in `Color`
+Read the current Filament registry when resolving an alias. Keep palette shade aliases, hex conversion, and the existing fallback to the current primary color.
 
-Move the repeated palette-to-hex mapping used by `ColorPicker::getTailwindColors()` and `getThemeColors()` into `Color`, leaving the field responsible only for configured sources and state.
+Acceptance: in `tests/Unit/ColorTest.php`, resolve an alias, replace the registered palette, then resolve again and observe the new color without resetting package internals. Verify a missing name falls back to the new primary. This corrects stale behavior and does not require a new cache or service binding.
 
-## 3. Normalize source mutations once
+## Removed from the active queue
 
-Route `enable()`, `disable()`, `format()`, and `getSources()` through one private normalization method that deduplicates sources and applies semantic-format compatibility consistently.
+- Palette conversion is already centralized in `Color::hex()`. `getTailwindColors()` maps selected shades, while `getThemeColors()` maps one default shade per semantic color. Their different output shapes do not justify another conversion layer.
+- A universal source normalizer could change fluent semantics. `enable()` deduplicates, `disable()` removes, `format(Semantic)` replaces sources, and `getSources()` filters compatibility without mutating configuration. Preserve this division; do not silently drop configured sources during reads or format switches.
+
+## Conditional follow-up
+
+If source handling changes for a concrete requirement, extend `tests/Unit/ColorPickerTest.php` with order-sensitive `enable()`/`disable()`/`format()` sequences and a switch back from Semantic. Keep alpha preservation, source order, shade selection, and stored values unchanged. Run asset/browser checks only if the picker UI or JavaScript changes.

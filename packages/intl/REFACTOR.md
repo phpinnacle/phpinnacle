@@ -1,15 +1,21 @@
-# Refactor
+# Refactor plan
 
-Only local, behavior-preserving cleanup is listed here. Public API changes and package-wide redesigns are intentionally excluded.
+Reviewed against the working tree on 2026-09-05. This package needs no structural redesign; retain the four small public picker classes and dictionary APIs.
 
-## 1. Share picker defaults
+## 1. Priority: medium, conditional — defer expensive option loading
 
-Move the repeated label, placeholder, icon, search, debounce, and option-limit setup from the four picker classes into a small package-local base picker.
+Each picker currently calls its dictionary's `list()` during `setUp()`. Measure a form containing hidden or unused pickers and compare setup plus rendering with lazy option closures.
 
-## 2. Defer dictionary loading
+Proceed only if closures avoid meaningful work without repeatedly rebuilding the same dictionary during one render. Preserve option keys, ordering, synthetic defaults, and translated labels. Do not add a static localized-option cache.
 
-Pass dictionary lookups to Filament as option closures instead of resolving hundreds of localized options during every component setup.
+Acceptance: unused fields avoid dictionary work, rendered fields retain the same options, and separate requests with different locales do not reuse translated options. Extend `tests/Unit/DictionariesTest.php` with the relevant component lifecycle case; explicitly account for the change from setup-time to evaluation-time locale selection.
 
-## 3. Remove duplicate language normalization
+## 2. Priority: low — remove redundant rule normalization when touching validation
 
-Pass the validated string directly from `LanguageCode` to `Languages::exists()`, which already trims and lowercases the code, instead of normalizing it twice.
+`LanguageCode::validate()` lowercases a string before `Languages::exists()` lowercases and trims it again. Delegate normalization to the dictionary while retaining the rule's `mixed` type check and translated validation failures.
+
+Acceptance: uppercase and padded language codes keep working; non-string and unknown values still fail at the Laravel validation boundary.
+
+## Removed from the active queue
+
+A shared base picker would hide a short fluent setup and introduce inheritance for one use per class. Defaults are not identical: the country picker allows HTML, while the timezone picker does not set the same search/debounce options. Keep these differences explicit unless a real shared behavior emerges.

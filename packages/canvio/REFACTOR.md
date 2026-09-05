@@ -1,15 +1,22 @@
-# Refactor
+# Refactor plan
 
-Only local, behavior-preserving cleanup is listed here. Public API changes and package-wide redesigns are intentionally excluded.
+Reviewed against the working tree on 2026-09-05. Keep the PSR-only dependencies and the public client, context, exception, and lazy pagination contracts.
 
-## 1. Unify JSON decoding
+## 1. Priority: high — characterize the transport boundary
 
-Make `Transport::decode()` the single JSON decoding path for successful and error responses, with a non-throwing mode for API error bodies, instead of maintaining two nearly identical `json_decode()` branches.
+`tests/Unit/ClientTest.php` covers a cross-origin next link and a JSON API error, but not the full boundary implemented by `Support/Transport.php`.
 
-## 2. Isolate pagination URL validation
+- Add focused cases for allowed root-relative links, scheme/port/API-path mismatches, invalid success JSON, scalar JSON, empty responses, and non-JSON HTTP errors. Assert exception status/body and that a rejected next link never causes a second authenticated request.
+- Verify lazy iteration and independent tokens after `withAccessToken()`.
+- Keep this as the prerequisite to transport changes; any newly exposed URI acceptance defect is a separate behavior fix, not part of an extraction.
 
-Move relative-link normalization and same-origin validation out of `Transport::nextPage()` into the existing link/URI support area so the transport method only advances pagination.
+## 2. Priority: medium — separate pagination URI policy if it simplifies transport
 
-## 3. Split the client test by boundary
+`nextPage()` combines Link-header lookup, root-relative resolution, and validation against the configured base. A small internal URI resolver may own the latter two operations and the base URI state. Keep `LinkHeader` responsible for header parsing; it currently has no origin state. Leave HTTP status/body enrichment in `Transport`.
 
-Break the large `ClientTest` into focused transport-security, query-encoding, context, and response-mapping tests while retaining the same assertions and fixtures.
+Acceptance: the boundary cases above keep the same results, errors, request count, and timing. Do not introduce a generic URI framework or share internals with another client package.
+
+## Removed from the active queue
+
+- A boolean mode on `decode()`: success decoding intentionally throws and treats an empty body as `[]`; error decoding intentionally returns `null` when decoding fails so `ApiException` retains the HTTP error. Two short methods make this distinction clearer.
+- Splitting every client test by category: move tests only while adding boundary coverage; file size alone is not a useful deliverable.
