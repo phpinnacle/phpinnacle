@@ -171,10 +171,10 @@ class Tag extends Model implements HasColor, HasLabel
     }
 
     /**
-     * @param Collection<array-key, Model>|string $taggables
+     * @param Collection<array-key, Model> $taggables
      * @param array<array-key, string> $tags
      */
-    private static function manageDrop(Collection|string $taggables, array $tags): void
+    private static function manageDrop(Collection $taggables, array $tags): void
     {
         DB::table('taggables')
             ->whereIn('tag_id', $tags)

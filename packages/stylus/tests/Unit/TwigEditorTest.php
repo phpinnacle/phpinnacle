@@ -412,6 +412,23 @@ it('exposes Filament presentation metadata for Twig editor descriptors', functio
         ->toContain('fi-stylus-twig-metadata-icon');
 });
 
+it('serializes named type and snippet requirements as lists', function () {
+    $condition = Condition::comparison('numeric', '==')->types(first: 'number', second: 'integer');
+    $filter = Filter::make('numeric')->types(first: 'number', second: 'integer');
+    $snippet = Snippet::make('signature', [])->requires(first: 'user.name', second: 'user.email');
+    $editor = TwigEditor::make('template')->conditions($condition)->filters($filter);
+
+    $conditions = collect($editor->getConditionDefinitionsForBrowser())->keyBy('name');
+    $filters = collect($editor->getFilterDefinitionsForBrowser())->keyBy('name');
+
+    expect(json_encode($conditions['numeric']['types']))
+        ->toBe('["number","integer"]')
+        ->and(json_encode($filters['numeric']['types']))
+        ->toBe('["number","integer"]')
+        ->and(json_encode($snippet->toArray()['requiredVariables']))
+        ->toBe('["user.name","user.email"]');
+});
+
 it('shows reusable snippets in its own panel instead of a modal action', function () {
     $editor = stylus_twig_editor()
         ->variables(Variable::text('user.name'))

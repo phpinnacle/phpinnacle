@@ -177,11 +177,14 @@ class PermissionTabs
             }
         }
 
-        return collect($result)
-            ->put(__('phpinnacle-cerber::permissions.group'), $other)
-            ->map(fn (array $sections, string $group) => Tab::make($group)->badge(count($sections))->schema($sections))
-            ->values()
-            ->all();
+        $result[__('phpinnacle-cerber::permissions.group')] = $other;
+        $tabs = [];
+
+        foreach ($result as $group => $sections) {
+            $tabs[] = Tab::make($group)->badge(count($sections))->schema($sections);
+        }
+
+        return $tabs;
     }
 
     private static function adapt(CheckboxList $component, ?Role $record): void

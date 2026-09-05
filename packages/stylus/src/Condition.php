@@ -162,7 +162,7 @@ class Condition implements ConditionContract
             $this->expression,
             $this->type,
             $this->label,
-            $types,
+            array_values($types),
             $this->matchesVariableTypes,
             $this->icon,
             $this->description,

@@ -19,6 +19,9 @@ class HasManyDeep extends HasMany
 {
     protected const string HASH_PATH_COLUMN = 'laravel_reserved_path';
 
+    /**
+     * @param class-string<Model> $related
+     */
     public static function between(
         Model&TreeNode $parent,
         string $related,
@@ -106,6 +109,9 @@ class HasManyDeep extends HasMany
         return $models;
     }
 
+    /**
+     * @param class-string<Model> $class
+     */
     protected static function newRelatedInstance(string $class, Model $parent): Model
     {
         return tap(new $class, static function ($related) use ($parent) {

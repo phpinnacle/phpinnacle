@@ -126,7 +126,7 @@ class Cerberus
     }
 
     /**
-     * @return ($flatten is true ? list<string> : array<class-string<Resource>, list<string>>)
+     * @return ($flatten is true ? list<string> : array<class-string<Resource>, array<array-key, string>>)
      */
     public static function getPermissions(?Panel $panel = null, bool $flatten = false): array
     {
@@ -146,12 +146,13 @@ class Cerberus
     }
 
     /**
-     * @return list<string>
+     * @param class-string<Resource> $resource
+     * @return array<array-key, string>
      */
     private static function getResourcePermissions(string $resource): array
     {
         $config = config('phpinnacle-cerber.permissions');
-        $prefix = str(call_user_func([$resource, 'getModel']))->afterLast('\\')->snake();
+        $prefix = str($resource::getModel())->afterLast('\\')->snake();
         $permissions = is_a($resource, HasCustomPermissions::class, true)
             ? $resource::getPermissions()
             : $config[$resource] ?? self::PREFIXES;

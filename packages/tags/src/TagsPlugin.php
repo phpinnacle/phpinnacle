@@ -14,7 +14,7 @@ class TagsPlugin implements Plugin
     use EvaluatesClosures;
 
     /**
-     * @var list<Closure|string>
+     * @var array<array-key, Closure|string>
      */
     private array $models = [];
 

@@ -14,7 +14,7 @@ class RazorPlugin implements Plugin
     use EvaluatesClosures;
 
     /**
-     * @var list<Section|Closure>
+     * @var array<array-key, Section|Closure>
      */
     private array $sections = [];
 

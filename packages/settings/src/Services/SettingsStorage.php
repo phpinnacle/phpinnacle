@@ -41,6 +41,9 @@ class SettingsStorage
      */
     private array $schema = [];
 
+    /**
+     * @param class-string ...$sections
+     */
     public function register(string ...$sections): void
     {
         foreach ($sections as $section) {

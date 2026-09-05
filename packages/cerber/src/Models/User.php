@@ -32,7 +32,7 @@ use Stringable;
  * @property string|null $avatar
  * @property bool $two_factor_email
  * @property string|null $two_factor_secret
- * @property list<string>|null $two_factor_recovery_codes
+ * @property array<string>|null $two_factor_recovery_codes
  * @property CarbonImmutable $password_changed_at
  * @property CarbonImmutable|null $email_verified_at
  * @property CarbonImmutable $created_at

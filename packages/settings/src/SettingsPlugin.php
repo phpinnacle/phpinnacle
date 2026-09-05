@@ -14,7 +14,7 @@ class SettingsPlugin implements Plugin
     use EvaluatesClosures;
 
     /**
-     * @var list<Definition|Closure|string>
+     * @var array<array-key, Definition|Closure|string>
      */
     private array $definitions = [];
 

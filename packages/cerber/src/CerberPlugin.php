@@ -31,7 +31,7 @@ class CerberPlugin implements Plugin
     private bool $tenancy = false;
 
     /**
-     * @var list<AuthProvider|Closure|string>
+     * @var array<array-key, AuthProvider|Closure|string>
      */
     private array $authProviders = [];
 

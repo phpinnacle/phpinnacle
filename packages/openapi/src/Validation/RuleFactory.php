@@ -39,7 +39,7 @@ class RuleFactory
     }
 
     /**
-     * @param  list<OA\Schema>  $schemas
+     * @param  array<OA\Schema>  $schemas
      */
     private function oneOfRule(array $schemas): Closure
     {

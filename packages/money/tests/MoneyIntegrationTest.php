@@ -24,6 +24,14 @@ it('parses and formats money through the package services', function () {
         ->toContain('19.90');
 });
 
+it('carries rounding across decimal digits', function (string $value, int $expected) {
+    expect(Money::parse($value, 'USD')->amount)->toBe($expected);
+})->with([
+    'positive carry' => ['99.995', 10_000],
+    'negative carry' => ['-99.995', -10_000],
+    'below rounding threshold' => ['99.994', 9999],
+]);
+
 it('hydrates and mutates money through the Livewire synthesizer', function () {
     $synthesizer = new MoneySynth(new ComponentContext(null), 'price');
     $money = new Money(1990, 'USD');

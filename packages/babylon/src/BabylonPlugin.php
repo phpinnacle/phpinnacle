@@ -27,7 +27,7 @@ class BabylonPlugin implements Plugin
     private string $panelId;
 
     /**
-     * @var array<int, string>
+     * @var array<array-key, string>
      */
     private array $locales = [];
 

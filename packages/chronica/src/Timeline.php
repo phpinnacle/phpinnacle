@@ -33,7 +33,7 @@ class Timeline
     private array $attributes = [];
 
     /**
-     * @var list<string>
+     * @var array<array-key, string>
      */
     private array $excludedAttributes = [];
 
@@ -86,10 +86,16 @@ class Timeline
 
     private string|BackedEnum|null $nullIcon = null;
 
+    /**
+     * @param class-string<Model> $class
+     */
     public function __construct(
         private readonly string $class,
     ) {}
 
+    /**
+     * @param class-string<Model> $class
+     */
     public static function make(string $class): self
     {
         return new self($class);

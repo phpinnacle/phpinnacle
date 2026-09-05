@@ -20,7 +20,7 @@ class MediaGallery extends Repeater
     private ?string $directory = null;
 
     /**
-     * @var list<Mark|string>
+     * @var array<array-key, Mark|string>
      */
     private array $marks = [];
 

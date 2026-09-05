@@ -4,6 +4,7 @@ use Carbon\CarbonImmutable;
 use Filament\Schemas\Schema;
 use PHPinnacle\Chronica\Timeline\Attribute;
 use PHPinnacle\Chronica\Timeline\Relation;
+use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -22,14 +23,14 @@ it('configures a timeline attribute', function () {
 });
 
 it('configures a timeline relation', function () {
-    $relation = Relation::make('subject', stdClass::class)
+    $relation = Relation::make('subject', Activity::class)
         ->label('Subject')
         ->title('name');
 
     expect($relation->name)
         ->toBe('subject')
         ->and($relation->class)
-        ->toBe(stdClass::class)
+        ->toBe(Activity::class)
         ->and($relation->label)
         ->toBe('Subject')
         ->and($relation->title)

@@ -3,9 +3,13 @@
 namespace PHPinnacle\Chronica\Timeline;
 
 use Closure;
+use Illuminate\Database\Eloquent\Model;
 
 class Relation
 {
+    /**
+     * @param class-string<Model> $class
+     */
     public function __construct(
         public string $name,
         public string $class,
@@ -13,6 +17,9 @@ class Relation
         public Closure|string|null $title = null,
     ) {}
 
+    /**
+     * @param class-string<Model> $class
+     */
     public static function make(string $name, string $class): self
     {
         return new self($name, $class);

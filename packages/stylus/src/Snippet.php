@@ -117,7 +117,7 @@ class Snippet implements HasColor, HasDescription, HasIcon, HasLabel
             $this->name,
             $this->label,
             $this->content,
-            $variables,
+            array_values($variables),
             $this->icon,
             $this->description,
             $this->color,

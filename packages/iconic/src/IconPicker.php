@@ -151,7 +151,7 @@ class IconPicker extends Select
         $weights = $this->getIconWeights();
         $excludedSuffixes = $this->getExcludedSuffixes($weights);
 
-        return collect($manifest)
+        $icons = collect($manifest)
             ->filter(fn ($value, $set) => in_array($set, $selectedSets, true))
             ->flatMap(function (array $paths, string $set) use ($registeredSets, $weights, $excludedSuffixes) {
                 $prefix = $registeredSets[$set]['prefix'];
@@ -168,9 +168,9 @@ class IconPicker extends Select
                         );
                     })
                     ->map(fn (string $icon) => $prefix . '-' . $icon);
-            })
-            ->values()
-            ->all();
+            });
+
+        return array_values($icons->all());
     }
 
     /**
@@ -301,7 +301,7 @@ class IconPicker extends Select
             $icons = $icons->reject(fn (string $icon) => in_array($icon, $excludedIcons, true));
         }
 
-        return $icons->values()->all();
+        return array_values($icons->all());
     }
 
     /** @return list<string> */

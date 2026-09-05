@@ -10,7 +10,7 @@ use LogicException;
 use PHPinnacle\Dendros\TreeNode;
 
 /**
- * @extends Relation<Model, Model, Collection<int, Model>>
+ * @extends Relation<Model, Model, Collection<covariant array-key, covariant Model>>
  *
  * @property Model&TreeNode $related
  */
@@ -66,7 +66,7 @@ class Ancestors extends Relation
     }
 
     /**
-     * @return Collection<int, Model>
+     * @return Collection<covariant array-key, covariant Model>
      */
     public function getResults(): Collection
     {

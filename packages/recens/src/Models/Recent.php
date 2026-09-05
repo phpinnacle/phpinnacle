@@ -75,7 +75,7 @@ class Recent extends Model implements HasIcon, HasLabel
             $query->limit($limit);
         }
 
-        return $query->get()->all();
+        return array_values($query->get()->all());
     }
 
     public function getUrl(): string

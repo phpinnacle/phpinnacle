@@ -163,7 +163,7 @@ class Filter implements FilterContract
         return new self(
             $this->name,
             $this->label,
-            $types,
+            array_values($types),
             $this->schema,
             $this->argumentsUsing,
             $this->supportsBlocks,
