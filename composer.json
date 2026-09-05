@@ -63,7 +63,7 @@
     "scripts": {
         "lint": [
             "mago format --check",
-            "mago lint --semantics"
+            "mago lint --minimum-fail-level warning"
         ],
         "format": "mago format",
         "test": "pest packages/*/tests"
