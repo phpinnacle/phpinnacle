@@ -37,7 +37,8 @@
     "scripts": {
         "test": [
             "@php tests/ClassMemberOrderFixTest.php",
-            "mago --config tests/corpus/mago.toml lint --only phpinnacle/class-member-order,phpinnacle/class-method-order,phpinnacle/compact-empty-method-body --minimum-fail-level warning"
+            "@php tests/NoClosureReturnTypeFixTest.php",
+            "mago --config tests/corpus/mago.toml lint --only phpinnacle/class-member-order,phpinnacle/class-method-order,phpinnacle/compact-empty-method-body,phpinnacle/no-closure-return-type --minimum-fail-level warning"
         ]
     },
     "extra": {

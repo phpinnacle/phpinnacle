@@ -1,0 +1,50 @@
+<?php
+
+declare(strict_types=1);
+
+$closure = function (string $value) {
+    return $value;
+};
+$staticClosure = static function () {};
+$arrow = fn (int $value) => $value;
+$nullable = static fn () => null;
+$captured = 'value';
+$capturing = function () use ($captured) {
+    return $captured;
+};
+$intersection = fn (Countable&Iterator $value) => $value;
+$dnf = fn ((Countable&Iterator)|null $value) => $value;
+$nested = fn () => function () {
+    return 1;
+};
+$reference = function &(string &$value) {
+    return $value;
+};
+$attributed = #[Deprecated] static fn () => 'value';
+$compact = fn()=>1;
+$multiline = function ()
+{
+    return 'value';
+};
+$commented = fn () /* before */ /* within */ /* after */ => 1;
+$lineComment = fn () // Keep this comment.
+ => 1;
+$hashComment = function () # Keep this comment too.
+ {
+    return 1;
+};
+$compoundComment = fn () /* collection */ => null;
+$untyped = fn (string $value) => $value;
+
+function namedFunction(): string
+{
+    return 'value';
+}
+
+final class TypedMethods
+{
+    public function typedMethod(): string
+    {
+        return 'value';
+    }
+}

@@ -1,0 +1,51 @@
+<?php
+
+declare(strict_types=1);
+
+$closure = function (string $value): string {
+    return $value;
+};
+$staticClosure = static function (): void {};
+$arrow = fn (int $value): int => $value;
+$nullable = static fn (): ?string => null;
+$captured = 'value';
+$capturing = function () use ($captured): string|int {
+    return $captured;
+};
+$intersection = fn (Countable&Iterator $value): Countable&Iterator => $value;
+$dnf = fn ((Countable&Iterator)|null $value): (Countable&Iterator)|null => $value;
+$nested = fn (): Closure => function (): int {
+    return 1;
+};
+$reference = function &(string &$value): string {
+    return $value;
+};
+$attributed = #[Deprecated] static fn (): string => 'value';
+$compact = fn():int=>1;
+$multiline = function ():
+    string
+{
+    return 'value';
+};
+$commented = fn () /* before */: /* within */ int /* after */ => 1;
+$lineComment = fn (): // Keep this comment.
+    int => 1;
+$hashComment = function (): # Keep this comment too.
+    int {
+    return 1;
+};
+$compoundComment = fn (): (Countable /* collection */ & Iterator)|null => null;
+$untyped = fn (string $value) => $value;
+
+function namedFunction(): string
+{
+    return 'value';
+}
+
+final class TypedMethods
+{
+    public function typedMethod(): string
+    {
+        return 'value';
+    }
+}

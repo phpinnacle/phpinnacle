@@ -8,6 +8,7 @@ use Mago\Sdk\Extension;
 use PHPinnacle\Grimoire\Linter\Rules\ClassMemberOrderRule;
 use PHPinnacle\Grimoire\Linter\Rules\ClassMethodOrderRule;
 use PHPinnacle\Grimoire\Linter\Rules\CompactEmptyMethodBodyRule;
+use PHPinnacle\Grimoire\Linter\Rules\NoClosureReturnTypeRule;
 
 final class GrimoireExtension
 {
@@ -28,6 +29,7 @@ final class GrimoireExtension
                 new CompactEmptyMethodBodyRule(
                     $configuration['rules']['compact-empty-method-body']['method-pattern'] ?? '*',
                 ),
+                new NoClosureReturnTypeRule,
             ],
         );
     }

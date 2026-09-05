@@ -92,6 +92,23 @@ Apply the safe fixes with:
 mago lint --fix --only phpinnacle/class-member-order,phpinnacle/class-method-order,phpinnacle/compact-empty-method-body
 ```
 
+### `phpinnacle/no-closure-return-type`
+
+Disallows return type declarations on anonymous functions and arrow functions, including static variants. Named functions and methods are unaffected. The rule is enabled by default and requires no configuration.
+
+```php
+$callback = function (string $value) {
+    return trim($value);
+};
+$mapper = static fn (string $value) => trim($value);
+```
+
+The automatic fix removes the return type declaration and preserves comments. It is classified as unsafe because removing a return type can change runtime behavior. Apply it with:
+
+```bash
+mago lint --fix --unsafe --format-after-fix --only phpinnacle/no-closure-return-type
+```
+
 ## Testing
 
 ```bash
