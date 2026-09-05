@@ -244,6 +244,7 @@ final class MetadataLoader
     private function inflate(mixed $data, string $context): string
     {
         $encoded = is_resource($data) ? stream_get_contents($data) : $data;
+        // @mago-expect lint:no-error-control-operator
         $decoded = is_string($encoded) ? @gzinflate($encoded) : false;
 
         if (!is_string($decoded)) {
