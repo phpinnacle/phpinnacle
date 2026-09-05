@@ -9,6 +9,15 @@ enabled = false
 [linter.rules.prefer-static-closure]
 enabled = false
 
+[linter.rules.no-else-clause]
+enabled = false
+
+[linter.rules.no-boolean-flag-parameter]
+enabled = false
+
+[linter.rules.prefer-early-continue]
+enabled = false
+
 [linter.rules.no-literal-password]
 enabled = false
 
