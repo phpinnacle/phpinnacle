@@ -85,7 +85,7 @@ final class MetadataMapperTest extends TestCase
                 [
                     'id' => 'a70b9b3d-ba08-40c6-aca1-f81b588f4316',
                     'name' => '_document38456_vt38459',
-                    'code' => 38459,
+                    'code' => 38_459,
                     'kind' => 'section',
                     'label' => 'ТабличнаяЧасть1',
                     'title' => 'Табличная часть 1',
@@ -106,7 +106,7 @@ final class MetadataMapperTest extends TestCase
                         [
                             'id' => '7d4b4c14-85f9-47dd-84dc-67a5d2627b41',
                             'name' => '_fld38461',
-                            'code' => 38461,
+                            'code' => 38_461,
                             'kind' => 'reference',
                             'label' => 'Номенклатура',
                             'title' => 'Номенклатура',
@@ -118,7 +118,7 @@ final class MetadataMapperTest extends TestCase
                         [
                             'id' => 'a91b4ba8-1d4d-43e7-97cf-bb26e13f3aff',
                             'name' => '_fld38462',
-                            'code' => 38462,
+                            'code' => 38_462,
                             'kind' => 'field',
                             'label' => 'Цена',
                             'title' => 'Цена',

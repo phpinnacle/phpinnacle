@@ -14,7 +14,7 @@ it('provides a controllable clock', function () {
         ->and(Clock::date()->format(DATE_ATOM))
         ->toBe('2026-07-17T00:00:00+00:00')
         ->and(Clock::unix())
-        ->toBe(1784291696)
+        ->toBe(1_784_291_696)
         ->and(Clock::year()->format(DATE_ATOM))
         ->toBe('2026-01-01T00:00:00+00:00');
 });
