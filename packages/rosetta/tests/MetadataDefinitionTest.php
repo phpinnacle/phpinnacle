@@ -207,6 +207,7 @@ final class MetadataDefinitionTest extends TestCase
     #[DataProvider('metadataKindStorage')]
     public function metadata_kinds_own_their_storage_layout(
         MetadataKind $kind,
+        #[\SensitiveParameter]
         string $token,
         array $identityPath,
         array $propertyRoots,

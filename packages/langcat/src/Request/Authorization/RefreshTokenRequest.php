@@ -14,7 +14,7 @@ final class RefreshTokenRequest
         return new self;
     }
 
-    public function refreshToken(string $refreshToken): self
+    public function refreshToken(#[\SensitiveParameter] string $refreshToken): self
     {
         if (trim($refreshToken) === '') {
             throw new InvalidArgumentException('Refresh token cannot be empty.');

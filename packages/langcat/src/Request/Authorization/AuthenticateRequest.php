@@ -23,7 +23,7 @@ final class AuthenticateRequest
         return $this;
     }
 
-    public function clientSecret(string $clientSecret): self
+    public function clientSecret(#[\SensitiveParameter] string $clientSecret): self
     {
         $this->clientSecret = $this->nonEmpty($clientSecret, 'Client secret');
 

@@ -44,7 +44,7 @@ readonly class UserService
         $broker = $this->passwords->broker(Filament::getAuthPasswordBroker());
         $status = $broker->sendResetLink([
             'email' => $user->email,
-        ], function (User $user, string $token) {
+        ], function (User $user, #[\SensitiveParameter] string $token) {
             $notification = new ResetPassword($token);
             $notification->url = Filament::getResetPasswordUrl($token, $user);
 

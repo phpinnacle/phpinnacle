@@ -22,6 +22,7 @@ final class Client
         ClientInterface $httpClient,
         RequestFactoryInterface $requestFactory,
         StreamFactoryInterface $streamFactory,
+        #[\SensitiveParameter]
         ?string $accessToken = null,
     ) {
         $this->transport = new Transport(
@@ -75,7 +76,7 @@ final class Client
         return new UserContext($this->transport, $userId);
     }
 
-    public function withAccessToken(string $accessToken): self
+    public function withAccessToken(#[\SensitiveParameter] string $accessToken): self
     {
         $client = clone $this;
         $client->transport = $this->transport->withAccessToken($accessToken);

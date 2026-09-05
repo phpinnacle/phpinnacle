@@ -8,13 +8,18 @@ class Login
 {
     public function __construct(
         public string $username,
+        #[\SensitiveParameter]
         public string $password,
         public array $panels = [],
         public bool $verified = false,
     ) {}
 
-    public static function email(string $value, array $panels = [], ?string $password = null): self
-    {
+    public static function email(
+        string $value,
+        array $panels = [],
+        #[\SensitiveParameter]
+        ?string $password = null,
+    ): self {
         $panels[] = Filament::getDefaultPanel()->getId();
 
         return new self($value, $password ?? Password::generate(), array_unique($panels));

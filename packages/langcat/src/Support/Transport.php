@@ -23,6 +23,7 @@ final readonly class Transport
         private ClientInterface $httpClient,
         private RequestFactoryInterface $requestFactory,
         private StreamFactoryInterface $streamFactory,
+        #[\SensitiveParameter]
         private ?string $accessToken = null,
     ) {
         $baseUri = rtrim($baseUri, '/');
@@ -104,7 +105,7 @@ final readonly class Transport
             : throw new UnexpectedResponseException($response->getStatusCode(), $responseBody);
     }
 
-    public function withAccessToken(string $accessToken): self
+    public function withAccessToken(#[\SensitiveParameter] string $accessToken): self
     {
         return new self(
             $this->baseUri,

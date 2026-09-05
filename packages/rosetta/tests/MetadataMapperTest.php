@@ -141,6 +141,7 @@ final class MetadataMapperTest extends TestCase
     #[DataProvider('metadataKinds')]
     public function it_maps_each_supported_metadata_kind(
         MetadataKind $kind,
+        #[\SensitiveParameter]
         string $token,
         array $identityPath,
     ): void {

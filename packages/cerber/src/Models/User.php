@@ -239,7 +239,7 @@ class User extends Authenticatable implements HasLabel, Viewer
         $this->save();
     }
 
-    public function saveAppAuthenticationSecret(?string $secret): void
+    public function saveAppAuthenticationSecret(#[\SensitiveParameter] ?string $secret): void
     {
         $this->two_factor_secret = $secret;
         $this->save();

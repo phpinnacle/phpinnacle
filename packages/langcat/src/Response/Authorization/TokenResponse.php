@@ -7,7 +7,9 @@ use PHPinnacle\Langcat\Support\ResponseValue;
 final readonly class TokenResponse
 {
     public function __construct(
+        #[\SensitiveParameter]
         public string $accessToken,
+        #[\SensitiveParameter]
         public string $refreshToken,
         public string $tokenType,
         public int $expiresIn,
