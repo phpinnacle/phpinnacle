@@ -12,6 +12,9 @@ enabled = false
 [linter.rules.no-literal-password]
 enabled = false
 
+[linter.rules.constant-name]
+enabled = false
+
 [linter.rules.literal-named-argument]
 threshold = 2
 
