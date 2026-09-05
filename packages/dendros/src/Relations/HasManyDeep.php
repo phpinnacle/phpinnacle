@@ -86,13 +86,13 @@ class HasManyDeep extends HasMany
 
         return $query
             ->select($columns)
-            ->join("{$this->parent->getTable()} as $hash", function (JoinClause $join) use ($hash) {
-                $join->on($this->getForeignKeyName(), "$hash.{$this->getLocalKeyName()}");
+            ->join("{$this->parent->getTable()} as {$hash}", function (JoinClause $join) use ($hash) {
+                $join->on($this->getForeignKeyName(), "{$hash}.{$this->getLocalKeyName()}");
             })
             ->whereColumn(
                 $this->parent->qualifyColumn($this->parent->getPathColumn()),
                 '@>',
-                "$hash.{$this->parent->getPathColumn()}",
+                "{$hash}.{$this->parent->getPathColumn()}",
             );
     }
 

@@ -19,8 +19,7 @@ enum HttpMethod: string implements HasColor, HasLabel
         return match ($this) {
             self::Get => 'success',
             self::Post => 'info',
-            self::Put => 'warning',
-            self::Patch => 'warning',
+            self::Put, self::Patch => 'warning',
             self::Delete => 'danger',
         };
     }

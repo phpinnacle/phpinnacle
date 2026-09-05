@@ -113,7 +113,7 @@ class Tag extends Model implements HasColor, HasLabel
     private static function doSyncQuery(array $tags, string $table, string $key, array $ids): void
     {
         $ids = array_values($ids);
-        $tags = implode(',', array_map(fn ($id) => "'$id'::uuid", $tags));
+        $tags = implode(',', array_map(fn ($id) => "'{$id}'::uuid", $tags));
         $join = DB::table($table)->select(['id' => $key]);
 
         if ($ids !== []) {
