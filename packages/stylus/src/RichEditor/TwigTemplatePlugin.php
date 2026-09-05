@@ -288,11 +288,12 @@ class TwigTemplatePlugin implements RichContentPlugin
         $clause = is_int($conditionIndex) && is_array($children[$conditionIndex] ?? null)
             ? $children[$conditionIndex]
             : [];
-        $operand = is_string($operandKey) && is_array($clause[$operandKey] ?? null)
-            ? $clause[$operandKey]
-            : [];
 
-        return $operand;
+        return (
+            is_string($operandKey) && is_array($clause[$operandKey] ?? null)
+                ? $clause[$operandKey]
+                : []
+        );
     }
 
     /**

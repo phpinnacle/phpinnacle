@@ -270,6 +270,7 @@ class IconPicker extends Select
             return null;
         }
 
+        // @mago-expect lint:inline-variable-return
         /** @var list<string> $icons */
         $icons = $this->evaluate($this->allowedIcons);
 
@@ -298,6 +299,7 @@ class IconPicker extends Select
     /** @return list<string> */
     private function getExcludedIcons(): array
     {
+        // @mago-expect lint:inline-variable-return
         /** @var list<string> $icons */
         $icons = $this->evaluate($this->excludedIcons);
 
@@ -319,6 +321,7 @@ class IconPicker extends Select
     /** @return list<string> */
     private function getIconSets(): array
     {
+        // @mago-expect lint:inline-variable-return
         /** @var list<string> $sets */
         $sets = $this->evaluate($this->sets);
 
@@ -328,6 +331,7 @@ class IconPicker extends Select
     /** @return list<string> */
     private function getIconWeights(): array
     {
+        // @mago-expect lint:inline-variable-return
         /** @var list<string> $weights */
         $weights = $this->evaluate($this->weights);
 

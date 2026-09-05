@@ -35,6 +35,7 @@ class BabylonPlugin implements Plugin
 
     public static function get(): static
     {
+        // @mago-expect lint:inline-variable-return
         /** @var static $plugin */
         $plugin = filament(app(static::class)->getId());
 
@@ -97,6 +98,7 @@ class BabylonPlugin implements Plugin
 
     public function getUserLocale(Authenticatable $user): ?string
     {
+        // @mago-expect lint:inline-variable-return
         /** @var ?string $locale */
         $locale = $this->evaluate(
             $this->userLocaleResolver,
