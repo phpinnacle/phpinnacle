@@ -155,7 +155,7 @@ class CerberPlugin implements Plugin
 
     public function guards(string $group, array $permissions): static
     {
-        if (empty($permissions)) {
+        if ($permissions === []) {
             return $this;
         }
 
@@ -217,7 +217,7 @@ class CerberPlugin implements Plugin
                 EmailAuthentication::make(),
             ]);
 
-        if (!empty($this->developers) && !app()->isProduction()) {
+        if ($this->developers !== [] && !app()->isProduction()) {
             $panel->renderHook(PanelsRenderHook::AUTH_LOGIN_FORM_AFTER, fn () => $this->developersHook($panel));
             $panel->routes(fn () => [
                 Route::post('/developer-auth', Http\Controllers\LoginController::class)
@@ -226,7 +226,7 @@ class CerberPlugin implements Plugin
             ]);
         }
 
-        if (!empty($this->authProviders)) {
+        if ($this->authProviders !== []) {
             $panel->renderHook(
                 PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
                 fn (ProviderRegistry $registry) => $this->providersHook($panel, $registry),

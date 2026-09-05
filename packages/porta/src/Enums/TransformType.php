@@ -106,7 +106,7 @@ enum TransformType: string
                 $config['type'] ?? 'string',
             )),
             self::DROP => '<div class="fi-ta-placeholder text-sm leading-6 text-gray-400 dark:text-gray-500">-</div>',
-            self::TRIM => !empty($config['chars'] ?? '')
+            self::TRIM => filled($config['chars'] ?? null)
                 ? Blade::render('@foreach ($chars as $char)<x-filament::badge>{{ $char }}</x-filament::badge>@endforeach', [
                     'chars' => str_split($config['chars']),
                 ])
@@ -170,11 +170,11 @@ enum TransformType: string
             }
 
             try {
-                $date = !empty($input)
+                $date = filled($input)
                     ? CarbonImmutable::createFromLocaleFormat($input, $locale, $value)
                     : CarbonImmutable::parseFromLocale($value, $locale);
 
-                if (!empty($modify)) {
+                if (filled($modify)) {
                     $date = $date->modify($modify);
                 }
 
@@ -208,7 +208,7 @@ enum TransformType: string
         $parts = explode('.', $path);
         $field = array_pop($parts);
 
-        if (empty($field)) {
+        if ($field === null || $field === '') {
             return $data;
         }
 

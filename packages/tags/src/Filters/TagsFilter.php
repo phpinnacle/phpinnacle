@@ -41,14 +41,14 @@ class TagsFilter extends Filter
             ->query(function (Builder $query, array $data) {
                 $tags = array_filter($data['tags'] ?? []);
 
-                return !empty($tags)
+                return $tags !== []
                     ? $query->whereHas('tags', fn (Builder $query) => $query->whereKey($tags))
                     : $query;
             })
             ->indicateUsing(function (array $data) {
                 $tags = $data['tags'] ?? [];
 
-                if (empty($tags)) {
+                if ($tags === []) {
                     return [];
                 }
 

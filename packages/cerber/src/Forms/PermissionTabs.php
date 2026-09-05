@@ -90,7 +90,7 @@ class PermissionTabs
                             fn (CheckboxList $component, ?Role $record) => self::adapt($component, $record),
                         ),
                 ])
-                ->visible(!empty($pages)),
+                ->visible($pages !== []),
         ];
     }
 
@@ -117,7 +117,7 @@ class PermissionTabs
                             fn (CheckboxList $component, ?Role $record) => self::adapt($component, $record),
                         ),
                 ])
-                ->visible(!empty($widgets)),
+                ->visible($widgets !== []),
         ];
     }
 

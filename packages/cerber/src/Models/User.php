@@ -106,7 +106,7 @@ class User extends Authenticatable implements HasLabel, Viewer
         self::creating(function (self $record) {
             $record->tenant_id ??= Cerberus::tenant();
 
-            if (empty($record->panels)) {
+            if ($record->panels === []) {
                 $record->panels = array_filter([Filament::getCurrentOrDefaultPanel()?->getId()]);
             }
         });
@@ -174,7 +174,7 @@ class User extends Authenticatable implements HasLabel, Viewer
 
     public function getFilamentAvatarUrl(): ?string
     {
-        if (!empty($this->avatar)) {
+        if ($this->avatar !== null && $this->avatar !== '') {
             return asset(sprintf('storage/%s', $this->avatar));
         }
 

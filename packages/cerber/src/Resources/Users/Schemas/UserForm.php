@@ -60,7 +60,7 @@ class UserForm
                                     ->prefixIcon('phosphor-key')
                                     ->password()
                                     ->revealable()
-                                    ->dehydrated(fn (?string $state) => !empty($state))
+                                    ->dehydrated(fn (?string $state) => $state !== null && $state !== '')
                                     ->required(fn (string $operation) => $operation === 'create')
                                     ->default(Password::generate())
                                     ->hintActions([

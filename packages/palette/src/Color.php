@@ -98,7 +98,7 @@ class Color
 
     public static function resolve(string $name): string
     {
-        if (empty(self::$colors)) {
+        if (self::$colors === []) {
             self::$colors = FilamentColor::getColors();
         }
 

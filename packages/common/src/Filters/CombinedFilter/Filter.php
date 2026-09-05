@@ -75,7 +75,7 @@ class Filter
     {
         $value = $data[$this->name] ?? null;
 
-        if (empty($value)) {
+        if (blank($value)) {
             return null;
         }
 
@@ -115,7 +115,7 @@ class Filter
                 }
             })
             ->disabled(
-                fn (Get $get) => !empty($this->depends) && array_any($this->depends, fn (string $depend) => $get->blank(
+                fn (Get $get) => $this->depends !== [] && array_any($this->depends, fn (string $depend) => $get->blank(
                     $depend,
                 )),
             );

@@ -108,7 +108,7 @@ class EditProfile extends BasePage
                 );
         }
 
-        if (empty($components)) {
+        if ($components === []) {
             return null;
         }
 

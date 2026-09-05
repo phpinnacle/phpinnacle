@@ -161,7 +161,7 @@ class RuleFactory
         }
 
         foreach ($schema->properties as $property) {
-            $key = !empty($prefix) ? sprintf('%s.%s', $prefix, $property->property) : $property->property;
+            $key = $prefix !== '' ? sprintf('%s.%s', $prefix, $property->property) : $property->property;
 
             $rules[$key] = $this->fieldRules($property);
 

@@ -113,7 +113,7 @@ class Provider extends Model implements HasLabel
 
     public function isConfigValid(): bool
     {
-        return !empty($this->config['client_id']) && !empty($this->config['client_secret']);
+        return filled($this->config['client_id'] ?? null) && filled($this->config['client_secret'] ?? null);
     }
 
     public function redirectUrl(?Panel $panel = null): string

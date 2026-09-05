@@ -36,7 +36,7 @@ class UserLinker
 
         $email = $socialiteUser->getEmail();
 
-        if (empty($email)) {
+        if ($email === null || $email === '') {
             throw new Exceptions\EmailNotProvided($provider);
         }
 

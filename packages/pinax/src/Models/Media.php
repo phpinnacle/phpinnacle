@@ -67,7 +67,7 @@ class Media extends Model
                 'folder' => $folder,
             ]);
 
-        if (!empty($exclude)) {
+        if ($exclude !== []) {
             $query = $query->whereKeyNot($exclude);
         }
 

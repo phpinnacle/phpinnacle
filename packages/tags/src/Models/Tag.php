@@ -44,7 +44,7 @@ class Tag extends Model implements HasColor, HasLabel
 
     public static function list(string ...$ids): Collection
     {
-        return !empty($ids)
+        return $ids !== []
             ? self::query()->whereKey($ids)->pluck('name', 'id')
             : self::query()->pluck('name', 'id');
     }
@@ -55,7 +55,7 @@ class Tag extends Model implements HasColor, HasLabel
             $models = collect([$models]);
         }
 
-        if (empty($tags) || $models->isEmpty()) {
+        if ($tags === [] || $models->isEmpty()) {
             return;
         }
 
@@ -116,7 +116,7 @@ class Tag extends Model implements HasColor, HasLabel
         $tags = implode(',', array_map(fn ($id) => "'$id'::uuid", $tags));
         $join = DB::table($table)->select(['id' => $key]);
 
-        if (!empty($ids)) {
+        if ($ids !== []) {
             $join->whereIn($key, $ids);
         }
 

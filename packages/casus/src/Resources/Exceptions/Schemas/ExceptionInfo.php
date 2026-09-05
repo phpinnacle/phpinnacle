@@ -60,7 +60,7 @@ class ExceptionInfo
                     ]),
                 Section::make()
                     ->heading(__('phpinnacle-casus::resources.exception.sections.context'))
-                    ->visible(fn (mixed $state) => !empty($state))
+                    ->visible(fn (?array $state) => $state !== null && $state !== [])
                     ->schema([
                         CodeEntry::make('context')
                             ->hiddenLabel()

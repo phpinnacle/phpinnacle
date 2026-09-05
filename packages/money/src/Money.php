@@ -60,7 +60,7 @@ readonly class Money implements JsonSerializable, Wireable
     {
         $first = self::parse($first);
 
-        return !empty($collection) ? $first->add(...array_map(self::parse(...), $collection)) : $first;
+        return $collection !== [] ? $first->add(...array_map(self::parse(...), $collection)) : $first;
     }
 
     public static function zero(string $currency = 'USD'): self

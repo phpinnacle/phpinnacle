@@ -37,7 +37,7 @@ readonly class UserService
 
     public function resetPassword(User $user): void
     {
-        if (empty($user->email)) {
+        if ($user->email === '') {
             return;
         }
 

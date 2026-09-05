@@ -48,7 +48,7 @@ class RangeFilter extends Filter
         $this->query(function (Builder $query, array $data) {
             $range = $data['range'] ?? [];
 
-            if (empty($range)) {
+            if ($range === []) {
                 return $query;
             }
 

@@ -16,7 +16,7 @@ class Alerts extends Group
 
         $this
             ->schema(fn (?Model $record) => Alert::list($record)->map($this->callout(...))->all())
-            ->visible(fn (Alerts $component) => !empty($component->getChildComponents()))
+            ->visible(fn (Alerts $component) => $component->getChildComponents() !== [])
             ->columnSpanFull();
     }
 

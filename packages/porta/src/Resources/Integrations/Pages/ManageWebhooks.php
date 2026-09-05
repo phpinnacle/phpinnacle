@@ -102,14 +102,18 @@ class ManageWebhooks extends ManageRelatedRecords
                             ->columnSpanFull(),
                         KeyValueEntry::make('headers')
                             ->label(__('phpinnacle-porta::resources.webhook.fields.headers'))
-                            ->visible(fn (?array $state) => !empty($state))
+                            ->visible(fn (?array $state) => $state !== null && $state !== [])
                             ->columnSpanFull(),
                     ]),
                 Group::make()
                     ->columnSpanFull()
                     ->columns()
                     ->statePath('error')
-                    ->visible(Gate::allows('viewError', Integration::class) && !empty($record->error))
+                    ->visible(
+                        Gate::allows('viewError', Integration::class)
+                        && $record->error !== null
+                        && $record->error !== [],
+                    )
                     ->schema([
                         TextEntry::make('message')
                             ->label(__('phpinnacle-porta::resources.webhook.fields.error_message'))
@@ -132,7 +136,7 @@ class ManageWebhooks extends ManageRelatedRecords
                                 fn (mixed $error) => is_array($error) ? implode(PHP_EOL, $error) : $error,
                                 $record->error['errors'] ?? [],
                             ))
-                            ->visible(fn (?array $state) => !empty($state))
+                            ->visible(fn (?array $state) => $state !== null && $state !== [])
                             ->columnSpanFull(),
                     ]),
             ]);
