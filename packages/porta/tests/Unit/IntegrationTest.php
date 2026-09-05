@@ -51,7 +51,7 @@ final class IntegrationTest extends TestCase
         $this->integration(null)->authorize(Request::create('/'));
     }
 
-    private function integration(?string $secret): Integration
+    private function integration(#[\SensitiveParameter] ?string $secret): Integration
     {
         $integration = new Integration;
         $integration->auth = IntegrationAuth::Header;
