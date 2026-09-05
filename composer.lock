@@ -8004,12 +8004,13 @@
             "dist": {
                 "type": "path",
                 "url": "packages/babylon",
-                "reference": "f14052c1a43b8ee77de3acbbf13200f4572fd8b1"
+                "reference": "6b885a54e4e454acd783d5dfe86e33dc67c835df"
             },
             "require": {
+                "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
-                "phpinnacle/common": "^1.0",
                 "phpinnacle/intl": "^1.0",
+                "phpinnacle/settings": "^1.0",
                 "spatie/laravel-package-tools": "^1.92"
             },
             "require-dev": {

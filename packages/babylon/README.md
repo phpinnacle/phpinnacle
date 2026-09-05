@@ -3,14 +3,16 @@
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/phpinnacle/babylon.svg?style=flat-square)](https://packagist.org/packages/phpinnacle/babylon)
 [![Total Downloads](https://img.shields.io/packagist/dt/phpinnacle/babylon.svg?style=flat-square)](https://packagist.org/packages/phpinnacle/babylon)
 
-Babylon adds locale selection to a Filament panel. It keeps the selected locale in the session, applies it through panel middleware, and provides a ready-to-use language selector for the Filament profile form.
+Babylon adds locale selection to Filament panels. It keeps each panel's selected locale in the session, applies it through panel middleware, and provides a ready-to-use language selector for the Filament profile form.
 
 ## Features
 
-- Panel-scoped locale middleware.
+- Per-panel session and user preferences.
+- First-visit locale detection from the browser's Accept-Language header.
 - Configurable list of available locales.
 - Locale selector for the user profile schema.
-- Locale names supplied by `phpinnacle/common`.
+- Locale names supplied by `phpinnacle/intl`.
+- Native Filament language and text-direction support.
 - No database tables or published assets.
 
 ## Requirements
@@ -18,7 +20,8 @@ Babylon adds locale selection to a Filament panel. It keeps the selected locale 
 - PHP 8.4 or later
 - Laravel 13
 - Filament 5
-- `phpinnacle/common`
+- `phpinnacle/intl`
+- `phpinnacle/settings`
 
 ## Installation
 
@@ -42,7 +45,11 @@ public function panel(Panel $panel): Panel
 }
 ```
 
-The plugin registers `SetLocale` as persistent panel middleware. The selected value is read from the session key `locale`; when it is absent, Laravel's configured application locale remains in effect.
+The plugin registers `SetLocale` as persistent panel middleware. It resolves the locale from the current panel's session, the user's current-panel preference, the browser language, and finally Laravel's configured application locale. Browser and switcher values are limited to the locales passed to `locales()`.
+
+Session and preference keys include the Filament panel ID, so changing one panel does not affect another. Existing global `locale` session values and `babylon` preferences remain readable as fallbacks.
+
+Filament uses the resolved application locale for the document language and its own locale metadata for text direction, including right-to-left languages.
 
 ## Adding the profile selector
 

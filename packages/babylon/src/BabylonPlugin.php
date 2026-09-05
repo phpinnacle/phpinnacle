@@ -15,6 +15,15 @@ class BabylonPlugin implements Plugin
 {
     public const string ID = 'phpinnacle/babylon';
 
+    public const string PREFERENCE_GROUP = 'babylon';
+
+    public const string PREFERENCE_KEY = 'locale';
+
+    private string $panelId;
+
+    /**
+     * @var array<int, string>
+     */
     private array $locales = [];
 
     public static function get(): static
@@ -32,16 +41,18 @@ class BabylonPlugin implements Plugin
 
     public static function profile(): Section
     {
+        $plugin = static::get();
+
         return Section::make()
             ->heading(__('phpinnacle-babylon::profile.section.heading'))
             ->description(__('phpinnacle-babylon::profile.section.description'))
-            ->statePath('babylon')
+            ->statePath($plugin->getPreferenceGroup())
             ->aside()
             ->schema([
-                Select::make('locale')
+                Select::make(self::PREFERENCE_KEY)
                     ->label(__('phpinnacle-babylon::profile.fields.locale.label'))
                     ->selectablePlaceholder(false)
-                    ->options(fn () => array_column(BabylonPlugin::get()->getLocales(), 'name', 'code'))
+                    ->options($plugin->getLocales())
                     ->default(App::getLocale()),
             ]);
     }
@@ -53,6 +64,30 @@ class BabylonPlugin implements Plugin
         return self::ID;
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public function getLocales(): array
+    {
+        return array_combine(
+            $this->locales,
+            array_map(
+                fn (string $locale) => Str::title(Locales::name($locale, $locale)),
+                $this->locales,
+            ),
+        );
+    }
+
+    public function getPreferenceGroup(): string
+    {
+        return self::PREFERENCE_GROUP . '-' . $this->panelId;
+    }
+
+    public function getSessionKey(): string
+    {
+        return $this->getPreferenceGroup() . '.' . self::PREFERENCE_KEY;
+    }
+
     public function locales(string ...$locales): self
     {
         $this->locales = array_unique(array_merge($this->locales, $locales));
@@ -62,6 +97,8 @@ class BabylonPlugin implements Plugin
 
     public function register(Panel $panel): void
     {
+        $this->panelId = $panel->getId();
+
         $panel->middleware(
             [
                 Http\Middleware\SetLocale::class,
@@ -74,15 +111,8 @@ class BabylonPlugin implements Plugin
             hook: fn () => view('phpinnacle-babylon::locale-switcher', [
                 'locales' => $this->getLocales(),
                 'current' => App::getLocale(),
+                'panel' => $panel->getId(),
             ]),
         );
-    }
-
-    private function getLocales(): array
-    {
-        return array_map(fn (string $locale) => [
-            'code' => $locale,
-            'name' => Str::title(Locales::name($locale, $locale)),
-        ], $this->locales);
     }
 }
