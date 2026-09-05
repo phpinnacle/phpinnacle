@@ -87,7 +87,10 @@ class Integration extends Model
             default => null,
         };
 
-        abort_unless($secret === $this->auth_secret, 403);
+        abort_unless(
+            is_string($secret) && is_string($this->auth_secret) && hash_equals($this->auth_secret, $secret),
+            403,
+        );
     }
 
     public function handle(string $payload): array

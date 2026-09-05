@@ -32,6 +32,7 @@
         "phpinnacle/openapi": "*",
         "phpinnacle/palette": "*",
         "phpinnacle/pinax": "*",
+        "phpinnacle/porta": "*",
         "phpinnacle/recens": "*",
         "phpinnacle/rosetta": "*",
         "phpinnacle/sequentia": "*",
