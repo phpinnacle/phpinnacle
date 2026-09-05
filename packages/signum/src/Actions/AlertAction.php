@@ -6,7 +6,6 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ToggleButtons;
-use Illuminate\Database\Eloquent\Model;
 use PHPinnacle\Signum\Enums\Level;
 use PHPinnacle\Signum\Models\Alert;
 use PHPinnacle\Signum\Resources\Alerts\AlertResource;

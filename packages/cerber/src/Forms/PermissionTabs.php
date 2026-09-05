@@ -3,7 +3,6 @@
 namespace PHPinnacle\Cerber\Forms;
 
 use Filament\Forms\Components\CheckboxList;
-use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;

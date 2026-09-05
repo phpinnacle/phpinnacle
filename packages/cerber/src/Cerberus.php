@@ -4,7 +4,6 @@ namespace PHPinnacle\Cerber;
 
 use Filament\Facades\Filament;
 use Filament\Panel;
-use Filament\Resources\Resource;
 use Filament\Widgets\WidgetConfiguration;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
