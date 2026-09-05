@@ -8,3 +8,18 @@ enabled = false
 
 [linter.rules.prefer-static-closure]
 enabled = false
+
+[linter.rules.no-literal-password]
+enabled = false
+
+[linter.rules.excessive-parameter-list]
+constructor-threshold = 14
+
+[linter.rules.too-many-methods]
+enabled = false
+
+[linter.rules.cyclomatic-complexity]
+enabled = false
+
+[linter.rules.kan-defect]
+enabled = false

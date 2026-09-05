@@ -15,6 +15,7 @@ final readonly class UpdateAssignmentRequest
      * @param  list<AssignmentSubmissionType>|null  $submissionTypes
      * @param  list<string>|null  $allowedExtensions
      */
+    // @mago-expect lint:excessive-parameter-list
     public function __construct(
         public ?string $name = null,
         public ?string $description = null,
