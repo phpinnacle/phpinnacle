@@ -40,7 +40,9 @@ class UserLinker
             throw new Exceptions\EmailNotProvided($provider);
         }
 
-        if ($user = User::find($email)) {
+        $user = User::find($email);
+
+        if ($user !== null) {
             return $user;
         }
 

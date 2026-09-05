@@ -64,7 +64,9 @@ class CombinedFilter extends BaseFilter
                 }
 
                 foreach ($this->filters as $filter) {
-                    if ($indicator = $filter->indicator($data, $options)) {
+                    $indicator = $filter->indicator($data, $options);
+
+                    if ($indicator !== null) {
                         $indicators[] = $indicator;
                     }
                 }

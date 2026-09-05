@@ -70,16 +70,22 @@ class CerberServiceProvider extends PackageServiceProvider
             'password_hash_' . auth()->getDefaultDriver(),
         ];
 
-        if ($guard = session('impersonate.guard')) {
+        $guard = session('impersonate.guard');
+
+        if ($guard) {
             $hashes[] = 'password_hash_' . $guard;
         }
 
         try {
-            if ($panel = Filament::getCurrentOrDefaultPanel()) {
+            $panel = Filament::getCurrentOrDefaultPanel();
+
+            if ($panel !== null) {
                 $hashes[] = 'password_hash_' . $panel->getAuthGuard();
             }
 
-            if ($backToPanelId = session()->get('impersonate.back_to_panel')) {
+            $backToPanelId = session()->get('impersonate.back_to_panel');
+
+            if ($backToPanelId) {
                 $panel = Filament::getPanel($backToPanelId);
                 $hashes[] = 'password_hash_' . $panel->getAuthGuard();
             }

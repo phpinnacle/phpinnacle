@@ -44,11 +44,15 @@ class EditProfile extends BasePage
             $this->getFormContentComponent(),
         ];
 
-        if ($mfa = $this->getMultiFactorAuthenticationContentComponent()) {
+        $mfa = $this->getMultiFactorAuthenticationContentComponent();
+
+        if ($mfa !== null) {
             $components[] = $mfa;
         }
 
-        if ($oauth = $this->getOAuthAccountsComponent()) {
+        $oauth = $this->getOAuthAccountsComponent();
+
+        if ($oauth !== null) {
             $components[] = $oauth;
         }
 
