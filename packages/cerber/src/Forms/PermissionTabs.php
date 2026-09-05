@@ -41,7 +41,7 @@ class PermissionTabs
                             ->bulkToggleable()
                             ->options(array_map(fn (string $label) => __($label), $permissions))
                             ->afterStateHydrated(
-                                fn (CheckboxList $component, ?Role $record) => self::adapt($component, $record),
+                                self::adapt(...),
                             )
                             ->columns(4)
                             ->gridDirection('row'),
@@ -87,7 +87,7 @@ class PermissionTabs
                         ->bulkToggleable()
                         ->options(array_combine($pages, $titles))
                         ->afterStateHydrated(
-                            fn (CheckboxList $component, ?Role $record) => self::adapt($component, $record),
+                            self::adapt(...),
                         ),
                 ])
                 ->visible($pages !== []),
@@ -114,7 +114,7 @@ class PermissionTabs
                         ->bulkToggleable()
                         ->options(array_combine($widgets, $widgets))
                         ->afterStateHydrated(
-                            fn (CheckboxList $component, ?Role $record) => self::adapt($component, $record),
+                            self::adapt(...),
                         ),
                 ])
                 ->visible($widgets !== []),
@@ -167,7 +167,7 @@ class PermissionTabs
                         ->bulkToggleable()
                         ->options(array_combine($permissions, $titles))
                         ->afterStateHydrated(
-                            fn (CheckboxList $component, ?Role $record) => self::adapt($component, $record),
+                            self::adapt(...),
                         )
                         ->columns(4)
                         ->gridDirection('row'),

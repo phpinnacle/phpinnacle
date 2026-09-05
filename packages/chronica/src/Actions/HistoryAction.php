@@ -51,7 +51,7 @@ class HistoryAction extends Action
                     ->modalDescription(__('phpinnacle-chronica::messages.revert.description'))
                     ->modalSubmitActionLabel(__('phpinnacle-chronica::messages.revert.submit'))
                     ->successNotificationTitle(__('phpinnacle-chronica::messages.revert.success'))
-                    ->successRedirectUrl(fn (): string => Livewire::originalUrl())
+                    ->successRedirectUrl(Livewire::originalUrl(...))
                     ->visible(fn (Model $record) => ($this->timeline ?? Timeline::make($record::class))->isRevertable())
                     ->action(function (array $arguments, Model $record, Action $action) {
                         ($this->timeline ?? Timeline::make($record::class))->revert($record, $arguments['activity']);

@@ -60,7 +60,7 @@ class CreateDocument extends CreateAction
                             ->maxLength(255),
                         Select::make('template_id')
                             ->label(__('phpinnacle-razor::resources.document.fields.template'))
-                            ->options(fn () => $this->getTemplates())
+                            ->options($this->getTemplates(...))
                             ->afterStateUpdated(function (Set $set, ?string $state, ?string $old) use ($record) {
                                 if (blank($state)) {
                                     return;

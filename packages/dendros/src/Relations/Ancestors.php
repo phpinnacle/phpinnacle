@@ -79,7 +79,7 @@ class Ancestors extends Relation
                 throw new LogicException('Ancestor relations require tree node models.');
             }
 
-            $model->setRelation($relation, $results->filter(fn (Model $result) => $model->isAncestorOf($result)));
+            $model->setRelation($relation, $results->filter($model->isAncestorOf(...)));
         }
 
         return $models;

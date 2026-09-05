@@ -166,14 +166,14 @@ class DatePicker extends Field implements HasAffixActions
     {
         $this->maxDate = is_string($date) ? Date::parse($date) : $date;
 
-        return $this->before(fn () => $this->getMaxDate());
+        return $this->before($this->getMaxDate(...));
     }
 
     public function minDate(Closure|DateTimeInterface|string|null $date): static
     {
         $this->minDate = is_string($date) ? Date::parse($date) : $date;
 
-        return $this->after(fn () => $this->getMinDate());
+        return $this->after($this->getMinDate(...));
     }
 
     public function range(): static

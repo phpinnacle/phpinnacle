@@ -115,9 +115,7 @@ class Filter
                 }
             })
             ->disabled(
-                fn (Get $get) => $this->depends !== [] && array_any($this->depends, fn (string $depend) => $get->blank(
-                    $depend,
-                )),
+                fn (Get $get) => $this->depends !== [] && array_any($this->depends, $get->blank(...)),
             );
     }
 }

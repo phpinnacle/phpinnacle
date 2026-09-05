@@ -96,7 +96,7 @@ class Integration extends Model
     public function handle(string $payload): array
     {
         $payload = $this->format->decode($payload);
-        $transforms = array_map(fn (array $item) => Transform::make($item), $this->transforms);
+        $transforms = array_map(Transform::make(...), $this->transforms);
 
         foreach ($transforms as $transform) {
             $payload = $transform->apply($payload);

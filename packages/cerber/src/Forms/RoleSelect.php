@@ -19,6 +19,6 @@ class RoleSelect extends Select
         $this
             ->label(__('phpinnacle-cerber::forms.role.label'))
             ->placeholder(__('phpinnacle-cerber::forms.role.placeholder'))
-            ->options(fn () => Role::list());
+            ->options(Role::list(...));
     }
 }

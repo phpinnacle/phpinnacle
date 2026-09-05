@@ -52,9 +52,7 @@ class RazorServiceProvider extends PackageServiceProvider
             return new Twig($environment);
         });
 
-        $this->app->bind(Handlebars::class, function () {
-            return Handlebars::instance();
-        });
+        $this->app->bind(Handlebars::class, Handlebars::instance(...));
 
         $this->app->singleton(Registry::class);
         $this->app->singleton(Renderer::class, function (Application $application) {

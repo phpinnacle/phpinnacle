@@ -106,7 +106,7 @@ class ColorPicker extends Field
     public function getThemeColors(): array
     {
         return array_map(
-            static fn (array $palette) => Color::hex($palette),
+            Color::hex(...),
             FilamentColor::getColors(),
         );
     }

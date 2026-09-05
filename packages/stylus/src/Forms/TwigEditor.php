@@ -447,7 +447,7 @@ class TwigEditor extends BaseRichEditor
 
         $this
             ->json()
-            ->tools(fn () => $this->getConditionRuleTools())
+            ->tools($this->getConditionRuleTools(...))
             ->plugins([
                 TwigTemplatePlugin::make(),
             ])

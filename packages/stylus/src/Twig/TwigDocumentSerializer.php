@@ -703,7 +703,7 @@ class TwigDocumentSerializer
             }
 
             $content = implode("\n", array_map(
-                fn (array $conditionedRow) => $this->serializeTableRowMarkup($conditionedRow),
+                $this->serializeTableRowMarkup(...),
                 $group,
             ));
             $output[] = $this->wrapIf($attributes, $content, 'Twig table row condition');

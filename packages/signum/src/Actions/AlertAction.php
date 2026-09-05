@@ -47,7 +47,7 @@ class AlertAction extends Action
                     ->label(__('phpinnacle-signum::actions.alert.fields.message'))
                     ->rows(6),
             ])
-            ->action(fn (Model $record, array $data) => Alert::create($record, $data))
-            ->visible(fn () => AlertResource::canCreate());
+            ->action(Alert::create(...))
+            ->visible(AlertResource::canCreate(...));
     }
 }

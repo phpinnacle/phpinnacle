@@ -80,7 +80,7 @@ class Descendants extends Relation
                 throw new LogicException('Descendant relations require tree node models.');
             }
 
-            $model->setRelation($relation, $results->filter(fn (Model $result) => $model->isDescendantOf($result)));
+            $model->setRelation($relation, $results->filter($model->isDescendantOf(...)));
         }
 
         return $models;

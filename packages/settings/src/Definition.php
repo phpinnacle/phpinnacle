@@ -66,7 +66,7 @@ class Definition
         return NavigationItem::make()
             ->label($this->label)
             ->icon($this->icon)
-            ->visible(fn () => $this->enabled())
+            ->visible($this->enabled(...))
             ->isActiveWhen(fn () => request()->route('group') === $this->slug)
             ->url(fn () => SettingsPage::getUrl([
                 'group' => $this->slug,

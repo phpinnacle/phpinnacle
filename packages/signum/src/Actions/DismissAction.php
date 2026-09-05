@@ -23,6 +23,6 @@ class DismissAction extends Action
             ->iconButton()
             ->color(fn (Alert $record) => $record->getColor())
             ->action(fn (Alert $record) => $record->delete())
-            ->visible(fn (Alert $record) => AlertResource::canDelete($record));
+            ->visible(AlertResource::canDelete(...));
     }
 }

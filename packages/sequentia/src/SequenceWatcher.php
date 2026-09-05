@@ -81,7 +81,7 @@ final class SequenceWatcher
         $tenant = $tenant !== null ? $record->getAttributeValue($tenant) : self::DEFAULT_TENANT;
         $bucket = array_combine(
             $scheme,
-            array_map(fn (string $key) => $record->getAttributeValue($key), $scheme),
+            array_map($record->getAttributeValue(...), $scheme),
         );
 
         $counters = self::counters($date, $bucket);

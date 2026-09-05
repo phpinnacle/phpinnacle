@@ -26,7 +26,7 @@ class DateRangeFilter extends RangeFilter
         parent::setUp();
 
         $picker = DateRangePicker::make('range')
-            ->label(fn () => $this->getLabel());
+            ->label($this->getLabel(...));
 
         $this
             ->schema([$picker])
