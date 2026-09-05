@@ -89,6 +89,21 @@ class Tag extends Model implements HasColor, HasLabel
         return self::query()->where('type', $type)->pluck('name', 'id');
     }
 
+    public function getColor(): array
+    {
+        return Color::shades($this->color);
+    }
+
+    public function getConnectionName(): ?string
+    {
+        return config('phpinnacle-tags.connection');
+    }
+
+    public function getLabel(): string
+    {
+        return $this->name;
+    }
+
     protected static function booted(): void
     {
         self::creating(function (self $record) {
@@ -157,20 +172,5 @@ class Tag extends Model implements HasColor, HasLabel
                     ->chunk(100)
                     ->each(fn (Collection $ids) => self::doSyncQuery($tags, $table, $key, $ids->all()));
             });
-    }
-
-    public function getColor(): array
-    {
-        return Color::shades($this->color);
-    }
-
-    public function getConnectionName(): ?string
-    {
-        return config('phpinnacle-tags.connection');
-    }
-
-    public function getLabel(): string
-    {
-        return $this->name;
     }
 }

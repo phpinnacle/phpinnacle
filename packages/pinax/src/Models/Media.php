@@ -146,18 +146,6 @@ class Media extends Model
         return $self;
     }
 
-    protected static function booted(): void
-    {
-        self::creating(function (self $record) {
-            $record->marks ??= [];
-
-            reset_sort($record, [
-                'holder_type' => $record->holder_type,
-                'holder_id' => $record->holder_id,
-            ]);
-        });
-    }
-
     public function getConnectionName(): ?string
     {
         return config('phpinnacle-pinax.connection', parent::getConnectionName());
@@ -171,5 +159,17 @@ class Media extends Model
     public function url(): string
     {
         return Storage::disk($this->disk)->url($this->path);
+    }
+
+    protected static function booted(): void
+    {
+        self::creating(function (self $record) {
+            $record->marks ??= [];
+
+            reset_sort($record, [
+                'holder_type' => $record->holder_type,
+                'holder_id' => $record->holder_id,
+            ]);
+        });
     }
 }

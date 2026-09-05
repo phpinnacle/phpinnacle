@@ -86,21 +86,6 @@ class Document extends Model
             ->all();
     }
 
-    protected static function booted(): void
-    {
-        self::creating(function (self $record) {
-            $record->created_by = auth()->id();
-        });
-
-        self::deleted(function (self $record) {
-            self::query()
-                ->where(['parent_id' => $record->id])
-                ->update([
-                    'parent_id' => null,
-                ]);
-        });
-    }
-
     public function context(): array
     {
         return array_merge($this->context, [
@@ -134,5 +119,20 @@ class Document extends Model
     public function template(): BelongsTo
     {
         return $this->belongsTo(Template::class);
+    }
+
+    protected static function booted(): void
+    {
+        self::creating(function (self $record) {
+            $record->created_by = auth()->id();
+        });
+
+        self::deleted(function (self $record) {
+            self::query()
+                ->where(['parent_id' => $record->id])
+                ->update([
+                    'parent_id' => null,
+                ]);
+        });
     }
 }

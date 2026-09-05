@@ -19,24 +19,6 @@ readonly class CallbackController
         protected UserLinker $linker,
     ) {}
 
-    private function handleProfileLinking(Provider $provider, Request $request): RedirectResponse
-    {
-        $panel = Filament::getCurrentOrDefaultPanel();
-        $profileUrl = $panel->getProfileUrl() ?? EditProfile::getUrl();
-
-        try {
-            $this->linker->linkAccount($provider, $request->user());
-
-            return redirect($profileUrl)
-                ->with('success', __('phpinnacle-cerber::auth.account_linked'));
-        } catch (Throwable) {
-            return redirect($profileUrl)
-                ->with('error', __('phpinnacle-cerber::auth.errors.callback_failed'));
-        } finally {
-            $request->session()->forget(['oauth_link_mode']);
-        }
-    }
-
     public function __invoke(Provider $provider, Request $request): RedirectResponse|View
     {
         $panel = Filament::getCurrentOrDefaultPanel();
@@ -66,5 +48,23 @@ readonly class CallbackController
         $request->session()->regenerate();
 
         return redirect()->intended($panel->getHomeUrl());
+    }
+
+    private function handleProfileLinking(Provider $provider, Request $request): RedirectResponse
+    {
+        $panel = Filament::getCurrentOrDefaultPanel();
+        $profileUrl = $panel->getProfileUrl() ?? EditProfile::getUrl();
+
+        try {
+            $this->linker->linkAccount($provider, $request->user());
+
+            return redirect($profileUrl)
+                ->with('success', __('phpinnacle-cerber::auth.account_linked'));
+        } catch (Throwable) {
+            return redirect($profileUrl)
+                ->with('error', __('phpinnacle-cerber::auth.errors.callback_failed'));
+        } finally {
+            $request->session()->forget(['oauth_link_mode']);
+        }
     }
 }

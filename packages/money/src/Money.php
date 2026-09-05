@@ -286,6 +286,11 @@ readonly class Money implements JsonSerializable, Wireable
         return new self(0, $this->currency);
     }
 
+    public function __toString(): string
+    {
+        return $this->decimal();
+    }
+
     private function guard(self $other): void
     {
         if ($other->amount === 0) {
@@ -295,10 +300,5 @@ readonly class Money implements JsonSerializable, Wireable
         if ($this->currency !== $other->currency) {
             throw new InvalidArgumentException('Currencies do not match.');
         }
-    }
-
-    public function __toString(): string
-    {
-        return $this->decimal();
     }
 }

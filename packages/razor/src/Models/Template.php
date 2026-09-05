@@ -89,38 +89,6 @@ class Template extends Model implements HasLabel
         return self::query()->findOrFail($id);
     }
 
-    protected static function booted(): void
-    {
-        self::saving(function (self $record) {
-            if ($record->is_default) {
-                self::query()
-                    ->where('section', $record->section)
-                    ->where('id', '!=', $record->id)
-                    ->update(['is_default' => false]);
-            }
-        });
-
-        self::creating(function (self $record) {
-            $record->parent_id ??= $record->id;
-            $record->created_by = auth()->id();
-        });
-
-        self::updating(function (self $record) {
-            if (!$record->isDirty('content')) {
-                return;
-            }
-
-            $record->content = html_entity_decode($record->content);
-            $record->version++;
-
-            $previous = new self($record->getOriginal());
-            $previous->parent_id = $record->id;
-            $previous->is_history = true;
-            $previous->is_default = false;
-            $previous->save();
-        });
-    }
-
     public function content(): Attribute
     {
         return Attribute::make(
@@ -179,5 +147,37 @@ class Template extends Model implements HasLabel
 
         $this->is_default = !$this->is_default;
         $this->save();
+    }
+
+    protected static function booted(): void
+    {
+        self::saving(function (self $record) {
+            if ($record->is_default) {
+                self::query()
+                    ->where('section', $record->section)
+                    ->where('id', '!=', $record->id)
+                    ->update(['is_default' => false]);
+            }
+        });
+
+        self::creating(function (self $record) {
+            $record->parent_id ??= $record->id;
+            $record->created_by = auth()->id();
+        });
+
+        self::updating(function (self $record) {
+            if (!$record->isDirty('content')) {
+                return;
+            }
+
+            $record->content = html_entity_decode($record->content);
+            $record->version++;
+
+            $previous = new self($record->getOriginal());
+            $previous->parent_id = $record->id;
+            $previous->is_history = true;
+            $previous->is_default = false;
+            $previous->save();
+        });
     }
 }

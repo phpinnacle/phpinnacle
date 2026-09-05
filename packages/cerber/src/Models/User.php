@@ -101,29 +101,6 @@ class User extends Authenticatable implements HasLabel, Viewer
         return $self;
     }
 
-    protected static function booted(): void
-    {
-        self::creating(function (self $record) {
-            $record->tenant_id ??= Cerberus::tenant();
-
-            if ($record->panels === []) {
-                $record->panels = array_filter([Filament::getCurrentOrDefaultPanel()?->getId()]);
-            }
-        });
-
-        self::updating(function (self $record) {
-            if ($record->isDirty('email')) {
-                $record->email_verified_at = null;
-            }
-        });
-
-        self::saving(function (self $record) {
-            if ($record->isDirty('password')) {
-                $record->password_changed_at = CarbonImmutable::now();
-            }
-        });
-    }
-
     public function able(string $ability, Tenant|string|null $tenant = null): bool
     {
         $tenant = $tenant instanceof Tenant ? $tenant->id : $tenant;
@@ -259,6 +236,29 @@ class User extends Authenticatable implements HasLabel, Viewer
     {
         $this->two_factor_email = $condition;
         $this->save();
+    }
+
+    protected static function booted(): void
+    {
+        self::creating(function (self $record) {
+            $record->tenant_id ??= Cerberus::tenant();
+
+            if ($record->panels === []) {
+                $record->panels = array_filter([Filament::getCurrentOrDefaultPanel()?->getId()]);
+            }
+        });
+
+        self::updating(function (self $record) {
+            if ($record->isDirty('email')) {
+                $record->email_verified_at = null;
+            }
+        });
+
+        self::saving(function (self $record) {
+            if ($record->isDirty('password')) {
+                $record->password_changed_at = CarbonImmutable::now();
+            }
+        });
     }
 
     private function loadPermissions(string $tenant): Collection

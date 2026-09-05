@@ -93,17 +93,6 @@ class Role extends Model implements HasLabel
         return $self;
     }
 
-    protected static function booted(): void
-    {
-        self::creating(function (self $record) {
-            $record->tenant_id ??= Cerberus::tenant();
-        });
-
-        self::saving(function (self $record) {
-            $record->description ??= '';
-        });
-    }
-
     public function able(string|Permission $permission): bool
     {
         $permission = Permission::filter($permission);
@@ -161,5 +150,16 @@ class Role extends Model implements HasLabel
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'users_roles');
+    }
+
+    protected static function booted(): void
+    {
+        self::creating(function (self $record) {
+            $record->tenant_id ??= Cerberus::tenant();
+        });
+
+        self::saving(function (self $record) {
+            $record->description ??= '';
+        });
     }
 }

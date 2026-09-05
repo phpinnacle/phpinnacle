@@ -1,5 +1,29 @@
 {
     "rules": {
+        "class-member-order": [
+            {
+                "order": [
+                    "trait-use:*",
+                    "enum-case:*",
+                    "public:constant:*",
+                    "protected:constant:*",
+                    "private:constant:*",
+                    "public:static:property:*",
+                    "protected:static:property:*",
+                    "private:static:property:*",
+                    "public:property:*",
+                    "protected:property:*",
+                    "private:property:*",
+                    "method:__construct",
+                    "public:static:method:*",
+                    "public:method:*",
+                    "protected:static:method:*",
+                    "protected:method:*",
+                    "private:static:method:*",
+                    "private:method:*"
+                ]
+            }
+        ],
         "class-method-order": [
             {
                 "extends": "Illuminate\\Database\\Migrations\\Migration",

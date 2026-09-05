@@ -31,26 +31,6 @@ class MediaUpload extends FileUpload
             : self::performCopy($component, $file);
     }
 
-    private static function performCopy(BaseFileUpload $component, TemporaryUploadedFile $file): string
-    {
-        $storeMethod = $component->getVisibility() === 'public' ? 'storePubliclyAs' : 'storeAs';
-
-        return $file->{$storeMethod}(
-            $component->getDirectory(),
-            $component->getUploadedFileNameForStorage($file),
-            $component->getDiskName(),
-        );
-    }
-
-    private static function performMove(BaseFileUpload $component, TemporaryUploadedFile $file): string
-    {
-        $newPath = trim($component->getDirectory() . '/' . $component->getUploadedFileNameForStorage($file), '/');
-
-        $component->getDisk()->move($file->path(), $newPath);
-
-        return $newPath;
-    }
-
     public function setUp(): void
     {
         parent::setUp();
@@ -95,6 +75,26 @@ class MediaUpload extends FileUpload
 
                 $component->rawState($media->mapWithKeys(fn (Media $m) => [$m->getKey() => $m->getKey()])->all());
             });
+    }
+
+    private static function performCopy(BaseFileUpload $component, TemporaryUploadedFile $file): string
+    {
+        $storeMethod = $component->getVisibility() === 'public' ? 'storePubliclyAs' : 'storeAs';
+
+        return $file->{$storeMethod}(
+            $component->getDirectory(),
+            $component->getUploadedFileNameForStorage($file),
+            $component->getDiskName(),
+        );
+    }
+
+    private static function performMove(BaseFileUpload $component, TemporaryUploadedFile $file): string
+    {
+        $newPath = trim($component->getDirectory() . '/' . $component->getUploadedFileNameForStorage($file), '/');
+
+        $component->getDisk()->move($file->path(), $newPath);
+
+        return $newPath;
     }
 
     private function deleteAbandonedFiles(?Model $record): void

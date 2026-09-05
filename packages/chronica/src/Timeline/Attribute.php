@@ -21,25 +21,6 @@ class Attribute
         return new self($name);
     }
 
-    private static function formatDate(string $type, ?string $format = null): Closure
-    {
-        return fn (DateTimeInterface|string|null $value) => $value !== null
-            ? Date::parse($value)->translatedFormat($format ?? self::getFormat($type))
-            : null;
-    }
-
-    private static function getFormat(string $type): string
-    {
-        static $schema = new Schema()->configure();
-
-        return match ($type) {
-            'datetime' => $schema->getDefaultDateTimeDisplayFormat(),
-            'date' => $schema->getDefaultDateDisplayFormat(),
-            'time' => $schema->getDefaultTimeDisplayFormat(),
-            default => throw new InvalidArgumentException(sprintf('Unsupported date format type [%s].', $type)),
-        };
-    }
-
     public function date(?string $format = null): self
     {
         return $this->formatter(self::formatDate('date', $format));
@@ -67,5 +48,24 @@ class Attribute
     public function time(?string $format = null): self
     {
         return $this->formatter(self::formatDate('time', $format));
+    }
+
+    private static function formatDate(string $type, ?string $format = null): Closure
+    {
+        return fn (DateTimeInterface|string|null $value) => $value !== null
+            ? Date::parse($value)->translatedFormat($format ?? self::getFormat($type))
+            : null;
+    }
+
+    private static function getFormat(string $type): string
+    {
+        static $schema = new Schema()->configure();
+
+        return match ($type) {
+            'datetime' => $schema->getDefaultDateTimeDisplayFormat(),
+            'date' => $schema->getDefaultDateDisplayFormat(),
+            'time' => $schema->getDefaultTimeDisplayFormat(),
+            default => throw new InvalidArgumentException(sprintf('Unsupported date format type [%s].', $type)),
+        };
     }
 }

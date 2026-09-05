@@ -76,13 +76,6 @@ class Alert extends Model implements HasColor, HasDescription, HasIcon, HasLabel
             ->get();
     }
 
-    protected static function booted(): void
-    {
-        static::creating(function (Alert $record) {
-            $record->created_by = Auth::id();
-        });
-    }
-
     public function getColor(): string|array|null
     {
         return $this->level->getColor();
@@ -111,5 +104,12 @@ class Alert extends Model implements HasColor, HasDescription, HasIcon, HasLabel
     public function target(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Alert $record) {
+            $record->created_by = Auth::id();
+        });
     }
 }

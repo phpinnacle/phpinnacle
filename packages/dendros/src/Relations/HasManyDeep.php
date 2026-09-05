@@ -33,15 +33,6 @@ class HasManyDeep extends HasMany
         );
     }
 
-    protected static function newRelatedInstance(string $class, Model $parent): Model
-    {
-        return tap(new $class, static function ($related) use ($parent) {
-            if (!$related->getConnectionName()) {
-                $related->setConnection($parent->getConnectionName());
-            }
-        });
-    }
-
     public function addConstraints(): void
     {
         if (static::$constraints && $this->getParentKey()) {
@@ -111,6 +102,15 @@ class HasManyDeep extends HasMany
         }
 
         return $models;
+    }
+
+    protected static function newRelatedInstance(string $class, Model $parent): Model
+    {
+        return tap(new $class, static function ($related) use ($parent) {
+            if (!$related->getConnectionName()) {
+                $related->setConnection($parent->getConnectionName());
+            }
+        });
     }
 
     protected function joinParent(): void

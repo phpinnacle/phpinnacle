@@ -12,20 +12,6 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 final class IntegrationTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        Container::setInstance(new Application);
-    }
-
-    protected function tearDown(): void
-    {
-        Container::setInstance();
-
-        parent::tearDown();
-    }
-
     public function test_it_authorizes_a_matching_header_secret(): void
     {
         $integration = $this->integration('secret');
@@ -49,6 +35,20 @@ final class IntegrationTest extends TestCase
         $this->expectException(HttpException::class);
 
         $this->integration(null)->authorize(Request::create('/'));
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Container::setInstance(new Application);
+    }
+
+    protected function tearDown(): void
+    {
+        Container::setInstance();
+
+        parent::tearDown();
     }
 
     private function integration(#[\SensitiveParameter] ?string $secret): Integration

@@ -33,6 +33,15 @@ readonly class TestController
         }
     }
 
+    public function __invoke(Provider $provider, Request $request): View|RedirectResponse
+    {
+        $oauthProvider = $this->providers->build($provider->type, $provider->config);
+
+        $request->session()->put('oauth_test_mode', true);
+
+        return $oauthProvider->redirect();
+    }
+
     private function renderResult(
         Provider $provider,
         ?string $error = null,
@@ -55,14 +64,5 @@ readonly class TestController
                     'name' => $user->getName(),
                 ] : null,
         ]);
-    }
-
-    public function __invoke(Provider $provider, Request $request): View|RedirectResponse
-    {
-        $oauthProvider = $this->providers->build($provider->type, $provider->config);
-
-        $request->session()->put('oauth_test_mode', true);
-
-        return $oauthProvider->redirect();
     }
 }

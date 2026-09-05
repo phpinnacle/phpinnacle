@@ -73,13 +73,6 @@ class Webhook extends Model
         return $self;
     }
 
-    protected static function booted(): void
-    {
-        self::saving(function (self $record) {
-            $record->payload ??= '';
-        });
-    }
-
     public function canRetry(): bool
     {
         return $this->status === WebhookStatus::Failed;
@@ -150,6 +143,13 @@ class Webhook extends Model
             $this->save();
 
             ProcessWebhook::dispatch($this)->afterCommit();
+        });
+    }
+
+    protected static function booted(): void
+    {
+        self::saving(function (self $record) {
+            $record->payload ??= '';
         });
     }
 }
