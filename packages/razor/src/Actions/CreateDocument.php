@@ -20,6 +20,9 @@ class CreateDocument extends CreateAction
 {
     private ?string $section = null;
 
+    /**
+     * @var array<string, string>|null
+     */
     private ?array $templates = null;
 
     private ?string $default = null;
@@ -108,6 +111,9 @@ class CreateDocument extends CreateAction
             });
     }
 
+    /**
+     * @return array<string, string>
+     */
     private function getTemplates(): array
     {
         if ($this->templates !== null) {

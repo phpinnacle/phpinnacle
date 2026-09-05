@@ -7,6 +7,9 @@ use Tiptap\Utils\HTML;
 
 class ConditionInlineExtension extends Mark
 {
+    /**
+     * @var string
+     */
     public static $name = 'conditionInline';
 
     /** @return array<string, mixed> */

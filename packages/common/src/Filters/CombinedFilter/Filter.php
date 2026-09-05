@@ -15,8 +15,14 @@ class Filter
 {
     use EvaluatesClosures;
 
+    /**
+     * @var list<string>
+     */
     public array $depends = [];
 
+    /**
+     * @var Collection<array-key, string|array<array-key, string>>|Closure|array<array-key, string|array<array-key, string>>
+     */
     private Collection|Closure|array $options = [];
 
     private ?Closure $applyUsing = null;
@@ -39,6 +45,9 @@ class Filter
         return $this;
     }
 
+    /**
+     * @param Closure|Collection<array-key, string|array<array-key, string>>|array<array-key, string|array<array-key, string>> $options
+     */
     public function options(Closure|Collection|array $options): self
     {
         $this->options = $options;
@@ -46,6 +55,9 @@ class Filter
         return $this;
     }
 
+    /**
+     * @param list<string> $depends
+     */
     public function depends(array $depends): self
     {
         $this->depends = $depends;
@@ -60,6 +72,10 @@ class Filter
         return $this;
     }
 
+    /**
+     * @param Builder<\Illuminate\Database\Eloquent\Model> $query
+     * @param array<string, mixed> $data
+     */
     public function apply(Builder $query, array $data): void
     {
         $value = $data[$this->name] ?? null;
@@ -85,6 +101,9 @@ class Filter
         }
     }
 
+    /**
+     * @param array<string, list<string>> $dependencies
+     */
     public function select(array $dependencies): Select
     {
         return Select::make($this->name)
@@ -110,6 +129,10 @@ class Filter
             );
     }
 
+    /**
+     * @param array<string, mixed> $data
+     * @param array<string, array<array-key, string|array<array-key, string>>> $options
+     */
     public function indicator(array $data, array $options): ?Indicator
     {
         $value = $data[$this->name] ?? null;

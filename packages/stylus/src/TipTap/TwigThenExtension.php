@@ -7,6 +7,9 @@ use Tiptap\Utils\HTML;
 
 class TwigThenExtension extends Node
 {
+    /**
+     * @var string
+     */
     public static $name = 'twigThen';
 
     /** @return array<int, array<string, mixed>> */

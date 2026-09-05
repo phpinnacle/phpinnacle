@@ -16,6 +16,9 @@ if (!function_exists('clean_up_html')) {
 }
 
 if (!function_exists('reset_sort')) {
+    /**
+     * @param array<string, mixed> $where
+     */
     function reset_sort(Model $record, array $where = [], string $field = 'sort'): void
     {
         if ($record->getAttribute($field) !== null) {
@@ -37,6 +40,9 @@ if (!function_exists('reset_sort')) {
 }
 
 if (!function_exists('reset_default')) {
+    /**
+     * @param array<string, mixed> $where
+     */
     function reset_default(Model $record, array $where = [], string $field = 'is_default'): void
     {
         if (!$record->getAttribute($field)) {

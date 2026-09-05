@@ -18,6 +18,9 @@ class EditRole extends EditRecord
 
     protected static string $resource = RoleResource::class;
 
+    /**
+     * @var list<string>
+     */
     public array $permissions = [];
 
     public function getTitle(): string|Htmlable

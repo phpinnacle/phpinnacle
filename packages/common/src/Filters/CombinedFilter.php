@@ -15,8 +15,14 @@ class CombinedFilter extends BaseFilter
      */
     private array $filters = [];
 
+    /**
+     * @var array<string, list<string>>
+     */
     private array $dependencies = [];
 
+    /**
+     * @var list<Group>|null
+     */
     private ?array $cachedForm = null;
 
     public static function getDefaultName(): string
@@ -75,6 +81,9 @@ class CombinedFilter extends BaseFilter
             });
     }
 
+    /**
+     * @return list<Group>
+     */
     private function buildForm(): array
     {
         return $this->cachedForm ??= [

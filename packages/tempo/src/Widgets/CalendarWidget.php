@@ -52,7 +52,10 @@ abstract class CalendarWidget extends Widget implements HasActions, HasSchemas
     /** @return list<EventSource> */
     abstract public function getEventSources(): array;
 
-    /** @return array{events: array<int, array<string, mixed>>, status: string, truncated: bool} */
+    /**
+     * @param array<array-key, mixed>|null $eventSourceKeys
+     * @return array{events: array<int, array<string, mixed>>, status: string, truncated: bool}
+     */
     #[Renderless]
     public function fetchCalendarEvents(string $rangeStart, string $rangeEnd, ?array $eventSourceKeys = null): array
     {

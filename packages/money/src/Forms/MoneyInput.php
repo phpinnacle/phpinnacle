@@ -32,6 +32,9 @@ class MoneyInput extends Field
 
     protected Closure|bool $nullable = false;
 
+    /**
+     * @var list<string>
+     */
     protected array $currencies = [];
 
     protected string $defaultCurrency = 'USD';
@@ -52,14 +55,20 @@ class MoneyInput extends Field
         return $this->prefixIcon(null);
     }
 
+    /**
+     * @param list<string> $currencies
+     */
     public function currencies(array $currencies, ?string $default = null): self
     {
         $this->currencies = $currencies;
-        $this->defaultCurrency = $default ?? current($currencies) ?? 'USD';
+        $this->defaultCurrency = $default ?? current($currencies);
 
         return $this;
     }
 
+    /**
+     * @return list<string>
+     */
     public function getCurrencies(): array
     {
         return $this->currencies;

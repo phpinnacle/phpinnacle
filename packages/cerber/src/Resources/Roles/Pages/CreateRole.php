@@ -15,6 +15,9 @@ class CreateRole extends CreateRecord
 {
     protected static string $resource = RoleResource::class;
 
+    /**
+     * @var list<string>
+     */
     public array $permissions = [];
 
     public function getTitle(): string|Htmlable
@@ -22,6 +25,10 @@ class CreateRole extends CreateRecord
         return __('phpinnacle-cerber::resources.role.pages.create');
     }
 
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
     protected function mutateFormDataBeforeSave(array $data): array
     {
         $this->permissions = Arr::flatten($data['permissions'] ?? []);

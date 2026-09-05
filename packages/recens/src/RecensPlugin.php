@@ -14,12 +14,18 @@ class RecensPlugin implements Plugin
 {
     use EvaluatesClosures;
 
+    /**
+     * @var string|array<string>|Closure
+     */
     private string|array|Closure $color = 'gray';
 
     private string|BackedEnum|Closure $icon = 'heroicon-o-clock';
 
     private int|Closure|null $limit = null;
 
+    /**
+     * @var array<string, Closure|null>
+     */
     private array $scopes = [];
 
     public static function make(): static
@@ -41,6 +47,9 @@ class RecensPlugin implements Plugin
         return 'phpinnacle/recens';
     }
 
+    /**
+     * @param string|array<string>|Closure $color
+     */
     public function color(string|array|Closure $color): self
     {
         $this->color = $color;
@@ -62,6 +71,9 @@ class RecensPlugin implements Plugin
         return $this;
     }
 
+    /**
+     * @param list<string>|array<string, Closure|null> $scopes
+     */
     public function scopes(array $scopes): self
     {
         $this->scopes = array_is_list($scopes) ? array_fill_keys($scopes, null) : $scopes;

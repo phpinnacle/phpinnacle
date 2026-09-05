@@ -20,8 +20,8 @@ use PHPinnacle\Cerber\Enums\TenantStatus;
  * @property TenantStatus $status
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $updated_at
- * @property-read Collection<User> $users
- * @property-read Collection<Role> $roles
+ * @property-read Collection<int, User> $users
+ * @property-read Collection<int, Role> $roles
  */
 class Tenant extends Model implements HasAvatar, HasCurrentTenantLabel, HasName
 {
@@ -106,11 +106,17 @@ class Tenant extends Model implements HasAvatar, HasCurrentTenantLabel, HasName
         return 'domain';
     }
 
+    /**
+     * @return HasMany<User, $this>
+     */
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
     }
 
+    /**
+     * @return HasMany<Role, $this>
+     */
     public function roles(): HasMany
     {
         return $this->hasMany(Role::class);

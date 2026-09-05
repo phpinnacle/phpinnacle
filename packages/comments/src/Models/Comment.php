@@ -46,6 +46,9 @@ class Comment extends Model
             ->count();
     }
 
+    /**
+     * @return Collection<int, static>
+     */
     public static function list(Model $record): Collection
     {
         return static::query()
@@ -55,9 +58,15 @@ class Comment extends Model
             ->get();
     }
 
+    /**
+     * @return BelongsTo<Model, $this>
+     */
     public function author(): BelongsTo
     {
-        return $this->belongsTo(config('phpinnacle-comments.user.model'), 'author_id');
+        /** @var class-string<Model> $model */
+        $model = config('phpinnacle-comments.user.model');
+
+        return $this->belongsTo($model, 'author_id');
     }
 
     public function getConnectionName(): ?string
@@ -79,11 +88,17 @@ class Comment extends Model
         return array_values(array_unique(array_map(html_entity_decode(...), $matches[1])));
     }
 
+    /**
+     * @return BelongsTo<self, $this>
+     */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_id');
     }
 
+    /**
+     * @return Builder<static>
+     */
     public function prunable(): Builder
     {
         $days = config('phpinnacle-comments.prune', 365);
@@ -91,6 +106,10 @@ class Comment extends Model
         return static::query()->where('created_at', '<=', now()->subDays($days));
     }
 
+    /**
+     * @param Builder<static> $query
+     * @return Builder<static>
+     */
     public function scopeForSubject(Builder $query, Model $record): Builder
     {
         return $query->where([
@@ -99,6 +118,9 @@ class Comment extends Model
         ]);
     }
 
+    /**
+     * @return MorphTo<Model, $this>
+     */
     public function subject(): MorphTo
     {
         return $this->morphTo();

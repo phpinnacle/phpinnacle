@@ -16,6 +16,7 @@ use PHPinnacle\Intl\Forms\LocalePicker;
 use PHPinnacle\Intl\Locales;
 use Throwable;
 
+/** @phpstan-type TransformConfig array{fields?: array<array-key, mixed>, dest?: string|null, type?: string|null, chars?: string|null, input?: string|null, output?: string|null, modify?: string|null, behavior?: string|null, locale?: string|null, future?: bool|null} */
 enum TransformType: string
 {
     case MAP = 'map';
@@ -32,6 +33,9 @@ enum TransformType: string
         return is_string($value) ? self::from($value) : $value;
     }
 
+    /**
+     * @return list<\Filament\Schemas\Components\Component>
+     */
     public function form(): array
     {
         return match ($this) {
@@ -84,6 +88,11 @@ enum TransformType: string
         };
     }
 
+    /**
+     * @param array<array-key, mixed> $data
+     * @param TransformConfig $config
+     * @return array<array-key, mixed>
+     */
     public function transform(array $data, string $path, array $config): array
     {
         return match ($this) {
@@ -98,6 +107,9 @@ enum TransformType: string
         };
     }
 
+    /**
+     * @param TransformConfig $config
+     */
     public function preview(array $config): string
     {
         return match ($this) {
@@ -132,6 +144,11 @@ enum TransformType: string
         };
     }
 
+    /**
+     * @param array<array-key, mixed> $data
+     * @param array<array-key, mixed> $map
+     * @return array<array-key, mixed>
+     */
     private function transformMap(array $data, string $path, array $map): array
     {
         $json = new JsonObject($data);
@@ -160,6 +177,10 @@ enum TransformType: string
         return (array) $json->getValue();
     }
 
+    /**
+     * @param array<array-key, mixed> $data
+     * @return array<array-key, mixed>
+     */
     private function transformDrop(array $data, string $path): array
     {
         $parts = explode('.', $path);
@@ -187,6 +208,11 @@ enum TransformType: string
         return (array) $json->getValue();
     }
 
+    /**
+     * @param array<array-key, mixed> $data
+     * @param array<array-key, mixed> $fields
+     * @return array<array-key, mixed>
+     */
     private function transformRename(array $data, string $path, array $fields): array
     {
         $json = new JsonObject($data);
@@ -215,6 +241,11 @@ enum TransformType: string
         return (array) $json->getValue();
     }
 
+    /**
+     * @param array<array-key, mixed> $data
+     * @param array<array-key, mixed> $fields
+     * @return array<array-key, mixed>
+     */
     private function transformInsert(array $data, string $path, array $fields): array
     {
         $json = new JsonObject($data);
@@ -237,6 +268,10 @@ enum TransformType: string
         return (array) $json->getValue();
     }
 
+    /**
+     * @param array<array-key, mixed> $data
+     * @return array<array-key, mixed>
+     */
     private function transformMove(array $data, string $path, string $dest): array
     {
         $json = new JsonObject($data);
@@ -253,6 +288,10 @@ enum TransformType: string
         return $this->transformDrop((array) $json->getValue(), $path);
     }
 
+    /**
+     * @param array<array-key, mixed> $data
+     * @return array<array-key, mixed>
+     */
     private function transformCast(array $data, string $path, string $type): array
     {
         $json = new JsonObject($data);
@@ -269,6 +308,10 @@ enum TransformType: string
         return (array) $json->getValue();
     }
 
+    /**
+     * @param array<array-key, mixed> $data
+     * @return array<array-key, mixed>
+     */
     private function transformTrim(array $data, string $path, string $chars): array
     {
         $json = new JsonObject($data);
@@ -289,6 +332,11 @@ enum TransformType: string
         return (array) $json->getValue();
     }
 
+    /**
+     * @param array<array-key, mixed> $data
+     * @param TransformConfig $config
+     * @return array<array-key, mixed>
+     */
     private function transformDate(array $data, string $path, array $config): array
     {
         $input = $config['input'] ?? '';

@@ -30,6 +30,9 @@ class Comments extends Component implements HasActions, HasForms
     use InteractsWithActions;
     use InteractsWithForms;
 
+    /**
+     * @var array{text?: string|null}|null
+     */
     public ?array $data = [];
 
     public ?string $editing = null;

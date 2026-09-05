@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property string $template_id
  * @property string $number
  * @property string $content
- * @property array $context
+ * @property array<string, mixed> $context
  * @property string $created_by
  * @property CarbonImmutable $issued_at
  * @property CarbonImmutable $signed_at
@@ -75,6 +75,9 @@ class Document extends Model
         return self::query()->findOrFail($id);
     }
 
+    /**
+     * @return array<string, string>
+     */
     public static function select(Model $holder): array
     {
         return self::query()
@@ -86,6 +89,9 @@ class Document extends Model
             ->all();
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function context(): array
     {
         return array_merge($this->context, [
@@ -101,21 +107,33 @@ class Document extends Model
         ]);
     }
 
+    /**
+     * @return MorphTo<Model, $this>
+     */
     public function entity(): MorphTo
     {
         return $this->morphTo();
     }
 
+    /**
+     * @return MorphTo<Model, $this>
+     */
     public function holder(): MorphTo
     {
         return $this->morphTo();
     }
 
+    /**
+     * @return BelongsTo<self, $this>
+     */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_id');
     }
 
+    /**
+     * @return BelongsTo<Template, $this>
+     */
     public function template(): BelongsTo
     {
         return $this->belongsTo(Template::class);

@@ -10,6 +10,9 @@ class MoneyParser
 {
     private const string DECIMAL_PATTERN = '/^(?P<sign>-)?(?P<digits>\d+)?\.?(?P<fraction>\d+)?$/';
 
+    /**
+     * @param Money|int|string|array{amount: int|string|null, currency?: string|null}|null $amount
+     */
     public static function parse(Money|int|string|array|null $amount, ?string $currency = null): Money
     {
         if ($amount instanceof Money) {

@@ -4,6 +4,10 @@ namespace PHPinnacle\Casus\Support;
 
 class SensitiveValuePresenter
 {
+    /**
+     * @param array<array-key, mixed>|null $data
+     * @return array<array-key, string>|null
+     */
     public function present(?array $data): ?array
     {
         if ($data === null) {
@@ -13,6 +17,10 @@ class SensitiveValuePresenter
         return $this->flatten($this->redact($data));
     }
 
+    /**
+     * @param array<array-key, mixed> $data
+     * @return array<array-key, mixed>
+     */
     public function redact(array $data): array
     {
         $result = [];
@@ -30,6 +38,10 @@ class SensitiveValuePresenter
         return $result;
     }
 
+    /**
+     * @param array<array-key, mixed> $data
+     * @return array<array-key, string>
+     */
     private function flatten(array $data): array
     {
         $result = [];

@@ -14,6 +14,9 @@ class MoneySynth extends Synth
         return $target instanceof Money;
     }
 
+    /**
+     * @return array{array{amount: string, currency: string}, array{}}
+     */
     public function dehydrate(Money $target): array
     {
         return [$target->toLivewire(), []];
@@ -24,6 +27,10 @@ class MoneySynth extends Synth
         return Money::parse($value);
     }
 
+    /**
+     * @param Money $target
+     * @param string $key
+     */
     public function get(&$target, $key): ?string
     {
         return match ($key) {
@@ -33,6 +40,12 @@ class MoneySynth extends Synth
         };
     }
 
+    /**
+     * @param Money $target
+     * @param string $key
+     * @param string|int $value
+     * @param-out Money|null $target
+     */
     public function set(&$target, $key, $value): void
     {
         $target = match ($key) {

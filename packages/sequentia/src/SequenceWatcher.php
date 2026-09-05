@@ -20,8 +20,14 @@ final class SequenceWatcher
         'GM' => ['bucketed' => false, 'format' => 'Y-m'],
     ];
 
+    /**
+     * @var array<string, array<string, array{tenant: string|null, bucket: list<string>}>>
+     */
     private static array $registered = [];
 
+    /**
+     * @var array<class-string<Model>, true>
+     */
     private static array $watched = [];
 
     public static function rebuild(): void
@@ -45,6 +51,9 @@ final class SequenceWatcher
         }
     }
 
+    /**
+     * @param list<string> $scheme
+     */
     public static function register(string $scope, ?string $tenant = null, array $scheme = []): void
     {
         $key = sha1(serialize($scheme));
@@ -57,6 +66,9 @@ final class SequenceWatcher
         self::watch($scope);
     }
 
+    /**
+     * @param list<string> $scheme
+     */
     public static function store(Model $record, DateTimeInterface $date, ?string $tenant, array $scheme = []): void
     {
         $scope = $record::class;
@@ -82,6 +94,10 @@ final class SequenceWatcher
             SQL, $bindings);
     }
 
+    /**
+     * @param array<string, mixed> $bucket
+     * @return array<string, int>
+     */
     public static function load(string $scope, DateTimeInterface $date, ?string $tenant, array $bucket = []): array
     {
         $rows = self::connection()
@@ -115,6 +131,10 @@ final class SequenceWatcher
         });
     }
 
+    /**
+     * @param array<string, mixed> $bucket
+     * @return array<string, string>
+     */
     private static function counters(DateTimeInterface $date, array $bucket): array
     {
         $result = [];

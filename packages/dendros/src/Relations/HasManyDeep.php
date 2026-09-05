@@ -11,6 +11,8 @@ use LogicException;
 use PHPinnacle\Dendros\TreeNode;
 
 /**
+ * @extends HasMany<Model, Model>
+ *
  * @property Model&TreeNode $parent
  */
 class HasManyDeep extends HasMany

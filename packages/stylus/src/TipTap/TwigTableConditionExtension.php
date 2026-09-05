@@ -8,6 +8,9 @@ use Tiptap\Core\Extension;
 
 class TwigTableConditionExtension extends Extension
 {
+    /**
+     * @var string
+     */
     public static $name = 'twigTableCondition';
 
     /** @return array<int, array<string, mixed>> */

@@ -26,8 +26,14 @@ trait HasCreator
         });
     }
 
+    /**
+     * @return BelongsTo<Model, $this>
+     */
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(config('auth.providers.users.model'), 'created_by');
+        /** @var class-string<Model> $model */
+        $model = config('auth.providers.users.model');
+
+        return $this->belongsTo($model, 'created_by');
     }
 }

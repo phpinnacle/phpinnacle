@@ -10,6 +10,9 @@ class Countries
 
     private const string TRANS = 'phpinnacle-intl::forms.country.other';
 
+    /**
+     * @return array<string, string>
+     */
     public static function list(?string $display = null): array
     {
         $all = Intl::getNames($display);

@@ -9,10 +9,17 @@ use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
+/** @phpstan-type FormComponents array<\Filament\Schemas\Components\Component|\Filament\Actions\Action|\Filament\Actions\ActionGroup|string|\Illuminate\Contracts\Support\Htmlable> */
 class Section implements HasLabel
 {
     use EvaluatesClosures;
 
+    /**
+     * @param array<array-key, mixed> $blocks
+     * @param array<string, mixed> $variables
+     * @param Closure|FormComponents $renderForm
+     * @param Closure|FormComponents|null $previewForm
+     */
     public function __construct(
         public string $key,
         public string $label,
@@ -42,6 +49,9 @@ class Section implements HasLabel
         return $this;
     }
 
+    /**
+     * @param array<array-key, mixed> $blocks
+     */
     public function blocks(array $blocks): self
     {
         $this->blocks = [...$this->blocks, ...$blocks];
@@ -49,6 +59,9 @@ class Section implements HasLabel
         return $this;
     }
 
+    /**
+     * @param array<string, mixed> $value
+     */
     public function variables(array $value): self
     {
         foreach ($value as $key => $item) {
@@ -65,6 +78,9 @@ class Section implements HasLabel
         return $this;
     }
 
+    /**
+     * @param Closure|FormComponents $schema
+     */
     public function preview(Closure $action, Closure|array $schema): self
     {
         $this->previewAction = $action;
@@ -73,6 +89,9 @@ class Section implements HasLabel
         return $this;
     }
 
+    /**
+     * @param FormComponents|Closure $value
+     */
     public function form(array|Closure $value): self
     {
         $this->renderForm = $value;
@@ -85,6 +104,10 @@ class Section implements HasLabel
         return $this->previewAction !== null;
     }
 
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
     public function getPreviewData(array $data): array
     {
         if ($this->previewAction === null) {
@@ -102,11 +125,17 @@ class Section implements HasLabel
         return is_array($result) ? $result : [];
     }
 
+    /**
+     * @return FormComponents
+     */
     public function getPreviewForm(): array
     {
         return $this->evaluate($this->previewForm) ?? [];
     }
 
+    /**
+     * @return FormComponents
+     */
     public function getRenderForm(Model $record): array
     {
         return $this->evaluate($this->renderForm, [
@@ -114,6 +143,9 @@ class Section implements HasLabel
         ]);
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function getDocument(Model $record, array $data): Document
     {
         return $this->evaluate($this->renderAction, [

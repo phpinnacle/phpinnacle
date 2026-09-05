@@ -61,11 +61,17 @@ trait AsTree
         return Str::afterLast((string) $this->getAttribute($this->getPathColumn()), '.');
     }
 
+    /**
+     * @return BelongsTo<static, $this>
+     */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(static::class, $this->getParentColumn());
     }
 
+    /**
+     * @return HasMany<static, $this>
+     */
     public function children(): HasMany
     {
         return $this->hasMany(static::class, $this->getParentColumn());

@@ -9,6 +9,9 @@ use Tiptap\Utils\HTML;
 
 class TwigVariableExtension extends Node
 {
+    /**
+     * @var string
+     */
     public static $name = 'twigVariable';
 
     /** @return array<string, mixed> */

@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
  * @property bool $is_active
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $updated_at
- * @property-read Collection<Role> $roles
+ * @property-read Collection<int, Role> $roles
  */
 class Permission extends Model
 {
@@ -70,6 +70,9 @@ class Permission extends Model
         return is_string($value) ? self::findByName($value) ?? ($register ? self::register($value) : null) : null;
     }
 
+    /**
+     * @return BelongsToMany<Role, $this>
+     */
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'roles_permissions');

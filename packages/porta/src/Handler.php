@@ -37,6 +37,9 @@ class Handler implements Contract
         return $this->evaluate($this->example);
     }
 
+    /**
+     * @param array<array-key, mixed> $payload
+     */
     public function process(array $payload): void
     {
         $this->evaluate($this->invoker, [

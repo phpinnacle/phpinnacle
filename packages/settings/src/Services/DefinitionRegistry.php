@@ -32,6 +32,9 @@ class DefinitionRegistry
         return $this->default;
     }
 
+    /**
+     * @return Collection<string, Definition>
+     */
     public function all(): Collection
     {
         return collect($this->definitions);

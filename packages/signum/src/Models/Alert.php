@@ -51,6 +51,9 @@ class Alert extends Model implements HasColor, HasDescription, HasIcon, HasLabel
         'message',
     ];
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public static function create(Model $record, array $data): self
     {
         $self = new self($data);
@@ -61,6 +64,9 @@ class Alert extends Model implements HasColor, HasDescription, HasIcon, HasLabel
         return $self;
     }
 
+    /**
+     * @return Collection<int, self>
+     */
     public static function list(?Model $model): Collection
     {
         if ($model === null) {
@@ -101,6 +107,9 @@ class Alert extends Model implements HasColor, HasDescription, HasIcon, HasLabel
         return $this->title;
     }
 
+    /**
+     * @return MorphTo<Model, $this>
+     */
     public function target(): MorphTo
     {
         return $this->morphTo();

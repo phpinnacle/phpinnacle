@@ -6,6 +6,9 @@ use DateTimeInterface;
 
 final readonly class Sequence
 {
+    /**
+     * @param array<string, mixed> $bucket
+     */
     public function __construct(
         public string $pattern,
         public string $scope,
@@ -14,6 +17,9 @@ final readonly class Sequence
         public ?string $tenant = null,
     ) {}
 
+    /**
+     * @param array<string, mixed> $bucket
+     */
     public static function create(
         string $pattern,
         string $scope,
@@ -38,11 +44,18 @@ final readonly class Sequence
         return new self($this->pattern, $this->scope, $this->bucket, $date, $this->tenant);
     }
 
+    /**
+     * @param array<string, scalar|\Stringable|null> $context
+     */
     public function get(array $context = []): string
     {
         return PatternFormatter::format($this->pattern, $this->prepare($context));
     }
 
+    /**
+     * @param array<string, scalar|\Stringable|null> $context
+     * @return array<string, scalar|\Stringable|null>
+     */
     private function prepare(array $context): array
     {
         $context['D'] = $this->date->format('j');

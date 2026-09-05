@@ -24,8 +24,8 @@ use PHPinnacle\Sequentia\Sequence;
  * @property Format $format
  * @property Engine $engine
  * @property string $section
- * @property string|array $content
- * @property array $context
+ * @property string|array<array-key, mixed> $content
+ * @property array<string, mixed> $context
  * @property int $version
  * @property bool $is_active
  * @property bool $is_default
@@ -34,7 +34,7 @@ use PHPinnacle\Sequentia\Sequence;
  * @property string $created_at
  * @property string $updated_at
  * @property-read Template|null $parent
- * @property-read Collection<Template> $history
+ * @property-read Collection<int, Template> $history
  */
 class Template extends Model implements HasLabel
 {
@@ -92,6 +92,9 @@ class Template extends Model implements HasLabel
         return self::query()->findOrFail($id);
     }
 
+    /**
+     * @return Attribute<string|array<array-key, mixed>, mixed>
+     */
     public function content(): Attribute
     {
         return Attribute::make(
@@ -105,6 +108,9 @@ class Template extends Model implements HasLabel
         return $this->name;
     }
 
+    /**
+     * @return HasMany<self, $this>
+     */
     public function history(): HasMany
     {
         return $this
@@ -127,6 +133,9 @@ class Template extends Model implements HasLabel
             ->get();
     }
 
+    /**
+     * @return BelongsTo<self, $this>
+     */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class);

@@ -42,6 +42,9 @@ class Tag extends Model implements HasColor, HasLabel
             ->delete();
     }
 
+    /**
+     * @return Collection<string, string>
+     */
     public static function list(string ...$ids): Collection
     {
         return $ids !== []
@@ -49,6 +52,10 @@ class Tag extends Model implements HasColor, HasLabel
             : self::query()->pluck('name', 'id');
     }
 
+    /**
+     * @param Collection<array-key, Model>|Model $models
+     * @param array<array-key, string> $tags
+     */
     public static function manage(Collection|Model $models, array $tags, bool $drop = false): void
     {
         if ($models instanceof Model) {
@@ -74,6 +81,9 @@ class Tag extends Model implements HasColor, HasLabel
         });
     }
 
+    /**
+     * @return Collection<int, string>
+     */
     public static function retrieve(Model $record): Collection
     {
         return DB::table('taggables')
@@ -84,6 +94,9 @@ class Tag extends Model implements HasColor, HasLabel
             ->pluck('name');
     }
 
+    /**
+     * @return Collection<string, string>
+     */
     public static function select(string $type): Collection
     {
         return self::query()->where('type', $type)->pluck('name', 'id');
@@ -111,6 +124,10 @@ class Tag extends Model implements HasColor, HasLabel
         });
     }
 
+    /**
+     * @param array<array-key, string> $tags
+     * @return array<array-key, string>
+     */
     private static function define(string $type, array $tags): array
     {
         $tags = array_unique(array_filter(array_map('trim', $tags)));
@@ -125,6 +142,10 @@ class Tag extends Model implements HasColor, HasLabel
             ->getKey(), $tags);
     }
 
+    /**
+     * @param array<array-key, string> $tags
+     * @param array<array-key, int|string> $ids
+     */
     private static function doSyncQuery(array $tags, string $table, string $key, array $ids): void
     {
         $ids = array_values($ids);
@@ -149,6 +170,10 @@ class Tag extends Model implements HasColor, HasLabel
         ", $tags), $ids);
     }
 
+    /**
+     * @param Collection<array-key, Model>|string $taggables
+     * @param array<array-key, string> $tags
+     */
     private static function manageDrop(Collection|string $taggables, array $tags): void
     {
         DB::table('taggables')
@@ -157,6 +182,10 @@ class Tag extends Model implements HasColor, HasLabel
             ->delete();
     }
 
+    /**
+     * @param Collection<array-key, Model> $taggables
+     * @param array<array-key, string> $tags
+     */
     private static function manageSync(Collection $taggables, array $tags): void
     {
         $taggables

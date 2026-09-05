@@ -10,6 +10,9 @@ class Languages
 
     private const string TRANS = 'phpinnacle-intl::forms.language.other';
 
+    /**
+     * @return array<string, string>
+     */
     public static function list(?string $display = null): array
     {
         $all = Intl::getAlpha3Names($display);

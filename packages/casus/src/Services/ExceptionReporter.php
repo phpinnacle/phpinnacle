@@ -60,9 +60,9 @@ class ExceptionReporter
      * @return array{
      *     method: HttpMethod|null,
      *     path: string|null,
-     *     query: array|null,
-     *     cookies: array|null,
-     *     headers: array|null,
+     *     query: array<array-key, mixed>|null,
+     *     cookies: array<array-key, mixed>|null,
+     *     headers: array<array-key, mixed>|null,
      *     body: string|null,
      *     ip: string|null,
      * }
@@ -100,6 +100,9 @@ class ExceptionReporter
         ];
     }
 
+    /**
+     * @return array<array-key, mixed>
+     */
     private function context(Throwable $error): array
     {
         if (!method_exists($error, 'context')) {

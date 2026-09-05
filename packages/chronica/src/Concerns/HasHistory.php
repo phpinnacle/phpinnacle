@@ -19,6 +19,9 @@ trait HasHistory
             ->logExcept($this->getExcludedAttributes());
     }
 
+    /**
+     * @return list<string>
+     */
     private function getExcludedAttributes(): array
     {
         return (array) config('phpinnacle-chronica.excluded_attributes', []);

@@ -717,7 +717,10 @@ class TwigDocumentSerializer
         );
     }
 
-    /** @param array<string, mixed> $node */
+    /**
+     * @param array<string, mixed> $node
+     * @return array<string, mixed>
+     */
     private function withoutMark(array $node, string $type): array
     {
         $node['marks'] = array_values(array_filter(

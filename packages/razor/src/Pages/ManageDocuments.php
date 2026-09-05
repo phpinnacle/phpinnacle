@@ -31,6 +31,9 @@ abstract class ManageDocuments extends ManageRelatedRecords
 
     protected static string $relationship = 'documents';
 
+    /**
+     * @return list<string>
+     */
     abstract protected function getSections(): array;
 
     public static function getNavigationLabel(): string

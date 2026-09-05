@@ -9,6 +9,9 @@ use PHPinnacle\Porta\Contracts\Handler;
 #[Singleton]
 class WebhookRegistry
 {
+    /**
+     * @var array<string, Handler>
+     */
     private array $handlers = [];
 
     public function register(Handler ...$handlers): void
@@ -23,11 +26,17 @@ class WebhookRegistry
         return $this->handlers[$type] ?? null;
     }
 
+    /**
+     * @return Collection<string, Handler>
+     */
     public function all(): Collection
     {
         return collect($this->handlers);
     }
 
+    /**
+     * @return array<string, string|null>
+     */
     public function options(): array
     {
         return $this

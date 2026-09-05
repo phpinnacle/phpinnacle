@@ -29,6 +29,10 @@ class CommentSubscription extends Model
         return config('phpinnacle-comments.connection', parent::getConnectionName());
     }
 
+    /**
+     * @param Builder<static> $query
+     * @return Builder<static>
+     */
     public function scopeForSubject(Builder $query, Model $record): Builder
     {
         return $query->where([

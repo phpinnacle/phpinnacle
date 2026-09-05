@@ -8,6 +8,9 @@ class Currencies
 {
     public const string DEFAULT = 'USD';
 
+    /**
+     * @return array<string, string>
+     */
     public static function list(?string $display = null): array
     {
         return array_reduce(

@@ -9,6 +9,9 @@ use Tiptap\Utils\HTML;
 
 class TwigInlineIfExtension extends Mark
 {
+    /**
+     * @var string
+     */
     public static $name = 'twigInlineIf';
 
     /** @return array<string, mixed> */

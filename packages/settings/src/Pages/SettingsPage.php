@@ -33,6 +33,9 @@ class SettingsPage extends Page
 
     public string $group;
 
+    /**
+     * @var array<string, mixed>
+     */
     public array $data = [];
 
     private ?Definition $definition = null;

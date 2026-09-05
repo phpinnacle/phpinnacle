@@ -17,6 +17,9 @@ use SocialiteProviders\Yandex\Provider as YandexProvider;
 
 class AuthProvider implements HasColor, HasIcon, HasLabel
 {
+    /**
+     * @param string|array<string>|null $color
+     */
     public function __construct(
         private string $class,
         private string|Htmlable $label,
@@ -103,6 +106,9 @@ class AuthProvider implements HasColor, HasIcon, HasLabel
         return $this;
     }
 
+    /**
+     * @param string|array<string>|null $color
+     */
     public function color(string|array|null $color): self
     {
         $this->color = $color;
@@ -110,6 +116,9 @@ class AuthProvider implements HasColor, HasIcon, HasLabel
         return $this;
     }
 
+    /**
+     * @param array<string, mixed> $config
+     */
     public function driver(array $config): Provider
     {
         return Socialite::buildProvider($this->class, $config);

@@ -127,7 +127,10 @@ class TwigEditor extends BaseRichEditor
         return $this->snippets[$name] ?? null;
     }
 
-    /** @param array<int, mixed> $loopStack */
+    /**
+     * @param array<int, mixed> $loopStack
+     * @return list<string>
+     */
     public function getMissingSnippetVariables(Snippet $snippet, array $loopStack = []): array
     {
         $scope = $this->getVariableScope($loopStack);
@@ -183,7 +186,10 @@ class TwigEditor extends BaseRichEditor
         return $definitions;
     }
 
-    /** @param array<string, mixed> $expression */
+    /**
+     * @param array<string, mixed> $expression
+     * @param array<int, mixed> $loopStack
+     */
     public function serializeCondition(array $expression, array $loopStack = []): string
     {
         return new ConditionExpressionSerializer(
@@ -193,7 +199,10 @@ class TwigEditor extends BaseRichEditor
         )->serialize($expression);
     }
 
-    /** @param array<string, mixed> $document */
+    /**
+     * @param array<string, mixed> $document
+     * @return array<string, mixed>
+     */
     public function compileStructuredConditions(array $document): array
     {
         return $this->compileConditionNode($document, []);

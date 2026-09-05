@@ -15,12 +15,12 @@ use Illuminate\Support\Collection;
  * @property string $id
  * @property string $type
  * @property string $name
- * @property array $config
+ * @property array<string, mixed> $config
  * @property bool $is_active
  * @property int $sort
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $updated_at
- * @property-read Collection<SocialAccount> $accounts
+ * @property-read Collection<int, SocialAccount> $accounts
  */
 class Provider extends Model implements HasLabel
 {
@@ -58,7 +58,7 @@ class Provider extends Model implements HasLabel
     }
 
     /**
-     * @return Collection<self>
+     * @return Collection<int, self>
      */
     public static function valid(): Collection
     {
@@ -67,6 +67,9 @@ class Provider extends Model implements HasLabel
             ->filter(fn (self $provider) => $provider->isConfigValid());
     }
 
+    /**
+     * @return Collection<string, string>
+     */
     public static function list(): Collection
     {
         return self::active()->pluck('name', 'type');
@@ -124,6 +127,9 @@ class Provider extends Model implements HasLabel
         return filled($this->config['client_id'] ?? null) && filled($this->config['client_secret'] ?? null);
     }
 
+    /**
+     * @return HasMany<SocialAccount, $this>
+     */
     public function accounts(): HasMany
     {
         return $this->hasMany(SocialAccount::class);

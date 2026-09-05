@@ -21,8 +21,8 @@ use PHPinnacle\Cerber\Cerberus;
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $updated_at
  * @property-read Tenant $tenant
- * @property-read Collection<Permission> $permissions
- * @property-read Collection<User> $users
+ * @property-read Collection<int, Permission> $permissions
+ * @property-read Collection<int, User> $users
  */
 class Role extends Model implements HasLabel
 {
@@ -49,6 +49,9 @@ class Role extends Model implements HasLabel
         'is_system',
     ];
 
+    /**
+     * @return Builder<self>
+     */
     public static function active(): Builder
     {
         return self::query()
@@ -62,11 +65,17 @@ class Role extends Model implements HasLabel
         return self::query()->find($id);
     }
 
+    /**
+     * @return Collection<string, string>
+     */
     public static function list(): Collection
     {
         return self::active()->pluck('name', 'id');
     }
 
+    /**
+     * @param array<array-key, Permission|string> $permissions
+     */
     public static function register(Tenant $tenant, string $name, array $permissions = []): self
     {
         /** @var Role $self */
@@ -81,6 +90,9 @@ class Role extends Model implements HasLabel
         return $self;
     }
 
+    /**
+     * @param array<array-key, array<array-key, Permission|string>> $permissions
+     */
     public static function system(Tenant $tenant, string $name, array $permissions = []): self
     {
         $self = new self;
@@ -132,6 +144,9 @@ class Role extends Model implements HasLabel
         return $this;
     }
 
+    /**
+     * @return BelongsToMany<Permission, $this>
+     */
     public function permissions(): BelongsToMany
     {
         return $this->belongsToMany(Permission::class, 'roles_permissions');
@@ -147,6 +162,9 @@ class Role extends Model implements HasLabel
         $this->save();
     }
 
+    /**
+     * @return BelongsToMany<User, $this>
+     */
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'users_roles');

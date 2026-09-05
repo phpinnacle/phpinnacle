@@ -20,8 +20,8 @@ use Throwable;
  * @property string $integration_id
  * @property string $origin
  * @property string $payload
- * @property array $headers
- * @property array|null $error
+ * @property array<string, string> $headers
+ * @property array<string, mixed>|null $error
  * @property WebhookStatus $status
  * @property CarbonImmutable|null $processed_at
  * @property CarbonImmutable $created_at
@@ -61,6 +61,9 @@ class Webhook extends Model
         return self::query()->findOrFail($id);
     }
 
+    /**
+     * @param array<string, string|list<string>> $headers
+     */
     public static function schedule(Integration $integration, string $origin, string $payload, array $headers): self
     {
         $self = new self;
@@ -102,11 +105,17 @@ class Webhook extends Model
         $this->save();
     }
 
+    /**
+     * @return BelongsTo<Integration, $this>
+     */
     public function integration(): BelongsTo
     {
         return $this->belongsTo(Integration::class);
     }
 
+    /**
+     * @return array{string, array<array-key, mixed>}
+     */
     public function progress(): array
     {
         $this->status = WebhookStatus::Progress;
@@ -119,6 +128,9 @@ class Webhook extends Model
         ];
     }
 
+    /**
+     * @return array{id: string, origin: string, status: WebhookStatus, processed_at: CarbonImmutable|null, created_at: CarbonImmutable, updated_at: CarbonImmutable}
+     */
     public function render(): array
     {
         return [

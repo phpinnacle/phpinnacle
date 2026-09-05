@@ -8,6 +8,9 @@ final class PatternFormatter
 {
     private const string PATTERN = '~\[([a-zA-Z0-9:\*\-]+)\]~';
 
+    /**
+     * @param array<string, scalar|\Stringable|null> $context
+     */
     public static function format(string $pattern, array $context): string
     {
         return preg_replace_callback(

@@ -4,6 +4,9 @@ namespace PHPinnacle\Money\Formatters;
 
 class RussianDictionary
 {
+    /**
+     * @var array<string, array{array{string, string, string}, array{string, string, string}}>
+     */
     public static array $currencyNames = [
         'BYN' => [
             ['белорусский рубль', 'белорусских рубля', 'белорусских рублей'],
@@ -24,7 +27,9 @@ class RussianDictionary
     ];
 
     /**
-     * Склоняет существительное в зависимости от числа.
+     * Inflects a noun according to its number.
+     *
+     * @param array{string, string, string} $forms
      */
     public static function pluralize(int $number, array $forms): string
     {

@@ -29,8 +29,14 @@ class IconPicker extends Select
     /** @var list<string>|Closure(): list<string> */
     protected array|Closure $sets = ['phosphor-icons'];
 
+    /**
+     * @var list<string>
+     */
     protected array $excludeSuffix = ['-bold.svg', '-duotone.svg', '-fill.svg', '-light.svg', '-thin.svg'];
 
+    /**
+     * @var list<string>
+     */
     protected array $excludePrefix = ['s-', 'm-'];
 
     /** @var list<string>|Closure(): list<string> */
@@ -77,6 +83,7 @@ class IconPicker extends Select
     }
 
     /**
+     * @param array<array-key, mixed> $preferred
      * @return array{
      *     options: array<int, array{label: string, value: string, isDisabled: bool}>,
      *     hasMore: bool
@@ -167,6 +174,7 @@ class IconPicker extends Select
     }
 
     /**
+     * @param list<string> $preferred
      * @return array{
      *     options: array<string, string>,
      *     hasMore: bool

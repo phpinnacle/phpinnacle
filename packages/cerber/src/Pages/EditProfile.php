@@ -158,6 +158,9 @@ class EditProfile extends BasePage
         return Alignment::End;
     }
 
+    /**
+     * @return list<Action>
+     */
     private function oauthActions(ProviderRegistry $registry, Provider $provider, bool $linked): array
     {
         $icon = $registry->get($provider->type)->getIcon();

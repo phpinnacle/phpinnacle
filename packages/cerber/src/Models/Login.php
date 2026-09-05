@@ -6,6 +6,9 @@ use Filament\Facades\Filament;
 
 class Login
 {
+    /**
+     * @param array<int, string> $panels
+     */
     public function __construct(
         public string $username,
         #[\SensitiveParameter]
@@ -14,6 +17,9 @@ class Login
         public bool $verified = false,
     ) {}
 
+    /**
+     * @param array<int, string> $panels
+     */
     public static function email(
         string $value,
         array $panels = [],

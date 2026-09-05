@@ -11,6 +11,9 @@ class Twig implements Engine
         private Environment $environment,
     ) {}
 
+    /**
+     * @param array<string, mixed> $context
+     */
     public function render(string $template, array $context = []): string
     {
         return $this->environment->createTemplate($template)->render($context);

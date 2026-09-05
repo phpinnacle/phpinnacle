@@ -27,19 +27,19 @@ use Stringable;
  * @property string $email
  * @property string $password
  * @property UserStatus $status
- * @property array $panels
- * @property array $settings
+ * @property array<int, string> $panels
+ * @property array<string, mixed> $settings
  * @property string|null $avatar
  * @property bool $two_factor_email
  * @property string|null $two_factor_secret
- * @property array|null $two_factor_recovery_codes
+ * @property list<string>|null $two_factor_recovery_codes
  * @property CarbonImmutable $password_changed_at
  * @property CarbonImmutable|null $email_verified_at
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $updated_at
  * @property-read Tenant $tenant
- * @property-read Collection<Permission> $permissions
- * @property-read Collection<Role> $roles
+ * @property-read Collection<int, Permission> $permissions
+ * @property-read Collection<int, Role> $roles
  */
 class User extends Authenticatable implements HasLabel, Viewer
 {
@@ -175,6 +175,9 @@ class User extends Authenticatable implements HasLabel, Viewer
         return $this->name;
     }
 
+    /**
+     * @return Collection<int, Tenant>
+     */
     public function getTenants(Panel $panel): Collection
     {
         return $this->roles->map(fn (Role $role) => $role->tenant)->uniqueStrict('id');
@@ -200,11 +203,17 @@ class User extends Authenticatable implements HasLabel, Viewer
         return $this->two_factor_email;
     }
 
+    /**
+     * @return BelongsToMany<Permission, $this>
+     */
     public function permissions(): BelongsToMany
     {
         return $this->belongsToMany(Permission::class, 'users_permissions');
     }
 
+    /**
+     * @return BelongsToMany<Role, $this>
+     */
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'users_roles');
@@ -222,11 +231,17 @@ class User extends Authenticatable implements HasLabel, Viewer
         $this->save();
     }
 
+    /**
+     * @return HasMany<SocialAccount, $this>
+     */
     public function socialAccounts(): HasMany
     {
         return $this->hasMany(SocialAccount::class);
     }
 
+    /**
+     * @return BelongsTo<Tenant, $this>
+     */
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
@@ -261,6 +276,9 @@ class User extends Authenticatable implements HasLabel, Viewer
         });
     }
 
+    /**
+     * @return Collection<int, string>
+     */
     private function loadPermissions(string $tenant): Collection
     {
         return once(

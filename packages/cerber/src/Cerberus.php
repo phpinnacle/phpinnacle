@@ -26,12 +26,18 @@ class Cerberus
         'delete_any',
     ];
 
+    /**
+     * @var array<class-string<Model>, class-string<Model>>
+     */
     public static array $scoped = [
         Role::class => Role::class,
         Invitation::class => Invitation::class,
         Provider::class => Provider::class,
     ];
 
+    /**
+     * @var array<string, array<string, array<string, string>>>
+     */
     public static array $permissions = [];
 
     public static function tenant(): string
@@ -39,6 +45,9 @@ class Cerberus
         return Filament::getTenant()?->getKey() ?? Tenant::DEFAULT;
     }
 
+    /**
+     * @param array<string, string> $permissions
+     */
     public static function guard(string $group, string $section, array $permissions): void
     {
         self::$permissions[$group][$section] = $permissions;
@@ -72,6 +81,9 @@ class Cerberus
         }
     }
 
+    /**
+     * @return array<int, string>
+     */
     public static function getGuards(): array
     {
         $result = [];
@@ -88,6 +100,9 @@ class Cerberus
         return array_unique($result);
     }
 
+    /**
+     * @return array<int, class-string<\Filament\Pages\Page>>
+     */
     public static function getPages(?Panel $panel = null): array
     {
         $panel ??= Filament::getCurrentPanel();
@@ -95,6 +110,9 @@ class Cerberus
         return array_diff($panel?->getPages() ?? [], config('phpinnacle-cerber.exclude.pages', []));
     }
 
+    /**
+     * @return array<int, class-string<\Filament\Widgets\Widget>>
+     */
     public static function getWidgets(?Panel $panel = null): array
     {
         $panel ??= Filament::getCurrentPanel();
@@ -107,6 +125,9 @@ class Cerberus
         return array_diff($widgets, config('phpinnacle-cerber.exclude.widgets', []));
     }
 
+    /**
+     * @return ($flatten is true ? list<string> : array<class-string<Resource>, list<string>>)
+     */
     public static function getPermissions(?Panel $panel = null, bool $flatten = false): array
     {
         $panel ??= Filament::getCurrentPanel();
@@ -124,6 +145,9 @@ class Cerberus
         return $flatten ? Arr::flatten($permissions) : $permissions;
     }
 
+    /**
+     * @return list<string>
+     */
     private static function getResourcePermissions(string $resource): array
     {
         $config = config('phpinnacle-cerber.permissions');

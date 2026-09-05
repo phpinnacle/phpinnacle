@@ -14,6 +14,8 @@ use PHPinnacle\Porta\Enums\IntegrationFormat;
 use PHPinnacle\Porta\Enums\IntegrationResponse;
 
 /**
+ * @phpstan-import-type TransformData from Transform
+ *
  * @property string $id
  * @property string $tenant_id
  * @property string $type
@@ -24,11 +26,11 @@ use PHPinnacle\Porta\Enums\IntegrationResponse;
  * @property string|null $auth_secret
  * @property IntegrationResponse $response_kind
  * @property int $response_code
- * @property array $transforms
+ * @property list<TransformData> $transforms
  * @property bool $is_active
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $updated_at
- * @property-read Collection<Webhook> $webhooks
+ * @property-read Collection<int, Webhook> $webhooks
  */
 class Integration extends Model
 {
@@ -76,6 +78,9 @@ class Integration extends Model
         return self::active()->where($key, $value)->firstOrFail();
     }
 
+    /**
+     * @param array<string, string|list<string>> $headers
+     */
     public function schedule(string $origin, string $payload, array $headers): Webhook
     {
         return Webhook::schedule($this, $origin, $payload, $headers);
@@ -98,6 +103,9 @@ class Integration extends Model
         );
     }
 
+    /**
+     * @return array<array-key, mixed>
+     */
     public function handle(string $payload): array
     {
         $payload = $this->format->decode($payload);
@@ -116,6 +124,9 @@ class Integration extends Model
         $this->save();
     }
 
+    /**
+     * @return HasMany<Webhook, $this>
+     */
     public function webhooks(): HasMany
     {
         return $this->hasMany(Webhook::class);

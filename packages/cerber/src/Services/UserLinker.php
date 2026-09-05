@@ -17,6 +17,9 @@ use PHPinnacle\Cerber\Models\User;
 
 class UserLinker
 {
+    /**
+     * @param list<string> $domains
+     */
     public function __construct(
         private ProviderRegistry $providers,
         #[Config('phpinnacle-cerber.allowed_domains', [])]

@@ -7,8 +7,14 @@ use Tiptap\Utils\HTML;
 
 class ArticleExtension extends Node
 {
+    /**
+     * @var string
+     */
     public static $name = 'article';
 
+    /**
+     * @return array{HTMLAttributes: array<string, mixed>}
+     */
     public function addOptions(): array
     {
         return [
@@ -16,6 +22,9 @@ class ArticleExtension extends Node
         ];
     }
 
+    /**
+     * @return list<array{tag: string}>
+     */
     public function parseHTML(): array
     {
         return [
@@ -23,6 +32,11 @@ class ArticleExtension extends Node
         ];
     }
 
+    /**
+     * @param object $node
+     * @param array<string, mixed> $HTMLAttributes
+     * @return array{string, array<string, mixed>, int}
+     */
     public function renderHTML($node, $HTMLAttributes = []): array
     {
         return [

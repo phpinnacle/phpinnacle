@@ -41,6 +41,9 @@ class Recent extends Model implements HasIcon, HasLabel
         'created_at',
     ];
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public static function record(array $data): void
     {
         $url = (string) Request::uri()->withQuery([], merge: false);
@@ -59,6 +62,9 @@ class Recent extends Model implements HasIcon, HasLabel
             );
     }
 
+    /**
+     * @return list<self>
+     */
     public static function list(?int $limit = null): array
     {
         $query = self::query()
@@ -87,6 +93,9 @@ class Recent extends Model implements HasIcon, HasLabel
         return $this->icon;
     }
 
+    /**
+     * @return Builder<static>
+     */
     public function prunable(): Builder
     {
         $days = (int) config('phpinnacle-recens.prune.days', 7);

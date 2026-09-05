@@ -42,12 +42,18 @@ class Timeline
      */
     private array $relations = [];
 
+    /**
+     * @var array<string, string>
+     */
     private array $icons = [
         'created' => 'phosphor-plus-circle',
         'updated' => 'phosphor-pencil-simple',
         'deleted' => 'phosphor-trash',
     ];
 
+    /**
+     * @var array<string, string>
+     */
     private array $iconColors = [
         'created' => 'success',
         'updated' => 'warning',
@@ -291,8 +297,8 @@ class Timeline
     /**
      * @return list<array{
      *     label: string,
-     *     new: array{badge: bool, color: array|string|null, icon: BackedEnum|Htmlable|string|null, text: Htmlable|string},
-     *     old: array{badge: bool, color: array|string|null, icon: BackedEnum|Htmlable|string|null, text: Htmlable|string}|null,
+     *     new: array{badge: bool, color: array<string>|string|null, icon: BackedEnum|Htmlable|string|null, text: Htmlable|string},
+     *     old: array{badge: bool, color: array<string>|string|null, icon: BackedEnum|Htmlable|string|null, text: Htmlable|string}|null,
      * }>
      */
     private function changes(Activity $activity): array
@@ -324,7 +330,7 @@ class Timeline
     }
 
     /**
-     * @return array{badge: bool, color: array|string|null, icon: BackedEnum|Htmlable|string|null, text: Htmlable|string}
+     * @return array{badge: bool, color: array<string>|string|null, icon: BackedEnum|Htmlable|string|null, text: Htmlable|string}
      */
     private function formatValue(Activity $activity, string $name, mixed $value): array
     {
@@ -384,8 +390,8 @@ class Timeline
      *     causer: string,
      *     changes: list<array{
      *         label: string,
-     *         new: array{badge: bool, color: array|string|null, icon: BackedEnum|Htmlable|string|null, text: Htmlable|string},
-     *         old: array{badge: bool, color: array|string|null, icon: BackedEnum|Htmlable|string|null, text: Htmlable|string}|null,
+     *         new: array{badge: bool, color: array<string>|string|null, icon: BackedEnum|Htmlable|string|null, text: Htmlable|string},
+     *         old: array{badge: bool, color: array<string>|string|null, icon: BackedEnum|Htmlable|string|null, text: Htmlable|string}|null,
      *     }>,
      *     color: string|null,
      *     date: string,
@@ -444,8 +450,8 @@ class Timeline
      *     causer: string,
      *     changes: list<array{
      *         label: string,
-     *         new: array{badge: bool, color: array|string|null, icon: BackedEnum|Htmlable|string|null, text: Htmlable|string},
-     *         old: array{badge: bool, color: array|string|null, icon: BackedEnum|Htmlable|string|null, text: Htmlable|string}|null,
+     *         new: array{badge: bool, color: array<string>|string|null, icon: BackedEnum|Htmlable|string|null, text: Htmlable|string},
+     *         old: array{badge: bool, color: array<string>|string|null, icon: BackedEnum|Htmlable|string|null, text: Htmlable|string}|null,
      *     }>,
      *     color: string|null,
      *     date: string,
@@ -528,6 +534,7 @@ class Timeline
         $subjects = collect([$record]);
 
         foreach ($this->relations as $relation) {
+            /** @var Model|Collection<int, Model>|null $related */
             $related = $record->getRelationValue($relation->name);
             $subjects->push(...collect($related instanceof Model ? [$related] : $related)->all());
         }

@@ -12,6 +12,9 @@ readonly class DateRangeStateCast implements StateCast
         private string $separator,
     ) {}
 
+    /**
+     * @return array<array-key, string|null>|null
+     */
     public function get(mixed $state): ?array
     {
         if (blank($state)) {
@@ -29,6 +32,9 @@ readonly class DateRangeStateCast implements StateCast
         return array_map(fn (mixed $date) => $this->inner->get($date), $state);
     }
 
+    /**
+     * @return array<array-key, string|null>|null
+     */
     public function set(mixed $state): ?array
     {
         return $this->get($state);

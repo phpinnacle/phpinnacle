@@ -20,6 +20,9 @@ class Renderer
         return $this;
     }
 
+    /**
+     * @param array<string, mixed> $context
+     */
     public function render(Template $template, array $context = []): string
     {
         $engine = $this->engines[$template->engine->getClass()] ?? null;

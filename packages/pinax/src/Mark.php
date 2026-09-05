@@ -60,6 +60,9 @@ class Mark
         return $this;
     }
 
+    /**
+     * @param array<string, mixed> $state
+     */
     public function getIcon(array $state, string $key = self::STATE_KEY): string
     {
         return in_array($this->key, $state[$key] ?? [], strict: true)
@@ -67,6 +70,9 @@ class Mark
             : $this->icon;
     }
 
+    /**
+     * @param array<string, mixed> $state
+     */
     public function getColor(array $state, string $key = self::STATE_KEY): string
     {
         return in_array($this->key, $state[$key] ?? [], strict: true)
@@ -74,11 +80,18 @@ class Mark
             : 'gray';
     }
 
+    /**
+     * @param array<array-key, array<string, mixed>> $state
+     */
     public function exists(array $state, string $key = self::STATE_KEY): bool
     {
         return array_any($state, fn ($item) => in_array($this->key, $item[$key] ?? [], strict: true));
     }
 
+    /**
+     * @param array<array-key, array{marks?: array<int, string>, ...}> $state
+     * @return array<array-key, array{marks?: array<int, string>, ...}>
+     */
     public function toggle(string $index, array $state): array
     {
         $current = $state[$index]['marks'] ?? [];
@@ -94,10 +107,21 @@ class Mark
                     continue;
                 }
 
-                $state[$key]['marks'] = array_diff($item['marks'] ?? [], [$this->key]);
+                $state[$key] = $this->removeFrom($item);
             }
         }
 
         return $state;
+    }
+
+    /**
+     * @param array{marks?: array<int, string>, ...} $item
+     * @return array{marks: array<int, string>, ...}
+     */
+    private function removeFrom(array $item): array
+    {
+        $item['marks'] = array_diff($item['marks'] ?? [], [$this->key]);
+
+        return $item;
     }
 }

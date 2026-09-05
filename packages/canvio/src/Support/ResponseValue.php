@@ -45,7 +45,10 @@ final readonly class ResponseValue
             : throw new UnexpectedValueException("Response field [{$key}] must be numeric or null.");
     }
 
-    /** @param array<string, mixed> $payload */
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<array-key, mixed>|null
+     */
     public static function nullableObject(array $payload, string $key): ?array
     {
         $value = $payload[$key] ?? null;

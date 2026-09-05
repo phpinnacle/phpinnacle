@@ -7,7 +7,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
-use Filament\Widgets\WidgetConfiguration;
 use Illuminate\Support\Str;
 use PHPinnacle\Cerber\Cerberus;
 use PHPinnacle\Cerber\Models\Role;
@@ -73,16 +72,20 @@ class PermissionTabs
             ->columnSpanFull();
     }
 
+    /**
+     * @return list<Tab>
+     */
     public static function resources(): array
     {
         return self::groups();
     }
 
+    /**
+     * @return list<Tab>
+     */
     public static function widgets(): array
     {
-        $widgets = array_map(fn (string|WidgetConfiguration $w) => !is_string($w)
-            ? $w->widget
-            : $w, Cerberus::getWidgets());
+        $widgets = Cerberus::getWidgets();
 
         return [
             Tab::make(__('phpinnacle-cerber::resources.role.sections.widgets'))
@@ -100,6 +103,9 @@ class PermissionTabs
         ];
     }
 
+    /**
+     * @return list<Tab>
+     */
     public static function pages(): array
     {
         $pages = Cerberus::getPages();
@@ -121,6 +127,9 @@ class PermissionTabs
         ];
     }
 
+    /**
+     * @return list<Tab>
+     */
     private static function groups(): array
     {
         $result = [];
@@ -182,11 +191,17 @@ class PermissionTabs
         $component->state(array_intersect($permissions, array_keys($component->getOptions())));
     }
 
+    /**
+     * @return list<string>
+     */
     private static function grants(?Role $role): array
     {
         return once(fn () => $role?->permissions->pluck('name')->all() ?? []);
     }
 
+    /**
+     * @return array<class-string<Resource>, string>
+     */
     private static function prefixes(): array
     {
         $prefixes = (array) config('phpinnacle-cerber.translations', []);

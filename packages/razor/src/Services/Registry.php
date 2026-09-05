@@ -31,6 +31,9 @@ class Registry
         return $this->sections[$key] ?? throw new InvalidArgumentException('Unknown template section');
     }
 
+    /**
+     * @return array<string, Section>
+     */
     public function all(): array
     {
         return $this->sections;

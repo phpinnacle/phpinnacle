@@ -10,5 +10,8 @@ interface Handler extends HasLabel
 
     public function getExample(): ?string;
 
+    /**
+     * @param array<array-key, mixed> $payload
+     */
     public function process(array $payload): void;
 }

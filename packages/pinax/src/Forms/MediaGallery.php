@@ -19,6 +19,9 @@ class MediaGallery extends Repeater
 
     private ?string $directory = null;
 
+    /**
+     * @var list<Mark|string>
+     */
     private array $marks = [];
 
     public static function getDefaultName(): string
@@ -133,6 +136,9 @@ class MediaGallery extends Repeater
             ]);
     }
 
+    /**
+     * @return Collection<int, Mark>
+     */
     private function getMarks(): Collection
     {
         return collect($this->marks)->map(static fn (Mark|string $m) => is_string($m) ? Mark::make($m) : $m);

@@ -78,8 +78,15 @@ class Color
         'info',
     ];
 
+    /**
+     * @var array<string, array<int, string|int>>
+     */
     private static array $colors = [];
 
+    /**
+     * @param string|array<int, string|int> $color
+     * @param list<int> $shades
+     */
     public static function styles(string|array $color, array $shades = [400, 600]): string
     {
         return Arr::toCssStyles([
@@ -92,11 +99,17 @@ class Color
         return '#' . str_pad(dechex(random_int(0, 0xFF_FFFF)), length: 6, pad_string: '0', pad_type: STR_PAD_LEFT);
     }
 
+    /**
+     * @return array<int, string>
+     */
     public static function shades(string $color): array
     {
         return ColorHelper::generateV3Palette($color);
     }
 
+    /**
+     * @param array<int, string|int> $color
+     */
     public static function hex(array $color, int $shade = 500): string
     {
         $value = $color[$shade];

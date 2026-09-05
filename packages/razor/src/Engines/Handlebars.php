@@ -9,6 +9,9 @@ use PHPinnacle\Razor\Contracts\Engine;
 
 readonly class Handlebars implements Engine
 {
+    /**
+     * @param array<string, callable|string> $helpers
+     */
     public function __construct(
         private int $flags,
         private array $helpers,
@@ -28,6 +31,9 @@ readonly class Handlebars implements Engine
         ]);
     }
 
+    /**
+     * @param array<string, mixed> $context
+     */
     public function render(string $template, array $context = []): string
     {
         $compiled = LightnCandy::compile($template, [

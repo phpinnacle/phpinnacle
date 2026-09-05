@@ -13,6 +13,9 @@ class SettingsPlugin implements Plugin
 {
     use EvaluatesClosures;
 
+    /**
+     * @var list<Definition|Closure|string>
+     */
     private array $definitions = [];
 
     public static function make(): static

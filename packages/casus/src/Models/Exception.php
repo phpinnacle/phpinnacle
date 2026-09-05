@@ -26,12 +26,12 @@ use Throwable;
  * @property string $trace
  * @property string|null $fingerprint
  * @property int $occurrences
- * @property array $context
+ * @property array<array-key, mixed> $context
  * @property HttpMethod|null $method
  * @property string|null $path
- * @property array|null $query
- * @property array|null $cookies
- * @property array|null $headers
+ * @property array<array-key, mixed>|null $query
+ * @property array<array-key, mixed>|null $cookies
+ * @property array<array-key, mixed>|null $headers
  * @property string|null $body
  * @property string|null $ip
  * @property ExceptionStatus $status
@@ -105,6 +105,9 @@ class Exception extends Model
         return null;
     }
 
+    /**
+     * @return Builder<static>
+     */
     public function prunable(): Builder
     {
         $days = config('phpinnacle-casus.prune', 30);

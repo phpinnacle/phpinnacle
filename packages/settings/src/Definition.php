@@ -3,6 +3,7 @@
 namespace PHPinnacle\Settings;
 
 use Filament\Navigation\NavigationItem;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -10,6 +11,9 @@ use PHPinnacle\Settings\Pages\SettingsPage;
 
 class Definition
 {
+    /**
+     * @param array<Component|\Filament\Actions\Action|\Filament\Actions\ActionGroup|string|\Illuminate\Contracts\Support\Htmlable> $schema
+     */
     public function __construct(
         public string $class,
         public string $label,
@@ -64,6 +68,9 @@ class Definition
         return $this;
     }
 
+    /**
+     * @param array<Component|\Filament\Actions\Action|\Filament\Actions\ActionGroup|string|\Illuminate\Contracts\Support\Htmlable> $schema
+     */
     public function schema(array $schema): self
     {
         $this->schema = $schema;

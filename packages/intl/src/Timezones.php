@@ -8,6 +8,9 @@ class Timezones
 {
     public const string DEFAULT = 'UTC';
 
+    /**
+     * @return array<string, string>
+     */
     public static function list(?string $display = null): array
     {
         return Intl::getNames($display);

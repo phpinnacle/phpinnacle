@@ -25,6 +25,9 @@ class ExceptionReported extends Notification
             ]));
     }
 
+    /**
+     * @return list<string>
+     */
     public function via(object $notifiable): array
     {
         return ['mail'];

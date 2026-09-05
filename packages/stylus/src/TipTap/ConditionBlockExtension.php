@@ -7,8 +7,14 @@ use Tiptap\Utils\HTML;
 
 class ConditionBlockExtension extends Node
 {
+    /**
+     * @var string
+     */
     public static $name = 'conditionBlock';
 
+    /**
+     * @var int
+     */
     public static $priority = 110;
 
     /** @return array<string, mixed> */

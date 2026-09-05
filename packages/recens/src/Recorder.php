@@ -16,6 +16,9 @@ class Recorder
 {
     use EvaluatesClosures;
 
+    /**
+     * @var array<string, Closure|null>
+     */
     private array $pages = [];
 
     public function register(string $page, ?Closure $callback = null): void
@@ -37,6 +40,9 @@ class Recorder
         Recent::record(is_array($custom) ? array_replace($default, $custom) : $default);
     }
 
+    /**
+     * @return array{title: string, group: string|\UnitEnum|null, icon: string|\BackedEnum|null}
+     */
     private function defaults(Page $page): array
     {
         $title = $page->getTitle();

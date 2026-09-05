@@ -31,8 +31,14 @@ class SettingsStorage
 
     private const string TENANT = '00000000-0000-0000-0000-000000000000';
 
+    /**
+     * @var array<array-key, array<string, array<string, mixed>>>
+     */
     private array $settings = [];
 
+    /**
+     * @var array<string, array<string, array{type: string|null, null: bool}>>
+     */
     private array $schema = [];
 
     public function register(string ...$sections): void
@@ -73,11 +79,17 @@ class SettingsStorage
         }
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function load(string $section): array
     {
         return $this->doLoad($section);
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function save(string $section, array $data): void
     {
         $tenant = Filament::hasTenancy() ? Filament::getTenant()->getKey() : self::TENANT;
@@ -97,6 +109,9 @@ class SettingsStorage
         $this->settings[$tenant][$section] = $data;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function doLoad(string $section): array
     {
         $tenant = Filament::hasTenancy() ? Filament::getTenant()->getKey() : self::TENANT;

@@ -7,6 +7,7 @@ it('toggles a unique mark between gallery items', function () {
     $state = [
         'first' => ['marks' => []],
         'second' => ['marks' => ['featured']],
+        'third' => ['name' => 'Unmarked image'],
     ];
 
     $updated = $mark->toggle('first', $state);
@@ -16,6 +17,8 @@ it('toggles a unique mark between gallery items', function () {
         ->and($updated['second']['marks'])
         ->not
         ->toContain('featured')
+        ->and($updated['third'])
+        ->toBe(['name' => 'Unmarked image', 'marks' => []])
         ->and($mark->exists($updated))
         ->toBeTrue()
         ->and($mark->getIcon($updated['first']))

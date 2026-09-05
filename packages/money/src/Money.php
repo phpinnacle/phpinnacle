@@ -24,6 +24,9 @@ readonly class Money implements JsonSerializable, Wireable
         }
     }
 
+    /**
+     * @return Attribute<self|null, self|array{amount: int|string|null, currency?: string|null}|int|null>
+     */
     public static function attribute(string $field = 'price', string $currency = 'currency'): Attribute
     {
         return Attribute::make(
@@ -46,16 +49,23 @@ readonly class Money implements JsonSerializable, Wireable
         );
     }
 
-    public static function fromLivewire($value): self
+    public static function fromLivewire(mixed $value): self
     {
         return self::parse($value);
     }
 
+    /**
+     * @param self|array{amount: int|string|null, currency?: string|null}|string|int|null $amount
+     */
     public static function parse(self|array|string|int|null $amount, ?string $currency = null): self
     {
         return MoneyParser::parse($amount, $currency);
     }
 
+    /**
+     * @param self|array{amount: int|string|null, currency?: string|null} $first
+     * @param self|array{amount: int|string|null, currency?: string|null}|null ...$collection
+     */
     public static function sum(self|array $first, self|array|null ...$collection): self
     {
         $first = self::parse($first);
@@ -81,6 +91,11 @@ readonly class Money implements JsonSerializable, Wireable
         return new self($amount, $this->currency);
     }
 
+    /**
+     * @template TKey of array-key
+     * @param array<TKey, int|float> $ratios
+     * @return array<TKey, self>
+     */
     public function allocate(array $ratios): array
     {
         $results = [];
@@ -193,6 +208,9 @@ readonly class Money implements JsonSerializable, Wireable
         return $this->amount === 0;
     }
 
+    /**
+     * @return array{amount: int, currency: string}
+     */
     public function jsonSerialize(): array
     {
         return $this->toArray();
@@ -265,6 +283,9 @@ readonly class Money implements JsonSerializable, Wireable
         return Currencies::subunit($this->currency);
     }
 
+    /**
+     * @return array{amount: int, currency: string}
+     */
     public function toArray(): array
     {
         return [
@@ -273,6 +294,9 @@ readonly class Money implements JsonSerializable, Wireable
         ];
     }
 
+    /**
+     * @return array{amount: string, currency: string}
+     */
     public function toLivewire(): array
     {
         return [

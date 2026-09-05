@@ -22,7 +22,7 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
  * @property string $path
  * @property string $disk
  * @property string $folder
- * @property array $marks
+ * @property array<int, string> $marks
  * @property int $size
  * @property int $sort
  * @property CarbonImmutable $created_at
@@ -58,6 +58,9 @@ class Media extends Model
         'sort',
     ];
 
+    /**
+     * @param list<string> $exclude
+     */
     public static function clear(Model $record, string $folder, array $exclude = []): void
     {
         $query = self::query()
@@ -74,6 +77,9 @@ class Media extends Model
         $query->delete();
     }
 
+    /**
+     * @return array{name: string, size: int, type: string, url: string}|null
+     */
     public static function display(string $id): ?array
     {
         $record = self::query()->find($id);
@@ -90,7 +96,7 @@ class Media extends Model
     }
 
     /**
-     * @return Collection<self>
+     * @return Collection<int, self>
      */
     public static function fetch(Model $record, string $folder): Collection
     {
@@ -104,11 +110,21 @@ class Media extends Model
             ->get();
     }
 
+    /**
+     * @template TModel of Model
+     * @param TModel $record
+     * @return MorphMany<self, TModel>
+     */
     public static function folder(Model $record, string $folder): MorphMany
     {
         return $record->morphMany(self::class, 'holder')->withAttributes(['folder' => $folder]);
     }
 
+    /**
+     * @template TModel of Model
+     * @param TModel $record
+     * @return MorphOne<self, TModel>
+     */
     public static function one(Model $record, string $folder, string $mark): MorphOne
     {
         return self::folder($record, $folder)
@@ -121,6 +137,11 @@ class Media extends Model
             );
     }
 
+    /**
+     * @template TModel of Model
+     * @param TModel $record
+     * @return MorphOne<self, TModel>
+     */
     public static function single(Model $record, string $folder): MorphOne
     {
         return $record->morphOne(self::class, 'holder')->withAttributes(['folder' => $folder]);
@@ -151,6 +172,9 @@ class Media extends Model
         return config('phpinnacle-pinax.connection', parent::getConnectionName());
     }
 
+    /**
+     * @return MorphTo<Model, $this>
+     */
     public function holder(): MorphTo
     {
         return $this->morphTo();

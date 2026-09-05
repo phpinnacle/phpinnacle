@@ -30,10 +30,19 @@ class CerberPlugin implements Plugin
 
     private bool $tenancy = false;
 
+    /**
+     * @var list<AuthProvider|Closure|string>
+     */
     private array $authProviders = [];
 
+    /**
+     * @var array<string, string>
+     */
     private array $developers = [];
 
+    /**
+     * @var list<class-string<Resource>>
+     */
     private array $disabled = [];
 
     private ?Closure $modifyProfileForm = null;
@@ -78,6 +87,9 @@ class CerberPlugin implements Plugin
         return $this;
     }
 
+    /**
+     * @param array<array-key, string> $developers
+     */
     public function developers(array $developers): static
     {
         $this->developers = array_is_list($developers) ? array_combine($developers, $developers) : $developers;
@@ -131,6 +143,9 @@ class CerberPlugin implements Plugin
         return $this;
     }
 
+    /**
+     * @param array<string, array<string, string>|string> $permissions
+     */
     public function guards(string $group, array $permissions): static
     {
         if ($permissions === []) {

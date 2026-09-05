@@ -20,6 +20,9 @@ enum IntegrationFormat: string implements HasColor, HasLabel
         return match ($this) { self::JSON => Color::Amber };
     }
 
+    /**
+     * @return array<array-key, mixed>
+     */
     public function decode(string $payload): array
     {
         return match ($this) {

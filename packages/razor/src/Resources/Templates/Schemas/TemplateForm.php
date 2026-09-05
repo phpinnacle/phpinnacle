@@ -26,6 +26,9 @@ class TemplateForm
             ]);
     }
 
+    /**
+     * @return list<TextInput|Select>
+     */
     public static function common(): array
     {
         return [

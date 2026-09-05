@@ -7,6 +7,9 @@ use Tiptap\Utils\HTML;
 
 class TwigForBodyExtension extends Node
 {
+    /**
+     * @var string
+     */
     public static $name = 'twigForBody';
 
     /** @return array<int, array<string, mixed>> */

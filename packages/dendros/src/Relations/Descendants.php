@@ -10,6 +10,8 @@ use LogicException;
 use PHPinnacle\Dendros\TreeNode;
 
 /**
+ * @extends Relation<Model, Model, Collection<int, Model>>
+ *
  * @property Model&TreeNode $parent
  * @property Model&TreeNode $related
  */
@@ -64,6 +66,9 @@ class Descendants extends Relation
         return $models;
     }
 
+    /**
+     * @return Collection<int, Model>
+     */
     public function getResults(): Collection
     {
         return $this->query->get();

@@ -34,6 +34,9 @@ class EnglishFormatter implements Formatter
             ->build();
     }
 
+    /**
+     * @return array<string, string>
+     */
     public function inflect(Money $money): array
     {
         [$paper, $coins] = $money->explode();

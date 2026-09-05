@@ -218,7 +218,10 @@ class TwigTemplatePlugin implements RichContentPlugin
         );
     }
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
     private function conditionFormClauseToAst(Condition $condition, array $data): array
     {
         $expression = [
@@ -243,7 +246,10 @@ class TwigTemplatePlugin implements RichContentPlugin
         return $expression;
     }
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
     private function conditionFormOperand(string $prefix, array $data): array
     {
         $type = $data["{$prefix}_type"] ?? 'variable';
@@ -274,7 +280,10 @@ class TwigTemplatePlugin implements RichContentPlugin
         };
     }
 
-    /** @param array<string, mixed> $arguments */
+    /**
+     * @param array<string, mixed> $arguments
+     * @return array<string, mixed>
+     */
     private function conditionOperandFromArguments(array $arguments): array
     {
         $conditionAst = is_array($arguments['conditionAst'] ?? null)
@@ -563,7 +572,10 @@ class TwigTemplatePlugin implements RichContentPlugin
             ->action($this->applyConditionOperandFilter(...));
     }
 
-    /** @param array<string, mixed> $arguments */
+    /**
+     * @param array<string, mixed> $arguments
+     * @param array<string, mixed> $data
+     */
     private function applyConditionOperandFilter(array $arguments, array $data, TwigEditor $component): void
     {
         $conditionAst = is_array($arguments['conditionAst'] ?? null)
@@ -736,7 +748,10 @@ class TwigTemplatePlugin implements RichContentPlugin
             ->action($this->applyLoopFilter(...));
     }
 
-    /** @param array<string, mixed> $arguments */
+    /**
+     * @param array<string, mixed> $arguments
+     * @param array<string, mixed> $data
+     */
     private function applyLoopFilter(array $arguments, array $data, TwigEditor $component): void
     {
         $filterName = $arguments['filterName'] ?? null;
@@ -930,7 +945,10 @@ class TwigTemplatePlugin implements RichContentPlugin
         return is_string($filterName) ? $component->getFilter($filterName) : null;
     }
 
-    /** @return array<int, mixed> */
+    /**
+     * @param array<string, mixed> $arguments
+     * @return array<int, mixed>
+     */
     private function getLoopStack(array $arguments): array
     {
         return (

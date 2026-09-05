@@ -159,7 +159,10 @@ class ConditionExpressionSerializer
         };
     }
 
-    /** @param list<string> $types */
+    /**
+     * @param array<string, mixed> $operand
+     * @param list<string> $types
+     */
     private function serializeVariable(array $operand, array $types): string
     {
         $name = $operand['name'] ?? null;

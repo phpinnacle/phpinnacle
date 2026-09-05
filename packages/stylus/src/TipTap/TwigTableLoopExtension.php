@@ -8,6 +8,9 @@ use Tiptap\Core\Extension;
 
 class TwigTableLoopExtension extends Extension
 {
+    /**
+     * @var string
+     */
     public static $name = 'twigTableLoop';
 
     /** @return array<int, array<string, mixed>> */

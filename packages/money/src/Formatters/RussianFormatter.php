@@ -8,6 +8,9 @@ use PHPinnacle\Money\Money;
 
 class RussianFormatter implements Formatter
 {
+    /**
+     * @return array<string, string>
+     */
     public function inflect(Money $money): array
     {
         [$paper, $coins] = $money->explode();

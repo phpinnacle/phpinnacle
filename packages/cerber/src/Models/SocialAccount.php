@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $provider_id
  * @property string $external_id
  * @property string|null $email
- * @property array|null $profile
+ * @property array{name: string|null, nickname: string|null, avatar: string|null}|null $profile
  * @property string|null $access_token
  * @property string|null $refresh_token
  * @property CarbonImmutable|null $token_expires_at
@@ -48,6 +48,9 @@ class SocialAccount extends Model
         'token_expires_at',
     ];
 
+    /**
+     * @return list<string>
+     */
     public static function linked(Authenticatable $user): array
     {
         return self::query()->where('user_id', $user->getAuthIdentifier())->pluck('provider_id')->all();
@@ -71,11 +74,17 @@ class SocialAccount extends Model
             ->first();
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return BelongsTo<Provider, $this>
+     */
     public function provider(): BelongsTo
     {
         return $this->belongsTo(Provider::class);

@@ -30,6 +30,9 @@ class Preference extends Model
         'value',
     ];
 
+    /**
+     * @return array<string, array<string, mixed>>
+     */
     public static function retrieve(Authenticatable $record): array
     {
         return self::query()
@@ -50,6 +53,9 @@ class Preference extends Model
             ?->value;
     }
 
+    /**
+     * @param array<string, array<string, mixed>> $values
+     */
     public static function store(Authenticatable $record, array $values): void
     {
         DB::transaction(function () use ($record, $values) {
@@ -70,6 +76,9 @@ class Preference extends Model
         });
     }
 
+    /**
+     * @return Attribute<mixed, mixed>
+     */
     public function value(): Attribute
     {
         return new Attribute(
