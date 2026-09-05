@@ -16,6 +16,8 @@ extends = "vendor/phpinnacle/grimoire/mago.toml"
 
 Relative configuration paths are resolved from the worker's working directory, which defaults to the directory containing `mago.toml`.
 
+The bundled configuration reports `literal-named-argument` only when a call contains at least two literal positional arguments.
+
 Create `grimoire.json`:
 
 ```json

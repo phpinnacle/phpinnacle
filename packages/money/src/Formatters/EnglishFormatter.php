@@ -44,8 +44,8 @@ class EnglishFormatter implements Formatter
         $words['%c'] = EnglishDictionary::$currencyNames[$coins->currency][1][0];
         $words['%D'] = $money->decimal();
         $words['%d'] = $coins->decimal();
-        $words['%N'] = number_format($paper->amount, 0, ',', ' ');
-        $words['%n'] = number_format($coins->amount, 0, ',', ' ');
+        $words['%N'] = number_format($paper->amount, decimals: 0, decimal_separator: ',', thousands_separator: ' ');
+        $words['%n'] = number_format($coins->amount, decimals: 0, decimal_separator: ',', thousands_separator: ' ');
 
         $words['%S'] = implode(' ', [
             $words['%A'],

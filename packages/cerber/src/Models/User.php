@@ -182,7 +182,7 @@ class User extends Authenticatable implements HasLabel, Viewer
             ->trim()
             ->explode(' ')
             ->take(2)
-            ->map(fn (string $segment) => filled($segment) ? mb_substr($segment, 0, 1) : '')
+            ->map(fn (string $segment) => filled($segment) ? mb_substr($segment, offset: 0, length: 1) : '')
             ->join('');
 
         return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=black&color=fff';

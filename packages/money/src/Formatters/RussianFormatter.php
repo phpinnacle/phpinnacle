@@ -16,8 +16,8 @@ class RussianFormatter implements Formatter
         $words['%d'] = $coins->decimal();
         $words['%C'] = $this->getCurrencyName($paper->currency, 0, $paper->amount);
         $words['%c'] = $this->getCurrencyName($coins->currency, 1, $coins->amount);
-        $words['%N'] = number_format($paper->amount, 0, ',', ' ');
-        $words['%n'] = number_format($coins->amount, 0, ',', ' ');
+        $words['%N'] = number_format($paper->amount, decimals: 0, decimal_separator: ',', thousands_separator: ' ');
+        $words['%n'] = number_format($coins->amount, decimals: 0, decimal_separator: ',', thousands_separator: ' ');
 
         return $words;
     }

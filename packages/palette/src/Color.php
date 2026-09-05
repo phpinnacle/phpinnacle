@@ -93,7 +93,7 @@ class Color
 
     public static function random(): string
     {
-        return '#' . str_pad(dechex(random_int(0, 0xFFFFFF)), 6, '0', STR_PAD_LEFT);
+        return '#' . str_pad(dechex(random_int(0, 0xFFFFFF)), length: 6, pad_string: '0', pad_type: STR_PAD_LEFT);
     }
 
     public static function resolve(string $name): string

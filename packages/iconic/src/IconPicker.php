@@ -91,8 +91,8 @@ class IconPicker extends Select
                 $preferred,
                 static fn ($icon) => is_string($icon),
             ))),
-            0,
-            105,
+            offset: 0,
+            length: 105,
         );
         $page = $this->iconPage($search, max(0, $offset), $preferred);
 
