@@ -50,6 +50,38 @@ class Order extends Model
 
 Add the action to a resource page or table using `HistoryAction::make()`. It opens Chronica's native Filament timeline in a slide-over. Chronica stores events in `activity_log`; use `icon`, `connection` and `tenancy` in `phpinnacle-chronica.php` to adapt presentation and persistence.
 
+Call `revertable()` on the timeline to let users with update permission restore the previous values of updated records. Each reversal is recorded as a new activity; created and deleted events cannot be reverted.
+
+Use `Timeline::make(Order::class)->exclude('sort')->hideEmptyValues()` to exclude named attributes and omit null, blank string and empty array values from initial snapshots. False, zero and changes that clear an existing value remain visible.
+
+Format individual values and opt into icons for boolean and null states:
+
+```php
+use Filament\Support\Icons\Heroicon;
+use PHPinnacle\Chronica\Timeline;
+use PHPinnacle\Chronica\Timeline\Attribute;
+
+Timeline::make(Order::class)
+    ->revertable()
+    ->attribute('country', fn (?string $value) => $value === 'ZZ' ? 'Unknown' : $value)
+    ->attributes(
+        Attribute::make('published_on')->date(),
+        Attribute::make('published_at')->datetime('d.m.Y H:i'),
+    )
+    ->boolean()
+    ->trueIcon(Heroicon::OutlinedCheckBadge)
+    ->falseIcon(Heroicon::OutlinedXMark)
+    ->trueColor('info')
+    ->falseColor('warning')
+    ->nullIcon(Heroicon::OutlinedMinusCircle);
+```
+
+Boolean icons default to success and danger; the null icon defaults to gray. Calling `trueIcon()`, `falseIcon()`, `trueColor()` or `falseColor()` also enables boolean icons.
+
+Values cast to objects implementing Filament's `HasLabel`, `HasIcon` or `HasColor` contracts are presented automatically.
+
+Calling `date()`, `datetime()` or `time()` without a format uses the corresponding Filament display format. Pass a PHP date format string to override it.
+
 ## Testing
 
 ```bash

@@ -21,10 +21,10 @@ class Attribute
         return new self($name);
     }
 
-    private static function formatDate(string $type): Closure
+    private static function formatDate(string $type, ?string $format = null): Closure
     {
-        return function (?DateTimeInterface $value) use ($type) {
-            return $value !== null ? Date::parse($value)->translatedFormat(self::getFormat($type)) : null;
+        return function (DateTimeInterface|string|null $value) use ($format, $type) {
+            return $value !== null ? Date::parse($value)->translatedFormat($format ?? self::getFormat($type)) : null;
         };
     }
 
@@ -40,14 +40,14 @@ class Attribute
         };
     }
 
-    public function date(): self
+    public function date(?string $format = null): self
     {
-        return $this->formatter(self::formatDate('date'));
+        return $this->formatter(self::formatDate('date', $format));
     }
 
-    public function datetime(): self
+    public function datetime(?string $format = null): self
     {
-        return $this->formatter(self::formatDate('datetime'));
+        return $this->formatter(self::formatDate('datetime', $format));
     }
 
     public function formatter(Closure $formatter): self
@@ -64,8 +64,8 @@ class Attribute
         return $this;
     }
 
-    public function time(): self
+    public function time(?string $format = null): self
     {
-        return $this->formatter(self::formatDate('time'));
+        return $this->formatter(self::formatDate('time', $format));
     }
 }
