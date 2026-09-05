@@ -45,9 +45,11 @@ class RazorServiceProvider extends PackageServiceProvider
             $loader = new ArrayLoader([]);
             $environment = new Environment($loader);
             $environment->addExtension(new IntlExtension);
-            $environment->addFilter(new TwigFilter('money', function ($value, $format = null, $currency = null) {
-                return Money::parse($value, $currency)->format($format);
-            }));
+            $environment->addFilter(new TwigFilter('money', fn (
+                $value,
+                $format = null,
+                $currency = null,
+            ) => Money::parse($value, $currency)->format($format)));
 
             return new Twig($environment);
         });

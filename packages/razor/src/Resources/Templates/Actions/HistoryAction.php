@@ -18,15 +18,13 @@ class HistoryAction extends SelectAction
 
         $this->label(__('phpinnacle-razor::resources.template.actions.history'));
 
-        $this->options(function (Template $record) {
-            return $record
-                ->history
-                ->prepend($record)
-                ->mapWithKeys(fn (Template $t) => [
-                    $t->id => __('phpinnacle-razor::resources.template.history.version', [
-                        'version' => $t->version,
-                    ]),
-                ]);
-        });
+        $this->options(fn (Template $record) => $record
+            ->history
+            ->prepend($record)
+            ->mapWithKeys(fn (Template $t) => [
+                $t->id => __('phpinnacle-razor::resources.template.history.version', [
+                    'version' => $t->version,
+                ]),
+            ]));
     }
 }

@@ -23,9 +23,9 @@ class Attribute
 
     private static function formatDate(string $type, ?string $format = null): Closure
     {
-        return function (DateTimeInterface|string|null $value) use ($format, $type) {
-            return $value !== null ? Date::parse($value)->translatedFormat($format ?? self::getFormat($type)) : null;
-        };
+        return fn (DateTimeInterface|string|null $value) => $value !== null
+            ? Date::parse($value)->translatedFormat($format ?? self::getFormat($type))
+            : null;
     }
 
     private static function getFormat(string $type): string

@@ -97,9 +97,9 @@ class MediaGallery extends Repeater
                         $state = $component->getParentRepeater()->getState();
                         $state = Arr::except($state, [array_key_last($state)]);
 
-                        $default = $this->getMarks()->filter(function (Mark $mark) use ($state) {
-                            return $mark->default && (!$mark->unique || !$mark->exists($state));
-                        });
+                        $default = $this->getMarks()->filter(
+                            fn (Mark $mark) => $mark->default && (!$mark->unique || !$mark->exists($state)),
+                        );
 
                         return $default->map(fn (Mark $mark) => $mark->key)->all();
                     }),

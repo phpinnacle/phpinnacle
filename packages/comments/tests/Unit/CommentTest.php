@@ -196,16 +196,12 @@ it('notifies subscribers and mentioned users once while excluding the author', f
     NotificationFacade::assertSentTo(
         $subscriber,
         DatabaseNotification::class,
-        function (DatabaseNotification $notification) {
-            return $notification->data['title'] === 'New comment';
-        },
+        fn (DatabaseNotification $notification) => $notification->data['title'] === 'New comment',
     );
     NotificationFacade::assertSentTo(
         $mentioned,
         DatabaseNotification::class,
-        function (DatabaseNotification $notification) {
-            return $notification->data['title'] === 'You were mentioned in a comment';
-        },
+        fn (DatabaseNotification $notification) => $notification->data['title'] === 'You were mentioned in a comment',
     );
 });
 
