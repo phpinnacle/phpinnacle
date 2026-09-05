@@ -10,26 +10,11 @@ use Filament\Schemas\Components\Text;
 use Filament\Schemas\Schema;
 use Phiki\Grammar\Grammar;
 use PHPinnacle\Casus\Models\Exception;
+use PHPinnacle\Casus\Support\SensitiveValuePresenter;
 
 class ExceptionInfo
 {
     private const int JSON_FLAGS = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT;
-
-    private const array SENSITIVE_KEYS = [
-        'authorization',
-        'cookie',
-        'x-csrf-token',
-        'x-xsrf-token',
-        'xsrf-token',
-        '_token',
-        'csrf_token',
-        'session',
-        'laravel_session',
-        '_session',
-        'remember_web',
-        'remember_token',
-        'bearer',
-    ];
 
     public static function configure(Schema $schema): Schema
     {
@@ -55,6 +40,11 @@ class ExceptionInfo
                         TextEntry::make('code')
                             ->label(__('phpinnacle-casus::resources.exception.fields.code'))
                             ->copyable(),
+                        TextEntry::make('status')
+                            ->label(__('phpinnacle-casus::resources.exception.fields.status'))
+                            ->badge(),
+                        TextEntry::make('occurrences')
+                            ->label(__('phpinnacle-casus::resources.exception.fields.occurrences')),
                         TextEntry::make('link')
                             ->label(__('phpinnacle-casus::resources.exception.fields.link'))
                             ->getStateUsing($record->link())
@@ -63,6 +53,10 @@ class ExceptionInfo
                             ->label(__('phpinnacle-casus::resources.exception.fields.occurred_at'))
                             ->dateTime()
                             ->copyable(),
+                        TextEntry::make('note')
+                            ->label(__('phpinnacle-casus::resources.exception.fields.note'))
+                            ->columnSpanFull()
+                            ->placeholder('—'),
                     ]),
                 Section::make()
                     ->heading(__('phpinnacle-casus::resources.exception.sections.context'))
@@ -103,12 +97,16 @@ class ExceptionInfo
                             ->label(__('phpinnacle-casus::resources.exception.sections.headers'))
                             ->keyLabel(__('phpinnacle-casus::resources.exception.fields.header_key'))
                             ->valueLabel(__('phpinnacle-casus::resources.exception.fields.header_value'))
-                            ->state(fn ($record) => self::maskSensitive($record->headers ?? [])),
+                            ->state(fn ($record) => app(SensitiveValuePresenter::class)->present(
+                                $record->headers ?? [],
+                            )),
                         KeyValueEntry::make('cookies')
                             ->label(__('phpinnacle-casus::resources.exception.sections.cookies'))
                             ->keyLabel(__('phpinnacle-casus::resources.exception.fields.cookie_key'))
                             ->valueLabel(__('phpinnacle-casus::resources.exception.fields.cookie_value'))
-                            ->state(fn ($record) => self::maskSensitive($record->cookies ?? [])),
+                            ->state(fn ($record) => app(SensitiveValuePresenter::class)->present(
+                                $record->cookies ?? [],
+                            )),
                     ]),
                 Section::make()
                     ->heading(__('phpinnacle-casus::resources.exception.sections.trace'))
@@ -120,50 +118,5 @@ class ExceptionInfo
                             ->grammar(Grammar::Log),
                     ]),
             ]);
-    }
-
-    private static function flatten(array $data): array
-    {
-        $result = [];
-
-        foreach ($data as $key => $value) {
-            if (is_array($value)) {
-                $value = implode(', ', array_map(fn ($item) => is_scalar($item)
-                    ? (string) $item
-                    : json_encode($item, JSON_UNESCAPED_UNICODE), $value));
-            } elseif (!is_scalar($value)) {
-                $value = json_encode($value, JSON_UNESCAPED_UNICODE);
-            }
-
-            $result[$key] = (string) $value;
-        }
-
-        return $result;
-    }
-
-    private static function maskSensitive(?array $data): ?array
-    {
-        if ($data === null) {
-            return null;
-        }
-
-        $result = [];
-
-        foreach ($data as $key => $value) {
-            $lower = strtolower((string) $key);
-
-            $sensitive = false;
-            foreach (self::SENSITIVE_KEYS as $pattern) {
-                if (str_contains($lower, $pattern)) {
-                    $sensitive = true;
-
-                    break;
-                }
-            }
-
-            $result[$key] = $sensitive ? '[hidden]' : $value;
-        }
-
-        return self::flatten($result);
     }
 }

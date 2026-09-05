@@ -7,6 +7,7 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use PHPinnacle\Casus\Enums\ExceptionStatus;
 use PHPinnacle\Casus\Enums\HttpMethod;
 use PHPinnacle\Casus\Models\Exception;
 use PHPinnacle\Casus\Resources\Exceptions\ExceptionResource;
@@ -35,6 +36,14 @@ class ExceptionsTable
                 TextColumn::make('code')
                     ->label(__('phpinnacle-casus::resources.exception.fields.code'))
                     ->toggleable(),
+                TextColumn::make('status')
+                    ->label(__('phpinnacle-casus::resources.exception.fields.status'))
+                    ->badge()
+                    ->sortable(),
+                TextColumn::make('occurrences')
+                    ->label(__('phpinnacle-casus::resources.exception.fields.occurrences'))
+                    ->badge()
+                    ->sortable(),
                 TextColumn::make('method')
                     ->label(__('phpinnacle-casus::resources.exception.fields.method'))
                     ->badge(),
@@ -78,6 +87,9 @@ class ExceptionsTable
                 SelectFilter::make('method')
                     ->label(__('phpinnacle-casus::resources.exception.fields.method'))
                     ->options(HttpMethod::class),
+                SelectFilter::make('status')
+                    ->label(__('phpinnacle-casus::resources.exception.fields.status'))
+                    ->options(ExceptionStatus::class),
             ])
             ->recordActions([
                 DeleteAction::make()

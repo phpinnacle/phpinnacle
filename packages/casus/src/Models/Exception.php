@@ -9,10 +9,10 @@ use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
-use Livewire\Livewire;
 use Phiki\Grammar\Grammar;
+use PHPinnacle\Casus\Enums\ExceptionStatus;
 use PHPinnacle\Casus\Enums\HttpMethod;
+use PHPinnacle\Casus\Services\ExceptionReporter;
 use Throwable;
 
 /**
@@ -24,6 +24,8 @@ use Throwable;
  * @property int $line
  * @property string $message
  * @property string $trace
+ * @property string|null $fingerprint
+ * @property int $occurrences
  * @property array $context
  * @property HttpMethod|null $method
  * @property string|null $path
@@ -32,6 +34,8 @@ use Throwable;
  * @property array|null $headers
  * @property string|null $body
  * @property string|null $ip
+ * @property ExceptionStatus $status
+ * @property string|null $note
  * @property CarbonImmutable $occurred_at
  */
 class Exception extends Model
@@ -52,56 +56,25 @@ class Exception extends Model
 
     protected $table = 'exceptions';
 
+    protected $fillable = [
+        'status',
+        'note',
+    ];
+
     protected $casts = [
+        'status' => ExceptionStatus::class,
         'method' => HttpMethod::class,
+        'occurrences' => 'integer',
         'context' => 'array',
         'query' => 'array',
         'cookies' => 'array',
         'headers' => 'array',
+        'occurred_at' => 'immutable_datetime',
     ];
 
     public static function report(Throwable $error, ?Request $request = null): void
     {
-        $self = new self;
-        $self->sapi = php_sapi_name();
-        $self->type = get_class($error);
-        $self->code = $error->getCode();
-        $self->file = ltrim(str_replace(base_path(), '', $error->getFile()), DIRECTORY_SEPARATOR);
-        $self->line = $error->getLine();
-        $self->message = $error->getMessage();
-        $self->trace = $error->getTraceAsString();
-        $self->occurred_at = CarbonImmutable::now();
-
-        if (method_exists($error, 'context')) {
-            try {
-                /** @var mixed $context */
-                $context = $error->context();
-
-                if (is_object($context) || is_array($context)) {
-                    $self->context = json_decode(json_encode($context, JSON_THROW_ON_ERROR), true);
-                }
-            } catch (Throwable) {
-            }
-        }
-
-        if ($request !== null) {
-            $livewire = Livewire::isLivewireRequest();
-
-            $method = $livewire ? Livewire::originalMethod() : $request->getMethod();
-            $self->method = HttpMethod::tryFrom($method);
-            $self->path = $livewire ? Livewire::originalPath() : $request->path();
-            $self->query = $request->query();
-            $self->cookies = $request->cookies->all();
-            $self->headers = Arr::except($request->headers->all(), 'cookie');
-            $self->body = $request->getContent();
-            $self->ip = $request->ip();
-        }
-
-        try {
-            $self->saveQuietly();
-        } catch (Throwable) {
-            // DO NOTHING
-        }
+        app(ExceptionReporter::class)->report($error, $request);
     }
 
     public static function setup(Exceptions $exceptions): void
@@ -139,7 +112,7 @@ class Exception extends Model
 
     public function prunable(): Builder
     {
-        $days = config('phpinnacle-casus.prune.days', 30);
+        $days = config('phpinnacle-casus.prune', 30);
 
         return static::query()->where('occurred_at', '<=', now()->subDays($days));
     }

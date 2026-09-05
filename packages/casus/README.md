@@ -10,7 +10,10 @@ Casus is an application exception recorder and Filament exception browser. It st
 - Automatic integration with Laravel's exception reporting pipeline.
 - Captures exception class, message, code, file, line, trace and occurrence count.
 - Captures HTTP method, URL, IP address, request headers and request body when available.
-- Groups repeated failures and updates their latest occurrence.
+- Redacts configurable sensitive request values before persistence.
+- Groups repeated failures by fingerprint and tracks their occurrence count.
+- Supports open, acknowledged and resolved triage states with an internal note.
+- Optionally sends mail notifications for new failures and a repeat threshold.
 - Filament resource with syntax-highlighted exception details.
 - Configurable retention using Laravel's prunable model support.
 - Optional separate database connection and tenant association.
@@ -48,7 +51,7 @@ public function panel(Panel $panel): Panel
 }
 ```
 
-Casus registers the Exceptions resource in that panel. Access is controlled by `ExceptionPolicy`; your authenticated user must support the permissions expected by the application.
+Casus registers the Exceptions resource in that panel. Access is controlled by `ExceptionPolicy`; `view`, `update`, and `delete` govern browsing, triage, and deletion.
 
 ## Configuration
 
@@ -59,12 +62,32 @@ return [
     ],
     'prune' => 30,
     'connection' => null,
+    'redaction' => [
+        'replacement' => '[hidden]',
+        'keys' => [
+            'authorization',
+            'cookie',
+            'csrf_token',
+            'credential',
+            'password',
+            'remember',
+            'secret',
+            'session',
+            'token',
+        ],
+    ],
+    'notifications' => [
+        'mail' => null,
+        'repeat_threshold' => null,
+    ],
     'tenancy' => null,
 ];
 ```
 
 - `prune` is the number of days retained by the model's prunable query.
 - `connection` selects a database connection for exception records; `null` uses Laravel's default.
+- `redaction.keys` contains case-insensitive key fragments removed from headers, cookies, query parameters, and supported JSON or form bodies before storage.
+- `notifications.mail` enables Laravel mail notifications at the given address. New fingerprints are always sent; `repeat_threshold` sends one additional notification when the occurrence count reaches that value.
 - `tenancy` may define a tenant model and default tenant identifier.
 
 Schedule Laravel's model pruning command if automatic retention is required:
@@ -75,7 +98,7 @@ use Illuminate\Support\Facades\Schedule;
 Schedule::command('model:prune')->daily();
 ```
 
-Never expose the resource to untrusted users: request bodies, headers and traces can contain sensitive operational data.
+Never expose the resource to untrusted users: exception context, opaque request bodies, and traces can still contain sensitive operational data.
 
 ## Testing
 

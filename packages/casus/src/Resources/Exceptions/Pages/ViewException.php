@@ -3,7 +3,11 @@
 namespace PHPinnacle\Casus\Resources\Exceptions\Pages;
 
 use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Resources\Pages\ViewRecord;
+use PHPinnacle\Casus\Enums\ExceptionStatus;
 use PHPinnacle\Casus\Models\Exception as ExceptionRecord;
 use PHPinnacle\Casus\Resources\Exceptions\ExceptionResource;
 
@@ -25,6 +29,17 @@ class ViewException extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            EditAction::make('triage')
+                ->label(__('phpinnacle-casus::resources.exception.actions.triage'))
+                ->schema([
+                    Select::make('status')
+                        ->label(__('phpinnacle-casus::resources.exception.fields.status'))
+                        ->options(ExceptionStatus::class)
+                        ->required(),
+                    Textarea::make('note')
+                        ->label(__('phpinnacle-casus::resources.exception.fields.note'))
+                        ->maxLength(2000),
+                ]),
             DeleteAction::make(),
         ];
     }

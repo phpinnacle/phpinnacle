@@ -6,6 +6,7 @@ return [
         'group' => 'Система',
         'actions' => [
             'delete' => 'Удалить',
+            'triage' => 'Разобрать',
         ],
         'empty' => [
             'heading' => 'Ни одной ошибки 👀',
@@ -32,12 +33,16 @@ return [
             'cookie_value' => 'Значение',
             'context' => 'Контекст',
             'trace' => 'Stack Trace',
+            'status' => 'Статус',
+            'occurrences' => 'Повторения',
+            'note' => 'Внутренняя заметка',
             'occurred_at' => 'Дата и время',
         ],
         'filters' => [
             'occurred_at' => 'Дата',
             'type' => 'Тип',
             'method' => 'Метод',
+            'status' => 'Статус',
         ],
         'pages' => [
             'list' => 'Ошибки приложения',
@@ -50,6 +55,18 @@ return [
             'cookies' => 'Cookies',
             'context' => 'Контекст',
             'trace' => 'Стек вызовов',
+        ],
+        'statuses' => [
+            'open' => 'Открыта',
+            'acknowledged' => 'Принята',
+            'resolved' => 'Решена',
+        ],
+        'notifications' => [
+            'reported' => [
+                'subject' => 'Зафиксирована ошибка приложения',
+                'summary' => ':type: :message',
+                'occurrences' => 'Повторения: :count',
+            ],
         ],
     ],
 ];

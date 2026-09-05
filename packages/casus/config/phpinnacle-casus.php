@@ -9,6 +9,24 @@ return [
     ],
     'prune' => 30,
     'connection' => null,
+    'redaction' => [
+        'replacement' => '[hidden]',
+        'keys' => [
+            'authorization',
+            'cookie',
+            'csrf_token',
+            'credential',
+            'password',
+            'remember',
+            'secret',
+            'session',
+            'token',
+        ],
+    ],
+    'notifications' => [
+        'mail' => null,
+        'repeat_threshold' => null,
+    ],
     'tenancy' => null,
     //    'tenancy' => [
     //        'model' => App\\Models\\Tenant::class,
