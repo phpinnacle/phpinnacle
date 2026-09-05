@@ -18,6 +18,18 @@ enabled = false
 [linter.rules.literal-named-argument]
 threshold = 2
 
+[linter.rules.file-name]
+exclude = ["packages/*/tests/**"]
+
+[linter.rules.single-class-per-file]
+exclude = ["packages/*/tests/**"]
+
+[linter.rules.halstead]
+exclude = ["packages/*/tests/**"]
+volume-threshold = 1500
+difficulty-threshold = 16
+effort-threshold = 8000
+
 [linter.rules.excessive-parameter-list]
 constructor-threshold = 14
 
