@@ -41,21 +41,6 @@ final readonly class TempoTestEventSource implements EventSource
         private array $events,
     ) {}
 
-    public function getColor(): array
-    {
-        return Color::Violet;
-    }
-
-    public function getEvents(CalendarRange $range, int $limit): array
-    {
-        return array_slice($this->events, 0, $limit);
-    }
-
-    public function getIcon(): Heroicon
-    {
-        return Heroicon::CalendarDays;
-    }
-
     public function getKey(): string
     {
         return $this->key;
@@ -65,16 +50,38 @@ final readonly class TempoTestEventSource implements EventSource
     {
         return $this->label;
     }
+
+    public function getIcon(): Heroicon
+    {
+        return Heroicon::CalendarDays;
+    }
+
+    public function getColor(): array
+    {
+        return Color::Violet;
+    }
+
+    public function getEvents(CalendarRange $range, int $limit): array
+    {
+        return array_slice($this->events, 0, $limit);
+    }
 }
 
 final class TempoConfiguredCalendarWidget extends CalendarWidget
 {
     private ?CalendarEvent $handledEvent = null;
 
-    /** @return array<string, mixed> */
-    public function calendarViewData(): array
+    public function handledEvent(): ?CalendarEvent
     {
-        return $this->getViewData();
+        return $this->handledEvent;
+    }
+
+    public function recordAction(): Action
+    {
+        return CalendarRecordAction::make('viewEvent')
+            ->action(function (CalendarEvent $event) {
+                $this->handledEvent = $event;
+            });
     }
 
     public function getEventSources(): array
@@ -112,17 +119,10 @@ final class TempoConfiguredCalendarWidget extends CalendarWidget
         ];
     }
 
-    public function handledEvent(): ?CalendarEvent
+    /** @return array<string, mixed> */
+    public function calendarViewData(): array
     {
-        return $this->handledEvent;
-    }
-
-    public function recordAction(): Action
-    {
-        return CalendarRecordAction::make('viewEvent')
-            ->action(function (CalendarEvent $event) {
-                $this->handledEvent = $event;
-            });
+        return $this->getViewData();
     }
 }
 

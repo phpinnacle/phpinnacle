@@ -35,20 +35,6 @@ class SettingsStorage
 
     private array $schema = [];
 
-    public function fill(object $settings): void
-    {
-        $data = $this->load($settings::class);
-
-        foreach ($data as $key => $value) {
-            $settings->{$key} = $value;
-        }
-    }
-
-    public function load(string $section): array
-    {
-        return $this->doLoad($section);
-    }
-
     public function register(string ...$sections): void
     {
         foreach ($sections as $section) {
@@ -78,6 +64,20 @@ class SettingsStorage
         }
     }
 
+    public function fill(object $settings): void
+    {
+        $data = $this->load($settings::class);
+
+        foreach ($data as $key => $value) {
+            $settings->{$key} = $value;
+        }
+    }
+
+    public function load(string $section): array
+    {
+        return $this->doLoad($section);
+    }
+
     public function save(string $section, array $data): void
     {
         $tenant = Filament::hasTenancy() ? Filament::getTenant()->getKey() : self::TENANT;
@@ -95,23 +95,6 @@ class SettingsStorage
         }
 
         $this->settings[$tenant][$section] = $data;
-    }
-
-    private function coerse(string $section, string $key, mixed $value): mixed
-    {
-        $type = $this->schema[$section][$key]['type'] ?? null;
-
-        if ($type === null) {
-            return $value;
-        }
-
-        if (is_subclass_of($type, BackedEnum::class) && (is_string($value) || is_int($value))) {
-            $value = $type::tryFrom($value);
-        } elseif (in_array($type, self::BUILTIN_TYPES, true)) {
-            settype($value, $type);
-        }
-
-        return $value;
     }
 
     private function doLoad(string $section): array
@@ -140,5 +123,22 @@ class SettingsStorage
 
             $this->settings[$setting->tenant_id][$setting->group][$setting->key] = $value;
         }
+    }
+
+    private function coerse(string $section, string $key, mixed $value): mixed
+    {
+        $type = $this->schema[$section][$key]['type'] ?? null;
+
+        if ($type === null) {
+            return $value;
+        }
+
+        if (is_subclass_of($type, BackedEnum::class) && (is_string($value) || is_int($value))) {
+            $value = $type::tryFrom($value);
+        } elseif (in_array($type, self::BUILTIN_TYPES, true)) {
+            settype($value, $type);
+        }
+
+        return $value;
     }
 }

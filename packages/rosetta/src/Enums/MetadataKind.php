@@ -23,6 +23,18 @@ enum MetadataKind: string
         ];
     }
 
+    public function storageToken(): string
+    {
+        return match ($this) {
+            self::Reference => 'Reference',
+            self::Document => 'Document',
+            self::Enumeration => 'Enum',
+            self::AccumulationRegister => 'AccumRg',
+            self::InformationRegister => 'InfoRg',
+            self::Section => 'VT',
+        };
+    }
+
     /** @return list<int> */
     public function identityPath(): array
     {
@@ -55,18 +67,6 @@ enum MetadataKind: string
             self::Reference, self::Document => [2, 4],
             self::Enumeration => [2, 2],
             self::AccumulationRegister, self::InformationRegister, self::Section => null,
-        };
-    }
-
-    public function storageToken(): string
-    {
-        return match ($this) {
-            self::Reference => 'Reference',
-            self::Document => 'Document',
-            self::Enumeration => 'Enum',
-            self::AccumulationRegister => 'AccumRg',
-            self::InformationRegister => 'InfoRg',
-            self::Section => 'VT',
         };
     }
 }

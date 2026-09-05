@@ -10,11 +10,9 @@ use PHPinnacle\Stylus\Enums\ConditionKind;
 
 interface Condition extends HasColor, HasDescription, HasIcon, HasLabel
 {
-    public function getExpression(): string;
-
-    public function getKey(): string;
-
     public function getName(): string;
+
+    public function getExpression(): string;
 
     public function getType(): ConditionKind;
 
@@ -24,4 +22,6 @@ interface Condition extends HasColor, HasDescription, HasIcon, HasLabel
     public function matchesVariableTypes(): bool;
 
     public function supports(string $variableType): bool;
+
+    public function getKey(): string;
 }

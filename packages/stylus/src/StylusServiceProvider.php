@@ -14,14 +14,6 @@ class StylusServiceProvider extends PackageServiceProvider
 
     public static string $name = 'phpinnacle-stylus';
 
-    public function configurePackage(Package $package): void
-    {
-        $package
-            ->name(static::$name)
-            ->hasTranslations()
-            ->hasViews('stylus');
-    }
-
     public function packageBooted(): void
     {
         FilamentAsset::register(
@@ -39,5 +31,13 @@ class StylusServiceProvider extends PackageServiceProvider
             ],
             package: self::PACKAGE,
         );
+    }
+
+    public function configurePackage(Package $package): void
+    {
+        $package
+            ->name(static::$name)
+            ->hasTranslations()
+            ->hasViews('stylus');
     }
 }

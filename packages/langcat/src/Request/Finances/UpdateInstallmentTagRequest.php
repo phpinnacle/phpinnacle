@@ -21,16 +21,16 @@ final class UpdateInstallmentTagRequest
         return $this;
     }
 
-    /** @return array<string, bool|string> */
-    public function toArray(): array
-    {
-        return $this->data;
-    }
-
     public function visibleToStudent(bool $value): self
     {
         $this->data['visibleToStudent'] = $value;
 
         return $this;
+    }
+
+    /** @return array<string, bool|string> */
+    public function toArray(): array
+    {
+        return $this->data;
     }
 }

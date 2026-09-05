@@ -25,27 +25,6 @@ class ColorPicker extends Field
 
     protected bool $isWide = false;
 
-    public function disable(ColorSource ...$sources): static
-    {
-        $this->sources = array_values(array_filter(
-            $this->sources,
-            static fn (ColorSource $source) => !in_array($source, $sources, true),
-        ));
-
-        return $this;
-    }
-
-    public function enable(ColorSource ...$sources): static
-    {
-        foreach ($sources as $source) {
-            if (!in_array($source, $this->sources, true)) {
-                $this->sources[] = $source;
-            }
-        }
-
-        return $this;
-    }
-
     public function format(ColorFormat $format): static
     {
         $this->colorFormat = $format;
@@ -62,12 +41,25 @@ class ColorPicker extends Field
         return $this->colorFormat;
     }
 
-    /**
-     * @return array<int>
-     */
-    public function getShades(): array
+    public function enable(ColorSource ...$sources): static
     {
-        return $this->shades;
+        foreach ($sources as $source) {
+            if (!in_array($source, $this->sources, true)) {
+                $this->sources[] = $source;
+            }
+        }
+
+        return $this;
+    }
+
+    public function disable(ColorSource ...$sources): static
+    {
+        $this->sources = array_values(array_filter(
+            $this->sources,
+            static fn (ColorSource $source) => !in_array($source, $sources, true),
+        ));
+
+        return $this;
     }
 
     /**
@@ -79,6 +71,41 @@ class ColorPicker extends Field
             $this->sources,
             fn (ColorSource $source) => $this->colorFormat->supports($source),
         ));
+    }
+
+    public function hasSource(ColorSource $source): bool
+    {
+        return in_array($source, $this->getSources(), true);
+    }
+
+    public function shades(int $min = 50, int $max = 950): static
+    {
+        $this->shades = array_values(array_filter(
+            Color::SHADES,
+            static fn (int $shade) => $shade >= $min && $shade <= $max,
+        ));
+
+        return $this;
+    }
+
+    public function wide(bool $condition = true): static
+    {
+        $this->isWide = $condition;
+
+        return $this;
+    }
+
+    public function isWide(): bool
+    {
+        return $this->isWide;
+    }
+
+    /**
+     * @return array<int>
+     */
+    public function getShades(): array
+    {
+        return $this->shades;
     }
 
     /**
@@ -116,33 +143,6 @@ class ColorPicker extends Field
         return $this->colorFormat === ColorFormat::Semantic
             ? $name
             : $color;
-    }
-
-    public function hasSource(ColorSource $source): bool
-    {
-        return in_array($source, $this->getSources(), true);
-    }
-
-    public function isWide(): bool
-    {
-        return $this->isWide;
-    }
-
-    public function shades(int $min = 50, int $max = 950): static
-    {
-        $this->shades = array_values(array_filter(
-            Color::SHADES,
-            static fn (int $shade) => $shade >= $min && $shade <= $max,
-        ));
-
-        return $this;
-    }
-
-    public function wide(bool $condition = true): static
-    {
-        $this->isWide = $condition;
-
-        return $this;
     }
 
     protected function setUp(): void

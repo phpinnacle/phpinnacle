@@ -15,9 +15,9 @@ class UserResource extends Resource
 
     protected static bool $isScopedToTenant = false;
 
-    public static function form(Schema $schema): Schema
+    public static function getNavigationLabel(): string
     {
-        return Schemas\UserForm::configure($schema);
+        return __('phpinnacle-cerber::resources.user.label');
     }
 
     public static function getNavigationGroup(): string
@@ -30,14 +30,24 @@ class UserResource extends Resource
         return config('phpinnacle-cerber.navigation.user.icon');
     }
 
-    public static function getNavigationLabel(): string
-    {
-        return __('phpinnacle-cerber::resources.user.label');
-    }
-
     public static function getNavigationSort(): ?int
     {
         return config('phpinnacle-cerber.navigation.user.sort');
+    }
+
+    public static function form(Schema $schema): Schema
+    {
+        return Schemas\UserForm::configure($schema);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return Tables\UserTable::configure($table);
+    }
+
+    public static function getRelations(): array
+    {
+        return config('phpinnacle-cerber.resources.user.relations', []);
     }
 
     public static function getPages(): array
@@ -47,15 +57,5 @@ class UserResource extends Resource
             'create' => Pages\CreateUser::route('/create'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
-    }
-
-    public static function getRelations(): array
-    {
-        return config('phpinnacle-cerber.resources.user.relations', []);
-    }
-
-    public static function table(Table $table): Table
-    {
-        return Tables\UserTable::configure($table);
     }
 }

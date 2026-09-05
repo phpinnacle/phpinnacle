@@ -11,6 +11,18 @@ class TwigVariableExtension extends Node
 {
     public static $name = 'twigVariable';
 
+    /** @return array<string, mixed> */
+    public function addOptions(): array
+    {
+        return ['HTMLAttributes' => []];
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public function parseHTML(): array
+    {
+        return [['tag' => 'span[data-twig-variable]']];
+    }
+
     /** @return array<string, array<string, mixed>> */
     public function addAttributes(): array
     {
@@ -35,18 +47,6 @@ class TwigVariableExtension extends Node
         ];
     }
 
-    /** @return array<string, mixed> */
-    public function addOptions(): array
-    {
-        return ['HTMLAttributes' => []];
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    public function parseHTML(): array
-    {
-        return [['tag' => 'span[data-twig-variable]']];
-    }
-
     /**
      * @param  object  $node
      * @param  array<string, mixed>  $htmlAttributes
@@ -64,13 +64,6 @@ class TwigVariableExtension extends Node
             ]),
             "{{ {$expression} }}",
         ];
-    }
-
-    private function attribute(mixed $attributes, string $name, mixed $default): mixed
-    {
-        return is_array($attributes)
-            ? $attributes[$name] ?? $default
-            : $attributes->{$name} ?? $default;
     }
 
     /** @return list<array{name: string, arguments: list<string>}> */
@@ -91,5 +84,12 @@ class TwigVariableExtension extends Node
         }
 
         return $filters;
+    }
+
+    private function attribute(mixed $attributes, string $name, mixed $default): mixed
+    {
+        return is_array($attributes)
+            ? $attributes[$name] ?? $default
+            : $attributes->{$name} ?? $default;
     }
 }

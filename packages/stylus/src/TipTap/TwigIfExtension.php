@@ -11,6 +11,18 @@ class TwigIfExtension extends Node
 {
     public static $name = 'twigIf';
 
+    /** @return array<string, mixed> */
+    public function addOptions(): array
+    {
+        return ['HTMLAttributes' => []];
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public function parseHTML(): array
+    {
+        return [['tag' => 'section[data-twig-if]']];
+    }
+
     /** @return array<string, array<string, mixed>> */
     public function addAttributes(): array
     {
@@ -42,18 +54,6 @@ class TwigIfExtension extends Node
                 },
             ],
         ];
-    }
-
-    /** @return array<string, mixed> */
-    public function addOptions(): array
-    {
-        return ['HTMLAttributes' => []];
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    public function parseHTML(): array
-    {
-        return [['tag' => 'section[data-twig-if]']];
     }
 
     /**

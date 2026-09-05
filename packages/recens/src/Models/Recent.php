@@ -41,19 +41,6 @@ class Recent extends Model implements HasIcon, HasLabel
         'created_at',
     ];
 
-    public static function list(?int $limit = null): array
-    {
-        $query = self::query()
-            ->where('user_id', Auth::id())
-            ->orderByDesc('created_at');
-
-        if ($limit) {
-            $query->limit($limit);
-        }
-
-        return $query->get()->all();
-    }
-
     public static function record(array $data): void
     {
         $url = (string) Request::uri()->withQuery([], merge: false);
@@ -72,19 +59,17 @@ class Recent extends Model implements HasIcon, HasLabel
             );
     }
 
-    public function getConnectionName(): ?string
+    public static function list(?int $limit = null): array
     {
-        return config('phpinnacle-recens.connection', parent::getConnectionName());
-    }
+        $query = self::query()
+            ->where('user_id', Auth::id())
+            ->orderByDesc('created_at');
 
-    public function getIcon(): ?string
-    {
-        return $this->icon;
-    }
+        if ($limit) {
+            $query->limit($limit);
+        }
 
-    public function getLabel(): string
-    {
-        return $this->title;
+        return $query->get()->all();
     }
 
     public function getUrl(): string
@@ -92,10 +77,25 @@ class Recent extends Model implements HasIcon, HasLabel
         return $this->url;
     }
 
+    public function getLabel(): string
+    {
+        return $this->title;
+    }
+
+    public function getIcon(): ?string
+    {
+        return $this->icon;
+    }
+
     public function prunable(): Builder
     {
         $days = (int) config('phpinnacle-recens.prune.days', 7);
 
         return static::query()->where('created_at', '<=', now()->subDays($days));
+    }
+
+    public function getConnectionName(): ?string
+    {
+        return config('phpinnacle-recens.connection', parent::getConnectionName());
     }
 }

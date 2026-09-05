@@ -15,86 +15,6 @@ use PHPUnit\Framework\TestCase;
 
 final class MetadataDefinitionTest extends TestCase
 {
-    /** @return iterable<string, array{MetadataKind, string, list<int>, list<int>}> */
-    public static function metadataKindStorage(): iterable
-    {
-        yield 'reference' => [MetadataKind::Reference, 'Reference', [2, 10, 2], [7]];
-        yield 'document' => [MetadataKind::Document, 'Document', [2, 10, 2], [6]];
-        yield 'enumeration' => [MetadataKind::Enumeration, 'Enum', [2, 6, 2], []];
-        yield 'accumulation register' => [
-            MetadataKind::AccumulationRegister,
-            'AccumRg',
-            [2, 14, 2],
-            [6, 7, 8],
-        ];
-        yield 'information register' => [
-            MetadataKind::InformationRegister,
-            'InfoRg',
-            [2, 16, 2],
-            [4, 5, 8],
-        ];
-        yield 'tabular section' => [
-            MetadataKind::Section,
-            'VT',
-            [1, 2, 6, 2],
-            [3],
-        ];
-    }
-
-    #[Test]
-    public function documents_serialize_an_empty_tabular_section_collection(): void
-    {
-        $metadata = new MetadataDefinition(
-            id: 'document-id',
-            name: '_document1',
-            code: 1,
-            kind: MetadataKind::Document,
-            label: 'Документ',
-            title: 'Документ',
-            system: [],
-            properties: [],
-        );
-        $result = json_decode(json_encode($metadata, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
-
-        $this->assertIsArray($result);
-        $this->assertSame([], $result['sections'] ?? null);
-    }
-
-    #[Test]
-    public function enumerations_serialize_their_values(): void
-    {
-        $metadata = new MetadataDefinition(
-            id: 'enumeration-id',
-            name: '_enum1',
-            code: 1,
-            kind: MetadataKind::Enumeration,
-            label: 'ТипыСчетов',
-            title: 'Типы счетов',
-            system: [],
-            properties: [],
-            values: [
-                new EnumerationValue(
-                    id: 'value-id',
-                    label: 'Расчетный',
-                    title: 'Расчетный',
-                ),
-            ],
-        );
-        $result = json_decode(json_encode($metadata, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
-
-        $this->assertIsArray($result);
-        $this->assertSame(
-            [
-                [
-                    'id' => 'value-id',
-                    'label' => 'Расчетный',
-                    'title' => 'Расчетный',
-                ],
-            ],
-            $result['values'] ?? null,
-        );
-    }
-
     #[Test]
     public function it_accepts_non_uuid_identifiers(): void
     {
@@ -199,6 +119,60 @@ final class MetadataDefinitionTest extends TestCase
         );
     }
 
+    #[Test]
+    public function documents_serialize_an_empty_tabular_section_collection(): void
+    {
+        $metadata = new MetadataDefinition(
+            id: 'document-id',
+            name: '_document1',
+            code: 1,
+            kind: MetadataKind::Document,
+            label: 'Документ',
+            title: 'Документ',
+            system: [],
+            properties: [],
+        );
+        $result = json_decode(json_encode($metadata, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertIsArray($result);
+        $this->assertSame([], $result['sections'] ?? null);
+    }
+
+    #[Test]
+    public function enumerations_serialize_their_values(): void
+    {
+        $metadata = new MetadataDefinition(
+            id: 'enumeration-id',
+            name: '_enum1',
+            code: 1,
+            kind: MetadataKind::Enumeration,
+            label: 'ТипыСчетов',
+            title: 'Типы счетов',
+            system: [],
+            properties: [],
+            values: [
+                new EnumerationValue(
+                    id: 'value-id',
+                    label: 'Расчетный',
+                    title: 'Расчетный',
+                ),
+            ],
+        );
+        $result = json_decode(json_encode($metadata, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertIsArray($result);
+        $this->assertSame(
+            [
+                [
+                    'id' => 'value-id',
+                    'label' => 'Расчетный',
+                    'title' => 'Расчетный',
+                ],
+            ],
+            $result['values'] ?? null,
+        );
+    }
+
     /**
      * @param  list<int>  $identityPath
      * @param  list<int>  $propertyRoots
@@ -215,6 +189,32 @@ final class MetadataDefinitionTest extends TestCase
         $this->assertSame($token, $kind->storageToken());
         $this->assertSame($identityPath, $kind->identityPath());
         $this->assertSame($propertyRoots, $kind->propertyRoots());
+    }
+
+    /** @return iterable<string, array{MetadataKind, string, list<int>, list<int>}> */
+    public static function metadataKindStorage(): iterable
+    {
+        yield 'reference' => [MetadataKind::Reference, 'Reference', [2, 10, 2], [7]];
+        yield 'document' => [MetadataKind::Document, 'Document', [2, 10, 2], [6]];
+        yield 'enumeration' => [MetadataKind::Enumeration, 'Enum', [2, 6, 2], []];
+        yield 'accumulation register' => [
+            MetadataKind::AccumulationRegister,
+            'AccumRg',
+            [2, 14, 2],
+            [6, 7, 8],
+        ];
+        yield 'information register' => [
+            MetadataKind::InformationRegister,
+            'InfoRg',
+            [2, 16, 2],
+            [4, 5, 8],
+        ];
+        yield 'tabular section' => [
+            MetadataKind::Section,
+            'VT',
+            [1, 2, 6, 2],
+            [3],
+        ];
     }
 
     #[Test]

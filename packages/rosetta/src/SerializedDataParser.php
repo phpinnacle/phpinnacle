@@ -33,47 +33,6 @@ final class SerializedDataParser
         return $result;
     }
 
-    private function error(string $message): RuntimeException
-    {
-        return new RuntimeException(sprintf('%s at byte %d', $message, $this->offset));
-    }
-
-    private function expect(string $char): void
-    {
-        if ($this->peek() !== $char) {
-            throw $this->error(sprintf('Expected "%s"', $char));
-        }
-
-        $this->offset++;
-    }
-
-    private function parseBareValue(): string|int|float|null
-    {
-        $start = $this->offset;
-
-        while ($this->offset < $this->length) {
-            $char = $this->input[$this->offset];
-
-            if ($char === ',' || $char === '}') {
-                break;
-            }
-
-            $this->offset++;
-        }
-
-        $value = trim(substr($this->input, $start, $this->offset - $start));
-
-        if ($value === '') {
-            return null;
-        }
-
-        if (preg_match('/^-?\d+$/D', $value) === 1) {
-            return (int) $value;
-        }
-
-        return is_numeric($value) ? (float) $value : $value;
-    }
-
     /** @return list<mixed> */
     private function parseObject(): array
     {
@@ -107,6 +66,17 @@ final class SerializedDataParser
         }
     }
 
+    /** @return array<mixed>|string|int|float|null */
+    private function parseValue(): array|string|int|float|null
+    {
+        return match ($this->peek()) {
+            '{' => $this->parseObject(),
+            '"' => $this->parseString(),
+            null => throw $this->error('Unexpected end of input'),
+            default => $this->parseBareValue(),
+        };
+    }
+
     private function parseString(): string
     {
         $this->expect('"');
@@ -135,20 +105,31 @@ final class SerializedDataParser
         throw $this->error('Unterminated string');
     }
 
-    /** @return array<mixed>|string|int|float|null */
-    private function parseValue(): array|string|int|float|null
+    private function parseBareValue(): string|int|float|null
     {
-        return match ($this->peek()) {
-            '{' => $this->parseObject(),
-            '"' => $this->parseString(),
-            null => throw $this->error('Unexpected end of input'),
-            default => $this->parseBareValue(),
-        };
-    }
+        $start = $this->offset;
 
-    private function peek(): ?string
-    {
-        return $this->offset < $this->length ? $this->input[$this->offset] : null;
+        while ($this->offset < $this->length) {
+            $char = $this->input[$this->offset];
+
+            if ($char === ',' || $char === '}') {
+                break;
+            }
+
+            $this->offset++;
+        }
+
+        $value = trim(substr($this->input, $start, $this->offset - $start));
+
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^-?\d+$/D', $value) === 1) {
+            return (int) $value;
+        }
+
+        return is_numeric($value) ? (float) $value : $value;
     }
 
     private function skipWhitespace(): void
@@ -156,5 +137,24 @@ final class SerializedDataParser
         while ($this->offset < $this->length && str_contains(" \t\r\n", $this->input[$this->offset])) {
             $this->offset++;
         }
+    }
+
+    private function expect(string $char): void
+    {
+        if ($this->peek() !== $char) {
+            throw $this->error(sprintf('Expected "%s"', $char));
+        }
+
+        $this->offset++;
+    }
+
+    private function peek(): ?string
+    {
+        return $this->offset < $this->length ? $this->input[$this->offset] : null;
+    }
+
+    private function error(string $message): RuntimeException
+    {
+        return new RuntimeException(sprintf('%s at byte %d', $message, $this->offset));
     }
 }

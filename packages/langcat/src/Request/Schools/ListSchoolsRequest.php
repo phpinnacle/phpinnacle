@@ -41,17 +41,6 @@ final class ListSchoolsRequest
         return $this;
     }
 
-    public function schoolId(int $schoolId): self
-    {
-        if ($schoolId < 1) {
-            throw new InvalidArgumentException('School ID must be positive.');
-        }
-
-        $this->schoolId = $schoolId;
-
-        return $this;
-    }
-
     public function sortBy(string $sortBy): self
     {
         if (!in_array($sortBy, ['+id', '-id', '+name', '-name'], true)) {
@@ -59,6 +48,17 @@ final class ListSchoolsRequest
         }
 
         $this->sortBy = $sortBy;
+
+        return $this;
+    }
+
+    public function schoolId(int $schoolId): self
+    {
+        if ($schoolId < 1) {
+            throw new InvalidArgumentException('School ID must be positive.');
+        }
+
+        $this->schoolId = $schoolId;
 
         return $this;
     }

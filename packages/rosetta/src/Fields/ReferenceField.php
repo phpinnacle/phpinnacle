@@ -11,13 +11,9 @@ final readonly class ReferenceField implements Field
         public string $target,
     ) {}
 
-    /** @return array{type: string, target: string} */
-    public function jsonSerialize(): array
+    public function type(): FieldType
     {
-        return [
-            'type' => $this->type()->value,
-            'target' => $this->target,
-        ];
+        return FieldType::Reference;
     }
 
     public function targets(): array
@@ -25,8 +21,12 @@ final readonly class ReferenceField implements Field
         return [$this->target];
     }
 
-    public function type(): FieldType
+    /** @return array{type: string, target: string} */
+    public function jsonSerialize(): array
     {
-        return FieldType::Reference;
+        return [
+            'type' => $this->type()->value,
+            'target' => $this->target,
+        ];
     }
 }

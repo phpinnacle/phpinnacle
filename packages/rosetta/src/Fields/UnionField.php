@@ -12,13 +12,9 @@ final readonly class UnionField implements Field
         public array $variants,
     ) {}
 
-    /** @return array{type: string, variants: non-empty-list<Field>} */
-    public function jsonSerialize(): array
+    public function type(): FieldType
     {
-        return [
-            'type' => $this->type()->value,
-            'variants' => $this->variants,
-        ];
+        return FieldType::Union;
     }
 
     public function targets(): array
@@ -29,8 +25,12 @@ final readonly class UnionField implements Field
         ))));
     }
 
-    public function type(): FieldType
+    /** @return array{type: string, variants: non-empty-list<Field>} */
+    public function jsonSerialize(): array
     {
-        return FieldType::Union;
+        return [
+            'type' => $this->type()->value,
+            'variants' => $this->variants,
+        ];
     }
 }

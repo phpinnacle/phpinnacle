@@ -15,6 +15,11 @@ class SettingsPlugin implements Plugin
 
     private array $definitions = [];
 
+    public static function make(): static
+    {
+        return app(static::class);
+    }
+
     public static function get(): static
     {
         // @mago-expect lint:inline-variable-return
@@ -24,12 +29,10 @@ class SettingsPlugin implements Plugin
         return $plugin;
     }
 
-    public static function make(): static
+    public function getId(): string
     {
-        return app(static::class);
+        return 'phpinnacle/settings';
     }
-
-    public function boot(Panel $panel): void {}
 
     public function definitions(Definition|Closure|string ...$definitions): static
     {
@@ -41,10 +44,14 @@ class SettingsPlugin implements Plugin
         return $this;
     }
 
-    public function getId(): string
+    public function register(Panel $panel): void
     {
-        return 'phpinnacle/settings';
+        $panel->pages([
+            SettingsPage::class,
+        ]);
     }
+
+    public function boot(Panel $panel): void {}
 
     public function load(DefinitionRegistry $registry): void
     {
@@ -56,12 +63,5 @@ class SettingsPlugin implements Plugin
 
             $registry->register(...array_values($definitions));
         }
-    }
-
-    public function register(Panel $panel): void
-    {
-        $panel->pages([
-            SettingsPage::class,
-        ]);
     }
 }

@@ -41,28 +41,6 @@ class Ancestors extends Relation
         });
     }
 
-    public function getRelationExistenceQuery(Builder $query, Builder $parentQuery, $columns = ['*']): Builder
-    {
-        return $query
-            ->select($columns)
-            ->from($query->getModel()->getTable(), 'ancestors')
-            ->whereColumn(
-                "ancestors.{$this->related->getPathColumn()}",
-                '@>',
-                $this->related->qualifyColumn($this->related->getPathColumn()),
-            )
-            ->whereColumn(
-                "ancestors.{$this->related->getKeyName()}",
-                '!=',
-                $this->related->getQualifiedKeyName(),
-            );
-    }
-
-    public function getResults(): Collection
-    {
-        return $this->related->isRoot() ? $this->query->get() : $this->related->newCollection();
-    }
-
     public function initRelation(array $models, $relation): array
     {
         foreach ($models as $model) {
@@ -83,5 +61,27 @@ class Ancestors extends Relation
         }
 
         return $models;
+    }
+
+    public function getResults(): Collection
+    {
+        return $this->related->isRoot() ? $this->query->get() : $this->related->newCollection();
+    }
+
+    public function getRelationExistenceQuery(Builder $query, Builder $parentQuery, $columns = ['*']): Builder
+    {
+        return $query
+            ->select($columns)
+            ->from($query->getModel()->getTable(), 'ancestors')
+            ->whereColumn(
+                "ancestors.{$this->related->getPathColumn()}",
+                '@>',
+                $this->related->qualifyColumn($this->related->getPathColumn()),
+            )
+            ->whereColumn(
+                "ancestors.{$this->related->getKeyName()}",
+                '!=',
+                $this->related->getQualifiedKeyName(),
+            );
     }
 }

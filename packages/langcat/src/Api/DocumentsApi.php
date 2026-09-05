@@ -14,20 +14,20 @@ final readonly class DocumentsApi
         private Transport $transport,
     ) {}
 
-    public function template(int $templateId): DocumentTemplateResponse
-    {
-        return DocumentTemplateResponse::fromArray($this->transport->send(
-            'GET',
-            ResourcePath::id('documents/templates', $templateId),
-        ));
-    }
-
     public function templates(?ListDocumentTemplatesRequest $request = null): DocumentTemplatesResponse
     {
         return DocumentTemplatesResponse::fromArray($this->transport->send(
             'GET',
             '/documents/templates',
             $request?->toQuery() ?? [],
+        ));
+    }
+
+    public function template(int $templateId): DocumentTemplateResponse
+    {
+        return DocumentTemplateResponse::fromArray($this->transport->send(
+            'GET',
+            ResourcePath::id('documents/templates', $templateId),
         ));
     }
 }

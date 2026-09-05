@@ -25,11 +25,6 @@ final readonly class AuthorizationApi
         ));
     }
 
-    public function me(): MeResponse
-    {
-        return MeResponse::fromArray($this->transport->send('GET', '/me'));
-    }
-
     public function refreshToken(RefreshTokenRequest $request): TokenResponse
     {
         return TokenResponse::fromArray($this->transport->send(
@@ -38,5 +33,10 @@ final readonly class AuthorizationApi
             body: $request->toArray(),
             mode: TransportMode::AnonymousForm,
         ));
+    }
+
+    public function me(): MeResponse
+    {
+        return MeResponse::fromArray($this->transport->send('GET', '/me'));
     }
 }

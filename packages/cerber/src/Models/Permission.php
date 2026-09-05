@@ -39,19 +39,6 @@ class Permission extends Model
         'is_active',
     ];
 
-    public static function filter(mixed $value, bool $register = false): ?self
-    {
-        if ($value instanceof self) {
-            return $value;
-        }
-
-        if (Str::isUuid($value)) {
-            return self::findById($value);
-        }
-
-        return is_string($value) ? self::findByName($value) ?? ($register ? self::register($value) : null) : null;
-    }
-
     public static function findById(string $id): ?self
     {
         return self::query()->find($id);
@@ -68,6 +55,19 @@ class Permission extends Model
             ->firstOrCreate([
                 'name' => $name,
             ]);
+    }
+
+    public static function filter(mixed $value, bool $register = false): ?self
+    {
+        if ($value instanceof self) {
+            return $value;
+        }
+
+        if (Str::isUuid($value)) {
+            return self::findById($value);
+        }
+
+        return is_string($value) ? self::findByName($value) ?? ($register ? self::register($value) : null) : null;
     }
 
     public function roles(): BelongsToMany

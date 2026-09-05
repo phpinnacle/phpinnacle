@@ -13,9 +13,9 @@ class RoleResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    public static function form(Schema $schema): Schema
+    public static function getNavigationLabel(): string
     {
-        return Schemas\RoleForm::configure($schema);
+        return __('phpinnacle-cerber::resources.role.label');
     }
 
     public static function getNavigationGroup(): string
@@ -28,14 +28,19 @@ class RoleResource extends Resource
         return config('phpinnacle-cerber.navigation.role.icon');
     }
 
-    public static function getNavigationLabel(): string
-    {
-        return __('phpinnacle-cerber::resources.role.label');
-    }
-
     public static function getNavigationSort(): ?int
     {
         return config('phpinnacle-cerber.navigation.role.sort');
+    }
+
+    public static function form(Schema $schema): Schema
+    {
+        return Schemas\RoleForm::configure($schema);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return Tables\RoleTable::configure($table);
     }
 
     public static function getPages(): array
@@ -45,10 +50,5 @@ class RoleResource extends Resource
             'create' => Pages\CreateRole::route('/create'),
             'edit' => Pages\EditRole::route('/{record}/edit'),
         ];
-    }
-
-    public static function table(Table $table): Table
-    {
-        return Tables\RoleTable::configure($table);
     }
 }

@@ -35,9 +35,40 @@ class Section implements HasLabel
         return new self(Str::slug($label), $label);
     }
 
+    public function key(string $value): self
+    {
+        $this->key = $value;
+
+        return $this;
+    }
+
     public function blocks(array $blocks): self
     {
         $this->blocks = [...$this->blocks, ...$blocks];
+
+        return $this;
+    }
+
+    public function variables(array $value): self
+    {
+        foreach ($value as $key => $item) {
+            $this->variables[$key] = $item;
+        }
+
+        return $this;
+    }
+
+    public function render(Closure $renderer): self
+    {
+        $this->renderAction = $renderer;
+
+        return $this;
+    }
+
+    public function preview(Closure $action, Closure|array $schema): self
+    {
+        $this->previewAction = $action;
+        $this->previewForm = $schema;
 
         return $this;
     }
@@ -49,17 +80,9 @@ class Section implements HasLabel
         return $this;
     }
 
-    public function getDocument(Model $record, array $data): Document
+    public function hasPreviewAction(): bool
     {
-        return $this->evaluate($this->renderAction, [
-            'record' => $record,
-            'data' => $data,
-        ]);
-    }
-
-    public function getLabel(): ?string
-    {
-        return $this->label;
+        return $this->previewAction !== null;
     }
 
     public function getPreviewData(array $data): array
@@ -91,39 +114,16 @@ class Section implements HasLabel
         ]);
     }
 
-    public function hasPreviewAction(): bool
+    public function getDocument(Model $record, array $data): Document
     {
-        return $this->previewAction !== null;
+        return $this->evaluate($this->renderAction, [
+            'record' => $record,
+            'data' => $data,
+        ]);
     }
 
-    public function key(string $value): self
+    public function getLabel(): ?string
     {
-        $this->key = $value;
-
-        return $this;
-    }
-
-    public function preview(Closure $action, Closure|array $schema): self
-    {
-        $this->previewAction = $action;
-        $this->previewForm = $schema;
-
-        return $this;
-    }
-
-    public function render(Closure $renderer): self
-    {
-        $this->renderAction = $renderer;
-
-        return $this;
-    }
-
-    public function variables(array $value): self
-    {
-        foreach ($value as $key => $item) {
-            $this->variables[$key] = $item;
-        }
-
-        return $this;
+        return $this->label;
     }
 }

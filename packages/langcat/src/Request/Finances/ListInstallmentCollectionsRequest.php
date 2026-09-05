@@ -13,11 +13,6 @@ final class ListInstallmentCollectionsRequest
         return new self;
     }
 
-    public function schoolId(int $value): self
-    {
-        return $this->set('schoolId', RequestValue::positive($value, 'School ID'));
-    }
-
     public function sortBy(string $value): self
     {
         return $this->sort($value, [
@@ -30,5 +25,10 @@ final class ListInstallmentCollectionsRequest
             '+createdAt',
             '-createdAt',
         ]);
+    }
+
+    public function schoolId(int $value): self
+    {
+        return $this->set('schoolId', RequestValue::positive($value, 'School ID'));
     }
 }

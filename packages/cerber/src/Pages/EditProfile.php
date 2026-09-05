@@ -26,6 +26,11 @@ class EditProfile extends BasePage
 {
     protected static bool $shouldRegisterNavigation = false;
 
+    public static function isSimple(): bool
+    {
+        return false;
+    }
+
     public static function getRouteName(?Panel $panel = null): string
     {
         $panel ??= Filament::getCurrentOrDefaultPanel();
@@ -33,9 +38,9 @@ class EditProfile extends BasePage
         return sprintf('filament.%s.profile', $panel?->getId() ?? 'default');
     }
 
-    public static function isSimple(): bool
+    public function form(Schema $schema): Schema
     {
-        return false;
+        return CerberPlugin::get()->doModifyProfileForm($schema, $this);
     }
 
     public function content(Schema $schema): Schema
@@ -59,19 +64,38 @@ class EditProfile extends BasePage
         return $schema->components($components);
     }
 
-    public function form(Schema $schema): Schema
+    public function getProfileContentComponent(): ?Component
     {
-        return CerberPlugin::get()->doModifyProfileForm($schema, $this);
+        return Section::make()
+            ->heading(__('phpinnacle-cerber::pages.profile.sections.general'))
+            ->description(__('phpinnacle-cerber::pages.profile.descriptions.general'))
+            ->aside()
+            ->schema([
+                Flex::make([])
+                    ->schema([
+                        $this->getAvatarFormComponent(),
+                        Group::make()
+                            ->schema([
+                                $this->getNameFormComponent()
+                                    ->inlineLabel(false),
+                                $this->getEmailFormComponent()
+                                    ->inlineLabel(false),
+                            ]),
+                    ]),
+            ]);
     }
 
-    public function getAvatarFormComponent(): FileUpload
+    public function getPasswordContentComponent(): ?Component
     {
-        return AvatarUpload::make('avatar');
-    }
-
-    public function getFormActionsAlignment(): string|Alignment
-    {
-        return Alignment::End;
+        return Section::make()
+            ->heading(__('phpinnacle-cerber::pages.profile.sections.password'))
+            ->description(__('phpinnacle-cerber::pages.profile.descriptions.password'))
+            ->aside()
+            ->schema([
+                $this->getPasswordFormComponent(),
+                $this->getPasswordConfirmationFormComponent(),
+                $this->getCurrentPasswordFormComponent(),
+            ]);
     }
 
     public function getMultiFactorAuthenticationContentComponent(): ?Component
@@ -88,6 +112,11 @@ class EditProfile extends BasePage
             ->description(__('phpinnacle-cerber::pages.profile.descriptions.two_factor'))
             ->secondary(false)
             ->label('');
+    }
+
+    public function getAvatarFormComponent(): FileUpload
+    {
+        return AvatarUpload::make('avatar');
     }
 
     public function getOAuthAccountsComponent(): ?Component
@@ -124,38 +153,9 @@ class EditProfile extends BasePage
             ->aside();
     }
 
-    public function getPasswordContentComponent(): ?Component
+    public function getFormActionsAlignment(): string|Alignment
     {
-        return Section::make()
-            ->heading(__('phpinnacle-cerber::pages.profile.sections.password'))
-            ->description(__('phpinnacle-cerber::pages.profile.descriptions.password'))
-            ->aside()
-            ->schema([
-                $this->getPasswordFormComponent(),
-                $this->getPasswordConfirmationFormComponent(),
-                $this->getCurrentPasswordFormComponent(),
-            ]);
-    }
-
-    public function getProfileContentComponent(): ?Component
-    {
-        return Section::make()
-            ->heading(__('phpinnacle-cerber::pages.profile.sections.general'))
-            ->description(__('phpinnacle-cerber::pages.profile.descriptions.general'))
-            ->aside()
-            ->schema([
-                Flex::make([])
-                    ->schema([
-                        $this->getAvatarFormComponent(),
-                        Group::make()
-                            ->schema([
-                                $this->getNameFormComponent()
-                                    ->inlineLabel(false),
-                                $this->getEmailFormComponent()
-                                    ->inlineLabel(false),
-                            ]),
-                    ]),
-            ]);
+        return Alignment::End;
     }
 
     private function oauthActions(ProviderRegistry $registry, Provider $provider, bool $linked): array

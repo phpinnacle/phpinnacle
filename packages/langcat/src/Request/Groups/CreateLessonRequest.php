@@ -17,14 +17,9 @@ final class CreateLessonRequest
         return new self;
     }
 
-    public function breakLength(int $minutes): self
+    public function settingId(int $id): self
     {
-        return $this->set('breakLength', RequestValue::nonNegative($minutes, 'Break length'));
-    }
-
-    public function classroomId(int $id): self
-    {
-        return $this->set('classroomId', RequestValue::positive($id, 'Classroom ID'));
+        return $this->set('settingId', RequestValue::positive($id, 'Setting ID'));
     }
 
     public function date(string $date): self
@@ -32,9 +27,32 @@ final class CreateLessonRequest
         return $this->set('date', RequestValue::date($date, 'Lesson date', false));
     }
 
+    public function startTime(string $time): self
+    {
+        return $this->set('startTime', RequestValue::time($time, 'Lesson start time'));
+    }
+
     public function lessonLength(int $minutes): self
     {
         return $this->set('lessonLength', RequestValue::positive($minutes, 'Lesson length'));
+    }
+
+    public function teachers(LessonTeacherRequest ...$teachers): self
+    {
+        return $this->set('teachers', array_map(
+            static fn (LessonTeacherRequest $teacher) => $teacher->toArray(),
+            $teachers,
+        ));
+    }
+
+    public function classroomId(int $id): self
+    {
+        return $this->set('classroomId', RequestValue::positive($id, 'Classroom ID'));
+    }
+
+    public function breakLength(int $minutes): self
+    {
+        return $this->set('breakLength', RequestValue::nonNegative($minutes, 'Break length'));
     }
 
     public function online(bool $enabled = true): self
@@ -54,24 +72,6 @@ final class CreateLessonRequest
         }
 
         return $this->set('onlineLessonProviderUrl', $url);
-    }
-
-    public function settingId(int $id): self
-    {
-        return $this->set('settingId', RequestValue::positive($id, 'Setting ID'));
-    }
-
-    public function startTime(string $time): self
-    {
-        return $this->set('startTime', RequestValue::time($time, 'Lesson start time'));
-    }
-
-    public function teachers(LessonTeacherRequest ...$teachers): self
-    {
-        return $this->set('teachers', array_map(
-            static fn (LessonTeacherRequest $teacher) => $teacher->toArray(),
-            $teachers,
-        ));
     }
 
     /** @return array<string, mixed> */

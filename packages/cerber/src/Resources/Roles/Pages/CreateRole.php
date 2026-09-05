@@ -22,17 +22,17 @@ class CreateRole extends CreateRecord
         return __('phpinnacle-cerber::resources.role.pages.create');
     }
 
-    protected function afterSave(): void
-    {
-        $this->record->grant(...$this->permissions);
-
-        $this->permissions = [];
-    }
-
     protected function mutateFormDataBeforeSave(array $data): array
     {
         $this->permissions = Arr::flatten($data['permissions'] ?? []);
 
         return Arr::except($data, 'permissions');
+    }
+
+    protected function afterSave(): void
+    {
+        $this->record->grant(...$this->permissions);
+
+        $this->permissions = [];
     }
 }

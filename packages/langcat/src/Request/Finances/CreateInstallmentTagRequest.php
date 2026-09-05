@@ -23,18 +23,6 @@ final class CreateInstallmentTagRequest
         return $this;
     }
 
-    /** @return array<string, bool|string> */
-    public function toArray(): array
-    {
-        foreach (['name', 'type'] as $field) {
-            if (!array_key_exists($field, $this->data)) {
-                throw new LogicException("Installment tag field [{$field}] is required.");
-            }
-        }
-
-        return $this->data;
-    }
-
     public function type(InstallmentTagType $value): self
     {
         $this->data['type'] = $value->value;
@@ -47,5 +35,17 @@ final class CreateInstallmentTagRequest
         $this->data['visibleToStudent'] = $value;
 
         return $this;
+    }
+
+    /** @return array<string, bool|string> */
+    public function toArray(): array
+    {
+        foreach (['name', 'type'] as $field) {
+            if (!array_key_exists($field, $this->data)) {
+                throw new LogicException("Installment tag field [{$field}] is required.");
+            }
+        }
+
+        return $this->data;
     }
 }

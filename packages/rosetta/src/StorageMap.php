@@ -68,23 +68,11 @@ final class StorageMap
         return $this->entries[strtolower($uuid)][$token] ?? null;
     }
 
-    /** @return array<string, int> */
-    public function entries(string $uuid): array
-    {
-        return $this->entries[strtolower($uuid)] ?? [];
-    }
-
     public function name(string $uuid, #[\SensitiveParameter] string $token): ?string
     {
         $code = $this->code($uuid, $token);
 
         return $code === null ? null : sprintf('_%s%d', $token, $code);
-    }
-
-    /** @return array<string, array<string, int>> */
-    public function toArray(): array
-    {
-        return $this->entries;
     }
 
     public function uuid(#[\SensitiveParameter] string $token, int $code): ?string
@@ -99,6 +87,18 @@ final class StorageMap
         ksort($uuids, SORT_NUMERIC);
 
         return $uuids;
+    }
+
+    /** @return array<string, int> */
+    public function entries(string $uuid): array
+    {
+        return $this->entries[strtolower($uuid)] ?? [];
+    }
+
+    /** @return array<string, array<string, int>> */
+    public function toArray(): array
+    {
+        return $this->entries;
     }
 
     private function add(string $uuid, #[\SensitiveParameter] string $token, int $code): void

@@ -26,16 +26,16 @@ class MediaGallery extends Repeater
         return 'gallery';
     }
 
-    public function directory(string $value): self
+    public function disk(string $value): self
     {
-        $this->directory = $value;
+        $this->disk = $value;
 
         return $this;
     }
 
-    public function disk(string $value): self
+    public function directory(string $value): self
     {
-        $this->disk = $value;
+        $this->directory = $value;
 
         return $this;
     }

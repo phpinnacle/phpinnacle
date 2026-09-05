@@ -42,14 +42,27 @@ final class Client
         );
     }
 
-    public function administrators(): AdministratorsApi
+    public function withAccessToken(#[\SensitiveParameter] string $accessToken): self
     {
-        return new AdministratorsApi($this->transport);
+        $client = clone $this;
+        $client->transport = $this->transport->withAccessToken($accessToken);
+
+        return $client;
     }
 
     public function authorization(): AuthorizationApi
     {
         return new AuthorizationApi($this->transport);
+    }
+
+    public function students(): StudentsApi
+    {
+        return new StudentsApi($this->transport);
+    }
+
+    public function administrators(): AdministratorsApi
+    {
+        return new AdministratorsApi($this->transport);
     }
 
     public function classrooms(): ClassroomsApi
@@ -62,39 +75,9 @@ final class Client
         return new CompaniesApi($this->transport);
     }
 
-    public function documents(): DocumentsApi
-    {
-        return new DocumentsApi($this->transport);
-    }
-
-    public function events(): EventsApi
-    {
-        return new EventsApi($this->transport);
-    }
-
-    public function finances(): FinancesApi
-    {
-        return new FinancesApi($this->transport);
-    }
-
-    public function groups(): GroupsApi
-    {
-        return new GroupsApi($this->transport);
-    }
-
-    public function groupSettings(): GroupSettingsApi
-    {
-        return new GroupSettingsApi($this->transport);
-    }
-
     public function schools(): SchoolsApi
     {
         return new SchoolsApi($this->transport);
-    }
-
-    public function students(): StudentsApi
-    {
-        return new StudentsApi($this->transport);
     }
 
     public function teachers(): TeachersApi
@@ -107,16 +90,33 @@ final class Client
         return new UsersApi($this->transport);
     }
 
+    public function documents(): DocumentsApi
+    {
+        return new DocumentsApi($this->transport);
+    }
+
+    public function events(): EventsApi
+    {
+        return new EventsApi($this->transport);
+    }
+
     public function webhooks(): WebhooksApi
     {
         return new WebhooksApi($this->transport);
     }
 
-    public function withAccessToken(#[\SensitiveParameter] string $accessToken): self
+    public function groups(): GroupsApi
     {
-        $client = clone $this;
-        $client->transport = $this->transport->withAccessToken($accessToken);
+        return new GroupsApi($this->transport);
+    }
 
-        return $client;
+    public function groupSettings(): GroupSettingsApi
+    {
+        return new GroupSettingsApi($this->transport);
+    }
+
+    public function finances(): FinancesApi
+    {
+        return new FinancesApi($this->transport);
     }
 }

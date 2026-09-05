@@ -12,6 +12,16 @@ final readonly class StringField implements Field
         public bool $fixed,
     ) {}
 
+    public function type(): FieldType
+    {
+        return FieldType::String;
+    }
+
+    public function targets(): array
+    {
+        return [];
+    }
+
     /** @return array<string, int|bool|string> */
     public function jsonSerialize(): array
     {
@@ -20,15 +30,5 @@ final readonly class StringField implements Field
             ...($this->length !== null ? ['length' => $this->length] : []),
             'fixed' => $this->fixed,
         ];
-    }
-
-    public function targets(): array
-    {
-        return [];
-    }
-
-    public function type(): FieldType
-    {
-        return FieldType::String;
     }
 }

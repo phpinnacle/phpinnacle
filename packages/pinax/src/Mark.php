@@ -25,9 +25,16 @@ class Mark
         );
     }
 
-    public function color(string $value): self
+    public function label(string $value): self
     {
-        $this->color = $value;
+        $this->label = $value;
+
+        return $this;
+    }
+
+    public function unique(bool $value = true): self
+    {
+        $this->unique = $value;
 
         return $this;
     }
@@ -39,16 +46,18 @@ class Mark
         return $this;
     }
 
-    public function exists(array $state, string $key = self::STATE_KEY): bool
+    public function icon(string $value): self
     {
-        return array_any($state, fn ($item) => in_array($this->key, $item[$key] ?? [], strict: true));
+        $this->icon = $value;
+
+        return $this;
     }
 
-    public function getColor(array $state, string $key = self::STATE_KEY): string
+    public function color(string $value): self
     {
-        return in_array($this->key, $state[$key] ?? [], strict: true)
-            ? $this->color
-            : 'gray';
+        $this->color = $value;
+
+        return $this;
     }
 
     public function getIcon(array $state, string $key = self::STATE_KEY): string
@@ -58,18 +67,16 @@ class Mark
             : $this->icon;
     }
 
-    public function icon(string $value): self
+    public function getColor(array $state, string $key = self::STATE_KEY): string
     {
-        $this->icon = $value;
-
-        return $this;
+        return in_array($this->key, $state[$key] ?? [], strict: true)
+            ? $this->color
+            : 'gray';
     }
 
-    public function label(string $value): self
+    public function exists(array $state, string $key = self::STATE_KEY): bool
     {
-        $this->label = $value;
-
-        return $this;
+        return array_any($state, fn ($item) => in_array($this->key, $item[$key] ?? [], strict: true));
     }
 
     public function toggle(string $index, array $state): array
@@ -92,12 +99,5 @@ class Mark
         }
 
         return $state;
-    }
-
-    public function unique(bool $value = true): self
-    {
-        $this->unique = $value;
-
-        return $this;
     }
 }

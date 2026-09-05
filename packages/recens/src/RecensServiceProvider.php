@@ -10,6 +10,13 @@ class RecensServiceProvider extends PackageServiceProvider
 {
     public static string $name = 'phpinnacle-recens';
 
+    public function packageRegistered(): void
+    {
+        $this->callAfterResolving(Recorder::class, function (Recorder $recorder) {
+            RecensPlugin::get()->load($recorder);
+        });
+    }
+
     public function configurePackage(Package $package): void
     {
         $package
@@ -25,12 +32,5 @@ class RecensServiceProvider extends PackageServiceProvider
                     ->askToRunMigrations()
                     ->askToStarRepoOnGitHub('phpinnacle/recens');
             });
-    }
-
-    public function packageRegistered(): void
-    {
-        $this->callAfterResolving(Recorder::class, function (Recorder $recorder) {
-            RecensPlugin::get()->load($recorder);
-        });
     }
 }

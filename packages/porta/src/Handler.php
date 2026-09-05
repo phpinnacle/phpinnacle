@@ -22,9 +22,9 @@ class Handler implements Contract
         }
     }
 
-    public function getExample(): ?string
+    public function getType(): string
     {
-        return $this->evaluate($this->example);
+        return $this->type;
     }
 
     public function getLabel(): string
@@ -32,9 +32,9 @@ class Handler implements Contract
         return $this->label;
     }
 
-    public function getType(): string
+    public function getExample(): ?string
     {
-        return $this->type;
+        return $this->evaluate($this->example);
     }
 
     public function process(array $payload): void

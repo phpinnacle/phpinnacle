@@ -32,12 +32,41 @@ final readonly class FinancesApi
         private Transport $transport,
     ) {}
 
-    public function collectionInstallment(int $collectionId, int $installmentId): InstallmentResponse
+    public function installmentCollections(?ListInstallmentCollectionsRequest $request = null): InstallmentCollectionsResponse
     {
-        return InstallmentResponse::fromArray($this->transport->send('GET', $this->collectionItemPath(
-            $collectionId,
-            $installmentId,
-        )));
+        return InstallmentCollectionsResponse::fromArray($this->transport->send(
+            'GET',
+            self::ROOT . '/collections',
+            $request?->toQuery() ?? [],
+        ));
+    }
+
+    public function installmentCollection(int $id): InstallmentCollectionResponse
+    {
+        return InstallmentCollectionResponse::fromArray($this->transport->send('GET', $this->collectionPath($id)));
+    }
+
+    public function createInstallmentCollection(CreateInstallmentCollectionRequest $request): IdResponse
+    {
+        return IdResponse::fromArray($this->transport->send(
+            'POST',
+            self::ROOT . '/collections',
+            body: $request->toArray(),
+        ));
+    }
+
+    public function updateInstallmentCollection(int $id, UpdateInstallmentCollectionRequest $request): IdResponse
+    {
+        return IdResponse::fromArray($this->transport->send(
+            'PATCH',
+            $this->collectionPath($id),
+            body: $request->toArray(),
+        ));
+    }
+
+    public function deleteInstallmentCollection(int $id): IdResponse
+    {
+        return IdResponse::fromArray($this->transport->send('DELETE', $this->collectionPath($id)));
     }
 
     public function collectionInstallments(
@@ -51,100 +80,20 @@ final readonly class FinancesApi
         ));
     }
 
+    public function collectionInstallment(int $collectionId, int $installmentId): InstallmentResponse
+    {
+        return InstallmentResponse::fromArray($this->transport->send('GET', $this->collectionItemPath(
+            $collectionId,
+            $installmentId,
+        )));
+    }
+
     public function createCollectionInstallment(int $collectionId, CreateInstallmentRequest $request): IdResponse
     {
         return IdResponse::fromArray($this->transport->send(
             'POST',
             $this->collectionItemsPath($collectionId),
             body: $request->toArray(),
-        ));
-    }
-
-    public function createInstallmentCollection(CreateInstallmentCollectionRequest $request): IdResponse
-    {
-        return IdResponse::fromArray($this->transport->send(
-            'POST',
-            self::ROOT . '/collections',
-            body: $request->toArray(),
-        ));
-    }
-
-    public function createInstallmentTag(CreateInstallmentTagRequest $request): IdResponse
-    {
-        return IdResponse::fromArray($this->transport->send('POST', self::ROOT . '/tags', body: $request->toArray()));
-    }
-
-    public function createStudentInstallment(
-        int $groupId,
-        int $studentId,
-        WriteStudentInstallmentRequest $request,
-    ): IdResponse {
-        return IdResponse::fromArray($this->transport->send(
-            'POST',
-            $this->studentInstallmentsPath($groupId, $studentId),
-            body: $request->toArray(),
-        ));
-    }
-
-    public function deleteCollectionInstallment(int $collectionId, int $installmentId): IdResponse
-    {
-        return IdResponse::fromArray($this->transport->send('DELETE', $this->collectionItemPath(
-            $collectionId,
-            $installmentId,
-        )));
-    }
-
-    public function deleteInstallmentCollection(int $id): IdResponse
-    {
-        return IdResponse::fromArray($this->transport->send('DELETE', $this->collectionPath($id)));
-    }
-
-    public function installmentCollection(int $id): InstallmentCollectionResponse
-    {
-        return InstallmentCollectionResponse::fromArray($this->transport->send('GET', $this->collectionPath($id)));
-    }
-
-    public function installmentCollections(?ListInstallmentCollectionsRequest $request = null): InstallmentCollectionsResponse
-    {
-        return InstallmentCollectionsResponse::fromArray($this->transport->send(
-            'GET',
-            self::ROOT . '/collections',
-            $request?->toQuery() ?? [],
-        ));
-    }
-
-    public function installmentTag(int $id): InstallmentTagResponse
-    {
-        return InstallmentTagResponse::fromArray($this->transport->send('GET', $this->tagPath($id)));
-    }
-
-    public function installmentTags(?ListInstallmentTagsRequest $request = null): InstallmentTagsResponse
-    {
-        return InstallmentTagsResponse::fromArray($this->transport->send(
-            'GET',
-            self::ROOT . '/tags',
-            $request?->toQuery() ?? [],
-        ));
-    }
-
-    public function studentInstallment(int $groupId, int $studentId, int $installmentId): InstallmentResponse
-    {
-        return InstallmentResponse::fromArray($this->transport->send('GET', $this->studentInstallmentPath(
-            $groupId,
-            $studentId,
-            $installmentId,
-        )));
-    }
-
-    public function studentInstallments(
-        int $groupId,
-        int $studentId,
-        ?ListStudentInstallmentsRequest $request = null,
-    ): InstallmentsResponse {
-        return InstallmentsResponse::fromArray($this->transport->send(
-            'GET',
-            $this->studentInstallmentsPath($groupId, $studentId),
-            $request?->toQuery() ?? [],
         ));
     }
 
@@ -160,6 +109,14 @@ final readonly class FinancesApi
         ));
     }
 
+    public function deleteCollectionInstallment(int $collectionId, int $installmentId): IdResponse
+    {
+        return IdResponse::fromArray($this->transport->send('DELETE', $this->collectionItemPath(
+            $collectionId,
+            $installmentId,
+        )));
+    }
+
     public function updateCollectionInstallmentTags(
         int $collectionId,
         int $installmentId,
@@ -172,18 +129,61 @@ final readonly class FinancesApi
         ));
     }
 
-    public function updateInstallmentCollection(int $id, UpdateInstallmentCollectionRequest $request): IdResponse
+    public function installmentTags(?ListInstallmentTagsRequest $request = null): InstallmentTagsResponse
     {
-        return IdResponse::fromArray($this->transport->send(
-            'PATCH',
-            $this->collectionPath($id),
-            body: $request->toArray(),
+        return InstallmentTagsResponse::fromArray($this->transport->send(
+            'GET',
+            self::ROOT . '/tags',
+            $request?->toQuery() ?? [],
         ));
+    }
+
+    public function installmentTag(int $id): InstallmentTagResponse
+    {
+        return InstallmentTagResponse::fromArray($this->transport->send('GET', $this->tagPath($id)));
+    }
+
+    public function createInstallmentTag(CreateInstallmentTagRequest $request): IdResponse
+    {
+        return IdResponse::fromArray($this->transport->send('POST', self::ROOT . '/tags', body: $request->toArray()));
     }
 
     public function updateInstallmentTag(int $id, UpdateInstallmentTagRequest $request): IdResponse
     {
         return IdResponse::fromArray($this->transport->send('PATCH', $this->tagPath($id), body: $request->toArray()));
+    }
+
+    public function studentInstallments(
+        int $groupId,
+        int $studentId,
+        ?ListStudentInstallmentsRequest $request = null,
+    ): InstallmentsResponse {
+        return InstallmentsResponse::fromArray($this->transport->send(
+            'GET',
+            $this->studentInstallmentsPath($groupId, $studentId),
+            $request?->toQuery() ?? [],
+        ));
+    }
+
+    public function studentInstallment(int $groupId, int $studentId, int $installmentId): InstallmentResponse
+    {
+        return InstallmentResponse::fromArray($this->transport->send('GET', $this->studentInstallmentPath(
+            $groupId,
+            $studentId,
+            $installmentId,
+        )));
+    }
+
+    public function createStudentInstallment(
+        int $groupId,
+        int $studentId,
+        WriteStudentInstallmentRequest $request,
+    ): IdResponse {
+        return IdResponse::fromArray($this->transport->send(
+            'POST',
+            $this->studentInstallmentsPath($groupId, $studentId),
+            body: $request->toArray(),
+        ));
     }
 
     public function updateStudentInstallment(
@@ -212,9 +212,9 @@ final readonly class FinancesApi
         ));
     }
 
-    private function collectionItemPath(int $collectionId, int $installmentId): string
+    private function collectionPath(int $id): string
     {
-        return ResourcePath::id(ltrim($this->collectionItemsPath($collectionId), '/'), $installmentId);
+        return ResourcePath::id(ltrim(self::ROOT . '/collections', '/'), $id);
     }
 
     private function collectionItemsPath(int $collectionId): string
@@ -222,14 +222,14 @@ final readonly class FinancesApi
         return $this->collectionPath($collectionId) . '/items';
     }
 
-    private function collectionPath(int $id): string
+    private function collectionItemPath(int $collectionId, int $installmentId): string
     {
-        return ResourcePath::id(ltrim(self::ROOT . '/collections', '/'), $id);
+        return ResourcePath::id(ltrim($this->collectionItemsPath($collectionId), '/'), $installmentId);
     }
 
-    private function studentInstallmentPath(int $groupId, int $studentId, int $installmentId): string
+    private function tagPath(int $id): string
     {
-        return ResourcePath::id(ltrim($this->studentInstallmentsPath($groupId, $studentId), '/'), $installmentId);
+        return ResourcePath::id(ltrim(self::ROOT . '/tags', '/'), $id);
     }
 
     private function studentInstallmentsPath(int $groupId, int $studentId): string
@@ -240,8 +240,8 @@ final readonly class FinancesApi
         );
     }
 
-    private function tagPath(int $id): string
+    private function studentInstallmentPath(int $groupId, int $studentId, int $installmentId): string
     {
-        return ResourcePath::id(ltrim(self::ROOT . '/tags', '/'), $id);
+        return ResourcePath::id(ltrim($this->studentInstallmentsPath($groupId, $studentId), '/'), $installmentId);
     }
 }

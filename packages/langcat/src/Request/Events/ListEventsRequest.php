@@ -17,54 +17,9 @@ final class ListEventsRequest
         return new self;
     }
 
-    public function administratorId(int $id): self
-    {
-        return $this->positive('administratorId', $id);
-    }
-
-    public function companyId(int $id): self
-    {
-        return $this->positive('companyId', $id);
-    }
-
-    public function context(EventContext $context): self
-    {
-        return $this->set('context', $context->value);
-    }
-
-    public function date(string $date): self
-    {
-        return $this->setDate('date', $date);
-    }
-
-    public function dateAfter(string $date): self
-    {
-        return $this->setDate('date_gt', $date);
-    }
-
-    public function dateBefore(string $date): self
-    {
-        return $this->setDate('date_lt', $date);
-    }
-
-    public function dateOnOrAfter(string $date): self
-    {
-        return $this->setDate('date_ge', $date);
-    }
-
-    public function dateOnOrBefore(string $date): self
-    {
-        return $this->setDate('date_le', $date);
-    }
-
     public function page(int $page): self
     {
         return $this->positive('page', $page);
-    }
-
-    public function parentId(int $id): self
-    {
-        return $this->positive('parentId', $id);
     }
 
     public function perPage(int $perPage): self
@@ -85,14 +40,64 @@ final class ListEventsRequest
         return $this->set('sortBy', $sortBy);
     }
 
-    public function studentId(int $id): self
+    public function date(string $date): self
     {
-        return $this->positive('studentId', $id);
+        return $this->setDate('date', $date);
+    }
+
+    public function dateAfter(string $date): self
+    {
+        return $this->setDate('date_gt', $date);
+    }
+
+    public function dateOnOrAfter(string $date): self
+    {
+        return $this->setDate('date_ge', $date);
+    }
+
+    public function dateBefore(string $date): self
+    {
+        return $this->setDate('date_lt', $date);
+    }
+
+    public function dateOnOrBefore(string $date): self
+    {
+        return $this->setDate('date_le', $date);
+    }
+
+    public function context(EventContext $context): self
+    {
+        return $this->set('context', $context->value);
+    }
+
+    public function type(EventType $type): self
+    {
+        return $this->set('type', $type->value);
     }
 
     public function teacherId(int $id): self
     {
         return $this->positive('teacherId', $id);
+    }
+
+    public function studentId(int $id): self
+    {
+        return $this->positive('studentId', $id);
+    }
+
+    public function companyId(int $id): self
+    {
+        return $this->positive('companyId', $id);
+    }
+
+    public function parentId(int $id): self
+    {
+        return $this->positive('parentId', $id);
+    }
+
+    public function administratorId(int $id): self
+    {
+        return $this->positive('administratorId', $id);
     }
 
     /** @return array<string, int|string> */
@@ -101,9 +106,15 @@ final class ListEventsRequest
         return $this->query;
     }
 
-    public function type(EventType $type): self
+    private function setDate(string $key, string $value): self
     {
-        return $this->set('type', $type->value);
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+
+        if ($date === false || $date->format('Y-m-d') !== $value) {
+            throw new InvalidArgumentException('Event date must use Y-m-d format.');
+        }
+
+        return $this->set($key, $value);
     }
 
     private function positive(string $key, int $value): self
@@ -120,16 +131,5 @@ final class ListEventsRequest
         $this->query[$key] = $value;
 
         return $this;
-    }
-
-    private function setDate(string $key, string $value): self
-    {
-        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
-
-        if ($date === false || $date->format('Y-m-d') !== $value) {
-            throw new InvalidArgumentException('Event date must use Y-m-d format.');
-        }
-
-        return $this->set($key, $value);
     }
 }

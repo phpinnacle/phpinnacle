@@ -33,6 +33,44 @@ class Cerberus
 
     public static array $permissions = [];
 
+    public static function tenant(): string
+    {
+        return Filament::getTenant()?->getKey() ?? Tenant::DEFAULT;
+    }
+
+    public static function guard(string $group, string $section, array $permissions): void
+    {
+        self::$permissions[$group][$section] = $permissions;
+    }
+
+    public static function registerToScope(string ...$models): void
+    {
+        foreach ($models as $model) {
+            if (!is_a($model, Model::class, true)) {
+                throw new InvalidArgumentException(sprintf('Model %s must be an instance of %s', $model, Model::class));
+            }
+
+            self::$scoped[$model] = $model;
+        }
+    }
+
+    public static function registerScoped(): void
+    {
+        /** @var class-string<Model> $model */
+        foreach (self::$scoped as $model) {
+            $model::creating(function (Model $record) {
+                if ($record->getAttribute('tenant_id') === null) {
+                    $record->setAttribute('tenant_id', self::tenant());
+                }
+            });
+
+            $model::resolveRelationUsing('tenant', fn (Model $record) => $record->belongsTo(
+                Tenant::class,
+                'tenant_id',
+            ));
+        }
+    }
+
     public static function getGuards(): array
     {
         $result = [];
@@ -56,6 +94,18 @@ class Cerberus
         return array_diff($panel?->getPages() ?? [], config('phpinnacle-cerber.exclude.pages', []));
     }
 
+    public static function getWidgets(?Panel $panel = null): array
+    {
+        $panel ??= Filament::getCurrentPanel();
+
+        $widgets = array_map(
+            fn (string|WidgetConfiguration $v) => $v instanceof WidgetConfiguration ? $v->widget : $v,
+            $panel?->getWidgets() ?? [],
+        );
+
+        return array_diff($widgets, config('phpinnacle-cerber.exclude.widgets', []));
+    }
+
     public static function getPermissions(?Panel $panel = null, bool $flatten = false): array
     {
         $panel ??= Filament::getCurrentPanel();
@@ -71,56 +121,6 @@ class Cerberus
         }
 
         return $flatten ? Arr::flatten($permissions) : $permissions;
-    }
-
-    public static function getWidgets(?Panel $panel = null): array
-    {
-        $panel ??= Filament::getCurrentPanel();
-
-        $widgets = array_map(
-            fn (string|WidgetConfiguration $v) => $v instanceof WidgetConfiguration ? $v->widget : $v,
-            $panel?->getWidgets() ?? [],
-        );
-
-        return array_diff($widgets, config('phpinnacle-cerber.exclude.widgets', []));
-    }
-
-    public static function guard(string $group, string $section, array $permissions): void
-    {
-        self::$permissions[$group][$section] = $permissions;
-    }
-
-    public static function registerScoped(): void
-    {
-        /** @var class-string<Model> $model */
-        foreach (self::$scoped as $model) {
-            $model::creating(function (Model $record) {
-                if ($record->getAttribute('tenant_id') === null) {
-                    $record->setAttribute('tenant_id', self::tenant());
-                }
-            });
-
-            $model::resolveRelationUsing('tenant', fn (Model $record) => $record->belongsTo(
-                Tenant::class,
-                'tenant_id',
-            ));
-        }
-    }
-
-    public static function registerToScope(string ...$models): void
-    {
-        foreach ($models as $model) {
-            if (!is_a($model, Model::class, true)) {
-                throw new InvalidArgumentException(sprintf('Model %s must be an instance of %s', $model, Model::class));
-            }
-
-            self::$scoped[$model] = $model;
-        }
-    }
-
-    public static function tenant(): string
-    {
-        return Filament::getTenant()?->getKey() ?? Tenant::DEFAULT;
     }
 
     private static function getResourcePermissions(string $resource): array

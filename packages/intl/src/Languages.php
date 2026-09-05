@@ -10,13 +10,6 @@ class Languages
 
     private const string TRANS = 'phpinnacle-intl::forms.language.other';
 
-    public static function exists(string $code): bool
-    {
-        $code = strtolower(trim($code));
-
-        return $code === self::OTHER || Intl::alpha3CodeExists($code);
-    }
-
     public static function list(?string $display = null): array
     {
         $all = Intl::getAlpha3Names($display);
@@ -30,5 +23,12 @@ class Languages
         $code = strtolower(trim($code));
 
         return $code !== self::OTHER ? Intl::getAlpha3Name($code, $display) : __(self::TRANS, locale: $display);
+    }
+
+    public static function exists(string $code): bool
+    {
+        $code = strtolower(trim($code));
+
+        return $code === self::OTHER || Intl::alpha3CodeExists($code);
     }
 }

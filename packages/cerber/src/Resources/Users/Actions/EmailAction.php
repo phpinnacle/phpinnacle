@@ -8,15 +8,14 @@ use PHPinnacle\Cerber\Services\UserService;
 
 class EmailAction
 {
-    public static function dropVerification(): Action
+    public static function resendVerification(): Action
     {
-        return Action::make('drop_verification')
-            ->label(__('phpinnacle-cerber::resources.user.actions.drop_verification'))
-            ->icon('phosphor-x-circle')
-            ->color('danger')
+        return Action::make('resend_verification')
+            ->label(__('phpinnacle-cerber::resources.user.actions.resend_verification'))
+            ->icon('phosphor-envelope')
             ->requiresConfirmation()
-            ->action(fn (User $record) => $record->dropVerification())
-            ->visible(fn (?User $record) => $record?->hasVerifiedEmail());
+            ->action(fn (UserService $service, User $record) => $service->resendVerification($record))
+            ->visible(fn (?User $record) => $record && !$record->hasVerifiedEmail());
     }
 
     public static function markAsVerified(): Action
@@ -29,13 +28,14 @@ class EmailAction
             ->visible(fn (?User $record) => $record && !$record->hasVerifiedEmail());
     }
 
-    public static function resendVerification(): Action
+    public static function dropVerification(): Action
     {
-        return Action::make('resend_verification')
-            ->label(__('phpinnacle-cerber::resources.user.actions.resend_verification'))
-            ->icon('phosphor-envelope')
+        return Action::make('drop_verification')
+            ->label(__('phpinnacle-cerber::resources.user.actions.drop_verification'))
+            ->icon('phosphor-x-circle')
+            ->color('danger')
             ->requiresConfirmation()
-            ->action(fn (UserService $service, User $record) => $service->resendVerification($record))
-            ->visible(fn (?User $record) => $record && !$record->hasVerifiedEmail());
+            ->action(fn (User $record) => $record->dropVerification())
+            ->visible(fn (?User $record) => $record?->hasVerifiedEmail());
     }
 }

@@ -51,6 +51,146 @@ class Filter implements FilterContract
         return new self($name, Str::headline($name));
     }
 
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    /** @return list<string> */
+    public function getTypes(): array
+    {
+        return $this->types;
+    }
+
+    public function getOutput(): FilterOutput
+    {
+        return $this->output;
+    }
+
+    public function supportsBlocks(): bool
+    {
+        return $this->supportsBlocks;
+    }
+
+    public function label(string $label): self
+    {
+        return new self(
+            $this->name,
+            $label,
+            $this->types,
+            $this->schema,
+            $this->argumentsUsing,
+            $this->supportsBlocks,
+            $this->icon,
+            $this->description,
+            $this->color,
+            $this->output,
+        );
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label;
+    }
+
+    public function icon(string|BackedEnum|Htmlable|null $icon): self
+    {
+        return new self(
+            $this->name,
+            $this->label,
+            $this->types,
+            $this->schema,
+            $this->argumentsUsing,
+            $this->supportsBlocks,
+            $icon,
+            $this->description,
+            $this->color,
+            $this->output,
+        );
+    }
+
+    public function getIcon(): string|BackedEnum|Htmlable|null
+    {
+        return $this->icon;
+    }
+
+    public function description(?string $description): self
+    {
+        return new self(
+            $this->name,
+            $this->label,
+            $this->types,
+            $this->schema,
+            $this->argumentsUsing,
+            $this->supportsBlocks,
+            $this->icon,
+            $description,
+            $this->color,
+            $this->output,
+        );
+    }
+
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    /** @param string|array<string>|null $color */
+    public function color(string|array|null $color): self
+    {
+        return new self(
+            $this->name,
+            $this->label,
+            $this->types,
+            $this->schema,
+            $this->argumentsUsing,
+            $this->supportsBlocks,
+            $this->icon,
+            $this->description,
+            $color,
+            $this->output,
+        );
+    }
+
+    /** @return string|array<string>|null */
+    public function getColor(): string|array|null
+    {
+        return $this->color;
+    }
+
+    public function types(string ...$types): self
+    {
+        return new self(
+            $this->name,
+            $this->label,
+            $types,
+            $this->schema,
+            $this->argumentsUsing,
+            $this->supportsBlocks,
+            $this->icon,
+            $this->description,
+            $this->color,
+            $this->output,
+        );
+    }
+
+    /** @param list<Component> $schema */
+    public function schema(array $schema): self
+    {
+        return new self(
+            $this->name,
+            $this->label,
+            $this->types,
+            $schema,
+            $this->argumentsUsing,
+            $this->supportsBlocks,
+            $this->icon,
+            $this->description,
+            $this->color,
+            $this->output,
+        );
+    }
+
     /** @param Closure(array<string, mixed>): list<string> $callback */
     public function argumentsUsing(Closure $callback): self
     {
@@ -84,8 +224,7 @@ class Filter implements FilterContract
         );
     }
 
-    /** @param string|array<string>|null $color */
-    public function color(string|array|null $color): self
+    public function output(FilterOutput $output): self
     {
         return new self(
             $this->name,
@@ -96,24 +235,22 @@ class Filter implements FilterContract
             $this->supportsBlocks,
             $this->icon,
             $this->description,
-            $color,
-            $this->output,
+            $this->color,
+            $output,
         );
     }
 
-    public function description(?string $description): self
+    public function supports(string $variableType): bool
     {
-        return new self(
-            $this->name,
-            $this->label,
-            $this->types,
+        return $this->types === [] || in_array($variableType, $this->types, true);
+    }
+
+    /** @return list<Component> */
+    public function getSchema(): array
+    {
+        return array_map(
+            static fn (Component $component) => clone $component,
             $this->schema,
-            $this->argumentsUsing,
-            $this->supportsBlocks,
-            $this->icon,
-            $description,
-            $this->color,
-            $this->output,
         );
     }
 
@@ -155,142 +292,5 @@ class Filter implements FilterContract
         }
 
         return $normalizedArguments;
-    }
-
-    /** @return string|array<string>|null */
-    public function getColor(): string|array|null
-    {
-        return $this->color;
-    }
-
-    public function getDescription(): ?string
-    {
-        return $this->description;
-    }
-
-    public function getIcon(): string|BackedEnum|Htmlable|null
-    {
-        return $this->icon;
-    }
-
-    public function getLabel(): string
-    {
-        return $this->label;
-    }
-
-    public function getName(): string
-    {
-        return $this->name;
-    }
-
-    public function getOutput(): FilterOutput
-    {
-        return $this->output;
-    }
-
-    /** @return list<Component> */
-    public function getSchema(): array
-    {
-        return array_map(
-            static fn (Component $component) => clone $component,
-            $this->schema,
-        );
-    }
-
-    /** @return list<string> */
-    public function getTypes(): array
-    {
-        return $this->types;
-    }
-
-    public function icon(string|BackedEnum|Htmlable|null $icon): self
-    {
-        return new self(
-            $this->name,
-            $this->label,
-            $this->types,
-            $this->schema,
-            $this->argumentsUsing,
-            $this->supportsBlocks,
-            $icon,
-            $this->description,
-            $this->color,
-            $this->output,
-        );
-    }
-
-    public function label(string $label): self
-    {
-        return new self(
-            $this->name,
-            $label,
-            $this->types,
-            $this->schema,
-            $this->argumentsUsing,
-            $this->supportsBlocks,
-            $this->icon,
-            $this->description,
-            $this->color,
-            $this->output,
-        );
-    }
-
-    public function output(FilterOutput $output): self
-    {
-        return new self(
-            $this->name,
-            $this->label,
-            $this->types,
-            $this->schema,
-            $this->argumentsUsing,
-            $this->supportsBlocks,
-            $this->icon,
-            $this->description,
-            $this->color,
-            $output,
-        );
-    }
-
-    /** @param list<Component> $schema */
-    public function schema(array $schema): self
-    {
-        return new self(
-            $this->name,
-            $this->label,
-            $this->types,
-            $schema,
-            $this->argumentsUsing,
-            $this->supportsBlocks,
-            $this->icon,
-            $this->description,
-            $this->color,
-            $this->output,
-        );
-    }
-
-    public function supports(string $variableType): bool
-    {
-        return $this->types === [] || in_array($variableType, $this->types, true);
-    }
-
-    public function supportsBlocks(): bool
-    {
-        return $this->supportsBlocks;
-    }
-
-    public function types(string ...$types): self
-    {
-        return new self(
-            $this->name,
-            $this->label,
-            $types,
-            $this->schema,
-            $this->argumentsUsing,
-            $this->supportsBlocks,
-            $this->icon,
-            $this->description,
-            $this->color,
-            $this->output,
-        );
     }
 }

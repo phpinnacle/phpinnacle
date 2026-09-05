@@ -35,32 +35,21 @@ class VariableScope
         $this->replaceBinding('loop', $this->makeLoopVariable($parentLoop)->flatten(group: $group));
     }
 
-    /** @return array<string, string> */
-    public function getIterableOptions(): array
+    public function getVariable(string $name): ?VariableContract
     {
-        $options = [];
+        return $this->variables[$name] ?? null;
+    }
 
-        foreach ($this->variables as $variable) {
-            if (!$variable->isCollection()) {
-                continue;
-            }
-
-            $options[$variable->getName()] =
-                ($variable->getLabel() ?? $variable->getName()) . ' — ' . $variable->getName();
-        }
-
-        return $options;
+    /** @return array<string, VariableContract> */
+    public function getVariables(): array
+    {
+        return $this->variables;
     }
 
     /** @return array<string, VariableContract> */
     public function getLocalVariables(): array
     {
         return $this->localVariables;
-    }
-
-    public function getVariable(string $name): ?VariableContract
-    {
-        return $this->variables[$name] ?? null;
     }
 
     /**
@@ -83,10 +72,36 @@ class VariableScope
         return $options;
     }
 
-    /** @return array<string, VariableContract> */
-    public function getVariables(): array
+    /** @return array<string, string> */
+    public function getIterableOptions(): array
     {
-        return $this->variables;
+        $options = [];
+
+        foreach ($this->variables as $variable) {
+            if (!$variable->isCollection()) {
+                continue;
+            }
+
+            $options[$variable->getName()] =
+                ($variable->getLabel() ?? $variable->getName()) . ' — ' . $variable->getName();
+        }
+
+        return $options;
+    }
+
+    /** @param array<string, VariableContract> $variables */
+    private function replaceBinding(string $name, array $variables): void
+    {
+        foreach (array_keys($this->variables) as $variableName) {
+            if ($variableName === $name || str_starts_with($variableName, "{$name}.")) {
+                unset($this->variables[$variableName], $this->localVariables[$variableName]);
+            }
+        }
+
+        foreach ($variables as $variableName => $variable) {
+            $this->variables[$variableName] = $variable;
+            $this->localVariables[$variableName] = $variable;
+        }
     }
 
     private function makeLoopVariable(?VariableContract $parentLoop): VariableContract
@@ -110,20 +125,5 @@ class VariableScope
         return Variable::make('loop', 'loop')
             ->label(__('phpinnacle-stylus::forms.twig_editor.panel.loop'))
             ->properties(...$properties);
-    }
-
-    /** @param array<string, VariableContract> $variables */
-    private function replaceBinding(string $name, array $variables): void
-    {
-        foreach (array_keys($this->variables) as $variableName) {
-            if ($variableName === $name || str_starts_with($variableName, "{$name}.")) {
-                unset($this->variables[$variableName], $this->localVariables[$variableName]);
-            }
-        }
-
-        foreach ($variables as $variableName => $variable) {
-            $this->variables[$variableName] = $variable;
-            $this->localVariables[$variableName] = $variable;
-        }
     }
 }

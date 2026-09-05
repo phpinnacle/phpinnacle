@@ -24,6 +24,13 @@ final class CreateWebhookRequest
         return $this;
     }
 
+    public function url(string $url): self
+    {
+        $this->url = RequestValue::httpUrl($url, 'Webhook URL');
+
+        return $this;
+    }
+
     /** @return array{event: string, url: string} */
     public function toArray(): array
     {
@@ -31,12 +38,5 @@ final class CreateWebhookRequest
             'event' => ($this->event ?? throw new LogicException('Webhook event is required.'))->value,
             'url' => $this->url ?? throw new LogicException('Webhook URL is required.'),
         ];
-    }
-
-    public function url(string $url): self
-    {
-        $this->url = RequestValue::httpUrl($url, 'Webhook URL');
-
-        return $this;
     }
 }

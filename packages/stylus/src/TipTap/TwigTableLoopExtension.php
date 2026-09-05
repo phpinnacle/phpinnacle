@@ -52,26 +52,6 @@ class TwigTableLoopExtension extends Extension
         ];
     }
 
-    /** @return list<array<string, mixed>> */
-    private function parseTransforms(?string $value): array
-    {
-        if ($value === null || $value === '') {
-            return [];
-        }
-
-        try {
-            $transforms = json_decode($value, true, flags: JSON_THROW_ON_ERROR);
-        } catch (JsonException $exception) {
-            throw new InvalidArgumentException('Twig collection transforms must be valid JSON.', previous: $exception);
-        }
-
-        if (!is_array($transforms) || !array_is_list($transforms)) {
-            throw new InvalidArgumentException('Twig collection transforms must be a list.');
-        }
-
-        return $transforms;
-    }
-
     /** @return array<string, mixed> */
     private function stringAttribute(string $htmlName): array
     {
@@ -96,5 +76,25 @@ class TwigTableLoopExtension extends Extension
                 return filled($value) ? [$htmlName => $value] : [];
             },
         ];
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function parseTransforms(?string $value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        try {
+            $transforms = json_decode($value, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw new InvalidArgumentException('Twig collection transforms must be valid JSON.', previous: $exception);
+        }
+
+        if (!is_array($transforms) || !array_is_list($transforms)) {
+            throw new InvalidArgumentException('Twig collection transforms must be a list.');
+        }
+
+        return $transforms;
     }
 }

@@ -21,11 +21,6 @@ class ProcessWebhook implements ShouldQueue
         private Webhook $webhook,
     ) {}
 
-    public function failed(?Throwable $exception): void
-    {
-        $this->webhook->fail($exception);
-    }
-
     public function handle(WebhookRegistry $handlers): void
     {
         DB::transaction(function () use ($handlers) {
@@ -41,5 +36,10 @@ class ProcessWebhook implements ShouldQueue
 
             $this->webhook->complete();
         });
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        $this->webhook->fail($exception);
     }
 }

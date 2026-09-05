@@ -30,13 +30,13 @@ final readonly class CalendarRange
         return new self($start, $end, $rangeStart, $rangeEnd);
     }
 
-    public function endDate(): CarbonImmutable
-    {
-        return $this->endDate;
-    }
-
     public function startDate(): CarbonImmutable
     {
         return $this->startDate;
+    }
+
+    public function endDate(): CarbonImmutable
+    {
+        return $this->endDate;
     }
 }

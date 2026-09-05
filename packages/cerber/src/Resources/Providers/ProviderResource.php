@@ -13,9 +13,9 @@ class ProviderResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    public static function form(Schema $schema): Schema
+    public static function getNavigationLabel(): string
     {
-        return Schemas\ProviderForm::configure($schema);
+        return __('phpinnacle-cerber::resources.provider.label');
     }
 
     public static function getNavigationGroup(): string
@@ -28,14 +28,19 @@ class ProviderResource extends Resource
         return config('phpinnacle-cerber.navigation.provider.icon');
     }
 
-    public static function getNavigationLabel(): string
-    {
-        return __('phpinnacle-cerber::resources.provider.label');
-    }
-
     public static function getNavigationSort(): ?int
     {
         return config('phpinnacle-cerber.navigation.provider.sort');
+    }
+
+    public static function form(Schema $schema): Schema
+    {
+        return Schemas\ProviderForm::configure($schema);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return Tables\ProviderTable::configure($table);
     }
 
     public static function getPages(): array
@@ -45,10 +50,5 @@ class ProviderResource extends Resource
             'create' => Pages\CreateProvider::route('/create'),
             'edit' => Pages\EditProvider::route('/{record}/edit'),
         ];
-    }
-
-    public static function table(Table $table): Table
-    {
-        return Tables\ProviderTable::configure($table);
     }
 }

@@ -15,14 +15,47 @@ trait GroupFields
     /** @var array<string, mixed> */
     private array $data = [];
 
-    public function billingCalculationBase(BillingCalculationBase $base): static
+    public function name(string $name): static
     {
-        return $this->set('billingCalculationBase', $base->value);
+        return $this->set('name', RequestValue::nonEmpty($name, 'Group name'));
+    }
+
+    public function startsOn(string $date): static
+    {
+        return $this->set('startsOn', RequestValue::date($date, 'Group start date'));
+    }
+
+    public function endsOn(?string $date): static
+    {
+        return $this->set('endsOn', $date === null ? null : RequestValue::date($date, 'Group end date'));
+    }
+
+    public function numberOfLessons(int $number): static
+    {
+        return $this->set('numberOfLessons', RequestValue::positive($number, 'Number of lessons'));
+    }
+
+    public function lessonDuration(int $minutes): static
+    {
+        return $this->set('lessonDuration', RequestValue::positive($minutes, 'Lesson duration'));
+    }
+
+    public function type(GroupType|int $type): static
+    {
+        return $this->set(
+            'type',
+            $type instanceof GroupType ? $type->value : RequestValue::positive($type, 'Group type ID'),
+        );
     }
 
     public function billingModel(BillingModel $model): static
     {
         return $this->set('billingModel', $model->value);
+    }
+
+    public function billingCalculationBase(BillingCalculationBase $base): static
+    {
+        return $this->set('billingCalculationBase', $base->value);
     }
 
     public function billingUnitPrice(string|int|float $price): static
@@ -38,49 +71,12 @@ trait GroupFields
         return $this->set('billingUnitPrice', $price);
     }
 
-    public function companyId(?int $id): static
+    public function minStudents(?int $number): static
     {
-        return $this->nullableId('companyId', $id);
-    }
-
-    public function companyPrice(int|float|null $price): static
-    {
-        return $this->set('companyPrice', $price === null ? null : RequestValue::nonNegative($price, 'Company price'));
-    }
-
-    public function documentTemplateId(?int $id): static
-    {
-        return $this->nullableId('documentTemplateId', $id);
-    }
-
-    public function endsOn(?string $date): static
-    {
-        return $this->set('endsOn', $date === null ? null : RequestValue::date($date, 'Group end date'));
-    }
-
-    public function gradingType(GradingType $type): static
-    {
-        return $this->set('gradingType', $type->value);
-    }
-
-    public function installmentCollectionId(?int $id): static
-    {
-        return $this->nullableId('installmentCollectionId', $id);
-    }
-
-    public function languageId(?int $id): static
-    {
-        return $this->nullableId('languageId', $id);
-    }
-
-    public function lessonDuration(int $minutes): static
-    {
-        return $this->set('lessonDuration', RequestValue::positive($minutes, 'Lesson duration'));
-    }
-
-    public function levelId(?int $id): static
-    {
-        return $this->nullableId('levelId', $id);
+        return $this->set(
+            'minStudents',
+            $number === null ? null : RequestValue::nonNegative($number, 'Minimum students'),
+        );
     }
 
     public function maxStudents(?int $number): static
@@ -91,27 +87,19 @@ trait GroupFields
         );
     }
 
-    public function minStudents(?int $number): static
+    public function gradingType(GradingType $type): static
     {
-        return $this->set(
-            'minStudents',
-            $number === null ? null : RequestValue::nonNegative($number, 'Minimum students'),
-        );
+        return $this->set('gradingType', $type->value);
     }
 
-    public function name(string $name): static
+    public function languageId(?int $id): static
     {
-        return $this->set('name', RequestValue::nonEmpty($name, 'Group name'));
+        return $this->nullableId('languageId', $id);
     }
 
-    public function numberOfLessons(int $number): static
+    public function levelId(?int $id): static
     {
-        return $this->set('numberOfLessons', RequestValue::positive($number, 'Number of lessons'));
-    }
-
-    public function planned(bool $planned = true): static
-    {
-        return $this->set('isPlanned', $planned);
+        return $this->nullableId('levelId', $id);
     }
 
     public function programCollectionId(?int $id): static
@@ -119,17 +107,29 @@ trait GroupFields
         return $this->nullableId('programCollectionId', $id);
     }
 
-    public function startsOn(string $date): static
+    public function documentTemplateId(?int $id): static
     {
-        return $this->set('startsOn', RequestValue::date($date, 'Group start date'));
+        return $this->nullableId('documentTemplateId', $id);
     }
 
-    public function type(GroupType|int $type): static
+    public function installmentCollectionId(?int $id): static
     {
-        return $this->set(
-            'type',
-            $type instanceof GroupType ? $type->value : RequestValue::positive($type, 'Group type ID'),
-        );
+        return $this->nullableId('installmentCollectionId', $id);
+    }
+
+    public function companyId(?int $id): static
+    {
+        return $this->nullableId('companyId', $id);
+    }
+
+    public function companyPrice(int|float|null $price): static
+    {
+        return $this->set('companyPrice', $price === null ? null : RequestValue::nonNegative($price, 'Company price'));
+    }
+
+    public function planned(bool $planned = true): static
+    {
+        return $this->set('isPlanned', $planned);
     }
 
     private function nullableId(string $key, ?int $id): static

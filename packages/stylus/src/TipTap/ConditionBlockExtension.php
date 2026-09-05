@@ -11,22 +11,6 @@ class ConditionBlockExtension extends Node
 
     public static $priority = 110;
 
-    /** @return array<string, array<string, mixed>> */
-    public function addAttributes(): array
-    {
-        return [
-            'condition' => [
-                'default' => null,
-                'parseHTML' => static function ($DOMNode) {
-                    $condition = $DOMNode->getAttribute('data-condition');
-
-                    return $condition === '' ? null : $condition;
-                },
-                'renderHTML' => $this->renderConditionAttribute(...),
-            ],
-        ];
-    }
-
     /** @return array<string, mixed> */
     public function addOptions(): array
     {
@@ -42,6 +26,22 @@ class ConditionBlockExtension extends Node
             [
                 'tag' => 'div[data-condition]',
                 'priority' => 100,
+            ],
+        ];
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    public function addAttributes(): array
+    {
+        return [
+            'condition' => [
+                'default' => null,
+                'parseHTML' => static function ($DOMNode) {
+                    $condition = $DOMNode->getAttribute('data-condition');
+
+                    return $condition === '' ? null : $condition;
+                },
+                'renderHTML' => $this->renderConditionAttribute(...),
             ],
         ];
     }

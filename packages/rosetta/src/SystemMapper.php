@@ -46,122 +46,6 @@ final class SystemMapper
      * @param  array<mixed>  $data
      * @return array<string, Field>
      */
-    private function accumulation(array $data): array
-    {
-        $system = [
-            '_period' => new ScalarField(FieldType::DateTime),
-        ];
-
-        if ($this->at($data, 2, 21) === 1) {
-            $system['_recordertref'] = $this->binary();
-        }
-
-        $system['_recorderrref'] = $this->binary();
-        $system['_lineno'] = $this->integer(9);
-        $system['_active'] = $this->boolean();
-
-        if ($this->at($data, 2, 16) === 0) {
-            $system['_recordkind'] = $this->integer(1);
-        }
-
-        return $system;
-    }
-
-    /** Read a value using the one-based vectors used by the 1C format. */
-    private function at(mixed $value, int ...$path): mixed
-    {
-        foreach ($path as $position) {
-            if (!is_array($value) || !array_key_exists($position - 1, $value)) {
-                return null;
-            }
-
-            $value = $value[$position - 1];
-        }
-
-        return $value;
-    }
-
-    private function binary(): ScalarField
-    {
-        return new ScalarField(FieldType::Binary);
-    }
-
-    private function boolean(): ScalarField
-    {
-        return new ScalarField(FieldType::Boolean);
-    }
-
-    /**
-     * @param  array<mixed>  $data
-     * @return array<string, Field>
-     */
-    private function document(array $data): array
-    {
-        $system = [
-            '_idrref' => $this->identifier(),
-            '_version' => $this->integer(10),
-            '_marked' => $this->boolean(),
-            '_date_time' => new ScalarField(FieldType::DateTime),
-        ];
-        $numberLength = $this->at($data, 2, 13);
-
-        if ($this->at($data, 2, 14) === 1) {
-            $system['_numberprefix'] = new ScalarField(FieldType::DateTime);
-        }
-
-        if (is_int($numberLength) && $numberLength > 0) {
-            $system['_number'] = new StringField(length: $numberLength, fixed: true);
-        }
-
-        $system['_posted'] = $this->boolean();
-
-        return $system;
-    }
-
-    private function identifier(): ScalarField
-    {
-        return new ScalarField(FieldType::Id);
-    }
-
-    /**
-     * @param  array<mixed>  $data
-     * @return array<string, Field>
-     */
-    private function information(array $data): array
-    {
-        $system = [];
-        $periodicity = $this->at($data, 2, 19);
-
-        if (is_int($periodicity) && $periodicity > 0) {
-            $system['_period'] = new ScalarField(FieldType::DateTime);
-        }
-
-        if ($this->at($data, 2, 20) !== 1) {
-            return $system;
-        }
-
-        $recorderType = $this->at($data, 2, 18);
-
-        if (is_string($recorderType) && $recorderType !== '00000000-0000-0000-0000-000000000000') {
-            $system['_recordertref'] = $this->binary();
-        }
-
-        $system['_recorderrref'] = $this->binary();
-        $system['_lineno'] = $this->integer(9);
-        $system['_active'] = $this->boolean();
-
-        return $system;
-    }
-
-    private function integer(int $precision): NumberField
-    {
-        return new NumberField(precision: $precision, scale: 0, unsigned: true);
-    }
-
-    /**
-     * @param  array<mixed>  $data
-     * @return array<string, Field>
-     */
     private function reference(array $data, string $id): array
     {
         $system = [
@@ -205,5 +89,121 @@ final class SystemMapper
         }
 
         return $system;
+    }
+
+    /**
+     * @param  array<mixed>  $data
+     * @return array<string, Field>
+     */
+    private function document(array $data): array
+    {
+        $system = [
+            '_idrref' => $this->identifier(),
+            '_version' => $this->integer(10),
+            '_marked' => $this->boolean(),
+            '_date_time' => new ScalarField(FieldType::DateTime),
+        ];
+        $numberLength = $this->at($data, 2, 13);
+
+        if ($this->at($data, 2, 14) === 1) {
+            $system['_numberprefix'] = new ScalarField(FieldType::DateTime);
+        }
+
+        if (is_int($numberLength) && $numberLength > 0) {
+            $system['_number'] = new StringField(length: $numberLength, fixed: true);
+        }
+
+        $system['_posted'] = $this->boolean();
+
+        return $system;
+    }
+
+    /**
+     * @param  array<mixed>  $data
+     * @return array<string, Field>
+     */
+    private function accumulation(array $data): array
+    {
+        $system = [
+            '_period' => new ScalarField(FieldType::DateTime),
+        ];
+
+        if ($this->at($data, 2, 21) === 1) {
+            $system['_recordertref'] = $this->binary();
+        }
+
+        $system['_recorderrref'] = $this->binary();
+        $system['_lineno'] = $this->integer(9);
+        $system['_active'] = $this->boolean();
+
+        if ($this->at($data, 2, 16) === 0) {
+            $system['_recordkind'] = $this->integer(1);
+        }
+
+        return $system;
+    }
+
+    /**
+     * @param  array<mixed>  $data
+     * @return array<string, Field>
+     */
+    private function information(array $data): array
+    {
+        $system = [];
+        $periodicity = $this->at($data, 2, 19);
+
+        if (is_int($periodicity) && $periodicity > 0) {
+            $system['_period'] = new ScalarField(FieldType::DateTime);
+        }
+
+        if ($this->at($data, 2, 20) !== 1) {
+            return $system;
+        }
+
+        $recorderType = $this->at($data, 2, 18);
+
+        if (is_string($recorderType) && $recorderType !== '00000000-0000-0000-0000-000000000000') {
+            $system['_recordertref'] = $this->binary();
+        }
+
+        $system['_recorderrref'] = $this->binary();
+        $system['_lineno'] = $this->integer(9);
+        $system['_active'] = $this->boolean();
+
+        return $system;
+    }
+
+    private function boolean(): ScalarField
+    {
+        return new ScalarField(FieldType::Boolean);
+    }
+
+    private function binary(): ScalarField
+    {
+        return new ScalarField(FieldType::Binary);
+    }
+
+    private function identifier(): ScalarField
+    {
+        return new ScalarField(FieldType::Id);
+    }
+
+    private function integer(int $precision): NumberField
+    {
+        return new NumberField(precision: $precision, scale: 0, unsigned: true);
+    }
+
+    /** Read a value using the one-based vectors used by the 1C format. */
+    private function at(mixed $value, int ...$path): mixed
+    {
+        foreach ($path as $position) {
+            if (!is_array($value) || !array_key_exists($position - 1, $value)) {
+                return null;
+            }
+
+            $value = $value[$position - 1];
+        }
+
+        return $value;
     }
 }

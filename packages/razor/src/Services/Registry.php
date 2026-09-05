@@ -21,9 +21,9 @@ class Registry
         }
     }
 
-    public function all(): array
+    public function has(string $key): bool
     {
-        return $this->sections;
+        return array_key_exists($key, $this->sections);
     }
 
     public function get(string $key): Section
@@ -31,8 +31,8 @@ class Registry
         return $this->sections[$key] ?? throw new InvalidArgumentException('Unknown template section');
     }
 
-    public function has(string $key): bool
+    public function all(): array
     {
-        return array_key_exists($key, $this->sections);
+        return $this->sections;
     }
 }

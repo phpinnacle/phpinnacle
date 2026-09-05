@@ -10,11 +10,9 @@ enum IntegrationFormat: string implements HasColor, HasLabel
 {
     case JSON = 'json';
 
-    public function decode(string $payload): array
+    public function getLabel(): ?string
     {
-        return match ($this) {
-            self::JSON => (array) json_decode($payload, associative: true, flags: JSON_THROW_ON_ERROR),
-        };
+        return __(sprintf('phpinnacle-porta::enums.integration_format.%s.label', $this->value));
     }
 
     public function getColor(): string|array|null
@@ -22,8 +20,10 @@ enum IntegrationFormat: string implements HasColor, HasLabel
         return match ($this) { self::JSON => Color::Amber };
     }
 
-    public function getLabel(): ?string
+    public function decode(string $payload): array
     {
-        return __(sprintf('phpinnacle-porta::enums.integration_format.%s.label', $this->value));
+        return match ($this) {
+            self::JSON => (array) json_decode($payload, associative: true, flags: JSON_THROW_ON_ERROR),
+        };
     }
 }

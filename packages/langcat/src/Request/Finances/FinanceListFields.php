@@ -31,11 +31,6 @@ trait FinanceListFields
         return $this->query;
     }
 
-    private function dateFilter(string $key, string $value): self
-    {
-        return $this->set($key, RequestValue::date($value, 'Created at'));
-    }
-
     private function set(string $key, int|string $value): self
     {
         $this->query[$key] = $value;
@@ -51,5 +46,10 @@ trait FinanceListFields
         }
 
         return $this->set('sortBy', $value);
+    }
+
+    private function dateFilter(string $key, string $value): self
+    {
+        return $this->set($key, RequestValue::date($value, 'Created at'));
     }
 }

@@ -83,6 +83,11 @@ class UserLinker
         ], $values);
     }
 
+    private function isAllowedDomain(string $email): bool
+    {
+        return in_array(Str::after($email, '@'), $this->domains, true);
+    }
+
     private function createUser(SocialiteUser $socialiteUser): User
     {
         $user = new User([
@@ -107,10 +112,5 @@ class UserLinker
         }
 
         return $user;
-    }
-
-    private function isAllowedDomain(string $email): bool
-    {
-        return in_array(Str::after($email, '@'), $this->domains, true);
     }
 }

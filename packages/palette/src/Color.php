@@ -80,6 +80,23 @@ class Color
 
     private static array $colors = [];
 
+    public static function styles(string|array $color, array $shades = [400, 600]): string
+    {
+        return Arr::toCssStyles([
+            get_color_css_variables($color, $shades),
+        ]);
+    }
+
+    public static function random(): string
+    {
+        return '#' . str_pad(dechex(random_int(0, 0xFF_FFFF)), length: 6, pad_string: '0', pad_type: STR_PAD_LEFT);
+    }
+
+    public static function shades(string $color): array
+    {
+        return ColorHelper::generateV3Palette($color);
+    }
+
     public static function hex(array $color, int $shade = 500): string
     {
         $value = $color[$shade];
@@ -91,11 +108,6 @@ class Color
         return (string) Rgb::fromString(ColorHelper::convertToRgb($value))->toHex();
     }
 
-    public static function random(): string
-    {
-        return '#' . str_pad(dechex(random_int(0, 0xFF_FFFF)), length: 6, pad_string: '0', pad_type: STR_PAD_LEFT);
-    }
-
     public static function resolve(string $name): string
     {
         if (self::$colors === []) {
@@ -103,17 +115,5 @@ class Color
         }
 
         return self::hex(self::$colors[$name] ?? self::$colors['primary']);
-    }
-
-    public static function shades(string $color): array
-    {
-        return ColorHelper::generateV3Palette($color);
-    }
-
-    public static function styles(string|array $color, array $shades = [400, 600]): string
-    {
-        return Arr::toCssStyles([
-            get_color_css_variables($color, $shades),
-        ]);
     }
 }

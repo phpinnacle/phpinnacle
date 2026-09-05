@@ -33,14 +33,14 @@ final readonly class Sequence
         );
     }
 
-    public function get(array $context = []): string
-    {
-        return PatternFormatter::format($this->pattern, $this->prepare($context));
-    }
-
     public function on(DateTimeInterface $date): self
     {
         return new self($this->pattern, $this->scope, $this->bucket, $date, $this->tenant);
+    }
+
+    public function get(array $context = []): string
+    {
+        return PatternFormatter::format($this->pattern, $this->prepare($context));
     }
 
     private function prepare(array $context): array

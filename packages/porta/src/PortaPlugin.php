@@ -12,6 +12,11 @@ class PortaPlugin implements Plugin
         private WebhookRegistry $registry,
     ) {}
 
+    public static function make(): static
+    {
+        return app(static::class);
+    }
+
     public static function get(): static
     {
         // @mago-expect lint:inline-variable-return
@@ -20,13 +25,6 @@ class PortaPlugin implements Plugin
 
         return $plugin;
     }
-
-    public static function make(): static
-    {
-        return app(static::class);
-    }
-
-    public function boot(Panel $panel): void {}
 
     public function getId(): string
     {
@@ -46,4 +44,6 @@ class PortaPlugin implements Plugin
             Resources\Integrations\IntegrationResource::class,
         ]);
     }
+
+    public function boot(Panel $panel): void {}
 }

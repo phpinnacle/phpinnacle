@@ -12,6 +12,11 @@ enum IntegrationResponse: string implements HasColor, HasLabel
     case Model = 'model';
     case Identity = 'identity';
 
+    public function getLabel(): ?string
+    {
+        return __(sprintf('phpinnacle-porta::enums.integration_response.%s.label', $this->value));
+    }
+
     public function getColor(): string|array|null
     {
         return match ($this) {
@@ -19,10 +24,5 @@ enum IntegrationResponse: string implements HasColor, HasLabel
             self::Model => Color::Blue,
             self::Identity => Color::Purple,
         };
-    }
-
-    public function getLabel(): ?string
-    {
-        return __(sprintf('phpinnacle-porta::enums.integration_response.%s.label', $this->value));
     }
 }

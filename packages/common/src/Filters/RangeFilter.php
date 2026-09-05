@@ -16,20 +16,6 @@ class RangeFilter extends Filter
 
     private Closure|int $step = 1;
 
-    public function maxValue(Closure|int $value): static
-    {
-        $this->maxValue = $value;
-
-        return $this;
-    }
-
-    public function minValue(Closure|int $value): static
-    {
-        $this->minValue = $value;
-
-        return $this;
-    }
-
     public function setUp(): void
     {
         parent::setUp();
@@ -54,6 +40,20 @@ class RangeFilter extends Filter
 
             return $query->whereBetween($this->getName(), $range);
         });
+    }
+
+    public function minValue(Closure|int $value): static
+    {
+        $this->minValue = $value;
+
+        return $this;
+    }
+
+    public function maxValue(Closure|int $value): static
+    {
+        $this->maxValue = $value;
+
+        return $this;
     }
 
     public function step(Closure|int $value): static

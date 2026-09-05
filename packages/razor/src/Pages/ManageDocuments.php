@@ -31,19 +31,26 @@ abstract class ManageDocuments extends ManageRelatedRecords
 
     protected static string $relationship = 'documents';
 
-    public static function getNavigationIcon(): ?string
-    {
-        return config('phpinnacle-razor.navigation.document.icon');
-    }
+    abstract protected function getSections(): array;
 
     public static function getNavigationLabel(): string
     {
         return __('phpinnacle-razor::resources.document.pages.list');
     }
 
+    public static function getNavigationIcon(): ?string
+    {
+        return config('phpinnacle-razor.navigation.document.icon');
+    }
+
     public static function getNavigationSort(): ?int
     {
         return config('phpinnacle-razor.navigation.document.sort');
+    }
+
+    public function getTitle(): string
+    {
+        return __('phpinnacle-razor::resources.document.pages.manage');
     }
 
     public function form(Schema $schema): Schema
@@ -64,11 +71,6 @@ abstract class ManageDocuments extends ManageRelatedRecords
                 Editor::make('content')
                     ->columnSpanFull(),
             ]);
-    }
-
-    public function getTitle(): string
-    {
-        return __('phpinnacle-razor::resources.document.pages.manage');
     }
 
     public function table(Table $table): Table
@@ -164,6 +166,4 @@ abstract class ManageDocuments extends ManageRelatedRecords
                     ->label(__('phpinnacle-razor::resources.document.actions.delete')),
             ]);
     }
-
-    abstract protected function getSections(): array;
 }

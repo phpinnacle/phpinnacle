@@ -9,15 +9,15 @@ final class TypeMap
         private readonly array $entries,
     ) {}
 
-    public static function empty(): self
-    {
-        return new self([]);
-    }
-
     /** @param array<string, list<array<mixed>>> $entries */
     public static function fromArray(array $entries): self
     {
         return new self(array_change_key_case($entries, CASE_LOWER));
+    }
+
+    public static function empty(): self
+    {
+        return new self([]);
     }
 
     /** @return list<array<mixed>>|null */

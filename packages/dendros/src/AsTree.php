@@ -19,34 +19,9 @@ use PHPinnacle\Dendros\Relations\Descendants;
  */
 trait AsTree
 {
-    public function ancestors(): Ancestors
+    public function isRoot(): bool
     {
-        return Ancestors::of($this);
-    }
-
-    public function children(): HasMany
-    {
-        return $this->hasMany(static::class, $this->getParentColumn());
-    }
-
-    public function descendants(): Descendants
-    {
-        return Descendants::of($this);
-    }
-
-    public function getParentColumn(): string
-    {
-        return 'parent_id';
-    }
-
-    public function getPathColumn(): string
-    {
-        return 'path';
-    }
-
-    public function getPathSource(): string
-    {
-        return Str::afterLast((string) $this->getAttribute($this->getPathColumn()), '.');
+        return $this->getAttribute($this->getParentColumn()) === null;
     }
 
     public function isAncestorOf(Model $that): bool
@@ -71,13 +46,38 @@ trait AsTree
         );
     }
 
-    public function isRoot(): bool
+    public function getPathColumn(): string
     {
-        return $this->getAttribute($this->getParentColumn()) === null;
+        return 'path';
+    }
+
+    public function getParentColumn(): string
+    {
+        return 'parent_id';
+    }
+
+    public function getPathSource(): string
+    {
+        return Str::afterLast((string) $this->getAttribute($this->getPathColumn()), '.');
     }
 
     public function parent(): BelongsTo
     {
         return $this->belongsTo(static::class, $this->getParentColumn());
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(static::class, $this->getParentColumn());
+    }
+
+    public function ancestors(): Ancestors
+    {
+        return Ancestors::of($this);
+    }
+
+    public function descendants(): Descendants
+    {
+        return Descendants::of($this);
     }
 }

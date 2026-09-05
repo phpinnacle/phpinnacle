@@ -20,195 +20,25 @@ use RuntimeException;
 
 final class MetadataMapperTest extends TestCase
 {
-    /** @return iterable<string, array{mixed, string}> */
-    public static function invalidProperties(): iterable
-    {
-        yield 'non-array property' => [
-            'invalid',
-            'Invalid metadata property at position 1',
-        ];
-        yield 'missing identity' => [
-            [],
-            'Invalid metadata property identifier or logical name at position 1',
-        ];
-    }
-
-    /** @return iterable<string, array{MetadataKind, string, non-empty-list<int>}> */
-    public static function metadataKinds(): iterable
-    {
-        yield 'reference' => [MetadataKind::Reference, 'Reference', [2, 10, 2]];
-        yield 'document' => [MetadataKind::Document, 'Document', [2, 10, 2]];
-        yield 'enumeration' => [MetadataKind::Enumeration, 'Enum', [2, 6, 2]];
-        yield 'accumulation register' => [
-            MetadataKind::AccumulationRegister,
-            'AccumRg',
-            [2, 14, 2],
-        ];
-        yield 'information register' => [
-            MetadataKind::InformationRegister,
-            'InfoRg',
-            [2, 16, 2],
-        ];
-    }
-
     #[Test]
-    public function it_ignores_metadata_properties_without_a_physical_database_field(): void
-    {
-        $parser = new SerializedDataParser;
-        $storageMap = StorageMap::fromSerialized(
-            '{1,{1,{fc59acc3-f1f7-4e3f-96da-e580f2c5a88f,"Reference",259}}}',
-            $parser,
-        );
-
-        $metadata = new MetadataMapper($storageMap)->map(
-            MetadataFixture::structure(),
-            MetadataKind::Reference,
-        );
-
-        $this->assertSame([], $metadata->properties);
-    }
-
-    #[Test]
-    public function it_maps_document_tabular_sections(): void
+    public function it_resolves_defined_types_to_their_physical_field_type(): void
     {
         $parser = new SerializedDataParser;
         $metadata = new MetadataMapper(
-            StorageMap::fromSerialized(MetadataFixture::documentStorageMap(), $parser),
-        )->map(MetadataFixture::documentWithTabularSection(), MetadataKind::Document);
-        $result = json_decode(json_encode($metadata, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
+            StorageMap::fromSerialized(MetadataFixture::storageMap(), $parser),
+            TypeMap::fromArray([
+                'defined-type-id' => [['S', 14, 1]],
+            ]),
+        )->map(MetadataFixture::structureWithDefinedType(), MetadataKind::Reference);
 
-        $this->assertIsArray($result);
-        $this->assertInstanceOf(MetadataDefinition::class, $metadata->sections[0]);
-        $this->assertSame(MetadataKind::Section, $metadata->sections[0]->kind);
+        $this->assertSame('field', $metadata->properties[0]->kind->value);
         $this->assertSame(
             [
-                [
-                    'id' => 'a70b9b3d-ba08-40c6-aca1-f81b588f4316',
-                    'name' => '_document38456_vt38459',
-                    'code' => 38_459,
-                    'kind' => 'section',
-                    'label' => 'ТабличнаяЧасть1',
-                    'title' => 'Табличная часть 1',
-                    'system' => [
-                        '_document38456_idrref' => [
-                            'type' => 'reference',
-                            'target' => '7fc26ce3-6449-4483-81be-1e19faab744d',
-                        ],
-                        '_keyfield' => ['type' => 'binary'],
-                        '_lineno38460' => [
-                            'type' => 'number',
-                            'precision' => 5,
-                            'scale' => 0,
-                            'unsigned' => true,
-                        ],
-                    ],
-                    'properties' => [
-                        [
-                            'id' => '7d4b4c14-85f9-47dd-84dc-67a5d2627b41',
-                            'name' => '_fld38461',
-                            'code' => 38_461,
-                            'kind' => 'reference',
-                            'label' => 'Номенклатура',
-                            'title' => 'Номенклатура',
-                            'field' => [
-                                'type' => 'reference',
-                                'target' => '190a7469-3325-4d33-b5ec-28a63ac83b06',
-                            ],
-                        ],
-                        [
-                            'id' => 'a91b4ba8-1d4d-43e7-97cf-bb26e13f3aff',
-                            'name' => '_fld38462',
-                            'code' => 38_462,
-                            'kind' => 'field',
-                            'label' => 'Цена',
-                            'title' => 'Цена',
-                            'field' => [
-                                'type' => 'number',
-                                'precision' => 10,
-                                'scale' => 2,
-                                'unsigned' => false,
-                            ],
-                        ],
-                    ],
-                ],
+                'type' => 'string',
+                'length' => 14,
+                'fixed' => false,
             ],
-            $result['sections'] ?? null,
-        );
-    }
-
-    /** @param non-empty-list<int> $identityPath */
-    #[Test]
-    #[DataProvider('metadataKinds')]
-    public function it_maps_each_supported_metadata_kind(
-        MetadataKind $kind,
-        #[\SensitiveParameter]
-        string $token,
-        array $identityPath,
-    ): void {
-        $id = 'fc59acc3-f1f7-4e3f-96da-e580f2c5a88f';
-        $parser = new SerializedDataParser;
-        $storageMap = StorageMap::fromSerialized(
-            sprintf('{1,{1,{%s,"%s",259}}}', $id, $token),
-            $parser,
-        );
-        $structure = MetadataFixture::metadataStructure(
-            $identityPath,
-            $id,
-            'Объект',
-            'Объект метаданных',
-            'reference-type-id',
-            referencePath: $kind === MetadataKind::Enumeration ? [2, 2] : [2, 4],
-        );
-
-        $metadata = new MetadataMapper($storageMap)->map($structure, $kind);
-
-        $this->assertSame($kind, $metadata->kind);
-        $this->assertSame(sprintf('_%s259', strtolower($token)), $metadata->name);
-        $this->assertSame('Объект метаданных', $metadata->title);
-        $this->assertSame(
-            $kind->referencePath() === null ? null : 'reference-type-id',
-            $metadata->referenceId,
-        );
-
-        if (in_array(
-            $kind,
-            [
-                MetadataKind::Reference,
-                MetadataKind::Document,
-                MetadataKind::Enumeration,
-            ],
-            true,
-        )) {
-            $this->assertInstanceOf(ScalarField::class, $metadata->system['_idrref']);
-            $this->assertSame(FieldType::Id, $metadata->system['_idrref']->type());
-        }
-    }
-
-    #[Test]
-    public function it_maps_enumeration_values(): void
-    {
-        $parser = new SerializedDataParser;
-        $metadata = new MetadataMapper(StorageMap::fromSerialized(
-            '{1,{1,{30825806-865e-4da6-82a0-36fda9773e79,"Enum",259}}}',
-            $parser,
-        ))->map(MetadataFixture::enumeration(), MetadataKind::Enumeration);
-        $result = json_decode(json_encode($metadata, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
-
-        $this->assertIsArray($result);
-        $this->assertSame(
-            [
-                [
-                    'id' => '29dba80c-3a21-44fb-9b76-884de5dc624e',
-                    'label' => 'Расчетный',
-                    'title' => 'Расчетный',
-                ],
-                [
-                    'id' => '06deb22c-e983-4803-9de7-5c56c6d7c8df',
-                    'label' => 'Транзитный',
-                    'title' => 'Транзитный счёт',
-                ],
-            ],
-            $result['values'] ?? null,
+            $metadata->properties[0]->field?->jsonSerialize(),
         );
     }
 
@@ -286,17 +116,98 @@ final class MetadataMapperTest extends TestCase
     }
 
     #[Test]
-    public function it_rejects_a_metadata_property_count_mismatch(): void
+    public function it_maps_document_tabular_sections(): void
     {
         $parser = new SerializedDataParser;
-        $storageMap = StorageMap::fromSerialized(MetadataFixture::storageMap(), $parser);
+        $metadata = new MetadataMapper(
+            StorageMap::fromSerialized(MetadataFixture::documentStorageMap(), $parser),
+        )->map(MetadataFixture::documentWithTabularSection(), MetadataKind::Document);
+        $result = json_decode(json_encode($metadata, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Metadata property count does not match declared count');
+        $this->assertIsArray($result);
+        $this->assertInstanceOf(MetadataDefinition::class, $metadata->sections[0]);
+        $this->assertSame(MetadataKind::Section, $metadata->sections[0]->kind);
+        $this->assertSame(
+            [
+                [
+                    'id' => 'a70b9b3d-ba08-40c6-aca1-f81b588f4316',
+                    'name' => '_document38456_vt38459',
+                    'code' => 38_459,
+                    'kind' => 'section',
+                    'label' => 'ТабличнаяЧасть1',
+                    'title' => 'Табличная часть 1',
+                    'system' => [
+                        '_document38456_idrref' => [
+                            'type' => 'reference',
+                            'target' => '7fc26ce3-6449-4483-81be-1e19faab744d',
+                        ],
+                        '_keyfield' => ['type' => 'binary'],
+                        '_lineno38460' => [
+                            'type' => 'number',
+                            'precision' => 5,
+                            'scale' => 0,
+                            'unsigned' => true,
+                        ],
+                    ],
+                    'properties' => [
+                        [
+                            'id' => '7d4b4c14-85f9-47dd-84dc-67a5d2627b41',
+                            'name' => '_fld38461',
+                            'code' => 38_461,
+                            'kind' => 'reference',
+                            'label' => 'Номенклатура',
+                            'title' => 'Номенклатура',
+                            'field' => [
+                                'type' => 'reference',
+                                'target' => '190a7469-3325-4d33-b5ec-28a63ac83b06',
+                            ],
+                        ],
+                        [
+                            'id' => 'a91b4ba8-1d4d-43e7-97cf-bb26e13f3aff',
+                            'name' => '_fld38462',
+                            'code' => 38_462,
+                            'kind' => 'field',
+                            'label' => 'Цена',
+                            'title' => 'Цена',
+                            'field' => [
+                                'type' => 'number',
+                                'precision' => 10,
+                                'scale' => 2,
+                                'unsigned' => false,
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            $result['sections'] ?? null,
+        );
+    }
 
-        new MetadataMapper($storageMap)->map(
-            MetadataFixture::structureWithPropertyCount(3),
-            MetadataKind::Reference,
+    #[Test]
+    public function it_maps_enumeration_values(): void
+    {
+        $parser = new SerializedDataParser;
+        $metadata = new MetadataMapper(StorageMap::fromSerialized(
+            '{1,{1,{30825806-865e-4da6-82a0-36fda9773e79,"Enum",259}}}',
+            $parser,
+        ))->map(MetadataFixture::enumeration(), MetadataKind::Enumeration);
+        $result = json_decode(json_encode($metadata, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertIsArray($result);
+        $this->assertSame(
+            [
+                [
+                    'id' => '29dba80c-3a21-44fb-9b76-884de5dc624e',
+                    'label' => 'Расчетный',
+                    'title' => 'Расчетный',
+                ],
+                [
+                    'id' => '06deb22c-e983-4803-9de7-5c56c6d7c8df',
+                    'label' => 'Транзитный',
+                    'title' => 'Транзитный счёт',
+                ],
+            ],
+            $result['values'] ?? null,
         );
     }
 
@@ -313,6 +224,71 @@ final class MetadataMapperTest extends TestCase
             MetadataFixture::documentWithTabularSectionCount(2),
             MetadataKind::Document,
         );
+    }
+
+    /** @param non-empty-list<int> $identityPath */
+    #[Test]
+    #[DataProvider('metadataKinds')]
+    public function it_maps_each_supported_metadata_kind(
+        MetadataKind $kind,
+        #[\SensitiveParameter]
+        string $token,
+        array $identityPath,
+    ): void {
+        $id = 'fc59acc3-f1f7-4e3f-96da-e580f2c5a88f';
+        $parser = new SerializedDataParser;
+        $storageMap = StorageMap::fromSerialized(
+            sprintf('{1,{1,{%s,"%s",259}}}', $id, $token),
+            $parser,
+        );
+        $structure = MetadataFixture::metadataStructure(
+            $identityPath,
+            $id,
+            'Объект',
+            'Объект метаданных',
+            'reference-type-id',
+            referencePath: $kind === MetadataKind::Enumeration ? [2, 2] : [2, 4],
+        );
+
+        $metadata = new MetadataMapper($storageMap)->map($structure, $kind);
+
+        $this->assertSame($kind, $metadata->kind);
+        $this->assertSame(sprintf('_%s259', strtolower($token)), $metadata->name);
+        $this->assertSame('Объект метаданных', $metadata->title);
+        $this->assertSame(
+            $kind->referencePath() === null ? null : 'reference-type-id',
+            $metadata->referenceId,
+        );
+
+        if (in_array(
+            $kind,
+            [
+                MetadataKind::Reference,
+                MetadataKind::Document,
+                MetadataKind::Enumeration,
+            ],
+            true,
+        )) {
+            $this->assertInstanceOf(ScalarField::class, $metadata->system['_idrref']);
+            $this->assertSame(FieldType::Id, $metadata->system['_idrref']->type());
+        }
+    }
+
+    #[Test]
+    public function it_ignores_metadata_properties_without_a_physical_database_field(): void
+    {
+        $parser = new SerializedDataParser;
+        $storageMap = StorageMap::fromSerialized(
+            '{1,{1,{fc59acc3-f1f7-4e3f-96da-e580f2c5a88f,"Reference",259}}}',
+            $parser,
+        );
+
+        $metadata = new MetadataMapper($storageMap)->map(
+            MetadataFixture::structure(),
+            MetadataKind::Reference,
+        );
+
+        $this->assertSame([], $metadata->properties);
     }
 
     #[Test]
@@ -332,24 +308,48 @@ final class MetadataMapperTest extends TestCase
     }
 
     #[Test]
-    public function it_resolves_defined_types_to_their_physical_field_type(): void
+    public function it_rejects_a_metadata_property_count_mismatch(): void
     {
         $parser = new SerializedDataParser;
-        $metadata = new MetadataMapper(
-            StorageMap::fromSerialized(MetadataFixture::storageMap(), $parser),
-            TypeMap::fromArray([
-                'defined-type-id' => [['S', 14, 1]],
-            ]),
-        )->map(MetadataFixture::structureWithDefinedType(), MetadataKind::Reference);
+        $storageMap = StorageMap::fromSerialized(MetadataFixture::storageMap(), $parser);
 
-        $this->assertSame('field', $metadata->properties[0]->kind->value);
-        $this->assertSame(
-            [
-                'type' => 'string',
-                'length' => 14,
-                'fixed' => false,
-            ],
-            $metadata->properties[0]->field?->jsonSerialize(),
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Metadata property count does not match declared count');
+
+        new MetadataMapper($storageMap)->map(
+            MetadataFixture::structureWithPropertyCount(3),
+            MetadataKind::Reference,
         );
+    }
+
+    /** @return iterable<string, array{MetadataKind, string, non-empty-list<int>}> */
+    public static function metadataKinds(): iterable
+    {
+        yield 'reference' => [MetadataKind::Reference, 'Reference', [2, 10, 2]];
+        yield 'document' => [MetadataKind::Document, 'Document', [2, 10, 2]];
+        yield 'enumeration' => [MetadataKind::Enumeration, 'Enum', [2, 6, 2]];
+        yield 'accumulation register' => [
+            MetadataKind::AccumulationRegister,
+            'AccumRg',
+            [2, 14, 2],
+        ];
+        yield 'information register' => [
+            MetadataKind::InformationRegister,
+            'InfoRg',
+            [2, 16, 2],
+        ];
+    }
+
+    /** @return iterable<string, array{mixed, string}> */
+    public static function invalidProperties(): iterable
+    {
+        yield 'non-array property' => [
+            'invalid',
+            'Invalid metadata property at position 1',
+        ];
+        yield 'missing identity' => [
+            [],
+            'Invalid metadata property identifier or logical name at position 1',
+        ];
     }
 }

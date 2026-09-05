@@ -9,22 +9,6 @@ class ConditionInlineExtension extends Mark
 {
     public static $name = 'conditionInline';
 
-    /** @return array<string, array<string, mixed>> */
-    public function addAttributes(): array
-    {
-        return [
-            'condition' => [
-                'default' => null,
-                'parseHTML' => static function ($DOMNode) {
-                    $condition = $DOMNode->getAttribute('data-condition');
-
-                    return $condition === '' ? null : $condition;
-                },
-                'renderHTML' => $this->renderConditionAttribute(...),
-            ],
-        ];
-    }
-
     /** @return array<string, mixed> */
     public function addOptions(): array
     {
@@ -38,6 +22,22 @@ class ConditionInlineExtension extends Mark
     {
         return [
             ['tag' => 'span[data-condition]'],
+        ];
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    public function addAttributes(): array
+    {
+        return [
+            'condition' => [
+                'default' => null,
+                'parseHTML' => static function ($DOMNode) {
+                    $condition = $DOMNode->getAttribute('data-condition');
+
+                    return $condition === '' ? null : $condition;
+                },
+                'renderHTML' => $this->renderConditionAttribute(...),
+            ],
         ];
     }
 

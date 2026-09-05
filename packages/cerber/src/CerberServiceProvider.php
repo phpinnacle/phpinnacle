@@ -23,6 +23,27 @@ class CerberServiceProvider extends PackageServiceProvider
 {
     public static string $name = 'phpinnacle-cerber';
 
+    public function packageRegistered(): void
+    {
+        $this->callAfterResolving(Factory::class, function (Factory $factory) {
+            $factory->add(self::$name, [
+                'prefix' => 'cerber',
+                'path' => __DIR__ . '/../resources/svg',
+            ]);
+        });
+    }
+
+    public function packageBooted(): void
+    {
+        Sanctum::usePersonalAccessTokenModel(AccessToken::class);
+
+        Gate::after(fn (User $user, string $ability) => $user->able($ability, Filament::getTenant()));
+
+        Event::listen(TakeImpersonation::class, $this->clearAuthHashes(...));
+        Event::listen(LeaveImpersonation::class, $this->clearAuthHashes(...));
+        Event::listen(SocialiteWasCalled::class, $this->socioliteCalled(...));
+    }
+
     public function configurePackage(Package $package): void
     {
         $package
@@ -40,27 +61,6 @@ class CerberServiceProvider extends PackageServiceProvider
                     ->publishMigrations()
                     ->askToRunMigrations();
             });
-    }
-
-    public function packageBooted(): void
-    {
-        Sanctum::usePersonalAccessTokenModel(AccessToken::class);
-
-        Gate::after(fn (User $user, string $ability) => $user->able($ability, Filament::getTenant()));
-
-        Event::listen(TakeImpersonation::class, $this->clearAuthHashes(...));
-        Event::listen(LeaveImpersonation::class, $this->clearAuthHashes(...));
-        Event::listen(SocialiteWasCalled::class, $this->socioliteCalled(...));
-    }
-
-    public function packageRegistered(): void
-    {
-        $this->callAfterResolving(Factory::class, function (Factory $factory) {
-            $factory->add(self::$name, [
-                'prefix' => 'cerber',
-                'path' => __DIR__ . '/../resources/svg',
-            ]);
-        });
     }
 
     private function clearAuthHashes(): void

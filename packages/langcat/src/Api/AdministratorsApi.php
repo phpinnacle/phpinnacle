@@ -24,19 +24,19 @@ final readonly class AdministratorsApi
         ));
     }
 
-    public function details(int $administratorId): DetailsResponse
-    {
-        return DetailsResponse::fromArray($this->transport->send(
-            'GET',
-            ResourcePath::id('administrators', $administratorId) . '/details',
-        ));
-    }
-
     public function get(int $administratorId): AdministratorResponse
     {
         return AdministratorResponse::fromArray($this->transport->send('GET', ResourcePath::id(
             'administrators',
             $administratorId,
         )));
+    }
+
+    public function details(int $administratorId): DetailsResponse
+    {
+        return DetailsResponse::fromArray($this->transport->send(
+            'GET',
+            ResourcePath::id('administrators', $administratorId) . '/details',
+        ));
     }
 }

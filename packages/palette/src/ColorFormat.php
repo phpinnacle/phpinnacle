@@ -12,6 +12,18 @@ enum ColorFormat: string
     case Hsl = 'hsl';
     case Semantic = 'semantic';
 
+    public function hydrate(?string $state): ?string
+    {
+        if ($state === null) {
+            return null;
+        }
+
+        return match ($this) {
+            self::Rgba, self::Hsl => (string) Factory::fromString($state)->toHex(),
+            self::Hex, self::Semantic => $state,
+        };
+    }
+
     public function dehydrate(?string $state): ?string
     {
         if ($state === null) {
@@ -25,16 +37,9 @@ enum ColorFormat: string
         };
     }
 
-    public function hydrate(?string $state): ?string
+    public function supports(ColorSource $source): bool
     {
-        if ($state === null) {
-            return null;
-        }
-
-        return match ($this) {
-            self::Rgba, self::Hsl => (string) Factory::fromString($state)->toHex(),
-            self::Hex, self::Semantic => $state,
-        };
+        return $this !== self::Semantic || $source === ColorSource::Filament;
     }
 
     /**
@@ -56,10 +61,5 @@ enum ColorFormat: string
         );
 
         return '/^(?:' . implode('|', $colors) . ')$/';
-    }
-
-    public function supports(ColorSource $source): bool
-    {
-        return $this !== self::Semantic || $source === ColorSource::Filament;
     }
 }

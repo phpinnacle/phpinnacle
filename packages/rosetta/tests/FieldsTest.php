@@ -14,22 +14,6 @@ use PHPUnit\Framework\TestCase;
 final class FieldsTest extends TestCase
 {
     #[Test]
-    public function fields_expose_their_reference_targets(): void
-    {
-        $field = new UnionField([
-            new ScalarField(FieldType::Boolean),
-            new ReferenceField('first-target'),
-            new UnionField([
-                new ReferenceField('second-target'),
-                new ReferenceField('first-target'),
-            ]),
-        ]);
-
-        $this->assertSame(['first-target', 'second-target'], $field->targets());
-        $this->assertSame([], new StringField(length: 50, fixed: false)->targets());
-    }
-
-    #[Test]
     public function it_serializes_specialized_field_implementations(): void
     {
         $fields = [
@@ -61,5 +45,21 @@ final class FieldsTest extends TestCase
             ],
             json_decode(json_encode($fields, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR),
         );
+    }
+
+    #[Test]
+    public function fields_expose_their_reference_targets(): void
+    {
+        $field = new UnionField([
+            new ScalarField(FieldType::Boolean),
+            new ReferenceField('first-target'),
+            new UnionField([
+                new ReferenceField('second-target'),
+                new ReferenceField('first-target'),
+            ]),
+        ]);
+
+        $this->assertSame(['first-target', 'second-target'], $field->targets());
+        $this->assertSame([], new StringField(length: 50, fixed: false)->targets());
     }
 }

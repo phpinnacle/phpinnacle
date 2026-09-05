@@ -11,9 +11,9 @@ final class ListCollectionInstallmentsRequest
         return new self;
     }
 
-    public function createdAfter(string $value): self
+    public function sortBy(string $value): self
     {
-        return $this->dateFilter('createdAt_gt', $value);
+        return $this->sort($value, ['+id', '-id', '+dateTo', '-dateTo', '+createdAt', '-createdAt']);
     }
 
     public function createdAt(string $value): self
@@ -21,14 +21,14 @@ final class ListCollectionInstallmentsRequest
         return $this->dateFilter('createdAt', $value);
     }
 
+    public function createdAfter(string $value): self
+    {
+        return $this->dateFilter('createdAt_gt', $value);
+    }
+
     public function createdAtOrAfter(string $value): self
     {
         return $this->dateFilter('createdAt_ge', $value);
-    }
-
-    public function createdAtOrBefore(string $value): self
-    {
-        return $this->dateFilter('createdAt_le', $value);
     }
 
     public function createdBefore(string $value): self
@@ -36,8 +36,8 @@ final class ListCollectionInstallmentsRequest
         return $this->dateFilter('createdAt_lt', $value);
     }
 
-    public function sortBy(string $value): self
+    public function createdAtOrBefore(string $value): self
     {
-        return $this->sort($value, ['+id', '-id', '+dateTo', '-dateTo', '+createdAt', '-createdAt']);
+        return $this->dateFilter('createdAt_le', $value);
     }
 }

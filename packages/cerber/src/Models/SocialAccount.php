@@ -48,14 +48,6 @@ class SocialAccount extends Model
         'token_expires_at',
     ];
 
-    public static function find(Provider $provider, string $externalId): ?self
-    {
-        return self::query()
-            ->where('provider_id', $provider->getKey())
-            ->where('external_id', $externalId)
-            ->first();
-    }
-
     public static function linked(Authenticatable $user): array
     {
         return self::query()->where('user_id', $user->getAuthIdentifier())->pluck('provider_id')->all();
@@ -71,13 +63,21 @@ class SocialAccount extends Model
             ->delete();
     }
 
-    public function provider(): BelongsTo
+    public static function find(Provider $provider, string $externalId): ?self
     {
-        return $this->belongsTo(Provider::class);
+        return self::query()
+            ->where('provider_id', $provider->getKey())
+            ->where('external_id', $externalId)
+            ->first();
     }
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function provider(): BelongsTo
+    {
+        return $this->belongsTo(Provider::class);
     }
 }

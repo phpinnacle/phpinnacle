@@ -11,33 +11,6 @@ use RuntimeException;
 
 final class StorageMapTest extends TestCase
 {
-    /** @return iterable<string, array{string, string}> */
-    public static function invalidStructures(): iterable
-    {
-        yield 'invalid declared count' => [
-            '{1,{2,{fc59acc3-f1f7-4e3f-96da-e580f2c5a88f,"Reference",259}}}',
-            'DBNames entry count does not match declared count',
-        ];
-        yield 'invalid entry shape' => [
-            '{1,{1,{fc59acc3-f1f7-4e3f-96da-e580f2c5a88f,"Reference"}}}',
-            'Invalid DBNames entry at position 1',
-        ];
-        yield 'invalid entry values' => [
-            '{1,{1,{42,"Reference",259}}}',
-            'Invalid DBNames entry at position 1',
-        ];
-    }
-
-    #[Test]
-    #[DataProvider('invalidStructures')]
-    public function it_rejects_invalid_database_name_structures(string $serialized, string $message): void
-    {
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage($message);
-
-        StorageMap::fromSerialized($serialized, new SerializedDataParser);
-    }
-
     #[Test]
     public function it_resolves_all_database_names_registered_for_a_uuid(): void
     {
@@ -97,5 +70,32 @@ final class StorageMapTest extends TestCase
             'fc59acc3-f1f7-4e3f-96da-e580f2c5a88f',
             'Reference',
         ));
+    }
+
+    #[Test]
+    #[DataProvider('invalidStructures')]
+    public function it_rejects_invalid_database_name_structures(string $serialized, string $message): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage($message);
+
+        StorageMap::fromSerialized($serialized, new SerializedDataParser);
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function invalidStructures(): iterable
+    {
+        yield 'invalid declared count' => [
+            '{1,{2,{fc59acc3-f1f7-4e3f-96da-e580f2c5a88f,"Reference",259}}}',
+            'DBNames entry count does not match declared count',
+        ];
+        yield 'invalid entry shape' => [
+            '{1,{1,{fc59acc3-f1f7-4e3f-96da-e580f2c5a88f,"Reference"}}}',
+            'Invalid DBNames entry at position 1',
+        ];
+        yield 'invalid entry values' => [
+            '{1,{1,{42,"Reference",259}}}',
+            'Invalid DBNames entry at position 1',
+        ];
     }
 }

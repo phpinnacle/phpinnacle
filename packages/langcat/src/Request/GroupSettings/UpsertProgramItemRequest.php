@@ -15,19 +15,19 @@ final class UpsertProgramItemRequest
         return new self;
     }
 
+    public function position(int $value): self
+    {
+        $this->data['position'] = RequestValue::nonNegativeInt($value, 'Program item position');
+
+        return $this;
+    }
+
     public function element(int $lessonDetailsId, string $description): self
     {
         $this->data['elements'][] = [
             'lessonDetailsId' => RequestValue::positive($lessonDetailsId, 'Lesson details ID'),
             'description' => RequestValue::nonEmpty($description, 'Program item description'),
         ];
-
-        return $this;
-    }
-
-    public function position(int $value): self
-    {
-        $this->data['position'] = RequestValue::nonNegativeInt($value, 'Program item position');
 
         return $this;
     }

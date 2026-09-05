@@ -15,9 +15,11 @@ class CommentsEntry extends ViewEntry
         return 'comments';
     }
 
-    public function getLayout(): string
+    public function layout(string $layout): self
     {
-        return $this->layout;
+        $this->layout = $layout;
+
+        return $this;
     }
 
     public function inverse(): self
@@ -27,11 +29,9 @@ class CommentsEntry extends ViewEntry
         return $this;
     }
 
-    public function layout(string $layout): self
+    public function getLayout(): string
     {
-        $this->layout = $layout;
-
-        return $this;
+        return $this->layout;
     }
 
     public function setUp(): void

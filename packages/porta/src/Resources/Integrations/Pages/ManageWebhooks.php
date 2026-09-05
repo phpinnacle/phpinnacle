@@ -39,9 +39,9 @@ class ManageWebhooks extends ManageRelatedRecords
 
     protected static string $relationship = 'webhooks';
 
-    public static function getNavigationIcon(): ?string
+    public function getTitle(): string|Htmlable
     {
-        return config('phpinnacle-porta.navigation.webhook.icon');
+        return __('phpinnacle-porta::resources.webhook.pages.list');
     }
 
     public static function getNavigationLabel(): string
@@ -49,34 +49,9 @@ class ManageWebhooks extends ManageRelatedRecords
         return __('phpinnacle-porta::resources.integration.pages.webhooks');
     }
 
-    public function form(Schema $schema): Schema
+    public static function getNavigationIcon(): ?string
     {
-        return $schema
-            ->components([
-                Group::make()
-                    ->columnSpanFull()
-                    ->schema([
-                        TextInput::make('origin')
-                            ->label(__('phpinnacle-porta::resources.webhook.fields.origin'))
-                            ->prefixIcon('phosphor-browser')
-                            ->default(config('app.url'))
-                            ->url(),
-                        Textarea::make('payload')
-                            ->label(__('phpinnacle-porta::resources.webhook.fields.payload'))
-                            ->json()
-                            ->rows(20)
-                            ->hintActions([
-                                ExampleAction::make(),
-                            ]),
-                        KeyValue::make('headers')
-                            ->label(__('phpinnacle-porta::resources.webhook.fields.headers')),
-                    ]),
-            ]);
-    }
-
-    public function getTitle(): string|Htmlable
-    {
-        return __('phpinnacle-porta::resources.webhook.pages.list');
+        return config('phpinnacle-porta.navigation.webhook.icon');
     }
 
     public function infolist(Schema $schema): Schema
@@ -138,6 +113,31 @@ class ManageWebhooks extends ManageRelatedRecords
                             ))
                             ->visible(fn (?array $state) => $state !== null && $state !== [])
                             ->columnSpanFull(),
+                    ]),
+            ]);
+    }
+
+    public function form(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                Group::make()
+                    ->columnSpanFull()
+                    ->schema([
+                        TextInput::make('origin')
+                            ->label(__('phpinnacle-porta::resources.webhook.fields.origin'))
+                            ->prefixIcon('phosphor-browser')
+                            ->default(config('app.url'))
+                            ->url(),
+                        Textarea::make('payload')
+                            ->label(__('phpinnacle-porta::resources.webhook.fields.payload'))
+                            ->json()
+                            ->rows(20)
+                            ->hintActions([
+                                ExampleAction::make(),
+                            ]),
+                        KeyValue::make('headers')
+                            ->label(__('phpinnacle-porta::resources.webhook.fields.headers')),
                     ]),
             ]);
     }

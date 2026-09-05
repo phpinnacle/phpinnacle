@@ -85,6 +85,20 @@ enum TransformType: string
         };
     }
 
+    public function transform(array $data, string $path, array $config): array
+    {
+        return match ($this) {
+            self::MAP => $this->transformMap($data, $path, $config['fields'] ?? []),
+            self::DROP => $this->transformDrop($data, $path),
+            self::MOVE => $this->transformMove($data, $path, $config['dest'] ?? '$'),
+            self::CAST => $this->transformCast($data, $path, $config['type'] ?? 'string'),
+            self::TRIM => $this->transformTrim($data, $path, $config['chars'] ?? ''),
+            self::DATE => $this->transformDate($data, $path, $config),
+            self::RENAME => $this->transformRename($data, $path, $config['fields'] ?? []),
+            self::INSERT => $this->transformInsert($data, $path, $config['fields'] ?? []),
+        };
+    }
+
     public function preview(array $config): string|HtmlString
     {
         return match ($this) {
@@ -119,18 +133,125 @@ enum TransformType: string
         };
     }
 
-    public function transform(array $data, string $path, array $config): array
+    private function transformMap(array $data, string $path, array $map): array
     {
-        return match ($this) {
-            self::MAP => $this->transformMap($data, $path, $config['fields'] ?? []),
-            self::DROP => $this->transformDrop($data, $path),
-            self::MOVE => $this->transformMove($data, $path, $config['dest'] ?? '$'),
-            self::CAST => $this->transformCast($data, $path, $config['type'] ?? 'string'),
-            self::TRIM => $this->transformTrim($data, $path, $config['chars'] ?? ''),
-            self::DATE => $this->transformDate($data, $path, $config),
-            self::RENAME => $this->transformRename($data, $path, $config['fields'] ?? []),
-            self::INSERT => $this->transformInsert($data, $path, $config['fields'] ?? []),
-        };
+        $json = new JsonObject($data);
+        $values = $json->get($path);
+
+        if (!is_array($values)) {
+            return $data;
+        }
+
+        foreach ($values as &$value) {
+            $type = gettype($value);
+
+            if (!in_array($type, ['boolean', 'bool', 'integer', 'int', 'float', 'double', 'string'], strict: true)) {
+                continue;
+            }
+
+            if (($map[(string) $value] ?? null) !== null) {
+                $value = $map[$value];
+            } elseif (($map['*'] ?? null) !== null) {
+                $value = $map['*'];
+            }
+
+            settype($value, $type);
+        }
+
+        return (array) $json->getValue();
+    }
+
+    private function transformDrop(array $data, string $path): array
+    {
+        $parts = explode('.', $path);
+        $field = array_pop($parts);
+
+        if ($field === null || $field === '') {
+            return $data;
+        }
+
+        $json = new JsonObject($data);
+        $values = $json->get(implode('.', $parts));
+
+        if (!is_array($values)) {
+            return $data;
+        }
+
+        foreach ($values as &$value) {
+            if (!is_array($value)) {
+                continue;
+            }
+
+            unset($value[$field]);
+        }
+
+        return (array) $json->getValue();
+    }
+
+    private function transformRename(array $data, string $path, array $fields): array
+    {
+        $json = new JsonObject($data);
+        $values = $json->get($path);
+
+        if (!is_array($values)) {
+            return $data;
+        }
+
+        foreach ($values as &$value) {
+            if (!is_array($value)) {
+                continue;
+            }
+
+            foreach ($fields as $from => $to) {
+                if (!array_key_exists($from, $value)) {
+                    continue;
+                }
+
+                $value[$to] = $value[$from];
+
+                unset($value[$from]);
+            }
+        }
+
+        return (array) $json->getValue();
+    }
+
+    private function transformInsert(array $data, string $path, array $fields): array
+    {
+        $json = new JsonObject($data);
+        $values = $json->get($path);
+
+        if (!is_array($values)) {
+            return $data;
+        }
+
+        foreach ($values as &$value) {
+            if (!is_array($value)) {
+                continue;
+            }
+
+            foreach ($fields as $key => $item) {
+                $value[$key] = $item;
+            }
+        }
+
+        return (array) $json->getValue();
+    }
+
+    private function transformMove(array $data, string $path, string $dest): array
+    {
+        $json = new JsonObject($data);
+        $values = $json->get($path);
+
+        if (!is_array($values)) {
+            return $data;
+        }
+
+        foreach ($values as $value) {
+            $json->set($dest, $value);
+        }
+
+        return $this->transformDrop((array) $json->getValue(), $path);
     }
 
     private function transformCast(array $data, string $path, string $type): array
@@ -144,6 +265,26 @@ enum TransformType: string
 
         foreach ($values as &$value) {
             settype($value, $type);
+        }
+
+        return (array) $json->getValue();
+    }
+
+    private function transformTrim(array $data, string $path, string $chars): array
+    {
+        $json = new JsonObject($data);
+        $values = $json->get($path);
+
+        if (!is_array($values)) {
+            return $data;
+        }
+
+        foreach ($values as &$value) {
+            if (!is_string($value)) {
+                continue;
+            }
+
+            $value = trim($value, $chars !== '' ? $chars : " \n\r\t\v\0");
         }
 
         return (array) $json->getValue();
@@ -198,147 +339,6 @@ enum TransformType: string
                         break;
                 }
             }
-        }
-
-        return (array) $json->getValue();
-    }
-
-    private function transformDrop(array $data, string $path): array
-    {
-        $parts = explode('.', $path);
-        $field = array_pop($parts);
-
-        if ($field === null || $field === '') {
-            return $data;
-        }
-
-        $json = new JsonObject($data);
-        $values = $json->get(implode('.', $parts));
-
-        if (!is_array($values)) {
-            return $data;
-        }
-
-        foreach ($values as &$value) {
-            if (!is_array($value)) {
-                continue;
-            }
-
-            unset($value[$field]);
-        }
-
-        return (array) $json->getValue();
-    }
-
-    private function transformInsert(array $data, string $path, array $fields): array
-    {
-        $json = new JsonObject($data);
-        $values = $json->get($path);
-
-        if (!is_array($values)) {
-            return $data;
-        }
-
-        foreach ($values as &$value) {
-            if (!is_array($value)) {
-                continue;
-            }
-
-            foreach ($fields as $key => $item) {
-                $value[$key] = $item;
-            }
-        }
-
-        return (array) $json->getValue();
-    }
-
-    private function transformMap(array $data, string $path, array $map): array
-    {
-        $json = new JsonObject($data);
-        $values = $json->get($path);
-
-        if (!is_array($values)) {
-            return $data;
-        }
-
-        foreach ($values as &$value) {
-            $type = gettype($value);
-
-            if (!in_array($type, ['boolean', 'bool', 'integer', 'int', 'float', 'double', 'string'], strict: true)) {
-                continue;
-            }
-
-            if (($map[(string) $value] ?? null) !== null) {
-                $value = $map[$value];
-            } elseif (($map['*'] ?? null) !== null) {
-                $value = $map['*'];
-            }
-
-            settype($value, $type);
-        }
-
-        return (array) $json->getValue();
-    }
-
-    private function transformMove(array $data, string $path, string $dest): array
-    {
-        $json = new JsonObject($data);
-        $values = $json->get($path);
-
-        if (!is_array($values)) {
-            return $data;
-        }
-
-        foreach ($values as $value) {
-            $json->set($dest, $value);
-        }
-
-        return $this->transformDrop((array) $json->getValue(), $path);
-    }
-
-    private function transformRename(array $data, string $path, array $fields): array
-    {
-        $json = new JsonObject($data);
-        $values = $json->get($path);
-
-        if (!is_array($values)) {
-            return $data;
-        }
-
-        foreach ($values as &$value) {
-            if (!is_array($value)) {
-                continue;
-            }
-
-            foreach ($fields as $from => $to) {
-                if (!array_key_exists($from, $value)) {
-                    continue;
-                }
-
-                $value[$to] = $value[$from];
-
-                unset($value[$from]);
-            }
-        }
-
-        return (array) $json->getValue();
-    }
-
-    private function transformTrim(array $data, string $path, string $chars): array
-    {
-        $json = new JsonObject($data);
-        $values = $json->get($path);
-
-        if (!is_array($values)) {
-            return $data;
-        }
-
-        foreach ($values as &$value) {
-            if (!is_string($value)) {
-                continue;
-            }
-
-            $value = trim($value, $chars !== '' ? $chars : " \n\r\t\v\0");
         }
 
         return (array) $json->getValue();

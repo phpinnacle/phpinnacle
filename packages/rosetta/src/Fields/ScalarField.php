@@ -14,10 +14,9 @@ final readonly class ScalarField implements Field
         private FieldType $type,
     ) {}
 
-    /** @return array{type: string} */
-    public function jsonSerialize(): array
+    public function type(): FieldType
     {
-        return ['type' => $this->type->value];
+        return $this->type;
     }
 
     public function targets(): array
@@ -25,8 +24,9 @@ final readonly class ScalarField implements Field
         return [];
     }
 
-    public function type(): FieldType
+    /** @return array{type: string} */
+    public function jsonSerialize(): array
     {
-        return $this->type;
+        return ['type' => $this->type->value];
     }
 }

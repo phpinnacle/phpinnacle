@@ -75,6 +75,11 @@ class Integration extends Model
         return self::active()->where($key, $value)->firstOrFail();
     }
 
+    public function schedule(string $origin, string $payload, array $headers): Webhook
+    {
+        return Webhook::schedule($this, $origin, $payload, $headers);
+    }
+
     public function authorize(Request $request): void
     {
         if ($this->auth === IntegrationAuth::None) {
@@ -103,11 +108,6 @@ class Integration extends Model
         }
 
         return $payload;
-    }
-
-    public function schedule(string $origin, string $payload, array $headers): Webhook
-    {
-        return Webhook::schedule($this, $origin, $payload, $headers);
     }
 
     public function toggleActive(): void

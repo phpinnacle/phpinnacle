@@ -37,9 +37,9 @@ class SettingsPage extends Page
 
     private ?Definition $definition = null;
 
-    public static function canAccess(): bool
+    public static function getNavigationLabel(): string
     {
-        return app(DefinitionRegistry::class)->all()->contains(fn (Definition $definition) => $definition->enabled());
+        return __('phpinnacle-settings::pages.settings.label');
     }
 
     public static function getNavigationGroup(): string
@@ -52,11 +52,6 @@ class SettingsPage extends Page
         return config('phpinnacle-settings.navigation.icon');
     }
 
-    public static function getNavigationLabel(): string
-    {
-        return __('phpinnacle-settings::pages.settings.label');
-    }
-
     public static function getNavigationSort(): int
     {
         return config('phpinnacle-settings.navigation.sort');
@@ -65,6 +60,11 @@ class SettingsPage extends Page
     public static function getRelativeRouteName(Panel $panel): string
     {
         return 'settings';
+    }
+
+    public static function canAccess(): bool
+    {
+        return app(DefinitionRegistry::class)->all()->contains(fn (Definition $definition) => $definition->enabled());
     }
 
     // @mago-expect lint:excessive-parameter-list
@@ -88,53 +88,12 @@ class SettingsPage extends Page
         );
     }
 
-    public function form(Schema $schema): Schema
+    public function mount(string $group): void
     {
-        return $this->getDefinition()->form($schema)->statePath('data');
-    }
+        $this->group = $group;
+        $this->data = get_mangled_object_vars(app($this->getDefinition()->class));
 
-    public function getHeaderActions(): array
-    {
-        return [
-            $this->getSubmitFormAction(),
-        ];
-    }
-
-    public function getSavedNotification(): ?Notification
-    {
-        return Notification::make()
-            ->title(__('phpinnacle-settings::pages.settings.notifications.save.title'))
-            ->body(__('phpinnacle-settings::pages.settings.notifications.save.body'))
-            ->icon('phosphor-check-circle')
-            ->success();
-    }
-
-    public function getSubmitFormAction(): Action
-    {
-        return Action::make('save')
-            ->label(__('phpinnacle-settings::pages.settings.actions.save'))
-            ->icon('phosphor-check-circle')
-            ->action('save')
-            ->keyBindings(['mod+s']);
-    }
-
-    public function getSubNavigation(): array
-    {
-        $groups = app(DefinitionRegistry::class)
-            ->all()
-            ->filter(fn (Definition $definition) => $definition->enabled())
-            ->groupBy(fn (Definition $definition) => $definition->parent ?? '');
-
-        $items = $groups->get('', collect())->map(function (Definition $definition) use ($groups) {
-            $item = $definition->navigation();
-            $children = $groups->get($definition->class, collect());
-
-            return $item->childItems($children->map(fn (Definition $child) => $child->navigation()));
-        });
-
-        return [
-            NavigationGroup::make()->items($items),
-        ];
+        $this->form->fill($this->data);
     }
 
     public function getTitle(): string
@@ -142,12 +101,9 @@ class SettingsPage extends Page
         return sprintf('%s: %s', self::getNavigationLabel(), $this->getDefinition()->label);
     }
 
-    public function mount(string $group): void
+    public function form(Schema $schema): Schema
     {
-        $this->group = $group;
-        $this->data = get_mangled_object_vars(app($this->getDefinition()->class));
-
-        $this->form->fill($this->data);
+        return $this->getDefinition()->form($schema)->statePath('data');
     }
 
     public function save(SettingsStorage $loader): void
@@ -181,6 +137,50 @@ class SettingsPage extends Page
 
         $this->rememberData();
         $this->getSavedNotification()?->send();
+    }
+
+    public function getSavedNotification(): ?Notification
+    {
+        return Notification::make()
+            ->title(__('phpinnacle-settings::pages.settings.notifications.save.title'))
+            ->body(__('phpinnacle-settings::pages.settings.notifications.save.body'))
+            ->icon('phosphor-check-circle')
+            ->success();
+    }
+
+    public function getHeaderActions(): array
+    {
+        return [
+            $this->getSubmitFormAction(),
+        ];
+    }
+
+    public function getSubmitFormAction(): Action
+    {
+        return Action::make('save')
+            ->label(__('phpinnacle-settings::pages.settings.actions.save'))
+            ->icon('phosphor-check-circle')
+            ->action('save')
+            ->keyBindings(['mod+s']);
+    }
+
+    public function getSubNavigation(): array
+    {
+        $groups = app(DefinitionRegistry::class)
+            ->all()
+            ->filter(fn (Definition $definition) => $definition->enabled())
+            ->groupBy(fn (Definition $definition) => $definition->parent ?? '');
+
+        $items = $groups->get('', collect())->map(function (Definition $definition) use ($groups) {
+            $item = $definition->navigation();
+            $children = $groups->get($definition->class, collect());
+
+            return $item->childItems($children->map(fn (Definition $child) => $child->navigation()));
+        });
+
+        return [
+            NavigationGroup::make()->items($items),
+        ];
     }
 
     private function getDefinition(): Definition

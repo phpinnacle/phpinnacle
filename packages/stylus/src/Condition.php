@@ -37,14 +37,100 @@ class Condition implements ConditionContract
         );
     }
 
+    public static function truthy(): self
+    {
+        return new self('truthy', '', ConditionKind::Truthy, 'True', types: ['boolean']);
+    }
+
     public static function test(string $name): self
     {
         return new self($name, $name, ConditionKind::Test, Str::headline($name));
     }
 
-    public static function truthy(): self
+    public function getName(): string
     {
-        return new self('truthy', '', ConditionKind::Truthy, 'True', types: ['boolean']);
+        return $this->name;
+    }
+
+    public function getExpression(): string
+    {
+        return $this->expression;
+    }
+
+    public function getType(): ConditionKind
+    {
+        return $this->type;
+    }
+
+    /** @return list<string> */
+    public function getTypes(): array
+    {
+        return $this->types;
+    }
+
+    public function matchesVariableTypes(): bool
+    {
+        return $this->matchesVariableTypes;
+    }
+
+    public function label(string $label): self
+    {
+        return new self(
+            $this->name,
+            $this->expression,
+            $this->type,
+            $label,
+            $this->types,
+            $this->matchesVariableTypes,
+            $this->icon,
+            $this->description,
+            $this->color,
+        );
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label;
+    }
+
+    public function icon(string|BackedEnum|Htmlable|null $icon): self
+    {
+        return new self(
+            $this->name,
+            $this->expression,
+            $this->type,
+            $this->label,
+            $this->types,
+            $this->matchesVariableTypes,
+            $icon,
+            $this->description,
+            $this->color,
+        );
+    }
+
+    public function getIcon(): string|BackedEnum|Htmlable|null
+    {
+        return $this->icon;
+    }
+
+    public function description(?string $description): self
+    {
+        return new self(
+            $this->name,
+            $this->expression,
+            $this->type,
+            $this->label,
+            $this->types,
+            $this->matchesVariableTypes,
+            $this->icon,
+            $description,
+            $this->color,
+        );
+    }
+
+    public function getDescription(): ?string
+    {
+        return $this->description;
     }
 
     /** @param string|array<string>|null $color */
@@ -63,91 +149,20 @@ class Condition implements ConditionContract
         );
     }
 
-    public function description(?string $description): self
-    {
-        return new self(
-            $this->name,
-            $this->expression,
-            $this->type,
-            $this->label,
-            $this->types,
-            $this->matchesVariableTypes,
-            $this->icon,
-            $description,
-            $this->color,
-        );
-    }
-
     /** @return string|array<string>|null */
     public function getColor(): string|array|null
     {
         return $this->color;
     }
 
-    public function getDescription(): ?string
-    {
-        return $this->description;
-    }
-
-    public function getExpression(): string
-    {
-        return $this->expression;
-    }
-
-    public function getIcon(): string|BackedEnum|Htmlable|null
-    {
-        return $this->icon;
-    }
-
-    public function getKey(): string
-    {
-        return $this->type->key($this->name);
-    }
-
-    public function getLabel(): string
-    {
-        return $this->label;
-    }
-
-    public function getName(): string
-    {
-        return $this->name;
-    }
-
-    public function getType(): ConditionKind
-    {
-        return $this->type;
-    }
-
-    /** @return list<string> */
-    public function getTypes(): array
-    {
-        return $this->types;
-    }
-
-    public function icon(string|BackedEnum|Htmlable|null $icon): self
+    public function types(string ...$types): self
     {
         return new self(
             $this->name,
             $this->expression,
             $this->type,
             $this->label,
-            $this->types,
-            $this->matchesVariableTypes,
-            $icon,
-            $this->description,
-            $this->color,
-        );
-    }
-
-    public function label(string $label): self
-    {
-        return new self(
-            $this->name,
-            $this->expression,
-            $this->type,
-            $label,
-            $this->types,
+            $types,
             $this->matchesVariableTypes,
             $this->icon,
             $this->description,
@@ -155,9 +170,9 @@ class Condition implements ConditionContract
         );
     }
 
-    public function matchesVariableTypes(): bool
+    public function supports(string $variableType): bool
     {
-        return $this->matchesVariableTypes;
+        return $this->types === [] || in_array($variableType, $this->types, true);
     }
 
     public function matchVariableTypes(bool $condition = true): self
@@ -175,23 +190,8 @@ class Condition implements ConditionContract
         );
     }
 
-    public function supports(string $variableType): bool
+    public function getKey(): string
     {
-        return $this->types === [] || in_array($variableType, $this->types, true);
-    }
-
-    public function types(string ...$types): self
-    {
-        return new self(
-            $this->name,
-            $this->expression,
-            $this->type,
-            $this->label,
-            $types,
-            $this->matchesVariableTypes,
-            $this->icon,
-            $this->description,
-            $this->color,
-        );
+        return $this->type->key($this->name);
     }
 }

@@ -17,61 +17,6 @@ use PHPUnit\Framework\TestCase;
 
 final class MetadataLoaderTest extends TestCase
 {
-    /** @return iterable<string, array{list<string>}> */
-    public static function onlyFilters(): iterable
-    {
-        yield 'all tables by default' => [[]];
-        yield 'limited by physical name' => [['_reference259']];
-    }
-
-    #[Test]
-    public function it_loads_a_chunk_from_an_existing_storage_map(): void
-    {
-        $firstId = 'first-metadata-id';
-        $secondId = 'second-metadata-id';
-        $storageMap = StorageMap::fromArray([
-            $firstId => ['Reference' => 1],
-            $secondId => ['Reference' => 2],
-        ]);
-        $connection = $this->createMock(Connection::class);
-        $connection
-            ->expects($this->once())
-            ->method('select')
-            ->with(
-                'SELECT filename, binarydata AS data FROM Config WHERE filename IN (?, ?)',
-                [$firstId, $secondId],
-            )
-            ->willReturn([
-                (object) [
-                    'filename' => $secondId,
-                    'data' => gzdeflate(MetadataFixture::serializedMetadataStructure(
-                        [2, 10, 2],
-                        $secondId,
-                        'ВторойОбъект',
-                        'Второй объект',
-                        'second-reference-id',
-                    )),
-                ],
-                (object) [
-                    'filename' => $firstId,
-                    'data' => gzdeflate(MetadataFixture::serializedMetadataStructure(
-                        [2, 10, 2],
-                        $firstId,
-                        'ПервыйОбъект',
-                        'Первый объект',
-                        'first-reference-id',
-                    )),
-                ],
-            ]);
-
-        $metadata = new MetadataLoader(new SerializedDataParser)
-            ->chunk($connection, $storageMap, TypeMap::empty(), 0, 20);
-
-        $this->assertCount(2, $metadata);
-        $this->assertSame([$firstId, $secondId], array_column($metadata, 'id'));
-        $this->assertSame(['_reference1', '_reference2'], array_column($metadata, 'name'));
-    }
-
     #[Test]
     public function it_loads_defined_types_from_the_configuration_root(): void
     {
@@ -228,5 +173,60 @@ final class MetadataLoaderTest extends TestCase
         $this->assertSame('_fld5801', $metadata[0]->properties[0]->name);
         $this->assertSame('_fld5802', $metadata[0]->properties[1]->name);
         $this->assertSame([[0, 1], [1, 1]], $progress);
+    }
+
+    /** @return iterable<string, array{list<string>}> */
+    public static function onlyFilters(): iterable
+    {
+        yield 'all tables by default' => [[]];
+        yield 'limited by physical name' => [['_reference259']];
+    }
+
+    #[Test]
+    public function it_loads_a_chunk_from_an_existing_storage_map(): void
+    {
+        $firstId = 'first-metadata-id';
+        $secondId = 'second-metadata-id';
+        $storageMap = StorageMap::fromArray([
+            $firstId => ['Reference' => 1],
+            $secondId => ['Reference' => 2],
+        ]);
+        $connection = $this->createMock(Connection::class);
+        $connection
+            ->expects($this->once())
+            ->method('select')
+            ->with(
+                'SELECT filename, binarydata AS data FROM Config WHERE filename IN (?, ?)',
+                [$firstId, $secondId],
+            )
+            ->willReturn([
+                (object) [
+                    'filename' => $secondId,
+                    'data' => gzdeflate(MetadataFixture::serializedMetadataStructure(
+                        [2, 10, 2],
+                        $secondId,
+                        'ВторойОбъект',
+                        'Второй объект',
+                        'second-reference-id',
+                    )),
+                ],
+                (object) [
+                    'filename' => $firstId,
+                    'data' => gzdeflate(MetadataFixture::serializedMetadataStructure(
+                        [2, 10, 2],
+                        $firstId,
+                        'ПервыйОбъект',
+                        'Первый объект',
+                        'first-reference-id',
+                    )),
+                ],
+            ]);
+
+        $metadata = new MetadataLoader(new SerializedDataParser)
+            ->chunk($connection, $storageMap, TypeMap::empty(), 0, 20);
+
+        $this->assertCount(2, $metadata);
+        $this->assertSame([$firstId, $secondId], array_column($metadata, 'id'));
+        $this->assertSame(['_reference1', '_reference2'], array_column($metadata, 'name'));
     }
 }

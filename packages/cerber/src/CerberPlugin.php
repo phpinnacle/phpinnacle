@@ -42,6 +42,11 @@ class CerberPlugin implements Plugin
         private readonly ProviderRegistry $providers,
     ) {}
 
+    public static function make(): static
+    {
+        return app(static::class);
+    }
+
     public static function get(): static
     {
         // @mago-expect lint:inline-variable-return
@@ -51,9 +56,92 @@ class CerberPlugin implements Plugin
         return $plugin;
     }
 
-    public static function make(): static
+    public function getId(): string
     {
-        return app(static::class);
+        return self::ID;
+    }
+
+    public function tenancy(bool $value = true): static
+    {
+        $this->tenancy = $value;
+
+        return $this;
+    }
+
+    public function authProviders(AuthProvider|Closure|string ...$providers): static
+    {
+        $this->authProviders = [
+            ...$this->authProviders,
+            ...$providers,
+        ];
+
+        return $this;
+    }
+
+    public function developers(array $developers): static
+    {
+        $this->developers = array_is_list($developers) ? array_combine($developers, $developers) : $developers;
+
+        return $this;
+    }
+
+    public function withoutProviders(): static
+    {
+        $this->disabled[] = Resources\Providers\ProviderResource::class;
+
+        return $this;
+    }
+
+    public function withoutRoles(): static
+    {
+        $this->disabled[] = Resources\Roles\RoleResource::class;
+
+        return $this;
+    }
+
+    public function withoutUsers(): static
+    {
+        $this->disabled[] = Resources\Users\UserResource::class;
+
+        return $this;
+    }
+
+    public function withoutResources(): static
+    {
+        $this->disabled = [
+            Resources\Providers\ProviderResource::class,
+            Resources\Roles\RoleResource::class,
+            Resources\Users\UserResource::class,
+        ];
+
+        return $this;
+    }
+
+    public function modifyProfileForm(Closure $callback): static
+    {
+        $this->modifyProfileForm = $callback;
+
+        return $this;
+    }
+
+    public function scopes(string ...$models): static
+    {
+        Cerberus::registerToScope(...$models);
+
+        return $this;
+    }
+
+    public function guards(string $group, array $permissions): static
+    {
+        if ($permissions === []) {
+            return $this;
+        }
+
+        foreach ($permissions as $section => $items) {
+            Cerberus::guard($group, $section, (array) $items);
+        }
+
+        return $this;
     }
 
     public function auth(string $credentials, Panel $panel, ?Model $tenant): bool
@@ -91,41 +179,6 @@ class CerberPlugin implements Plugin
         return true;
     }
 
-    public function authProviders(AuthProvider|Closure|string ...$providers): static
-    {
-        $this->authProviders = [
-            ...$this->authProviders,
-            ...$providers,
-        ];
-
-        return $this;
-    }
-
-    public function boot(Panel $panel): void
-    {
-        if ($this->tenancy) {
-            Resource::scopeToTenant(false);
-            Cerberus::registerScoped();
-        }
-
-        foreach ($this->authProviders as $providers) {
-            $providers = (array) $this->evaluate($providers);
-
-            foreach ($providers as $provider) {
-                $provider = is_string($provider) ? AuthProvider::make($provider) : $provider;
-
-                $this->providers->add($provider);
-            }
-        }
-    }
-
-    public function developers(array $developers): static
-    {
-        $this->developers = array_is_list($developers) ? array_combine($developers, $developers) : $developers;
-
-        return $this;
-    }
-
     public function doModifyProfileForm(Schema $schema, Pages\EditProfile $page): Schema
     {
         return (
@@ -147,31 +200,6 @@ class CerberPlugin implements Plugin
                     $page->getOAuthAccountsComponent(),
                 ])
         );
-    }
-
-    public function getId(): string
-    {
-        return self::ID;
-    }
-
-    public function guards(string $group, array $permissions): static
-    {
-        if ($permissions === []) {
-            return $this;
-        }
-
-        foreach ($permissions as $section => $items) {
-            Cerberus::guard($group, $section, (array) $items);
-        }
-
-        return $this;
-    }
-
-    public function modifyProfileForm(Closure $callback): static
-    {
-        $this->modifyProfileForm = $callback;
-
-        return $this;
     }
 
     public function register(Panel $panel): void
@@ -253,50 +281,22 @@ class CerberPlugin implements Plugin
         }
     }
 
-    public function scopes(string ...$models): static
+    public function boot(Panel $panel): void
     {
-        Cerberus::registerToScope(...$models);
+        if ($this->tenancy) {
+            Resource::scopeToTenant(false);
+            Cerberus::registerScoped();
+        }
 
-        return $this;
-    }
+        foreach ($this->authProviders as $providers) {
+            $providers = (array) $this->evaluate($providers);
 
-    public function tenancy(bool $value = true): static
-    {
-        $this->tenancy = $value;
+            foreach ($providers as $provider) {
+                $provider = is_string($provider) ? AuthProvider::make($provider) : $provider;
 
-        return $this;
-    }
-
-    public function withoutProviders(): static
-    {
-        $this->disabled[] = Resources\Providers\ProviderResource::class;
-
-        return $this;
-    }
-
-    public function withoutResources(): static
-    {
-        $this->disabled = [
-            Resources\Providers\ProviderResource::class,
-            Resources\Roles\RoleResource::class,
-            Resources\Users\UserResource::class,
-        ];
-
-        return $this;
-    }
-
-    public function withoutRoles(): static
-    {
-        $this->disabled[] = Resources\Roles\RoleResource::class;
-
-        return $this;
-    }
-
-    public function withoutUsers(): static
-    {
-        $this->disabled[] = Resources\Users\UserResource::class;
-
-        return $this;
+                $this->providers->add($provider);
+            }
+        }
     }
 
     protected function providersHook(Panel $panel, ProviderRegistry $registry): string

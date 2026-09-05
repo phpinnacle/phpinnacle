@@ -18,11 +18,25 @@ class DescriptionListPlugin implements RichContentPlugin
     }
 
     /**
-     * @return array<Action>
+     * @return array<Extension>
      */
-    public function getEditorActions(): array
+    public function getTipTapPhpExtensions(): array
     {
-        return [];
+        return [
+            new TipTap\DescriptionListExtension,
+            new TipTap\DescriptionTermExtension,
+            new TipTap\DescriptionDetailsExtension,
+        ];
+    }
+
+    /**
+     * @return array<string>
+     */
+    public function getTipTapJsExtensions(): array
+    {
+        return [
+            FilamentAsset::getScriptSrc('description-list', StylusServiceProvider::PACKAGE),
+        ];
     }
 
     /**
@@ -47,24 +61,10 @@ class DescriptionListPlugin implements RichContentPlugin
     }
 
     /**
-     * @return array<string>
+     * @return array<Action>
      */
-    public function getTipTapJsExtensions(): array
+    public function getEditorActions(): array
     {
-        return [
-            FilamentAsset::getScriptSrc('description-list', StylusServiceProvider::PACKAGE),
-        ];
-    }
-
-    /**
-     * @return array<Extension>
-     */
-    public function getTipTapPhpExtensions(): array
-    {
-        return [
-            new TipTap\DescriptionListExtension,
-            new TipTap\DescriptionTermExtension,
-            new TipTap\DescriptionDetailsExtension,
-        ];
+        return [];
     }
 }

@@ -30,14 +30,47 @@ final readonly class StudentsApi
         private Transport $transport,
     ) {}
 
-    public function access(int $studentId): AccessResponse
-    {
-        return AccessResponse::fromArray($this->transport->send('GET', $this->studentPath($studentId) . '/access'));
-    }
-
     public function all(?ListStudentsRequest $request = null): StudentsResponse
     {
         return StudentsResponse::fromArray($this->transport->send('GET', '/students', $request?->toQuery() ?? []));
+    }
+
+    public function get(int $studentId): StudentResponse
+    {
+        return StudentResponse::fromArray($this->transport->send('GET', $this->studentPath($studentId)));
+    }
+
+    public function search(SearchStudentsRequest $request): AdvancedStudentsResponse
+    {
+        return AdvancedStudentsResponse::fromArray($this->transport->send(
+            'GET',
+            '/students/search',
+            $request->toQuery(),
+        ));
+    }
+
+    public function create(CreateStudentRequest $request): IdResponse
+    {
+        return IdResponse::fromArray($this->transport->send('POST', '/students', body: $request->toArray()));
+    }
+
+    public function update(int $studentId, UpdateStudentRequest $request): EmptyResponse
+    {
+        return EmptyResponse::fromArray($this->transport->send(
+            'PATCH',
+            $this->studentPath($studentId),
+            body: $request->toArray(),
+            mode: TransportMode::EmptyResponse,
+        ));
+    }
+
+    public function delete(int $studentId): EmptyResponse
+    {
+        return EmptyResponse::fromArray($this->transport->send(
+            'DELETE',
+            $this->studentPath($studentId),
+            mode: TransportMode::EmptyResponse,
+        ));
     }
 
     public function archive(int $studentId): EmptyResponse
@@ -45,6 +78,15 @@ final readonly class StudentsApi
         return EmptyResponse::fromArray($this->transport->send(
             'POST',
             $this->studentPath($studentId) . '/archive',
+            mode: TransportMode::EmptyResponse,
+        ));
+    }
+
+    public function restore(int $studentId): EmptyResponse
+    {
+        return EmptyResponse::fromArray($this->transport->send(
+            'POST',
+            $this->studentPath($studentId) . '/restore',
             mode: TransportMode::EmptyResponse,
         ));
     }
@@ -59,6 +101,26 @@ final readonly class StudentsApi
         ));
     }
 
+    public function details(int $studentId): DetailsResponse
+    {
+        return DetailsResponse::fromArray($this->transport->send('GET', $this->studentPath($studentId) . '/details'));
+    }
+
+    public function updateDetails(int $studentId, UpdateDetailsRequest $request): EmptyResponse
+    {
+        return EmptyResponse::fromArray($this->transport->send(
+            'PATCH',
+            $this->studentPath($studentId) . '/details',
+            body: $request->toArray(),
+            mode: TransportMode::EmptyResponse,
+        ));
+    }
+
+    public function access(int $studentId): AccessResponse
+    {
+        return AccessResponse::fromArray($this->transport->send('GET', $this->studentPath($studentId) . '/access'));
+    }
+
     public function consents(int $studentId, ?ListConsentsRequest $request = null): ConsentsResponse
     {
         return ConsentsResponse::fromArray($this->transport->send(
@@ -68,33 +130,44 @@ final readonly class StudentsApi
         ));
     }
 
-    public function create(CreateStudentRequest $request): IdResponse
+    public function parents(int $studentId): ParentsResponse
     {
-        return IdResponse::fromArray($this->transport->send('POST', '/students', body: $request->toArray()));
-    }
-
-    public function delete(int $studentId): EmptyResponse
-    {
-        return EmptyResponse::fromArray($this->transport->send(
-            'DELETE',
-            $this->studentPath($studentId),
-            mode: TransportMode::EmptyResponse,
-        ));
-    }
-
-    public function details(int $studentId): DetailsResponse
-    {
-        return DetailsResponse::fromArray($this->transport->send('GET', $this->studentPath($studentId) . '/details'));
-    }
-
-    public function get(int $studentId): StudentResponse
-    {
-        return StudentResponse::fromArray($this->transport->send('GET', $this->studentPath($studentId)));
+        return ParentsResponse::fromArray($this->transport->send('GET', $this->studentPath($studentId) . '/parents'));
     }
 
     public function parent(int $studentId, int $parentId): ParentResponse
     {
         return ParentResponse::fromArray($this->transport->send('GET', $this->parentPath($studentId, $parentId)));
+    }
+
+    public function updateParent(int $studentId, int $parentId, UpdateParentRequest $request): IdResponse
+    {
+        return IdResponse::fromArray($this->transport->send(
+            'PATCH',
+            $this->parentPath($studentId, $parentId),
+            body: $request->toArray(),
+        ));
+    }
+
+    public function parentDetails(int $studentId, int $parentId): DetailsResponse
+    {
+        return DetailsResponse::fromArray($this->transport->send(
+            'GET',
+            $this->parentPath($studentId, $parentId) . '/details',
+        ));
+    }
+
+    public function updateParentDetails(
+        int $studentId,
+        int $parentId,
+        UpdateDetailsRequest $request,
+    ): EmptyResponse {
+        return EmptyResponse::fromArray($this->transport->send(
+            'PATCH',
+            $this->parentPath($studentId, $parentId) . '/details',
+            body: $request->toArray(),
+            mode: TransportMode::EmptyResponse,
+        ));
     }
 
     public function parentAccess(int $studentId, int $parentId): AccessResponse
@@ -117,77 +190,13 @@ final readonly class StudentsApi
         ));
     }
 
-    public function parentDetails(int $studentId, int $parentId): DetailsResponse
+    private function studentPath(int $studentId): string
     {
-        return DetailsResponse::fromArray($this->transport->send(
-            'GET',
-            $this->parentPath($studentId, $parentId) . '/details',
-        ));
-    }
+        if ($studentId < 1) {
+            throw new InvalidArgumentException('Student ID must be positive.');
+        }
 
-    public function parents(int $studentId): ParentsResponse
-    {
-        return ParentsResponse::fromArray($this->transport->send('GET', $this->studentPath($studentId) . '/parents'));
-    }
-
-    public function restore(int $studentId): EmptyResponse
-    {
-        return EmptyResponse::fromArray($this->transport->send(
-            'POST',
-            $this->studentPath($studentId) . '/restore',
-            mode: TransportMode::EmptyResponse,
-        ));
-    }
-
-    public function search(SearchStudentsRequest $request): AdvancedStudentsResponse
-    {
-        return AdvancedStudentsResponse::fromArray($this->transport->send(
-            'GET',
-            '/students/search',
-            $request->toQuery(),
-        ));
-    }
-
-    public function update(int $studentId, UpdateStudentRequest $request): EmptyResponse
-    {
-        return EmptyResponse::fromArray($this->transport->send(
-            'PATCH',
-            $this->studentPath($studentId),
-            body: $request->toArray(),
-            mode: TransportMode::EmptyResponse,
-        ));
-    }
-
-    public function updateDetails(int $studentId, UpdateDetailsRequest $request): EmptyResponse
-    {
-        return EmptyResponse::fromArray($this->transport->send(
-            'PATCH',
-            $this->studentPath($studentId) . '/details',
-            body: $request->toArray(),
-            mode: TransportMode::EmptyResponse,
-        ));
-    }
-
-    public function updateParent(int $studentId, int $parentId, UpdateParentRequest $request): IdResponse
-    {
-        return IdResponse::fromArray($this->transport->send(
-            'PATCH',
-            $this->parentPath($studentId, $parentId),
-            body: $request->toArray(),
-        ));
-    }
-
-    public function updateParentDetails(
-        int $studentId,
-        int $parentId,
-        UpdateDetailsRequest $request,
-    ): EmptyResponse {
-        return EmptyResponse::fromArray($this->transport->send(
-            'PATCH',
-            $this->parentPath($studentId, $parentId) . '/details',
-            body: $request->toArray(),
-            mode: TransportMode::EmptyResponse,
-        ));
+        return '/students/' . $studentId;
     }
 
     private function parentPath(int $studentId, int $parentId): string
@@ -197,14 +206,5 @@ final readonly class StudentsApi
         }
 
         return $this->studentPath($studentId) . '/parents/' . $parentId;
-    }
-
-    private function studentPath(int $studentId): string
-    {
-        if ($studentId < 1) {
-            throw new InvalidArgumentException('Student ID must be positive.');
-        }
-
-        return '/students/' . $studentId;
     }
 }

@@ -24,24 +24,6 @@ final class SequenceWatcher
 
     private static array $watched = [];
 
-    public static function load(string $scope, DateTimeInterface $date, ?string $tenant, array $bucket = []): array
-    {
-        $rows = self::connection()
-            ->table('sequences')
-            ->where([
-                'tenant' => $tenant ?? self::DEFAULT_TENANT,
-                'scope' => $scope,
-            ])
-            ->whereIn('hash', array_values(self::counters($date, $bucket)))
-            ->pluck('value', 'key')
-            ->all();
-
-        return array_map(
-            fn (int $value) => $value + 1,
-            array_replace(array_fill_keys(array_keys(self::COUNTERS), 0), $rows),
-        );
-    }
-
     public static function rebuild(): void
     {
         foreach (self::$registered as $scope => $schemes) {
@@ -100,9 +82,37 @@ final class SequenceWatcher
             SQL, $bindings);
     }
 
-    private static function connection(): Connection
+    public static function load(string $scope, DateTimeInterface $date, ?string $tenant, array $bucket = []): array
     {
-        return DB::connection(config('phpinnacle-sequentia.connection'));
+        $rows = self::connection()
+            ->table('sequences')
+            ->where([
+                'tenant' => $tenant ?? self::DEFAULT_TENANT,
+                'scope' => $scope,
+            ])
+            ->whereIn('hash', array_values(self::counters($date, $bucket)))
+            ->pluck('value', 'key')
+            ->all();
+
+        return array_map(
+            fn (int $value) => $value + 1,
+            array_replace(array_fill_keys(array_keys(self::COUNTERS), 0), $rows),
+        );
+    }
+
+    private static function watch(string $scope): void
+    {
+        if (array_key_exists($scope, self::$watched) || !is_subclass_of($scope, Model::class)) {
+            return;
+        }
+
+        self::$watched[$scope] = true;
+
+        $scope::created(function (Model $record) {
+            foreach (self::$registered[$record::class] ?? [] as $scheme) {
+                self::store($record, now(), $scheme['tenant'], $scheme['bucket']);
+            }
+        });
     }
 
     private static function counters(DateTimeInterface $date, array $bucket): array
@@ -121,18 +131,8 @@ final class SequenceWatcher
         return $result;
     }
 
-    private static function watch(string $scope): void
+    private static function connection(): Connection
     {
-        if (array_key_exists($scope, self::$watched) || !is_subclass_of($scope, Model::class)) {
-            return;
-        }
-
-        self::$watched[$scope] = true;
-
-        $scope::created(function (Model $record) {
-            foreach (self::$registered[$record::class] ?? [] as $scheme) {
-                self::store($record, now(), $scheme['tenant'], $scheme['bucket']);
-            }
-        });
+        return DB::connection(config('phpinnacle-sequentia.connection'));
     }
 }

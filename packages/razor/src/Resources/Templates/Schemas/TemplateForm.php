@@ -12,6 +12,20 @@ use PHPinnacle\Razor\Services\Registry;
 
 class TemplateForm
 {
+    public static function configure(Schema $schema): Schema
+    {
+        return $schema
+            ->columns(1)
+            ->components([
+                Section::make(__('phpinnacle-razor::resources.template.sections.general'))
+                    ->columns(4)
+                    ->schema(self::common()),
+                Editor::make('content')
+                    ->columnSpanFull()
+                    ->hiddenLabel(),
+            ]);
+    }
+
     public static function common(): array
     {
         return [
@@ -35,19 +49,5 @@ class TemplateForm
                 ->default(true)
                 ->selectablePlaceholder(false),
         ];
-    }
-
-    public static function configure(Schema $schema): Schema
-    {
-        return $schema
-            ->columns(1)
-            ->components([
-                Section::make(__('phpinnacle-razor::resources.template.sections.general'))
-                    ->columns(4)
-                    ->schema(self::common()),
-                Editor::make('content')
-                    ->columnSpanFull()
-                    ->hiddenLabel(),
-            ]);
     }
 }

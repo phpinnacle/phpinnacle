@@ -16,39 +16,64 @@ final class UpdateDetailsRequest
         return new self;
     }
 
-    public function billingCity(string $value): self
+    public function phone(string $value): self
     {
-        return $this->set('billingCity', $value);
+        return $this->set('phone', $value);
     }
 
-    public function billingEmail(string $value): self
+    public function mobile(string $value): self
     {
-        return $this->setEmail('billingEmail', $value);
+        return $this->set('mobile', $value);
     }
 
-    public function billingName(string $value): self
+    public function email(string $value): self
     {
-        return $this->set('billingName', $value);
+        return $this->setEmail('email', $value);
     }
 
-    public function billingNipNumber(string $value): self
+    public function skype(string $value): self
     {
-        return $this->set('billingNipNumber', $value);
+        return $this->set('skype', $value);
     }
 
-    public function billingPesel(string $value): self
+    public function pesel(string $value): self
     {
-        return $this->set('billingPesel', $value);
+        return $this->set('pesel', $value);
     }
 
-    public function billingStreet(string $value): self
+    public function street(string $value): self
     {
-        return $this->set('billingStreet', $value);
+        return $this->set('street', $value);
     }
 
-    public function billingZipCode(string $value): self
+    public function zipCode(string $value): self
     {
-        return $this->set('billingZipCode', $value);
+        return $this->set('zipCode', $value);
+    }
+
+    public function city(string $value): self
+    {
+        return $this->set('city', $value);
+    }
+
+    public function country(string $value): self
+    {
+        return $this->set('country', $value);
+    }
+
+    public function post(string $value): self
+    {
+        return $this->set('post', $value);
+    }
+
+    public function province(string $value): self
+    {
+        return $this->set('province', $value);
+    }
+
+    public function nipNumber(string $value): self
+    {
+        return $this->set('nipNumber', $value);
     }
 
     public function birthDate(string $value): self
@@ -67,64 +92,44 @@ final class UpdateDetailsRequest
         return $this->set('birthPlace', $value);
     }
 
-    public function city(string $value): self
-    {
-        return $this->set('city', $value);
-    }
-
-    public function country(string $value): self
-    {
-        return $this->set('country', $value);
-    }
-
     public function description(string $value): self
     {
         return $this->set('description', $value);
     }
 
-    public function email(string $value): self
+    public function billingName(string $value): self
     {
-        return $this->setEmail('email', $value);
+        return $this->set('billingName', $value);
     }
 
-    public function mobile(string $value): self
+    public function billingStreet(string $value): self
     {
-        return $this->set('mobile', $value);
+        return $this->set('billingStreet', $value);
     }
 
-    public function nipNumber(string $value): self
+    public function billingCity(string $value): self
     {
-        return $this->set('nipNumber', $value);
+        return $this->set('billingCity', $value);
     }
 
-    public function pesel(string $value): self
+    public function billingZipCode(string $value): self
     {
-        return $this->set('pesel', $value);
+        return $this->set('billingZipCode', $value);
     }
 
-    public function phone(string $value): self
+    public function billingNipNumber(string $value): self
     {
-        return $this->set('phone', $value);
+        return $this->set('billingNipNumber', $value);
     }
 
-    public function post(string $value): self
+    public function billingPesel(string $value): self
     {
-        return $this->set('post', $value);
+        return $this->set('billingPesel', $value);
     }
 
-    public function province(string $value): self
+    public function billingEmail(string $value): self
     {
-        return $this->set('province', $value);
-    }
-
-    public function skype(string $value): self
-    {
-        return $this->set('skype', $value);
-    }
-
-    public function street(string $value): self
-    {
-        return $this->set('street', $value);
+        return $this->setEmail('billingEmail', $value);
     }
 
     /** @return array<string, string> */
@@ -133,11 +138,6 @@ final class UpdateDetailsRequest
         return $this->data !== []
             ? $this->data
             : throw new LogicException('At least one details field must be updated.');
-    }
-
-    public function zipCode(string $value): self
-    {
-        return $this->set('zipCode', $value);
     }
 
     private function set(string $key, string $value): self

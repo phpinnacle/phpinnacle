@@ -30,16 +30,6 @@ class Preference extends Model
         'value',
     ];
 
-    public static function get(Authenticatable $record, string $group, string $key): mixed
-    {
-        return self::query()
-            ->where('user_id', $record->getAuthIdentifier())
-            ->where('group', $group)
-            ->where('key', $key)
-            ->first()
-            ?->value;
-    }
-
     public static function retrieve(Authenticatable $record): array
     {
         return self::query()
@@ -48,6 +38,16 @@ class Preference extends Model
             ->groupBy('group')
             ->map(fn (Collection $items) => $items->pluck('value', 'key')->all())
             ->all();
+    }
+
+    public static function get(Authenticatable $record, string $group, string $key): mixed
+    {
+        return self::query()
+            ->where('user_id', $record->getAuthIdentifier())
+            ->where('group', $group)
+            ->where('key', $key)
+            ->first()
+            ?->value;
     }
 
     public static function store(Authenticatable $record, array $values): void

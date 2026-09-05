@@ -24,13 +24,6 @@ final class ListStudentsRequest
         return new self;
     }
 
-    public function archived(bool $archived = true): self
-    {
-        $this->archived = $archived;
-
-        return $this;
-    }
-
     public function page(int $page): self
     {
         if ($page < 1) {
@@ -53,17 +46,6 @@ final class ListStudentsRequest
         return $this;
     }
 
-    public function schoolId(int $schoolId): self
-    {
-        if ($schoolId < 1) {
-            throw new InvalidArgumentException('School ID must be positive.');
-        }
-
-        $this->schoolId = $schoolId;
-
-        return $this;
-    }
-
     public function sortBy(string $sortBy): self
     {
         $allowed = ['+id', '-id', '+schoolId', '-schoolId', '+isArchived', '-isArchived'];
@@ -73,6 +55,31 @@ final class ListStudentsRequest
         }
 
         $this->sortBy = $sortBy;
+
+        return $this;
+    }
+
+    public function archived(bool $archived = true): self
+    {
+        $this->archived = $archived;
+
+        return $this;
+    }
+
+    public function type(StudentType $type): self
+    {
+        $this->type = $type;
+
+        return $this;
+    }
+
+    public function schoolId(int $schoolId): self
+    {
+        if ($schoolId < 1) {
+            throw new InvalidArgumentException('School ID must be positive.');
+        }
+
+        $this->schoolId = $schoolId;
 
         return $this;
     }
@@ -91,12 +98,5 @@ final class ListStudentsRequest
             ],
             static fn (mixed $value) => $value !== null,
         );
-    }
-
-    public function type(StudentType $type): self
-    {
-        $this->type = $type;
-
-        return $this;
     }
 }

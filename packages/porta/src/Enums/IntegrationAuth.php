@@ -12,6 +12,11 @@ enum IntegrationAuth: string implements HasColor, HasLabel
     case Header = 'header';
     case Query = 'query';
 
+    public function getLabel(): ?string
+    {
+        return __(sprintf('phpinnacle-porta::enums.integration_auth.%s.label', $this->value));
+    }
+
     public function getColor(): string|array|null
     {
         return match ($this) {
@@ -19,10 +24,5 @@ enum IntegrationAuth: string implements HasColor, HasLabel
             self::Header => Color::Green,
             self::Query => Color::Blue,
         };
-    }
-
-    public function getLabel(): ?string
-    {
-        return __(sprintf('phpinnacle-porta::enums.integration_auth.%s.label', $this->value));
     }
 }

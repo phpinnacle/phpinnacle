@@ -72,14 +72,19 @@ class Exception extends Model
         'occurred_at' => 'immutable_datetime',
     ];
 
+    public static function setup(Exceptions $exceptions): void
+    {
+        $exceptions->report(fn (Throwable $e) => self::report($e, !app()->runningInConsole() ? request() : null));
+    }
+
     public static function report(Throwable $error, ?Request $request = null): void
     {
         app(ExceptionReporter::class)->report($error, $request);
     }
 
-    public static function setup(Exceptions $exceptions): void
+    public function link(): string
     {
-        $exceptions->report(fn (Throwable $e) => self::report($e, !app()->runningInConsole() ? request() : null));
+        return sprintf('%s:%s', $this->file, $this->line);
     }
 
     public function bodyGrammar(): ?Grammar
@@ -100,20 +105,15 @@ class Exception extends Model
         return null;
     }
 
-    public function getConnectionName(): ?string
-    {
-        return config('phpinnacle-casus.connection', parent::getConnectionName());
-    }
-
-    public function link(): string
-    {
-        return sprintf('%s:%s', $this->file, $this->line);
-    }
-
     public function prunable(): Builder
     {
         $days = config('phpinnacle-casus.prune', 30);
 
         return static::query()->where('occurred_at', '<=', now()->subDays($days));
+    }
+
+    public function getConnectionName(): ?string
+    {
+        return config('phpinnacle-casus.connection', parent::getConnectionName());
     }
 }

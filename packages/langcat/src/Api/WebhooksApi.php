@@ -23,6 +23,11 @@ final readonly class WebhooksApi
         return WebhooksResponse::fromArray($this->transport->send('GET', '/webhooks', $request?->toQuery() ?? []));
     }
 
+    public function get(int $webhookId): WebhookResponse
+    {
+        return WebhookResponse::fromArray($this->transport->send('GET', ResourcePath::id('webhooks', $webhookId)));
+    }
+
     public function create(CreateWebhookRequest $request): IdResponse
     {
         return IdResponse::fromArray($this->transport->send('POST', '/webhooks', body: $request->toArray()));
@@ -35,10 +40,5 @@ final readonly class WebhooksApi
             ResourcePath::id('webhooks', $webhookId),
             mode: TransportMode::EmptyResponse,
         ));
-    }
-
-    public function get(int $webhookId): WebhookResponse
-    {
-        return WebhookResponse::fromArray($this->transport->send('GET', ResourcePath::id('webhooks', $webhookId)));
     }
 }

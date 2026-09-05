@@ -29,11 +29,6 @@ final class ListProgramsRequest
         return $this->set('perPage', RequestValue::positive($value, 'Items per page'));
     }
 
-    public function schoolId(int $id): self
-    {
-        return $this->set('schoolId', RequestValue::positive($id, 'School ID'));
-    }
-
     public function sortBy(string $value): self
     {
         if (!in_array($value, ['+id', '-id', '+name', '-name', '+createdAt', '-createdAt'], true)) {
@@ -41,6 +36,11 @@ final class ListProgramsRequest
         }
 
         return $this->set('sortBy', $value);
+    }
+
+    public function schoolId(int $id): self
+    {
+        return $this->set('schoolId', RequestValue::positive($id, 'School ID'));
     }
 
     /** @return array<string, int|string> */

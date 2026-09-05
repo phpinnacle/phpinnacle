@@ -28,6 +28,13 @@ final class UpdateStudentRequest
         return $this;
     }
 
+    public function lastName(string $lastName): self
+    {
+        $this->lastName = $this->nonEmpty($lastName, 'Last name');
+
+        return $this;
+    }
+
     public function hasParentAccounts(bool $hasParentAccounts = true): self
     {
         $this->hasParentAccounts = $hasParentAccounts;
@@ -35,9 +42,9 @@ final class UpdateStudentRequest
         return $this;
     }
 
-    public function lastName(string $lastName): self
+    public function type(StudentType $type): self
     {
-        $this->lastName = $this->nonEmpty($lastName, 'Last name');
+        $this->type = $type;
 
         return $this;
     }
@@ -58,13 +65,6 @@ final class UpdateStudentRequest
         return $data !== []
             ? $data
             : throw new LogicException('At least one student field must be updated.');
-    }
-
-    public function type(StudentType $type): self
-    {
-        $this->type = $type;
-
-        return $this;
     }
 
     private function nonEmpty(string $value, string $name): string

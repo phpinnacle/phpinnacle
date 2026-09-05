@@ -13,9 +13,19 @@ trait GroupSettingFields
     /** @var array<string, mixed> */
     private array $data = [];
 
-    public function breakLength(int $value): self
+    public function subjectId(int $value): self
     {
-        return $this->set('breakLength', RequestValue::nonNegative($value, 'Break length'));
+        return $this->set('subjectId', RequestValue::positive($value, 'Subject ID'));
+    }
+
+    public function teacher(int $id, int|float $salary): self
+    {
+        $this->data['teachers'][] = [
+            'id' => RequestValue::positive($id, 'Teacher ID'),
+            'salary' => RequestValue::nonNegative($salary, 'Teacher salary'),
+        ];
+
+        return $this;
     }
 
     public function classroomId(int $value): self
@@ -28,9 +38,19 @@ trait GroupSettingFields
         return $this->set('day', $value->value);
     }
 
+    public function startTime(string $value): self
+    {
+        return $this->set('startTime', RequestValue::time($value, 'Start time'));
+    }
+
     public function lessonLength(int $value): self
     {
         return $this->set('lessonLength', RequestValue::positive($value, 'Lesson length'));
+    }
+
+    public function breakLength(int $value): self
+    {
+        return $this->set('breakLength', RequestValue::nonNegative($value, 'Break length'));
     }
 
     public function onlineLesson(bool $enabled): self
@@ -48,26 +68,6 @@ trait GroupSettingFields
         $this->data['onlineLessonProviderUrl'] = $url === null
             ? null
             : RequestValue::httpUrl($url, 'Online lesson provider URL');
-
-        return $this;
-    }
-
-    public function startTime(string $value): self
-    {
-        return $this->set('startTime', RequestValue::time($value, 'Start time'));
-    }
-
-    public function subjectId(int $value): self
-    {
-        return $this->set('subjectId', RequestValue::positive($value, 'Subject ID'));
-    }
-
-    public function teacher(int $id, int|float $salary): self
-    {
-        $this->data['teachers'][] = [
-            'id' => RequestValue::positive($id, 'Teacher ID'),
-            'salary' => RequestValue::nonNegative($salary, 'Teacher salary'),
-        ];
 
         return $this;
     }

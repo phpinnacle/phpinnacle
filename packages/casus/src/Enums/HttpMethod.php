@@ -14,6 +14,11 @@ enum HttpMethod: string implements HasColor, HasLabel
 
     case Delete = 'DELETE';
 
+    public function getLabel(): string
+    {
+        return $this->value;
+    }
+
     public function getColor(): string
     {
         return match ($this) {
@@ -22,10 +27,5 @@ enum HttpMethod: string implements HasColor, HasLabel
             self::Put, self::Patch => 'warning',
             self::Delete => 'danger',
         };
-    }
-
-    public function getLabel(): string
-    {
-        return $this->value;
     }
 }

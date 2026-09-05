@@ -13,6 +13,11 @@ class ExceptionResource extends Resource
 
     protected static bool $isScopedToTenant = false;
 
+    public static function getNavigationLabel(): string
+    {
+        return __('phpinnacle-casus::resources.exception.label');
+    }
+
     public static function getNavigationGroup(): string
     {
         return __('phpinnacle-casus::resources.exception.group');
@@ -23,22 +28,9 @@ class ExceptionResource extends Resource
         return config('phpinnacle-casus.navigation.exception.icon', 'phosphor-bug');
     }
 
-    public static function getNavigationLabel(): string
-    {
-        return __('phpinnacle-casus::resources.exception.label');
-    }
-
     public static function getNavigationSort(): ?int
     {
         return config('phpinnacle-casus.navigation.exception.sort');
-    }
-
-    public static function getPages(): array
-    {
-        return [
-            'index' => Pages\ListExceptions::route('/'),
-            'view' => Pages\ViewException::route('/{record}'),
-        ];
     }
 
     public static function infolist(Schema $schema): Schema
@@ -49,5 +41,13 @@ class ExceptionResource extends Resource
     public static function table(Table $table): Table
     {
         return Tables\ExceptionsTable::configure($table);
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListExceptions::route('/'),
+            'view' => Pages\ViewException::route('/{record}'),
+        ];
     }
 }

@@ -19,210 +19,185 @@ class TwigDocumentSerializer
         return $this->serializeBlockContent($document['content'] ?? []);
     }
 
-    /**
-     * @param  array<string, mixed>  $expected
-     * @param  array<string, mixed>  $actual
-     */
-    private function assertSameCellLoop(array $expected, array $actual): void
+    /** @param array<string, mixed> $node */
+    private function serializeNode(array $node): string
     {
-        foreach (['twigLoopItem', 'twigLoopKey', 'twigLoopIterable', 'twigLoopTransforms'] as $attribute) {
-            if (($expected[$attribute] ?? null) !== ($actual[$attribute] ?? null)) {
-                throw new InvalidArgumentException(
-                    'Cells in a Twig table cell loop group must use identical loop attributes.',
-                );
-            }
-        }
-    }
-
-    /**
-     * @param  array<string, mixed>  $expected
-     * @param  array<string, mixed>  $actual
-     */
-    private function assertSameRowCondition(array $expected, array $actual): void
-    {
-        if (($expected['twigCondition'] ?? null) !== ($actual['twigCondition'] ?? null)) {
-            throw new InvalidArgumentException('Rows in a Twig table condition group must use identical conditions.');
-        }
-    }
-
-    /**
-     * @param  array<string, mixed>  $candidate
-     * @param  array<string, mixed>  $condition
-     */
-    private function belongsToInlineCondition(array $candidate, array $condition, string $conditionId): bool
-    {
-        if ($this->inlineConditionId($candidate) !== $conditionId) {
-            return false;
-        }
-
-        $candidateAttributes = $candidate['attrs'] ?? [];
-        $conditionAttributes = $condition['attrs'] ?? [];
-
-        return (
-            ($candidateAttributes['condition'] ?? null) === ($conditionAttributes['condition'] ?? null)
-            && ($candidateAttributes['conditionAst'] ?? null) === ($conditionAttributes['conditionAst'] ?? null)
-        );
-    }
-
-    private function escapeAttribute(string $value): string
-    {
-        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-    }
-
-    /** @param array<string, mixed> $attributes */
-    private function hasLoopAttributes(array $attributes): bool
-    {
-        return (
-            filled($attributes['twigLoopItem'] ?? null)
-            || filled($attributes['twigLoopKey'] ?? null)
-            || filled($attributes['twigLoopIterable'] ?? null)
-            || filled($attributes['twigLoopId'] ?? null)
-        );
-    }
-
-    /** @param list<mixed> $rows */
-    private function hasMergedCells(array $rows): bool
-    {
-        foreach ($rows as $row) {
-            foreach ($this->requireList($this->requireNode($row)['content'] ?? []) as $cell) {
-                $attributes = $this->requireNode($cell)['attrs'] ?? [];
-
-                if (($attributes['colspan'] ?? 1) !== 1 || ($attributes['rowspan'] ?? 1) !== 1) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    /** @param array<string, mixed> $attributes */
-    private function hasTableConditionAttributes(array $attributes): bool
-    {
-        return filled($attributes['twigCondition'] ?? null) || filled($attributes['twigConditionId'] ?? null);
+        return match ($node['type'] ?? null) {
+            'paragraph' => '<p>' . $this->serializeInlineContent($node['content'] ?? []) . '</p>',
+            'heading' => $this->serializeHeading($node),
+            'text' => $this->serializeText($node),
+            'hardBreak' => '<br>',
+            'horizontalRule' => '<hr>',
+            'blockquote' => "<blockquote>\n" . $this->serializeBlockContent($node['content'] ?? []) . "\n</blockquote>",
+            'bulletList' => "<ul>\n" . $this->serializeBlockContent($node['content'] ?? []) . "\n</ul>",
+            'orderedList' => $this->serializeOrderedList($node),
+            'listItem' => '<li>' . $this->serializeBlockContent($node['content'] ?? []) . '</li>',
+            'table' => $this->serializeTable($node),
+            'tableRow' => $this->serializeTableRow($node),
+            'tableHeader' => '<th>' . $this->serializeBlockContent($node['content'] ?? []) . '</th>',
+            'tableCell' => '<td>' . $this->serializeBlockContent($node['content'] ?? []) . '</td>',
+            'twigVariable' => $this->serializeVariable($node),
+            'twigApply' => $this->serializeApply($node),
+            'twigIf' => $this->serializeIf($node),
+            'twigFor' => $this->serializeFor($node),
+            default => throw new RuntimeException(
+                'Unsupported Twig editor node: ' . var_export($node['type'] ?? null, true) . '.',
+            ),
+        };
     }
 
     /** @param array<string, mixed> $node */
-    private function hasTableLoop(array $node): bool
+    private function serializeHeading(array $node): string
     {
-        if ($this->hasLoopAttributes($node['attrs'] ?? [])) {
-            return true;
+        $level = $node['attrs']['level'] ?? null;
+
+        if (!is_int($level) || $level < 1 || $level > 6) {
+            throw new InvalidArgumentException('Heading level must be an integer between 1 and 6.');
         }
 
-        foreach ($this->requireList($node['content'] ?? []) as $cell) {
-            if ($this->hasLoopAttributes($this->requireNode($cell)['attrs'] ?? [])) {
-                return true;
-            }
-        }
-
-        return false;
+        return "<h{$level}>" . $this->serializeInlineContent($node['content'] ?? []) . "</h{$level}>";
     }
 
-    /** @param array<string, mixed> $mark */
-    private function inlineConditionBranch(array $mark): string
+    /** @param array<string, mixed> $node */
+    private function serializeOrderedList(array $node): string
     {
-        $branch = $mark['attrs']['branch'] ?? null;
+        $start = $node['attrs']['start'] ?? 1;
 
-        if (!in_array($branch, ['then', 'else'], true)) {
-            throw new InvalidArgumentException('Twig inline condition branch must be then or else.');
+        if (!is_int($start) || $start < 1) {
+            throw new InvalidArgumentException('Ordered list start must be a positive integer.');
         }
 
-        return $branch;
+        $startAttribute = $start === 1 ? '' : " start=\"{$start}\"";
+
+        return "<ol{$startAttribute}>\n" . $this->serializeBlockContent($node['content'] ?? []) . "\n</ol>";
     }
 
-    /** @param array<string, mixed> $mark */
-    private function inlineConditionId(array $mark): string
+    /** @param array<string, mixed> $node */
+    private function serializeText(array $node): string
     {
-        $conditionId = $this->requireString(
-            $mark['attrs']['conditionId'] ?? null,
-            'Twig inline condition ID',
-        );
+        $text = $node['text'] ?? null;
 
-        if ($conditionId === '') {
-            throw new InvalidArgumentException('Twig inline condition ID must not be empty.');
+        if (!is_string($text)) {
+            throw new InvalidArgumentException('Text node content must be a string.');
         }
 
-        return $conditionId;
+        $content = htmlspecialchars($text, ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+        foreach ($this->requireList($node['marks'] ?? []) as $mark) {
+            $content = $this->serializeMark($this->requireNode($mark, 'mark'), $content);
+        }
+
+        return $content;
     }
 
     /**
-     * @param  array<string, mixed>  $node
-     * @return list<array<string, mixed>>
+     * @param  array<string, mixed>  $mark
      */
-    private function inlineConditionMarks(array $node): array
+    private function serializeMark(array $mark, string $content): string
     {
-        $conditions = [];
+        return match ($mark['type'] ?? null) {
+            'bold' => "<strong>{$content}</strong>",
+            'italic' => "<em>{$content}</em>",
+            'link' => $this->serializeLink($mark, $content),
+            'twigInlineIf' => $this->serializeInlineIf($mark, $content),
+            default => throw new RuntimeException(
+                'Unsupported Twig editor mark: ' . var_export($mark['type'] ?? null, true) . '.',
+            ),
+        };
+    }
 
-        foreach ($this->requireList($node['marks'] ?? []) as $mark) {
-            $mark = $this->requireNode($mark, 'mark');
+    /** @param array<string, mixed> $mark */
+    private function serializeInlineIf(array $mark, string $content, ?string $elseContent = null): string
+    {
+        $condition = $this->requireExpression($mark['attrs']['condition'] ?? null, 'Twig inline if condition');
 
-            if (($mark['type'] ?? null) === 'twigInlineIf') {
-                $conditions[] = $mark;
+        $else = $elseContent === null ? '' : "{% else %}{$elseContent}";
+
+        return "{% if {$condition} %}{$content}{$else}{% endif %}";
+    }
+
+    /** @param array<string, mixed> $mark */
+    private function serializeLink(array $mark, string $content): string
+    {
+        $attributes = [
+            'href="' . $this->escapeAttribute($this->requireString($mark['attrs']['href'] ?? null, 'Link href')) . '"',
+        ];
+
+        foreach (['target', 'rel'] as $name) {
+            $value = $mark['attrs'][$name] ?? null;
+
+            if ($value !== null) {
+                $attributes[] =
+                    $name . '="' . $this->escapeAttribute($this->requireString($value, "Link {$name}")) . '"';
             }
         }
 
-        return $conditions;
+        return '<a ' . implode(' ', $attributes) . ">{$content}</a>";
     }
 
-    private function requireExpression(mixed $value, string $label): string
+    /** @param array<string, mixed> $node */
+    private function serializeTable(array $node): string
     {
-        $expression = trim($this->requireString($value, $label));
+        $rows = $this->requireList($node['content'] ?? []);
+        $hasLoops = false;
 
-        if ($expression === '') {
-            throw new InvalidArgumentException("{$label} cannot be empty.");
+        foreach ($rows as $row) {
+            $row = $this->requireNode($row);
+
+            if (($row['type'] ?? null) !== 'tableRow') {
+                throw new InvalidArgumentException('table must contain only tableRow nodes.');
+            }
+
+            $hasLoops = $hasLoops || $this->hasTableLoop($row);
         }
 
-        return $expression;
+        if ($hasLoops && $this->hasMergedCells($rows)) {
+            throw new InvalidArgumentException('Twig table loops cannot be used in tables with merged cells.');
+        }
+
+        return "<table>\n" . $this->serializeTableRows($rows) . "\n</table>";
     }
 
-    private function requireIdentifier(mixed $value, string $label): string
+    /** @param array<string, mixed> $node */
+    private function serializeTableRow(array $node): string
     {
-        $identifier = trim($this->requireString($value, $label));
+        $row = $this->serializeTableRowMarkup($node);
+        $attributes = $node['attrs'] ?? [];
 
-        if (preg_match(self::IDENTIFIER_PATTERN, $identifier) !== 1) {
-            throw new InvalidArgumentException("{$label} must be a valid Twig identifier.");
+        if ($this->hasTableConditionAttributes($attributes)) {
+            $row = $this->wrapIf($attributes, $row, 'Twig table row condition');
         }
 
-        return $identifier;
+        return $this->hasLoopAttributes($attributes)
+            ? $this->wrapFor($attributes, $row, 'Twig table row loop')
+            : $row;
     }
 
-    /** @return list<mixed> */
-    private function requireList(mixed $value): array
+    /** @param array<string, mixed> $node */
+    private function serializeTableRowMarkup(array $node): string
     {
-        if (!is_array($value) || !array_is_list($value)) {
-            throw new InvalidArgumentException('Twig node content must be a list.');
+        $cells = $this->requireList($node['content'] ?? []);
+
+        foreach ($cells as $cell) {
+            if (!in_array($this->requireNode($cell)['type'] ?? null, ['tableHeader', 'tableCell'], true)) {
+                throw new InvalidArgumentException('tableRow must contain only tableHeader or tableCell nodes.');
+            }
         }
 
-        return $value;
+        return "<tr>\n" . $this->serializeTableCells($cells) . "\n</tr>";
     }
 
-    /** @return array<string, mixed> */
-    private function requireNode(mixed $value, string $label = 'node'): array
+    /** @param array<string, mixed> $node */
+    private function serializeVariable(array $node): string
     {
-        if (!is_array($value) || !is_string($value['type'] ?? null)) {
-            throw new InvalidArgumentException("Twig editor {$label} must contain a type.");
-        }
+        $expression = $this->requireExpression($node['attrs']['expression'] ?? null, 'Twig variable expression');
+        $filters = $this->requireList($node['attrs']['filters'] ?? []);
+        $serializedFilters = array_map(fn (mixed $filter) => $this->serializeFilter($this->requireRecord(
+            $filter,
+            'filter',
+        )), $filters);
 
-        return $value;
-    }
-
-    /** @return array<string, mixed> */
-    private function requireRecord(mixed $value, string $label): array
-    {
-        if (!is_array($value) || array_is_list($value)) {
-            throw new InvalidArgumentException("Twig editor {$label} must be an object.");
-        }
-
-        return $value;
-    }
-
-    private function requireString(mixed $value, string $label): string
-    {
-        if (!is_string($value)) {
-            throw new InvalidArgumentException("{$label} must be a string.");
-        }
-
-        return $value;
+        return '{{ ' . $expression . implode('', $serializedFilters) . ' }}';
     }
 
     /** @param array<string, mixed> $node */
@@ -247,11 +222,6 @@ class TwigDocumentSerializer
         ]);
     }
 
-    private function serializeBlockContent(mixed $content): string
-    {
-        return $this->serializeNodes($this->requireList($content));
-    }
-
     /** @param array<string, mixed> $filter */
     private function serializeFilter(array $filter): string
     {
@@ -270,44 +240,6 @@ class TwigDocumentSerializer
         return $arguments === []
             ? "|{$name}"
             : "|{$name}(" . implode(', ', $arguments) . ')';
-    }
-
-    /** @param array<string, mixed> $node */
-    private function serializeFor(array $node): string
-    {
-        $content = $this->requireList($node['content'] ?? []);
-        $firstChild = array_key_exists(0, $content) ? $this->requireNode($content[0]) : null;
-        $elseBranch = array_key_exists(1, $content) ? $this->requireNode($content[1]) : null;
-
-        if (
-            ($firstChild['type'] ?? null) !== 'twigForBody'
-            || count($content) > 2
-            || $elseBranch !== null
-            && ($elseBranch['type'] ?? null) !== 'twigForElse'
-        ) {
-            throw new InvalidArgumentException('twigFor must contain twigForBody followed by an optional twigForElse.');
-        }
-
-        return $this->wrapFor(
-            $node['attrs'] ?? [],
-            $this->serializeBlockContent($firstChild['content'] ?? []),
-            'Twig loop',
-            $elseBranch === null
-                ? null
-                : $this->serializeBlockContent($elseBranch['content'] ?? []),
-        );
-    }
-
-    /** @param array<string, mixed> $node */
-    private function serializeHeading(array $node): string
-    {
-        $level = $node['attrs']['level'] ?? null;
-
-        if (!is_int($level) || $level < 1 || $level > 6) {
-            throw new InvalidArgumentException('Heading level must be an integer between 1 and 6.');
-        }
-
-        return "<h{$level}>" . $this->serializeInlineContent($node['content'] ?? []) . "</h{$level}>";
     }
 
     /** @param array<string, mixed> $node */
@@ -341,6 +273,295 @@ class TwigDocumentSerializer
         $output[] = '{% endif %}';
 
         return implode("\n", array_filter($output, fn (string $line) => $line !== ''));
+    }
+
+    /** @param array<string, mixed> $node */
+    private function serializeFor(array $node): string
+    {
+        $content = $this->requireList($node['content'] ?? []);
+        $firstChild = array_key_exists(0, $content) ? $this->requireNode($content[0]) : null;
+        $elseBranch = array_key_exists(1, $content) ? $this->requireNode($content[1]) : null;
+
+        if (
+            ($firstChild['type'] ?? null) !== 'twigForBody'
+            || count($content) > 2
+            || $elseBranch !== null
+            && ($elseBranch['type'] ?? null) !== 'twigForElse'
+        ) {
+            throw new InvalidArgumentException('twigFor must contain twigForBody followed by an optional twigForElse.');
+        }
+
+        return $this->wrapFor(
+            $node['attrs'] ?? [],
+            $this->serializeBlockContent($firstChild['content'] ?? []),
+            'Twig loop',
+            $elseBranch === null
+                ? null
+                : $this->serializeBlockContent($elseBranch['content'] ?? []),
+        );
+    }
+
+    /** @param list<mixed> $cells */
+    private function serializeTableCells(array $cells): string
+    {
+        $output = [];
+        $completedLoopIds = [];
+
+        for ($index = 0, $count = count($cells); $index < $count; $index++) {
+            $cell = $this->requireNode($cells[$index]);
+            $attributes = $cell['attrs'] ?? [];
+
+            if (!$this->hasLoopAttributes($attributes)) {
+                $output[] = $this->serializeNode($cell);
+
+                continue;
+            }
+
+            $loopId = $this->requireExpression($attributes['twigLoopId'] ?? null, 'Twig table cell loop ID');
+
+            if (array_key_exists($loopId, $completedLoopIds)) {
+                throw new InvalidArgumentException('Twig table cell loop groups must be contiguous within a row.');
+            }
+
+            $group = [$cell];
+
+            while (($index + 1) < $count) {
+                $nextCell = $this->requireNode($cells[$index + 1]);
+
+                if (($nextCell['attrs']['twigLoopId'] ?? null) !== $loopId) {
+                    break;
+                }
+
+                $this->assertSameCellLoop($attributes, $nextCell['attrs'] ?? []);
+                $group[] = $nextCell;
+                $index++;
+            }
+
+            $completedLoopIds[$loopId] = true;
+            $output[] = $this->wrapFor($attributes, $this->serializeNodes($group), 'Twig table cell loop');
+        }
+
+        return implode("\n", $output);
+    }
+
+    /** @param list<mixed> $rows */
+    private function serializeTableRows(array $rows): string
+    {
+        $output = [];
+        $completedConditionIds = [];
+
+        for ($index = 0, $count = count($rows); $index < $count; $index++) {
+            $row = $this->requireNode($rows[$index]);
+            $attributes = $row['attrs'] ?? [];
+
+            if (!$this->hasTableConditionAttributes($attributes)) {
+                $output[] = $this->serializeTableRow($row);
+
+                continue;
+            }
+
+            $conditionId = $this->requireString(
+                $attributes['twigConditionId'] ?? null,
+                'Twig table row condition ID',
+            );
+
+            if (array_key_exists($conditionId, $completedConditionIds)) {
+                throw new InvalidArgumentException(
+                    'Twig table row condition groups must be contiguous within a table.',
+                );
+            }
+
+            $group = [$row];
+
+            while (($index + 1) < $count) {
+                $nextRow = $this->requireNode($rows[$index + 1]);
+
+                if (($nextRow['attrs']['twigConditionId'] ?? null) !== $conditionId) {
+                    break;
+                }
+
+                $this->assertSameRowCondition($attributes, $nextRow['attrs'] ?? []);
+                $group[] = $nextRow;
+                $index++;
+            }
+
+            $completedConditionIds[$conditionId] = true;
+
+            if (count($group) === 1) {
+                $output[] = $this->serializeTableRow($row);
+
+                continue;
+            }
+
+            foreach ($group as $conditionedRow) {
+                if ($this->hasLoopAttributes($conditionedRow['attrs'] ?? [])) {
+                    throw new InvalidArgumentException(
+                        'A multi-row Twig table condition cannot contain repeated rows.',
+                    );
+                }
+            }
+
+            $content = implode("\n", array_map(
+                $this->serializeTableRowMarkup(...),
+                $group,
+            ));
+            $output[] = $this->wrapIf($attributes, $content, 'Twig table row condition');
+        }
+
+        return implode("\n", $output);
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function wrapIf(array $attributes, string $content, string $label): string
+    {
+        $condition = $this->requireExpression($attributes['twigCondition'] ?? null, "{$label} expression");
+
+        return implode("\n", [
+            "{% if {$condition} %}",
+            $content,
+            '{% endif %}',
+        ]);
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function wrapFor(
+        array $attributes,
+        string $content,
+        string $label,
+        ?string $elseContent = null,
+    ): string {
+        $itemAttribute = array_key_exists('twigLoopItem', $attributes) ? 'twigLoopItem' : 'item';
+        $keyAttribute = array_key_exists('twigLoopKey', $attributes) ? 'twigLoopKey' : 'key';
+        $iterableAttribute = array_key_exists('twigLoopIterable', $attributes) ? 'twigLoopIterable' : 'iterable';
+        $transformsAttribute = array_key_exists('twigLoopTransforms', $attributes)
+            ? 'twigLoopTransforms'
+            : 'transforms';
+        $item = $this->requireIdentifier($attributes[$itemAttribute] ?? null, "{$label} item");
+        $iterable = $this->requireExpression($attributes[$iterableAttribute] ?? null, "{$label} iterable");
+
+        foreach ($this->requireList($attributes[$transformsAttribute] ?? []) as $transform) {
+            $iterable .= $this->serializeFilter($this->requireRecord($transform, 'collection transform'));
+        }
+
+        $key = $attributes[$keyAttribute] ?? null;
+        $variables = blank($key)
+            ? $item
+            : $this->requireIdentifier($key, "{$label} key") . ", {$item}";
+
+        return implode("\n", array_filter(
+            [
+                "{% for {$variables} in {$iterable} %}",
+                $content,
+                ...($elseContent === null ? [] : ['{% else %}', $elseContent]),
+                '{% endfor %}',
+            ],
+            fn (string $line) => $line !== '',
+        ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $expected
+     * @param  array<string, mixed>  $actual
+     */
+    private function assertSameCellLoop(array $expected, array $actual): void
+    {
+        foreach (['twigLoopItem', 'twigLoopKey', 'twigLoopIterable', 'twigLoopTransforms'] as $attribute) {
+            if (($expected[$attribute] ?? null) !== ($actual[$attribute] ?? null)) {
+                throw new InvalidArgumentException(
+                    'Cells in a Twig table cell loop group must use identical loop attributes.',
+                );
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $expected
+     * @param  array<string, mixed>  $actual
+     */
+    private function assertSameRowCondition(array $expected, array $actual): void
+    {
+        if (($expected['twigCondition'] ?? null) !== ($actual['twigCondition'] ?? null)) {
+            throw new InvalidArgumentException('Rows in a Twig table condition group must use identical conditions.');
+        }
+    }
+
+    /** @param array<string, mixed> $node */
+    private function hasTableLoop(array $node): bool
+    {
+        if ($this->hasLoopAttributes($node['attrs'] ?? [])) {
+            return true;
+        }
+
+        foreach ($this->requireList($node['content'] ?? []) as $cell) {
+            if ($this->hasLoopAttributes($this->requireNode($cell)['attrs'] ?? [])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function hasLoopAttributes(array $attributes): bool
+    {
+        return (
+            filled($attributes['twigLoopItem'] ?? null)
+            || filled($attributes['twigLoopKey'] ?? null)
+            || filled($attributes['twigLoopIterable'] ?? null)
+            || filled($attributes['twigLoopId'] ?? null)
+        );
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function hasTableConditionAttributes(array $attributes): bool
+    {
+        return filled($attributes['twigCondition'] ?? null) || filled($attributes['twigConditionId'] ?? null);
+    }
+
+    /** @param list<mixed> $rows */
+    private function hasMergedCells(array $rows): bool
+    {
+        foreach ($rows as $row) {
+            foreach ($this->requireList($this->requireNode($row)['content'] ?? []) as $cell) {
+                $attributes = $this->requireNode($cell)['attrs'] ?? [];
+
+                if (($attributes['colspan'] ?? 1) !== 1 || ($attributes['rowspan'] ?? 1) !== 1) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function serializeBlockContent(mixed $content): string
+    {
+        return $this->serializeNodes($this->requireList($content));
+    }
+
+    private function serializeInlineContent(mixed $content): string
+    {
+        $nodes = $this->requireList($content);
+
+        foreach ($nodes as $node) {
+            if (!in_array($this->requireNode($node)['type'] ?? null, ['text', 'hardBreak', 'twigVariable'], true)) {
+                throw new InvalidArgumentException(
+                    'Node '
+                    . var_export($this->requireNode($node)['type'] ?? null, true)
+                    . ' is not allowed in inline content.',
+                );
+            }
+        }
+
+        return $this->serializeInlineNodes($nodes);
+    }
+
+    /** @param list<mixed> $nodes */
+    private function serializeInlineNodes(array $nodes): string
+    {
+        $completedConditionIds = [];
+
+        return $this->serializeInlineConditionLevel($nodes, 0, $completedConditionIds);
     }
 
     /**
@@ -430,317 +651,69 @@ class TwigDocumentSerializer
         return $output;
     }
 
-    private function serializeInlineContent(mixed $content): string
+    /**
+     * @param  array<string, mixed>  $node
+     * @return list<array<string, mixed>>
+     */
+    private function inlineConditionMarks(array $node): array
     {
-        $nodes = $this->requireList($content);
+        $conditions = [];
 
-        foreach ($nodes as $node) {
-            if (!in_array($this->requireNode($node)['type'] ?? null, ['text', 'hardBreak', 'twigVariable'], true)) {
-                throw new InvalidArgumentException(
-                    'Node '
-                    . var_export($this->requireNode($node)['type'] ?? null, true)
-                    . ' is not allowed in inline content.',
-                );
+        foreach ($this->requireList($node['marks'] ?? []) as $mark) {
+            $mark = $this->requireNode($mark, 'mark');
+
+            if (($mark['type'] ?? null) === 'twigInlineIf') {
+                $conditions[] = $mark;
             }
         }
 
-        return $this->serializeInlineNodes($nodes);
+        return $conditions;
     }
 
     /** @param array<string, mixed> $mark */
-    private function serializeInlineIf(array $mark, string $content, ?string $elseContent = null): string
+    private function inlineConditionId(array $mark): string
     {
-        $condition = $this->requireExpression($mark['attrs']['condition'] ?? null, 'Twig inline if condition');
+        $conditionId = $this->requireString(
+            $mark['attrs']['conditionId'] ?? null,
+            'Twig inline condition ID',
+        );
 
-        $else = $elseContent === null ? '' : "{% else %}{$elseContent}";
-
-        return "{% if {$condition} %}{$content}{$else}{% endif %}";
-    }
-
-    /** @param list<mixed> $nodes */
-    private function serializeInlineNodes(array $nodes): string
-    {
-        $completedConditionIds = [];
-
-        return $this->serializeInlineConditionLevel($nodes, 0, $completedConditionIds);
-    }
-
-    /** @param array<string, mixed> $mark */
-    private function serializeLink(array $mark, string $content): string
-    {
-        $attributes = [
-            'href="' . $this->escapeAttribute($this->requireString($mark['attrs']['href'] ?? null, 'Link href')) . '"',
-        ];
-
-        foreach (['target', 'rel'] as $name) {
-            $value = $mark['attrs'][$name] ?? null;
-
-            if ($value !== null) {
-                $attributes[] =
-                    $name . '="' . $this->escapeAttribute($this->requireString($value, "Link {$name}")) . '"';
-            }
+        if ($conditionId === '') {
+            throw new InvalidArgumentException('Twig inline condition ID must not be empty.');
         }
 
-        return '<a ' . implode(' ', $attributes) . ">{$content}</a>";
+        return $conditionId;
+    }
+
+    /** @param array<string, mixed> $mark */
+    private function inlineConditionBranch(array $mark): string
+    {
+        $branch = $mark['attrs']['branch'] ?? null;
+
+        if (!in_array($branch, ['then', 'else'], true)) {
+            throw new InvalidArgumentException('Twig inline condition branch must be then or else.');
+        }
+
+        return $branch;
     }
 
     /**
-     * @param  array<string, mixed>  $mark
+     * @param  array<string, mixed>  $candidate
+     * @param  array<string, mixed>  $condition
      */
-    private function serializeMark(array $mark, string $content): string
+    private function belongsToInlineCondition(array $candidate, array $condition, string $conditionId): bool
     {
-        return match ($mark['type'] ?? null) {
-            'bold' => "<strong>{$content}</strong>",
-            'italic' => "<em>{$content}</em>",
-            'link' => $this->serializeLink($mark, $content),
-            'twigInlineIf' => $this->serializeInlineIf($mark, $content),
-            default => throw new RuntimeException(
-                'Unsupported Twig editor mark: ' . var_export($mark['type'] ?? null, true) . '.',
-            ),
-        };
-    }
-
-    /** @param array<string, mixed> $node */
-    private function serializeNode(array $node): string
-    {
-        return match ($node['type'] ?? null) {
-            'paragraph' => '<p>' . $this->serializeInlineContent($node['content'] ?? []) . '</p>',
-            'heading' => $this->serializeHeading($node),
-            'text' => $this->serializeText($node),
-            'hardBreak' => '<br>',
-            'horizontalRule' => '<hr>',
-            'blockquote' => "<blockquote>\n" . $this->serializeBlockContent($node['content'] ?? []) . "\n</blockquote>",
-            'bulletList' => "<ul>\n" . $this->serializeBlockContent($node['content'] ?? []) . "\n</ul>",
-            'orderedList' => $this->serializeOrderedList($node),
-            'listItem' => '<li>' . $this->serializeBlockContent($node['content'] ?? []) . '</li>',
-            'table' => $this->serializeTable($node),
-            'tableRow' => $this->serializeTableRow($node),
-            'tableHeader' => '<th>' . $this->serializeBlockContent($node['content'] ?? []) . '</th>',
-            'tableCell' => '<td>' . $this->serializeBlockContent($node['content'] ?? []) . '</td>',
-            'twigVariable' => $this->serializeVariable($node),
-            'twigApply' => $this->serializeApply($node),
-            'twigIf' => $this->serializeIf($node),
-            'twigFor' => $this->serializeFor($node),
-            default => throw new RuntimeException(
-                'Unsupported Twig editor node: ' . var_export($node['type'] ?? null, true) . '.',
-            ),
-        };
-    }
-
-    /** @param list<mixed> $nodes */
-    private function serializeNodes(array $nodes, string $separator = "\n"): string
-    {
-        return implode($separator, array_map(
-            fn (mixed $node) => $this->serializeNode($this->requireNode($node)),
-            $nodes,
-        ));
-    }
-
-    /** @param array<string, mixed> $node */
-    private function serializeOrderedList(array $node): string
-    {
-        $start = $node['attrs']['start'] ?? 1;
-
-        if (!is_int($start) || $start < 1) {
-            throw new InvalidArgumentException('Ordered list start must be a positive integer.');
+        if ($this->inlineConditionId($candidate) !== $conditionId) {
+            return false;
         }
 
-        $startAttribute = $start === 1 ? '' : " start=\"{$start}\"";
+        $candidateAttributes = $candidate['attrs'] ?? [];
+        $conditionAttributes = $condition['attrs'] ?? [];
 
-        return "<ol{$startAttribute}>\n" . $this->serializeBlockContent($node['content'] ?? []) . "\n</ol>";
-    }
-
-    /** @param array<string, mixed> $node */
-    private function serializeTable(array $node): string
-    {
-        $rows = $this->requireList($node['content'] ?? []);
-        $hasLoops = false;
-
-        foreach ($rows as $row) {
-            $row = $this->requireNode($row);
-
-            if (($row['type'] ?? null) !== 'tableRow') {
-                throw new InvalidArgumentException('table must contain only tableRow nodes.');
-            }
-
-            $hasLoops = $hasLoops || $this->hasTableLoop($row);
-        }
-
-        if ($hasLoops && $this->hasMergedCells($rows)) {
-            throw new InvalidArgumentException('Twig table loops cannot be used in tables with merged cells.');
-        }
-
-        return "<table>\n" . $this->serializeTableRows($rows) . "\n</table>";
-    }
-
-    /** @param list<mixed> $cells */
-    private function serializeTableCells(array $cells): string
-    {
-        $output = [];
-        $completedLoopIds = [];
-
-        for ($index = 0, $count = count($cells); $index < $count; $index++) {
-            $cell = $this->requireNode($cells[$index]);
-            $attributes = $cell['attrs'] ?? [];
-
-            if (!$this->hasLoopAttributes($attributes)) {
-                $output[] = $this->serializeNode($cell);
-
-                continue;
-            }
-
-            $loopId = $this->requireExpression($attributes['twigLoopId'] ?? null, 'Twig table cell loop ID');
-
-            if (array_key_exists($loopId, $completedLoopIds)) {
-                throw new InvalidArgumentException('Twig table cell loop groups must be contiguous within a row.');
-            }
-
-            $group = [$cell];
-
-            while (($index + 1) < $count) {
-                $nextCell = $this->requireNode($cells[$index + 1]);
-
-                if (($nextCell['attrs']['twigLoopId'] ?? null) !== $loopId) {
-                    break;
-                }
-
-                $this->assertSameCellLoop($attributes, $nextCell['attrs'] ?? []);
-                $group[] = $nextCell;
-                $index++;
-            }
-
-            $completedLoopIds[$loopId] = true;
-            $output[] = $this->wrapFor($attributes, $this->serializeNodes($group), 'Twig table cell loop');
-        }
-
-        return implode("\n", $output);
-    }
-
-    /** @param array<string, mixed> $node */
-    private function serializeTableRow(array $node): string
-    {
-        $row = $this->serializeTableRowMarkup($node);
-        $attributes = $node['attrs'] ?? [];
-
-        if ($this->hasTableConditionAttributes($attributes)) {
-            $row = $this->wrapIf($attributes, $row, 'Twig table row condition');
-        }
-
-        return $this->hasLoopAttributes($attributes)
-            ? $this->wrapFor($attributes, $row, 'Twig table row loop')
-            : $row;
-    }
-
-    /** @param array<string, mixed> $node */
-    private function serializeTableRowMarkup(array $node): string
-    {
-        $cells = $this->requireList($node['content'] ?? []);
-
-        foreach ($cells as $cell) {
-            if (!in_array($this->requireNode($cell)['type'] ?? null, ['tableHeader', 'tableCell'], true)) {
-                throw new InvalidArgumentException('tableRow must contain only tableHeader or tableCell nodes.');
-            }
-        }
-
-        return "<tr>\n" . $this->serializeTableCells($cells) . "\n</tr>";
-    }
-
-    /** @param list<mixed> $rows */
-    private function serializeTableRows(array $rows): string
-    {
-        $output = [];
-        $completedConditionIds = [];
-
-        for ($index = 0, $count = count($rows); $index < $count; $index++) {
-            $row = $this->requireNode($rows[$index]);
-            $attributes = $row['attrs'] ?? [];
-
-            if (!$this->hasTableConditionAttributes($attributes)) {
-                $output[] = $this->serializeTableRow($row);
-
-                continue;
-            }
-
-            $conditionId = $this->requireString(
-                $attributes['twigConditionId'] ?? null,
-                'Twig table row condition ID',
-            );
-
-            if (array_key_exists($conditionId, $completedConditionIds)) {
-                throw new InvalidArgumentException(
-                    'Twig table row condition groups must be contiguous within a table.',
-                );
-            }
-
-            $group = [$row];
-
-            while (($index + 1) < $count) {
-                $nextRow = $this->requireNode($rows[$index + 1]);
-
-                if (($nextRow['attrs']['twigConditionId'] ?? null) !== $conditionId) {
-                    break;
-                }
-
-                $this->assertSameRowCondition($attributes, $nextRow['attrs'] ?? []);
-                $group[] = $nextRow;
-                $index++;
-            }
-
-            $completedConditionIds[$conditionId] = true;
-
-            if (count($group) === 1) {
-                $output[] = $this->serializeTableRow($row);
-
-                continue;
-            }
-
-            foreach ($group as $conditionedRow) {
-                if ($this->hasLoopAttributes($conditionedRow['attrs'] ?? [])) {
-                    throw new InvalidArgumentException(
-                        'A multi-row Twig table condition cannot contain repeated rows.',
-                    );
-                }
-            }
-
-            $content = implode("\n", array_map(
-                $this->serializeTableRowMarkup(...),
-                $group,
-            ));
-            $output[] = $this->wrapIf($attributes, $content, 'Twig table row condition');
-        }
-
-        return implode("\n", $output);
-    }
-
-    /** @param array<string, mixed> $node */
-    private function serializeText(array $node): string
-    {
-        $text = $node['text'] ?? null;
-
-        if (!is_string($text)) {
-            throw new InvalidArgumentException('Text node content must be a string.');
-        }
-
-        $content = htmlspecialchars($text, ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8');
-
-        foreach ($this->requireList($node['marks'] ?? []) as $mark) {
-            $content = $this->serializeMark($this->requireNode($mark, 'mark'), $content);
-        }
-
-        return $content;
-    }
-
-    /** @param array<string, mixed> $node */
-    private function serializeVariable(array $node): string
-    {
-        $expression = $this->requireExpression($node['attrs']['expression'] ?? null, 'Twig variable expression');
-        $filters = $this->requireList($node['attrs']['filters'] ?? []);
-        $serializedFilters = array_map(fn (mixed $filter) => $this->serializeFilter($this->requireRecord(
-            $filter,
-            'filter',
-        )), $filters);
-
-        return '{{ ' . $expression . implode('', $serializedFilters) . ' }}';
+        return (
+            ($candidateAttributes['condition'] ?? null) === ($conditionAttributes['condition'] ?? null)
+            && ($candidateAttributes['conditionAst'] ?? null) === ($conditionAttributes['conditionAst'] ?? null)
+        );
     }
 
     /** @param array<string, mixed> $node */
@@ -754,51 +727,78 @@ class TwigDocumentSerializer
         return $node;
     }
 
-    /** @param array<string, mixed> $attributes */
-    private function wrapFor(
-        array $attributes,
-        string $content,
-        string $label,
-        ?string $elseContent = null,
-    ): string {
-        $itemAttribute = array_key_exists('twigLoopItem', $attributes) ? 'twigLoopItem' : 'item';
-        $keyAttribute = array_key_exists('twigLoopKey', $attributes) ? 'twigLoopKey' : 'key';
-        $iterableAttribute = array_key_exists('twigLoopIterable', $attributes) ? 'twigLoopIterable' : 'iterable';
-        $transformsAttribute = array_key_exists('twigLoopTransforms', $attributes)
-            ? 'twigLoopTransforms'
-            : 'transforms';
-        $item = $this->requireIdentifier($attributes[$itemAttribute] ?? null, "{$label} item");
-        $iterable = $this->requireExpression($attributes[$iterableAttribute] ?? null, "{$label} iterable");
-
-        foreach ($this->requireList($attributes[$transformsAttribute] ?? []) as $transform) {
-            $iterable .= $this->serializeFilter($this->requireRecord($transform, 'collection transform'));
-        }
-
-        $key = $attributes[$keyAttribute] ?? null;
-        $variables = blank($key)
-            ? $item
-            : $this->requireIdentifier($key, "{$label} key") . ", {$item}";
-
-        return implode("\n", array_filter(
-            [
-                "{% for {$variables} in {$iterable} %}",
-                $content,
-                ...($elseContent === null ? [] : ['{% else %}', $elseContent]),
-                '{% endfor %}',
-            ],
-            fn (string $line) => $line !== '',
+    /** @param list<mixed> $nodes */
+    private function serializeNodes(array $nodes, string $separator = "\n"): string
+    {
+        return implode($separator, array_map(
+            fn (mixed $node) => $this->serializeNode($this->requireNode($node)),
+            $nodes,
         ));
     }
 
-    /** @param array<string, mixed> $attributes */
-    private function wrapIf(array $attributes, string $content, string $label): string
+    /** @return list<mixed> */
+    private function requireList(mixed $value): array
     {
-        $condition = $this->requireExpression($attributes['twigCondition'] ?? null, "{$label} expression");
+        if (!is_array($value) || !array_is_list($value)) {
+            throw new InvalidArgumentException('Twig node content must be a list.');
+        }
 
-        return implode("\n", [
-            "{% if {$condition} %}",
-            $content,
-            '{% endif %}',
-        ]);
+        return $value;
+    }
+
+    /** @return array<string, mixed> */
+    private function requireNode(mixed $value, string $label = 'node'): array
+    {
+        if (!is_array($value) || !is_string($value['type'] ?? null)) {
+            throw new InvalidArgumentException("Twig editor {$label} must contain a type.");
+        }
+
+        return $value;
+    }
+
+    /** @return array<string, mixed> */
+    private function requireRecord(mixed $value, string $label): array
+    {
+        if (!is_array($value) || array_is_list($value)) {
+            throw new InvalidArgumentException("Twig editor {$label} must be an object.");
+        }
+
+        return $value;
+    }
+
+    private function requireIdentifier(mixed $value, string $label): string
+    {
+        $identifier = trim($this->requireString($value, $label));
+
+        if (preg_match(self::IDENTIFIER_PATTERN, $identifier) !== 1) {
+            throw new InvalidArgumentException("{$label} must be a valid Twig identifier.");
+        }
+
+        return $identifier;
+    }
+
+    private function requireExpression(mixed $value, string $label): string
+    {
+        $expression = trim($this->requireString($value, $label));
+
+        if ($expression === '') {
+            throw new InvalidArgumentException("{$label} cannot be empty.");
+        }
+
+        return $expression;
+    }
+
+    private function requireString(mixed $value, string $label): string
+    {
+        if (!is_string($value)) {
+            throw new InvalidArgumentException("{$label} must be a string.");
+        }
+
+        return $value;
+    }
+
+    private function escapeAttribute(string $value): string
+    {
+        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 }

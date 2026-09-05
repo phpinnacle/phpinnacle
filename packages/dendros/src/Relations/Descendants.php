@@ -42,28 +42,6 @@ class Descendants extends Relation
         });
     }
 
-    public function getRelationExistenceQuery(Builder $query, Builder $parentQuery, $columns = ['*']): Builder
-    {
-        return $query
-            ->select($columns)
-            ->from($query->getModel()->getTable(), 'descendants')
-            ->whereColumn(
-                "descendants.{$this->related->getPathColumn()}",
-                '<@',
-                $this->related->qualifyColumn($this->related->getPathColumn()),
-            )
-            ->whereColumn(
-                "descendants.{$this->related->getKeyName()}",
-                '!=',
-                $this->related->getQualifiedKeyName(),
-            );
-    }
-
-    public function getResults(): Collection
-    {
-        return $this->query->get();
-    }
-
     public function initRelation(array $models, $relation): array
     {
         foreach ($models as $model) {
@@ -84,5 +62,27 @@ class Descendants extends Relation
         }
 
         return $models;
+    }
+
+    public function getResults(): Collection
+    {
+        return $this->query->get();
+    }
+
+    public function getRelationExistenceQuery(Builder $query, Builder $parentQuery, $columns = ['*']): Builder
+    {
+        return $query
+            ->select($columns)
+            ->from($query->getModel()->getTable(), 'descendants')
+            ->whereColumn(
+                "descendants.{$this->related->getPathColumn()}",
+                '<@',
+                $this->related->qualifyColumn($this->related->getPathColumn()),
+            )
+            ->whereColumn(
+                "descendants.{$this->related->getKeyName()}",
+                '!=',
+                $this->related->getQualifiedKeyName(),
+            );
     }
 }

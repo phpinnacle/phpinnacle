@@ -11,6 +11,11 @@ final readonly class TemplateValidationResult
         public array $errors,
     ) {}
 
+    public static function valid(): self
+    {
+        return new self([]);
+    }
+
     public static function invalid(string $message, int $line, ?int $column): self
     {
         return new self([[
@@ -18,11 +23,6 @@ final readonly class TemplateValidationResult
             'line' => $line,
             'column' => $column,
         ]]);
-    }
-
-    public static function valid(): self
-    {
-        return new self([]);
     }
 
     public function isValid(): bool

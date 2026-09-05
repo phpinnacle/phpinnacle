@@ -15,12 +15,7 @@
                     "protected:property:*",
                     "private:property:*",
                     "method:__construct",
-                    "public:static:method:*",
-                    "public:method:*",
-                    "protected:static:method:*",
-                    "protected:method:*",
-                    "private:static:method:*",
-                    "private:method:*"
+                    "method:*"
                 ]
             }
         ],

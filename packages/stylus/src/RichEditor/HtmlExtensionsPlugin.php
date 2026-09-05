@@ -14,14 +14,13 @@ class HtmlExtensionsPlugin implements RichContentPlugin
         return app(static::class);
     }
 
-    public function getEditorActions(): array
+    public function getTipTapPhpExtensions(): array
     {
-        return [];
-    }
-
-    public function getEditorTools(): array
-    {
-        return [];
+        return [
+            new TipTap\DivExtension,
+            new TipTap\SectionExtension,
+            new TipTap\ArticleExtension,
+        ];
     }
 
     public function getTipTapJsExtensions(): array
@@ -31,12 +30,13 @@ class HtmlExtensionsPlugin implements RichContentPlugin
         ];
     }
 
-    public function getTipTapPhpExtensions(): array
+    public function getEditorTools(): array
     {
-        return [
-            new TipTap\DivExtension,
-            new TipTap\SectionExtension,
-            new TipTap\ArticleExtension,
-        ];
+        return [];
+    }
+
+    public function getEditorActions(): array
+    {
+        return [];
     }
 }

@@ -16,17 +16,14 @@ final readonly class CompaniesApi
         private Transport $transport,
     ) {}
 
-    public function access(int $companyId): AccessResponse
-    {
-        return AccessResponse::fromArray($this->transport->send(
-            'GET',
-            ResourcePath::id('companies', $companyId) . '/access',
-        ));
-    }
-
     public function all(?ListDirectoryRequest $request = null): CompaniesResponse
     {
         return CompaniesResponse::fromArray($this->transport->send('GET', '/companies', $request?->toQuery() ?? []));
+    }
+
+    public function get(int $companyId): CompanyResponse
+    {
+        return CompanyResponse::fromArray($this->transport->send('GET', ResourcePath::id('companies', $companyId)));
     }
 
     public function details(int $companyId): DetailsResponse
@@ -37,8 +34,11 @@ final readonly class CompaniesApi
         ));
     }
 
-    public function get(int $companyId): CompanyResponse
+    public function access(int $companyId): AccessResponse
     {
-        return CompanyResponse::fromArray($this->transport->send('GET', ResourcePath::id('companies', $companyId)));
+        return AccessResponse::fromArray($this->transport->send(
+            'GET',
+            ResourcePath::id('companies', $companyId) . '/access',
+        ));
     }
 }

@@ -20,27 +20,6 @@ final class MetadataLoader
     ) {}
 
     /**
-     * @return list<MetadataDefinition>
-     */
-    public function chunk(
-        Connection $connection,
-        StorageMap $storageMap,
-        TypeMap $typeMap,
-        int $offset,
-        int $limit,
-    ): array {
-        $tables = array_slice($this->tables($storageMap), $offset, $limit, preserve_keys: true);
-
-        return iterator_to_array($this->metadata($connection, $storageMap, $typeMap, $tables), preserve_keys: false);
-    }
-
-    /** @param list<string> $only */
-    public function count(StorageMap $storageMap, array $only = []): int
-    {
-        return count($this->tables($storageMap, $this->filter($only)));
-    }
-
-    /**
      * @param  list<string>  $only
      * @param  (Closure(int, int): void)|null  $progress
      * @return Generator<int, MetadataDefinition>
@@ -163,19 +142,92 @@ final class MetadataLoader
         return TypeMap::fromArray($entries);
     }
 
-    private function compressedData(
-        Connection $connection,
-        string $query,
-        string $fileName,
-        string $context,
-    ): string {
-        $row = $connection->selectOne($query, [$fileName]);
+    /** @param list<string> $only */
+    public function count(StorageMap $storageMap, array $only = []): int
+    {
+        return count($this->tables($storageMap, $this->filter($only)));
+    }
 
-        if (!is_object($row) || !property_exists($row, 'data')) {
-            throw new RuntimeException(sprintf('%s was not found in the infobase', $context));
+    /**
+     * @return list<MetadataDefinition>
+     */
+    public function chunk(
+        Connection $connection,
+        StorageMap $storageMap,
+        TypeMap $typeMap,
+        int $offset,
+        int $limit,
+    ): array {
+        $tables = array_slice($this->tables($storageMap), $offset, $limit, preserve_keys: true);
+
+        return iterator_to_array($this->metadata($connection, $storageMap, $typeMap, $tables), preserve_keys: false);
+    }
+
+    /**
+     * @param  list<string>  $only
+     * @return array<string, true>
+     */
+    private function filter(array $only): array
+    {
+        $filter = [];
+
+        foreach ($only as $table) {
+            $table = strtolower(pathinfo($table, PATHINFO_FILENAME));
+            $filter[$table] = true;
         }
 
-        return $this->inflate($row->data, $context);
+        return $filter;
+    }
+
+    /**
+     * @param  array<string, true>  $filter
+     * @return array<string, array{MetadataKind, string}>
+     */
+    private function tables(StorageMap $storageMap, array $filter = []): array
+    {
+        $tables = [];
+
+        foreach (MetadataKind::roots() as $kind) {
+            foreach ($storageMap->uuids($kind->storageToken()) as $code => $uuid) {
+                $table = strtolower(sprintf('_%s%d', $kind->storageToken(), $code));
+                $tables[$table] = [$kind, $uuid];
+            }
+        }
+
+        $missing = array_diff_key($filter, $tables);
+
+        if ($missing !== []) {
+            throw new RuntimeException(sprintf(
+                'DBNames has no entries for tables: %s',
+                implode(', ', array_keys($missing)),
+            ));
+        }
+
+        return $filter === [] ? $tables : array_intersect_key($tables, $filter);
+    }
+
+    /**
+     * @param  array<string, array{MetadataKind, string}>  $tables
+     * @return Generator<int, MetadataDefinition>
+     */
+    private function metadata(
+        Connection $connection,
+        StorageMap $storageMap,
+        TypeMap $typeMap,
+        array $tables,
+    ): Generator {
+        $mapper = new MetadataMapper($storageMap, $typeMap);
+        $contents = $this->configData(
+            $connection,
+            array_values(array_map(fn (array $table) => $table[1], $tables)),
+        );
+
+        foreach ($tables as [$kind, $uuid]) {
+            yield $mapper->map(
+                $this->parser->parse($contents[$uuid]),
+                $kind,
+            );
+        }
     }
 
     /**
@@ -225,20 +277,19 @@ final class MetadataLoader
         return $contents;
     }
 
-    /**
-     * @param  list<string>  $only
-     * @return array<string, true>
-     */
-    private function filter(array $only): array
-    {
-        $filter = [];
+    private function compressedData(
+        Connection $connection,
+        string $query,
+        string $fileName,
+        string $context,
+    ): string {
+        $row = $connection->selectOne($query, [$fileName]);
 
-        foreach ($only as $table) {
-            $table = strtolower(pathinfo($table, PATHINFO_FILENAME));
-            $filter[$table] = true;
+        if (!is_object($row) || !property_exists($row, 'data')) {
+            throw new RuntimeException(sprintf('%s was not found in the infobase', $context));
         }
 
-        return $filter;
+        return $this->inflate($row->data, $context);
     }
 
     private function inflate(mixed $data, string $context): string
@@ -252,56 +303,5 @@ final class MetadataLoader
         }
 
         return $decoded;
-    }
-
-    /**
-     * @param  array<string, array{MetadataKind, string}>  $tables
-     * @return Generator<int, MetadataDefinition>
-     */
-    private function metadata(
-        Connection $connection,
-        StorageMap $storageMap,
-        TypeMap $typeMap,
-        array $tables,
-    ): Generator {
-        $mapper = new MetadataMapper($storageMap, $typeMap);
-        $contents = $this->configData(
-            $connection,
-            array_values(array_map(fn (array $table) => $table[1], $tables)),
-        );
-
-        foreach ($tables as [$kind, $uuid]) {
-            yield $mapper->map(
-                $this->parser->parse($contents[$uuid]),
-                $kind,
-            );
-        }
-    }
-
-    /**
-     * @param  array<string, true>  $filter
-     * @return array<string, array{MetadataKind, string}>
-     */
-    private function tables(StorageMap $storageMap, array $filter = []): array
-    {
-        $tables = [];
-
-        foreach (MetadataKind::roots() as $kind) {
-            foreach ($storageMap->uuids($kind->storageToken()) as $code => $uuid) {
-                $table = strtolower(sprintf('_%s%d', $kind->storageToken(), $code));
-                $tables[$table] = [$kind, $uuid];
-            }
-        }
-
-        $missing = array_diff_key($filter, $tables);
-
-        if ($missing !== []) {
-            throw new RuntimeException(sprintf(
-                'DBNames has no entries for tables: %s',
-                implode(', ', array_keys($missing)),
-            ));
-        }
-
-        return $filter === [] ? $tables : array_intersect_key($tables, $filter);
     }
 }

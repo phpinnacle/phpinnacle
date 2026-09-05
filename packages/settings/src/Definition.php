@@ -29,11 +29,46 @@ class Definition
         return new self($class, Str::headline($name), Str::slug($name), null, $icon, 0, method_exists($class, 'form'));
     }
 
-    public function enabled(): bool
+    public function label(string $label): self
     {
-        return (
-            Gate::allows('manage', $this->class) || Gate::allows(sprintf('manage_%s_settings', Str::snake($this->slug)))
-        );
+        $this->label = $label;
+
+        return $this;
+    }
+
+    public function slug(string $slug): self
+    {
+        $this->slug = $slug;
+
+        return $this;
+    }
+
+    public function parent(string $class): self
+    {
+        $this->parent = $class;
+
+        return $this;
+    }
+
+    public function icon(string $icon): self
+    {
+        $this->icon = $icon;
+
+        return $this;
+    }
+
+    public function sort(int $sort): self
+    {
+        $this->sort = $sort;
+
+        return $this;
+    }
+
+    public function schema(array $schema): self
+    {
+        $this->schema = $schema;
+
+        return $this;
     }
 
     public function form(Schema $schema): Schema
@@ -47,18 +82,11 @@ class Definition
         return $schema;
     }
 
-    public function icon(string $icon): self
+    public function enabled(): bool
     {
-        $this->icon = $icon;
-
-        return $this;
-    }
-
-    public function label(string $label): self
-    {
-        $this->label = $label;
-
-        return $this;
+        return (
+            Gate::allows('manage', $this->class) || Gate::allows(sprintf('manage_%s_settings', Str::snake($this->slug)))
+        );
     }
 
     public function navigation(): NavigationItem
@@ -71,33 +99,5 @@ class Definition
             ->url(fn () => SettingsPage::getUrl([
                 'group' => $this->slug,
             ]));
-    }
-
-    public function parent(string $class): self
-    {
-        $this->parent = $class;
-
-        return $this;
-    }
-
-    public function schema(array $schema): self
-    {
-        $this->schema = $schema;
-
-        return $this;
-    }
-
-    public function slug(string $slug): self
-    {
-        $this->slug = $slug;
-
-        return $this;
-    }
-
-    public function sort(int $sort): self
-    {
-        $this->sort = $sort;
-
-        return $this;
     }
 }

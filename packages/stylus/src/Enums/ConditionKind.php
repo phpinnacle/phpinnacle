@@ -8,13 +8,13 @@ enum ConditionKind: string
     case Comparison = 'comparison';
     case Test = 'test';
 
-    public function key(string $name): string
-    {
-        return $this === self::Truthy ? $this->value : $this->prefix() . $name;
-    }
-
     public function prefix(): string
     {
         return $this->value . ':';
+    }
+
+    public function key(string $name): string
+    {
+        return $this === self::Truthy ? $this->value : $this->prefix() . $name;
     }
 }

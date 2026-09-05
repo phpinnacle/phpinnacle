@@ -17,6 +17,11 @@ class ProviderRegistry
         $this->providers[$provider->getClass()] = $provider;
     }
 
+    public function get(string $class): ?AuthProvider
+    {
+        return $this->providers[$class] ?? null;
+    }
+
     public function all(): Collection
     {
         return collect($this->providers);
@@ -25,10 +30,5 @@ class ProviderRegistry
     public function build(string $class, array $config): Provider
     {
         return $this->get($class)->driver($config);
-    }
-
-    public function get(string $class): ?AuthProvider
-    {
-        return $this->providers[$class] ?? null;
     }
 }

@@ -45,61 +45,6 @@ final class SearchStudentsRequest
         return new self;
     }
 
-    public function archived(bool $archived = true): self
-    {
-        $this->query['isArchived'] = (int) $archived;
-
-        return $this;
-    }
-
-    public function createdAfter(string $createdAfter): self
-    {
-        $this->query['createdAt_gt'] = $this->date($createdAfter);
-
-        return $this;
-    }
-
-    public function createdAt(string $createdAt): self
-    {
-        $this->query['createdAt'] = $this->date($createdAt);
-
-        return $this;
-    }
-
-    public function createdBefore(string $createdBefore): self
-    {
-        $this->query['createdAt_lt'] = $this->date($createdBefore);
-
-        return $this;
-    }
-
-    public function createdOnOrAfter(string $createdOnOrAfter): self
-    {
-        $this->query['createdAt_ge'] = $this->date($createdOnOrAfter);
-
-        return $this;
-    }
-
-    public function createdOnOrBefore(string $createdOnOrBefore): self
-    {
-        $this->query['createdAt_le'] = $this->date($createdOnOrBefore);
-
-        return $this;
-    }
-
-    public function expand(string ...$expansions): self
-    {
-        $allowed = ['student.basic', 'student.details', 'student.access.login', 'parents.basic', 'parents.details'];
-
-        if (count($expansions) > 2 || array_diff($expansions, $allowed) !== []) {
-            throw new InvalidArgumentException('Student search accepts at most two supported expansions.');
-        }
-
-        $this->expansions = array_values(array_unique($expansions));
-
-        return $this;
-    }
-
     public function page(int $page): self
     {
         if ($page < 1) {
@@ -122,6 +67,46 @@ final class SearchStudentsRequest
         return $this;
     }
 
+    public function sortBy(string $sortBy): self
+    {
+        $allowed = ['+id', '-id', '+schoolId', '-schoolId', '+isArchived', '-isArchived'];
+
+        if (!in_array($sortBy, $allowed, true)) {
+            throw new InvalidArgumentException('Unsupported student sort.');
+        }
+
+        $this->query['sortBy'] = $sortBy;
+
+        return $this;
+    }
+
+    public function archived(bool $archived = true): self
+    {
+        $this->query['isArchived'] = (int) $archived;
+
+        return $this;
+    }
+
+    public function type(StudentType $type): self
+    {
+        $this->query['type'] = $type->value;
+
+        return $this;
+    }
+
+    public function expand(string ...$expansions): self
+    {
+        $allowed = ['student.basic', 'student.details', 'student.access.login', 'parents.basic', 'parents.details'];
+
+        if (count($expansions) > 2 || array_diff($expansions, $allowed) !== []) {
+            throw new InvalidArgumentException('Student search accepts at most two supported expansions.');
+        }
+
+        $this->expansions = array_values(array_unique($expansions));
+
+        return $this;
+    }
+
     public function schoolId(int $schoolId): self
     {
         if ($schoolId < 1) {
@@ -133,15 +118,37 @@ final class SearchStudentsRequest
         return $this;
     }
 
-    public function sortBy(string $sortBy): self
+    public function createdAt(string $createdAt): self
     {
-        $allowed = ['+id', '-id', '+schoolId', '-schoolId', '+isArchived', '-isArchived'];
+        $this->query['createdAt'] = $this->date($createdAt);
 
-        if (!in_array($sortBy, $allowed, true)) {
-            throw new InvalidArgumentException('Unsupported student sort.');
-        }
+        return $this;
+    }
 
-        $this->query['sortBy'] = $sortBy;
+    public function createdAfter(string $createdAfter): self
+    {
+        $this->query['createdAt_gt'] = $this->date($createdAfter);
+
+        return $this;
+    }
+
+    public function createdOnOrAfter(string $createdOnOrAfter): self
+    {
+        $this->query['createdAt_ge'] = $this->date($createdOnOrAfter);
+
+        return $this;
+    }
+
+    public function createdBefore(string $createdBefore): self
+    {
+        $this->query['createdAt_lt'] = $this->date($createdBefore);
+
+        return $this;
+    }
+
+    public function createdOnOrBefore(string $createdOnOrBefore): self
+    {
+        $this->query['createdAt_le'] = $this->date($createdOnOrBefore);
 
         return $this;
     }
@@ -159,13 +166,6 @@ final class SearchStudentsRequest
         }
 
         return $query;
-    }
-
-    public function type(StudentType $type): self
-    {
-        $this->query['type'] = $type->value;
-
-        return $this;
     }
 
     private function date(string $value): string

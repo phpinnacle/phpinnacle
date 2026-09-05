@@ -15,6 +15,11 @@ class TagsPlugin implements Plugin
 
     private array $models = [];
 
+    public static function make(): static
+    {
+        return app(static::class);
+    }
+
     public static function get(): static
     {
         // @mago-expect lint:inline-variable-return
@@ -24,9 +29,23 @@ class TagsPlugin implements Plugin
         return $plugin;
     }
 
-    public static function make(): static
+    public function getId(): string
     {
-        return app(static::class);
+        return 'phpinnacle/tags';
+    }
+
+    public function models(Closure|string ...$models): self
+    {
+        $this->models = $models;
+
+        return $this;
+    }
+
+    public function register(Panel $panel): void
+    {
+        $panel->resources([
+            Resources\Tags\TagResource::class,
+        ]);
     }
 
     public function boot(Panel $panel): void
@@ -47,24 +66,5 @@ class TagsPlugin implements Plugin
                 Tag::clear($record);
             });
         }
-    }
-
-    public function getId(): string
-    {
-        return 'phpinnacle/tags';
-    }
-
-    public function models(Closure|string ...$models): self
-    {
-        $this->models = $models;
-
-        return $this;
-    }
-
-    public function register(Panel $panel): void
-    {
-        $panel->resources([
-            Resources\Tags\TagResource::class,
-        ]);
     }
 }

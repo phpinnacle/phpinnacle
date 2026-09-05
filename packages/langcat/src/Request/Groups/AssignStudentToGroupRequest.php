@@ -19,6 +19,13 @@ final class AssignStudentToGroupRequest
         return new self;
     }
 
+    public function studentId(int $id): self
+    {
+        $this->studentId = RequestValue::positive($id, 'Student ID');
+
+        return $this;
+    }
+
     public function assignType(AssignType $type): self
     {
         $this->assignType = $type;
@@ -29,13 +36,6 @@ final class AssignStudentToGroupRequest
     public function enrolledDate(string $date): self
     {
         $this->enrolledDate = RequestValue::date($date, 'Enrollment date', false);
-
-        return $this;
-    }
-
-    public function studentId(int $id): self
-    {
-        $this->studentId = RequestValue::positive($id, 'Student ID');
 
         return $this;
     }

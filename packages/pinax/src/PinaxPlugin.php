@@ -7,6 +7,11 @@ use Filament\Panel;
 
 class PinaxPlugin implements Plugin
 {
+    public static function make(): static
+    {
+        return app(static::class);
+    }
+
     public static function get(): static
     {
         // @mago-expect lint:inline-variable-return
@@ -15,13 +20,6 @@ class PinaxPlugin implements Plugin
 
         return $plugin;
     }
-
-    public static function make(): static
-    {
-        return app(static::class);
-    }
-
-    public function boot(Panel $panel): void {}
 
     public function getId(): string
     {
@@ -34,4 +32,6 @@ class PinaxPlugin implements Plugin
             Resources\Media\MediaResource::class,
         ]);
     }
+
+    public function boot(Panel $panel): void {}
 }

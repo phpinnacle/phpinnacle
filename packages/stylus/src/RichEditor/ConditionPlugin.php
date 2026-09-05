@@ -21,22 +21,20 @@ class ConditionPlugin implements RichContentPlugin
         return app(static::class);
     }
 
-    /** @return array<Action> */
-    public function getEditorActions(): array
+    /** @return array<Extension> */
+    public function getTipTapPhpExtensions(): array
     {
         return [
-            $this->conditionAction(
-                name: 'blockCondition',
-                heading: __('phpinnacle-stylus::forms.condition.block.modal_heading'),
-                setCommand: 'setBlockCondition',
-                unsetCommand: 'unsetBlockCondition',
-            ),
-            $this->conditionAction(
-                name: 'inlineCondition',
-                heading: __('phpinnacle-stylus::forms.condition.inline.modal_heading'),
-                setCommand: 'setInlineCondition',
-                unsetCommand: 'unsetInlineCondition',
-            ),
+            new TipTap\ConditionBlockExtension,
+            new TipTap\ConditionInlineExtension,
+        ];
+    }
+
+    /** @return array<string> */
+    public function getTipTapJsExtensions(): array
+    {
+        return [
+            FilamentAsset::getScriptSrc('condition', StylusServiceProvider::PACKAGE),
         ];
     }
 
@@ -61,20 +59,22 @@ class ConditionPlugin implements RichContentPlugin
         ];
     }
 
-    /** @return array<string> */
-    public function getTipTapJsExtensions(): array
+    /** @return array<Action> */
+    public function getEditorActions(): array
     {
         return [
-            FilamentAsset::getScriptSrc('condition', StylusServiceProvider::PACKAGE),
-        ];
-    }
-
-    /** @return array<Extension> */
-    public function getTipTapPhpExtensions(): array
-    {
-        return [
-            new TipTap\ConditionBlockExtension,
-            new TipTap\ConditionInlineExtension,
+            $this->conditionAction(
+                name: 'blockCondition',
+                heading: __('phpinnacle-stylus::forms.condition.block.modal_heading'),
+                setCommand: 'setBlockCondition',
+                unsetCommand: 'unsetBlockCondition',
+            ),
+            $this->conditionAction(
+                name: 'inlineCondition',
+                heading: __('phpinnacle-stylus::forms.condition.inline.modal_heading'),
+                setCommand: 'setInlineCondition',
+                unsetCommand: 'unsetInlineCondition',
+            ),
         ];
     }
 

@@ -44,6 +44,100 @@ final readonly class GroupsApi
         return GroupsResponse::fromArray($this->transport->send('GET', '/groups', $request?->toQuery() ?? []));
     }
 
+    public function search(?SearchGroupsRequest $request = null): GroupSearchResultsResponse
+    {
+        return GroupSearchResultsResponse::fromArray($this->transport->send(
+            'GET',
+            '/groups/search',
+            $request?->toQuery() ?? [],
+        ));
+    }
+
+    public function get(int $groupId): GroupResponse
+    {
+        return GroupResponse::fromArray($this->transport->send('GET', $this->groupPath($groupId)));
+    }
+
+    public function create(CreateGroupRequest $request): EmptyResponse
+    {
+        return EmptyResponse::fromArray($this->transport->send(
+            'POST',
+            '/groups',
+            body: $request->toArray(),
+            mode: TransportMode::EmptyResponse,
+        ));
+    }
+
+    public function update(int $groupId, UpdateGroupRequest $request): IdResponse
+    {
+        return IdResponse::fromArray($this->transport->send(
+            'PATCH',
+            $this->groupPath($groupId),
+            body: $request->toArray(),
+        ));
+    }
+
+    public function lessons(int $groupId, ?ListLessonsRequest $request = null): LessonsResponse
+    {
+        return LessonsResponse::fromArray($this->transport->send(
+            'GET',
+            $this->groupPath($groupId) . '/lessons',
+            $request?->toQuery() ?? [],
+        ));
+    }
+
+    public function lesson(int $groupId, int $lessonId): LessonResponse
+    {
+        return LessonResponse::fromArray($this->transport->send('GET', $this->lessonPath($groupId, $lessonId)));
+    }
+
+    public function createLesson(int $groupId, CreateLessonRequest $request): IdResponse
+    {
+        return IdResponse::fromArray($this->transport->send(
+            'POST',
+            $this->groupPath($groupId) . '/lessons',
+            body: $request->toArray(),
+        ));
+    }
+
+    public function updateLesson(int $groupId, int $lessonId, UpdateLessonRequest $request): IdResponse
+    {
+        return IdResponse::fromArray($this->transport->send(
+            'PATCH',
+            $this->lessonPath($groupId, $lessonId),
+            body: $request->toArray(),
+        ));
+    }
+
+    public function lessonAttendance(
+        int $groupId,
+        int $lessonId,
+        ?ListLessonAttendanceRequest $request = null,
+    ): StudentAttendancesResponse {
+        return StudentAttendancesResponse::fromArray($this->transport->send(
+            'GET',
+            $this->lessonPath($groupId, $lessonId) . '/attendance',
+            $request?->toQuery() ?? [],
+        ));
+    }
+
+    public function students(int $groupId, ?ListGroupStudentsRequest $request = null): StudentsInGroupResponse
+    {
+        return StudentsInGroupResponse::fromArray($this->transport->send(
+            'GET',
+            $this->groupPath($groupId) . '/students',
+            $request?->toQuery() ?? [],
+        ));
+    }
+
+    public function student(int $groupId, int $studentId): StudentInGroupResponse
+    {
+        return StudentInGroupResponse::fromArray($this->transport->send('GET', $this->studentPath(
+            $groupId,
+            $studentId,
+        )));
+    }
+
     public function assignStudent(int $groupId, AssignStudentToGroupRequest $request): EmptyResponse
     {
         return EmptyResponse::fromArray($this->transport->send(
@@ -64,56 +158,6 @@ final readonly class GroupsApi
             $this->studentPath($groupId, $studentId) . '/assign-type',
             body: $request->toArray(),
             mode: TransportMode::EmptyResponse,
-        ));
-    }
-
-    public function create(CreateGroupRequest $request): EmptyResponse
-    {
-        return EmptyResponse::fromArray($this->transport->send(
-            'POST',
-            '/groups',
-            body: $request->toArray(),
-            mode: TransportMode::EmptyResponse,
-        ));
-    }
-
-    public function createLesson(int $groupId, CreateLessonRequest $request): IdResponse
-    {
-        return IdResponse::fromArray($this->transport->send(
-            'POST',
-            $this->groupPath($groupId) . '/lessons',
-            body: $request->toArray(),
-        ));
-    }
-
-    public function get(int $groupId): GroupResponse
-    {
-        return GroupResponse::fromArray($this->transport->send('GET', $this->groupPath($groupId)));
-    }
-
-    public function lesson(int $groupId, int $lessonId): LessonResponse
-    {
-        return LessonResponse::fromArray($this->transport->send('GET', $this->lessonPath($groupId, $lessonId)));
-    }
-
-    public function lessonAttendance(
-        int $groupId,
-        int $lessonId,
-        ?ListLessonAttendanceRequest $request = null,
-    ): StudentAttendancesResponse {
-        return StudentAttendancesResponse::fromArray($this->transport->send(
-            'GET',
-            $this->lessonPath($groupId, $lessonId) . '/attendance',
-            $request?->toQuery() ?? [],
-        ));
-    }
-
-    public function lessons(int $groupId, ?ListLessonsRequest $request = null): LessonsResponse
-    {
-        return LessonsResponse::fromArray($this->transport->send(
-            'GET',
-            $this->groupPath($groupId) . '/lessons',
-            $request?->toQuery() ?? [],
         ));
     }
 
@@ -141,40 +185,6 @@ final readonly class GroupsApi
         ));
     }
 
-    public function search(?SearchGroupsRequest $request = null): GroupSearchResultsResponse
-    {
-        return GroupSearchResultsResponse::fromArray($this->transport->send(
-            'GET',
-            '/groups/search',
-            $request?->toQuery() ?? [],
-        ));
-    }
-
-    public function student(int $groupId, int $studentId): StudentInGroupResponse
-    {
-        return StudentInGroupResponse::fromArray($this->transport->send('GET', $this->studentPath(
-            $groupId,
-            $studentId,
-        )));
-    }
-
-    public function students(int $groupId, ?ListGroupStudentsRequest $request = null): StudentsInGroupResponse
-    {
-        return StudentsInGroupResponse::fromArray($this->transport->send(
-            'GET',
-            $this->groupPath($groupId) . '/students',
-            $request?->toQuery() ?? [],
-        ));
-    }
-
-    public function teacher(int $groupId, int $teacherId): TeacherInGroupResponse
-    {
-        return TeacherInGroupResponse::fromArray($this->transport->send(
-            'GET',
-            ResourcePath::id(ltrim($this->groupPath($groupId), '/') . '/teachers', $teacherId),
-        ));
-    }
-
     public function teachers(int $groupId, ?ListGroupTeachersRequest $request = null): TeachersInGroupResponse
     {
         return TeachersInGroupResponse::fromArray($this->transport->send(
@@ -184,21 +194,11 @@ final readonly class GroupsApi
         ));
     }
 
-    public function update(int $groupId, UpdateGroupRequest $request): IdResponse
+    public function teacher(int $groupId, int $teacherId): TeacherInGroupResponse
     {
-        return IdResponse::fromArray($this->transport->send(
-            'PATCH',
-            $this->groupPath($groupId),
-            body: $request->toArray(),
-        ));
-    }
-
-    public function updateLesson(int $groupId, int $lessonId, UpdateLessonRequest $request): IdResponse
-    {
-        return IdResponse::fromArray($this->transport->send(
-            'PATCH',
-            $this->lessonPath($groupId, $lessonId),
-            body: $request->toArray(),
+        return TeacherInGroupResponse::fromArray($this->transport->send(
+            'GET',
+            ResourcePath::id(ltrim($this->groupPath($groupId), '/') . '/teachers', $teacherId),
         ));
     }
 

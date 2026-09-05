@@ -25,13 +25,9 @@ final readonly class TeachersApi
         return TeachersResponse::fromArray($this->transport->send('GET', '/teachers', $request?->toQuery() ?? []));
     }
 
-    public function consents(int $teacherId, ?ListConsentsRequest $request = null): ConsentsResponse
+    public function get(int $teacherId): TeacherResponse
     {
-        return ConsentsResponse::fromArray($this->transport->send(
-            'GET',
-            ResourcePath::id('teachers', $teacherId) . '/consents',
-            $request?->toQuery() ?? [],
-        ));
+        return TeacherResponse::fromArray($this->transport->send('GET', ResourcePath::id('teachers', $teacherId)));
     }
 
     public function details(int $teacherId): DetailsResponse
@@ -42,11 +38,6 @@ final readonly class TeachersApi
         ));
     }
 
-    public function get(int $teacherId): TeacherResponse
-    {
-        return TeacherResponse::fromArray($this->transport->send('GET', ResourcePath::id('teachers', $teacherId)));
-    }
-
     public function updateDetails(int $teacherId, UpdateDetailsRequest $request): EmptyResponse
     {
         return EmptyResponse::fromArray($this->transport->send(
@@ -54,6 +45,15 @@ final readonly class TeachersApi
             ResourcePath::id('teachers', $teacherId) . '/details',
             body: $request->toArray(),
             mode: TransportMode::EmptyResponse,
+        ));
+    }
+
+    public function consents(int $teacherId, ?ListConsentsRequest $request = null): ConsentsResponse
+    {
+        return ConsentsResponse::fromArray($this->transport->send(
+            'GET',
+            ResourcePath::id('teachers', $teacherId) . '/consents',
+            $request?->toQuery() ?? [],
         ));
     }
 }

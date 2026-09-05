@@ -11,6 +11,18 @@ class TwigForExtension extends Node
 {
     public static $name = 'twigFor';
 
+    /** @return array<string, mixed> */
+    public function addOptions(): array
+    {
+        return ['HTMLAttributes' => []];
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public function parseHTML(): array
+    {
+        return [['tag' => 'section[data-twig-for]']];
+    }
+
     /** @return array<string, array<string, mixed>> */
     public function addAttributes(): array
     {
@@ -35,18 +47,6 @@ class TwigForExtension extends Node
         ];
     }
 
-    /** @return array<string, mixed> */
-    public function addOptions(): array
-    {
-        return ['HTMLAttributes' => []];
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    public function parseHTML(): array
-    {
-        return [['tag' => 'section[data-twig-for]']];
-    }
-
     /**
      * @param  object  $node
      * @param  array<string, mixed>  $htmlAttributes
@@ -59,26 +59,6 @@ class TwigForExtension extends Node
             HTML::mergeAttributes($this->options['HTMLAttributes'], $htmlAttributes, ['data-twig-for' => '']),
             0,
         ];
-    }
-
-    /** @return list<array<string, mixed>> */
-    private function parseTransforms(?string $value): array
-    {
-        if ($value === null || $value === '') {
-            return [];
-        }
-
-        try {
-            $transforms = json_decode($value, true, flags: JSON_THROW_ON_ERROR);
-        } catch (JsonException $exception) {
-            throw new InvalidArgumentException('Twig collection transforms must be valid JSON.', previous: $exception);
-        }
-
-        if (!is_array($transforms) || !array_is_list($transforms)) {
-            throw new InvalidArgumentException('Twig collection transforms must be a list.');
-        }
-
-        return $transforms;
     }
 
     /** @return array<string, mixed> */
@@ -104,5 +84,25 @@ class TwigForExtension extends Node
                 return filled($value) ? [$htmlName => $value] : [];
             },
         ];
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function parseTransforms(?string $value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        try {
+            $transforms = json_decode($value, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw new InvalidArgumentException('Twig collection transforms must be valid JSON.', previous: $exception);
+        }
+
+        if (!is_array($transforms) || !array_is_list($transforms)) {
+            throw new InvalidArgumentException('Twig collection transforms must be a list.');
+        }
+
+        return $transforms;
     }
 }

@@ -36,12 +36,47 @@ class MoneyInput extends Field
 
     protected string $defaultCurrency = 'USD';
 
+    public function setUp(): void
+    {
+        parent::setUp();
+
+        $this
+            ->prefixIcon('phosphor-money')
+            ->formatStateUsing(fn (mixed $state) => Money::parse($state, $this->defaultCurrency)->toLivewire())
+            ->dehydrateStateUsing(self::dehydrateHook(...))
+            ->default(fn () => Money::zero($this->defaultCurrency));
+    }
+
+    public function table(): self
+    {
+        return $this->prefixIcon(null);
+    }
+
     public function currencies(array $currencies, ?string $default = null): self
     {
         $this->currencies = $currencies;
         $this->defaultCurrency = $default ?? current($currencies) ?? 'USD';
 
         return $this;
+    }
+
+    public function getCurrencies(): array
+    {
+        return $this->currencies;
+    }
+
+    public function required(Closure|bool $condition = true): static
+    {
+        $this->greater(0, strict: true);
+
+        return parent::required($condition);
+    }
+
+    public function nullable(Closure|bool $condition = true): static
+    {
+        $this->nullable = $condition;
+
+        return parent::nullable($condition);
     }
 
     public function equal(Closure|Money|string|int $value): static
@@ -56,24 +91,14 @@ class MoneyInput extends Field
         );
     }
 
-    public function getCurrencies(): array
+    public function notEqual(Closure|Money|string|int $value): static
     {
-        return $this->currencies;
-    }
+        $this->eqValue = $value;
 
-    public function getEqValue(): Money|string|int|null
-    {
-        return $this->evaluate($this->eqValue);
-    }
-
-    public function getMaxValue(): Money|string|int|null
-    {
-        return $this->evaluate($this->maxValue);
-    }
-
-    public function getMinValue(): Money|string|int|null
-    {
-        return $this->evaluate($this->minValue);
+        return $this->rule(
+            fn (self $component) => MoneyRule::neq($component->getEqValue()),
+            fn (self $component) => filled($component->getEqValue()),
+        );
     }
 
     public function greater(Closure|Money|string|int $value, bool $strict = false): static
@@ -100,44 +125,19 @@ class MoneyInput extends Field
         );
     }
 
-    public function notEqual(Closure|Money|string|int $value): static
+    public function getEqValue(): Money|string|int|null
     {
-        $this->eqValue = $value;
-
-        return $this->rule(
-            fn (self $component) => MoneyRule::neq($component->getEqValue()),
-            fn (self $component) => filled($component->getEqValue()),
-        );
+        return $this->evaluate($this->eqValue);
     }
 
-    public function nullable(Closure|bool $condition = true): static
+    public function getMaxValue(): Money|string|int|null
     {
-        $this->nullable = $condition;
-
-        return parent::nullable($condition);
+        return $this->evaluate($this->maxValue);
     }
 
-    public function required(Closure|bool $condition = true): static
+    public function getMinValue(): Money|string|int|null
     {
-        $this->greater(0, strict: true);
-
-        return parent::required($condition);
-    }
-
-    public function setUp(): void
-    {
-        parent::setUp();
-
-        $this
-            ->prefixIcon('phosphor-money')
-            ->formatStateUsing(fn (mixed $state) => Money::parse($state, $this->defaultCurrency)->toLivewire())
-            ->dehydrateStateUsing(self::dehydrateHook(...))
-            ->default(fn () => Money::zero($this->defaultCurrency));
-    }
-
-    public function table(): self
-    {
-        return $this->prefixIcon(null);
+        return $this->evaluate($this->minValue);
     }
 
     private function dehydrateHook(self $component, mixed $state): ?Money

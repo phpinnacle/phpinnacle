@@ -14,6 +14,11 @@ enum Level: string implements HasColor, HasIcon, HasLabel
     case Warning = 'warning';
     case Danger = 'danger';
 
+    public function getLabel(): string
+    {
+        return __('phpinnacle-signum::enums.level.' . $this->value);
+    }
+
     public function getColor(): string
     {
         return match ($this) {
@@ -34,10 +39,5 @@ enum Level: string implements HasColor, HasIcon, HasLabel
             self::Warning => 'phosphor-warning-circle',
             self::Danger => 'phosphor-biohazard',
         };
-    }
-
-    public function getLabel(): string
-    {
-        return __('phpinnacle-signum::enums.level.' . $this->value);
     }
 }

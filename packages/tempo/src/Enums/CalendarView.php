@@ -21,28 +21,6 @@ enum CalendarView: string implements HasLabel
         ];
     }
 
-    /**
-     * @param  array<int, self|string>|null  $views
-     * @return array<string, string>
-     */
-    public static function options(?array $views = null): array
-    {
-        $values = $views === null
-            ? array_map(fn (self $view) => $view->value, self::cases())
-            : self::values($views);
-        $options = [];
-
-        foreach ($values as $value) {
-            $view = self::tryFrom($value);
-
-            if ($view !== null) {
-                $options[$view->value] = $view->getLabel();
-            }
-        }
-
-        return $options;
-    }
-
     /** @return list<string> */
     public static function values(mixed $values): array
     {
@@ -67,6 +45,28 @@ enum CalendarView: string implements HasLabel
         }
 
         return array_values($normalized);
+    }
+
+    /**
+     * @param  array<int, self|string>|null  $views
+     * @return array<string, string>
+     */
+    public static function options(?array $views = null): array
+    {
+        $values = $views === null
+            ? array_map(fn (self $view) => $view->value, self::cases())
+            : self::values($views);
+        $options = [];
+
+        foreach ($values as $value) {
+            $view = self::tryFrom($value);
+
+            if ($view !== null) {
+                $options[$view->value] = $view->getLabel();
+            }
+        }
+
+        return $options;
     }
 
     public function getLabel(): string

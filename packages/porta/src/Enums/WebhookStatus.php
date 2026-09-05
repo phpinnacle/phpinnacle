@@ -13,6 +13,11 @@ enum WebhookStatus: string implements HasColor, HasLabel
     case Completed = 'completed';
     case Failed = 'failed';
 
+    public function getLabel(): string
+    {
+        return __(sprintf('phpinnacle-porta::enums.webhook_status.%s.label', $this->value));
+    }
+
     public function getColor(): array
     {
         return match ($this) {
@@ -21,10 +26,5 @@ enum WebhookStatus: string implements HasColor, HasLabel
             self::Completed => Color::Green,
             self::Failed => Color::Red,
         };
-    }
-
-    public function getLabel(): string
-    {
-        return __(sprintf('phpinnacle-porta::enums.webhook_status.%s.label', $this->value));
     }
 }

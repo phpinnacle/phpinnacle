@@ -16,16 +16,6 @@ final class ListGroupStudentsRequest
         return new self;
     }
 
-    public function archived(bool $value = true): self
-    {
-        return $this->set('isArchived', (int) $value);
-    }
-
-    public function assignType(AssignType $type): self
-    {
-        return $this->set('assignType', $type->value);
-    }
-
     public function page(int $value): self
     {
         return $this->set('page', RequestValue::positive($value, 'Page'));
@@ -40,11 +30,6 @@ final class ListGroupStudentsRequest
         return $this->set('perPage', RequestValue::positive($value, 'Items per page'));
     }
 
-    public function schoolId(int $id): self
-    {
-        return $this->set('schoolId', RequestValue::positive($id, 'School ID'));
-    }
-
     public function sortBy(string $value): self
     {
         $allowed = ['+groupId', '-groupId', '+isArchived', '-isArchived', '+studentId', '-studentId'];
@@ -54,6 +39,21 @@ final class ListGroupStudentsRequest
         }
 
         return $this->set('sortBy', $value);
+    }
+
+    public function archived(bool $value = true): self
+    {
+        return $this->set('isArchived', (int) $value);
+    }
+
+    public function schoolId(int $id): self
+    {
+        return $this->set('schoolId', RequestValue::positive($id, 'School ID'));
+    }
+
+    public function assignType(AssignType $type): self
+    {
+        return $this->set('assignType', $type->value);
     }
 
     /** @return array<string, int|string> */

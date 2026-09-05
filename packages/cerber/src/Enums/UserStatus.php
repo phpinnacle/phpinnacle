@@ -17,13 +17,9 @@ enum UserStatus: string implements HasColor, HasIcon, HasLabel
         return $this === self::Active;
     }
 
-    public function getColor(): string
+    public function getLabel(): string
     {
-        return match ($this) {
-            self::Active => 'primary',
-            self::Blocked => 'danger',
-            self::Archived => 'gray',
-        };
+        return __('phpinnacle-cerber::enums.user_status.' . $this->value);
     }
 
     public function getIcon(): string
@@ -35,8 +31,12 @@ enum UserStatus: string implements HasColor, HasIcon, HasLabel
         };
     }
 
-    public function getLabel(): string
+    public function getColor(): string
     {
-        return __('phpinnacle-cerber::enums.user_status.' . $this->value);
+        return match ($this) {
+            self::Active => 'primary',
+            self::Blocked => 'danger',
+            self::Archived => 'gray',
+        };
     }
 }

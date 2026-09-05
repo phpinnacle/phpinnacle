@@ -19,6 +19,11 @@ class RazorPlugin implements Plugin
         private Registry $registry,
     ) {}
 
+    public static function make(): static
+    {
+        return app(static::class);
+    }
+
     public static function get(): static
     {
         // @mago-expect lint:inline-variable-return
@@ -28,9 +33,26 @@ class RazorPlugin implements Plugin
         return $plugin;
     }
 
-    public static function make(): static
+    public function sections(Section|Closure ...$sections): static
     {
-        return app(static::class);
+        $this->sections = [
+            ...$this->sections,
+            ...$sections,
+        ];
+
+        return $this;
+    }
+
+    public function getId(): string
+    {
+        return 'phpinnacle/razor';
+    }
+
+    public function register(Panel $panel): void
+    {
+        $panel->resources([
+            Resources\Templates\TemplateResource::class,
+        ]);
     }
 
     public function boot(Panel $panel): void
@@ -52,27 +74,5 @@ class RazorPlugin implements Plugin
                     continue 2;
             }
         }
-    }
-
-    public function getId(): string
-    {
-        return 'phpinnacle/razor';
-    }
-
-    public function register(Panel $panel): void
-    {
-        $panel->resources([
-            Resources\Templates\TemplateResource::class,
-        ]);
-    }
-
-    public function sections(Section|Closure ...$sections): static
-    {
-        $this->sections = [
-            ...$this->sections,
-            ...$sections,
-        ];
-
-        return $this;
     }
 }

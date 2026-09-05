@@ -25,13 +25,6 @@ class EditRole extends EditRecord
         return __('phpinnacle-cerber::resources.role.pages.edit');
     }
 
-    protected function afterSave(): void
-    {
-        $this->record->grant(...$this->permissions);
-
-        $this->permissions = [];
-    }
-
     protected function getHeaderActions(): array
     {
         return [
@@ -46,5 +39,12 @@ class EditRole extends EditRecord
         $this->permissions = Arr::flatten($data['permissions'] ?? []);
 
         return Arr::except($data, 'permissions');
+    }
+
+    protected function afterSave(): void
+    {
+        $this->record->grant(...$this->permissions);
+
+        $this->permissions = [];
     }
 }

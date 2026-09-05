@@ -50,15 +50,13 @@ class Tenant extends Model implements HasAvatar, HasCurrentTenantLabel, HasName
         'status',
     ];
 
-    public static function default(string $domain): self
+    public static function resolve(Panel $panel): ?self
     {
-        $self = new self;
-        $self->id = self::DEFAULT;
-        $self->domain = $domain;
-        $self->status = TenantStatus::Active;
-        $self->save();
+        $pattern = str_replace('\{tenant\:domain\}', '(\w+)', preg_quote($panel->getTenantDomain(), '/'));
 
-        return $self;
+        preg_match(sprintf('/%s/', $pattern), request()->getHost(), $matches);
+
+        return self::query()->where('domain', $matches[1])->first();
     }
 
     public static function get(string $id, string $key): self
@@ -77,23 +75,15 @@ class Tenant extends Model implements HasAvatar, HasCurrentTenantLabel, HasName
             ]);
     }
 
-    public static function resolve(Panel $panel): ?self
+    public static function default(string $domain): self
     {
-        $pattern = str_replace('\{tenant\:domain\}', '(\w+)', preg_quote($panel->getTenantDomain(), '/'));
+        $self = new self;
+        $self->id = self::DEFAULT;
+        $self->domain = $domain;
+        $self->status = TenantStatus::Active;
+        $self->save();
 
-        preg_match(sprintf('/%s/', $pattern), request()->getHost(), $matches);
-
-        return self::query()->where('domain', $matches[1])->first();
-    }
-
-    public function getCurrentTenantLabel(): string
-    {
-        return '';
-    }
-
-    public function getFilamentAvatarUrl(): ?string
-    {
-        return $this->logo;
+        return $self;
     }
 
     public function getFilamentName(): string
@@ -101,18 +91,28 @@ class Tenant extends Model implements HasAvatar, HasCurrentTenantLabel, HasName
         return $this->name ?? $this->domain;
     }
 
+    public function getFilamentAvatarUrl(): ?string
+    {
+        return $this->logo;
+    }
+
+    public function getCurrentTenantLabel(): string
+    {
+        return '';
+    }
+
     public function getRouteKeyName(): string
     {
         return 'domain';
     }
 
-    public function roles(): HasMany
-    {
-        return $this->hasMany(Role::class);
-    }
-
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    public function roles(): HasMany
+    {
+        return $this->hasMany(Role::class);
     }
 }

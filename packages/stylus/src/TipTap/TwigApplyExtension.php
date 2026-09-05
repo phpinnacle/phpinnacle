@@ -11,6 +11,12 @@ class TwigApplyExtension extends Node
 {
     public static $name = 'twigApply';
 
+    /** @return array<int, array<string, mixed>> */
+    public function parseHTML(): array
+    {
+        return [['tag' => 'section[data-twig-apply]']];
+    }
+
     /** @return array<string, array<string, mixed>> */
     public function addAttributes(): array
     {
@@ -30,12 +36,6 @@ class TwigApplyExtension extends Node
                 ],
             ],
         ];
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    public function parseHTML(): array
-    {
-        return [['tag' => 'section[data-twig-apply]']];
     }
 
     /**

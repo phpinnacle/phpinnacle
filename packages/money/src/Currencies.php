@@ -8,11 +8,6 @@ class Currencies
 {
     public const string DEFAULT = 'USD';
 
-    public static function exists(string $code): bool
-    {
-        return Intl::exists(strtoupper(trim($code)));
-    }
-
     public static function list(?string $display = null): array
     {
         return array_reduce(
@@ -31,13 +26,18 @@ class Currencies
         return Intl::getName(strtoupper(trim($code)), $display);
     }
 
+    public static function symbol(string $code, ?string $display = null): string
+    {
+        return Intl::getSymbol(strtoupper(trim($code)), $display);
+    }
+
     public static function subunit(string $code): int
     {
         return Intl::getFractionDigits(strtoupper(trim($code)));
     }
 
-    public static function symbol(string $code, ?string $display = null): string
+    public static function exists(string $code): bool
     {
-        return Intl::getSymbol(strtoupper(trim($code)), $display);
+        return Intl::exists(strtoupper(trim($code)));
     }
 }

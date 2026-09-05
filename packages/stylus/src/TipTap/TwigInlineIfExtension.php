@@ -11,6 +11,18 @@ class TwigInlineIfExtension extends Mark
 {
     public static $name = 'twigInlineIf';
 
+    /** @return array<string, mixed> */
+    public function addOptions(): array
+    {
+        return ['HTMLAttributes' => []];
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public function parseHTML(): array
+    {
+        return [['tag' => 'span[data-twig-inline-if]']];
+    }
+
     /** @return array<string, array<string, mixed>> */
     public function addAttributes(): array
     {
@@ -80,18 +92,6 @@ class TwigInlineIfExtension extends Mark
                 },
             ],
         ];
-    }
-
-    /** @return array<string, mixed> */
-    public function addOptions(): array
-    {
-        return ['HTMLAttributes' => []];
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    public function parseHTML(): array
-    {
-        return [['tag' => 'span[data-twig-inline-if]']];
     }
 
     /**

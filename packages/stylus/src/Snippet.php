@@ -37,47 +37,17 @@ class Snippet implements HasColor, HasDescription, HasIcon, HasLabel
         return new self($name, Str::headline($name), $content);
     }
 
-    /** @param string|array<string>|null $color */
-    public function color(string|array|null $color): self
+    public function label(string $label): self
     {
         return new self(
             $this->name,
-            $this->label,
+            $label,
             $this->content,
             $this->requiredVariables,
             $this->icon,
             $this->description,
-            $color,
-        );
-    }
-
-    public function description(?string $description): self
-    {
-        return new self(
-            $this->name,
-            $this->label,
-            $this->content,
-            $this->requiredVariables,
-            $this->icon,
-            $description,
             $this->color,
         );
-    }
-
-    /** @return string|array<string>|null */
-    public function getColor(): string|array|null
-    {
-        return $this->color;
-    }
-
-    public function getDescription(): ?string
-    {
-        return $this->description;
-    }
-
-    public function getIcon(): string|BackedEnum|Htmlable|null
-    {
-        return $this->icon;
     }
 
     public function getLabel(): string
@@ -98,17 +68,47 @@ class Snippet implements HasColor, HasDescription, HasIcon, HasLabel
         );
     }
 
-    public function label(string $label): self
+    public function getIcon(): string|BackedEnum|Htmlable|null
+    {
+        return $this->icon;
+    }
+
+    public function description(?string $description): self
     {
         return new self(
             $this->name,
-            $label,
+            $this->label,
+            $this->content,
+            $this->requiredVariables,
+            $this->icon,
+            $description,
+            $this->color,
+        );
+    }
+
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    /** @param string|array<string>|null $color */
+    public function color(string|array|null $color): self
+    {
+        return new self(
+            $this->name,
+            $this->label,
             $this->content,
             $this->requiredVariables,
             $this->icon,
             $this->description,
-            $this->color,
+            $color,
         );
+    }
+
+    /** @return string|array<string>|null */
+    public function getColor(): string|array|null
+    {
+        return $this->color;
     }
 
     public function requires(string ...$variables): self

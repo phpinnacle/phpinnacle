@@ -18,9 +18,19 @@ class MoneyRule implements ValidationRule, ValidatorAwareRule
         private readonly Comparison $comparison = Comparison::Equal,
     ) {}
 
+    public static function make(string $field, Comparison $comparison): self
+    {
+        return new self($field, $comparison);
+    }
+
     public static function eq(string $field): self
     {
         return self::make($field, Comparison::Equal);
+    }
+
+    public static function neq(string $field): self
+    {
+        return self::make($field, Comparison::NotEqual);
     }
 
     public static function gt(string $field): self
@@ -43,23 +53,6 @@ class MoneyRule implements ValidationRule, ValidatorAwareRule
         return self::make($field, Comparison::LessThanOrEqual);
     }
 
-    public static function make(string $field, Comparison $comparison): self
-    {
-        return new self($field, $comparison);
-    }
-
-    public static function neq(string $field): self
-    {
-        return self::make($field, Comparison::NotEqual);
-    }
-
-    public function setValidator(Validator $validator): static
-    {
-        $this->value = is_string($this->field) ? $validator->getValue($this->field) : $this->field;
-
-        return $this;
-    }
-
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         if ($value === null || $this->value === null) {
@@ -72,5 +65,12 @@ class MoneyRule implements ValidationRule, ValidatorAwareRule
         if (!$this->comparison->satisfy($value, $other)) {
             $fail('phpinnacle-money::validation.money.' . $this->comparison->value)->translate();
         }
+    }
+
+    public function setValidator(Validator $validator): static
+    {
+        $this->value = is_string($this->field) ? $validator->getValue($this->field) : $this->field;
+
+        return $this;
     }
 }

@@ -15,11 +15,6 @@ final class ListGroupsRequest
         return new self;
     }
 
-    public function archived(bool $archived = true): self
-    {
-        return $this->set('isArchived', (int) $archived);
-    }
-
     public function page(int $page): self
     {
         return $this->set('page', RequestValue::positive($page, 'Page'));
@@ -34,11 +29,6 @@ final class ListGroupsRequest
         return $this->set('perPage', RequestValue::positive($perPage, 'Items per page'));
     }
 
-    public function schoolId(int $id): self
-    {
-        return $this->set('schoolId', RequestValue::positive($id, 'School ID'));
-    }
-
     public function sortBy(string $sortBy): self
     {
         if (!in_array($sortBy, ['+id', '-id'], true)) {
@@ -46,6 +36,16 @@ final class ListGroupsRequest
         }
 
         return $this->set('sortBy', $sortBy);
+    }
+
+    public function archived(bool $archived = true): self
+    {
+        return $this->set('isArchived', (int) $archived);
+    }
+
+    public function schoolId(int $id): self
+    {
+        return $this->set('schoolId', RequestValue::positive($id, 'School ID'));
     }
 
     /** @return array<string, int|string> */

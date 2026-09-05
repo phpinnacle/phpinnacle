@@ -15,15 +15,6 @@ final class ListDocumentTemplatesRequest
         return new self;
     }
 
-    public function schoolId(int $schoolId): self
-    {
-        if ($schoolId < 1) {
-            throw new InvalidArgumentException('School ID must be positive.');
-        }
-
-        return $this->set('schoolId', $schoolId);
-    }
-
     public function sortBy(string $sortBy): self
     {
         if (!in_array($sortBy, ['+id', '-id'], true)) {
@@ -31,6 +22,15 @@ final class ListDocumentTemplatesRequest
         }
 
         return $this->set('sortBy', $sortBy);
+    }
+
+    public function schoolId(int $schoolId): self
+    {
+        if ($schoolId < 1) {
+            throw new InvalidArgumentException('School ID must be positive.');
+        }
+
+        return $this->set('schoolId', $schoolId);
     }
 
     public function title(string $title): self
@@ -43,15 +43,15 @@ final class ListDocumentTemplatesRequest
         return $this->nonEmpty('title_like', $title);
     }
 
+    public function type(DocumentTemplateType $type): self
+    {
+        return $this->set('type', $type->value);
+    }
+
     /** @return array<string, int|string> */
     public function toQuery(): array
     {
         return $this->query;
-    }
-
-    public function type(DocumentTemplateType $type): self
-    {
-        return $this->set('type', $type->value);
     }
 
     private function nonEmpty(string $key, string $value): self

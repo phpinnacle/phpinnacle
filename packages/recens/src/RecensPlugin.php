@@ -22,6 +22,11 @@ class RecensPlugin implements Plugin
 
     private array $scopes = [];
 
+    public static function make(): static
+    {
+        return app(static::class);
+    }
+
     public static function get(): static
     {
         // @mago-expect lint:inline-variable-return
@@ -31,23 +36,16 @@ class RecensPlugin implements Plugin
         return $plugin;
     }
 
-    public static function make(): static
+    public function getId(): string
     {
-        return app(static::class);
+        return 'phpinnacle/recens';
     }
-
-    public function boot(Panel $panel): void {}
 
     public function color(string|array|Closure $color): self
     {
         $this->color = $color;
 
         return $this;
-    }
-
-    public function getId(): string
-    {
-        return 'phpinnacle/recens';
     }
 
     public function icon(string|BackedEnum|Closure $icon): self
@@ -64,11 +62,11 @@ class RecensPlugin implements Plugin
         return $this;
     }
 
-    public function load(Recorder $recorder): void
+    public function scopes(array $scopes): self
     {
-        foreach ($this->scopes as $scope => $callback) {
-            $recorder->register($scope, $callback);
-        }
+        $this->scopes = array_is_list($scopes) ? array_fill_keys($scopes, null) : $scopes;
+
+        return $this;
     }
 
     public function register(Panel $panel): void
@@ -91,10 +89,12 @@ class RecensPlugin implements Plugin
         );
     }
 
-    public function scopes(array $scopes): self
-    {
-        $this->scopes = array_is_list($scopes) ? array_fill_keys($scopes, null) : $scopes;
+    public function boot(Panel $panel): void {}
 
-        return $this;
+    public function load(Recorder $recorder): void
+    {
+        foreach ($this->scopes as $scope => $callback) {
+            $recorder->register($scope, $callback);
+        }
     }
 }

@@ -32,6 +32,34 @@ class Filter
         return new self($name);
     }
 
+    public function label(string $label): self
+    {
+        $this->label = $label;
+
+        return $this;
+    }
+
+    public function options(Closure|Collection|array $options): self
+    {
+        $this->options = $options;
+
+        return $this;
+    }
+
+    public function depends(array $depends): self
+    {
+        $this->depends = $depends;
+
+        return $this;
+    }
+
+    public function applyUsing(Closure $applyUsing): self
+    {
+        $this->applyUsing = $applyUsing;
+
+        return $this;
+    }
+
     public function apply(Builder $query, array $data): void
     {
         $value = $data[$this->name] ?? null;
@@ -57,49 +85,6 @@ class Filter
         }
     }
 
-    public function applyUsing(Closure $applyUsing): self
-    {
-        $this->applyUsing = $applyUsing;
-
-        return $this;
-    }
-
-    public function depends(array $depends): self
-    {
-        $this->depends = $depends;
-
-        return $this;
-    }
-
-    public function indicator(array $data, array $options): ?Indicator
-    {
-        $value = $data[$this->name] ?? null;
-
-        if (blank($value)) {
-            return null;
-        }
-
-        $item = $options[$this->name][$value] ?? null;
-
-        return $item !== null
-            ? Indicator::make(sprintf('%s: %s', $this->label, $item))->removeField($this->name)
-            : null;
-    }
-
-    public function label(string $label): self
-    {
-        $this->label = $label;
-
-        return $this;
-    }
-
-    public function options(Closure|Collection|array $options): self
-    {
-        $this->options = $options;
-
-        return $this;
-    }
-
     public function select(array $dependencies): Select
     {
         return Select::make($this->name)
@@ -117,5 +102,20 @@ class Filter
             ->disabled(
                 fn (Get $get) => $this->depends !== [] && array_any($this->depends, $get->blank(...)),
             );
+    }
+
+    public function indicator(array $data, array $options): ?Indicator
+    {
+        $value = $data[$this->name] ?? null;
+
+        if (blank($value)) {
+            return null;
+        }
+
+        $item = $options[$this->name][$value] ?? null;
+
+        return $item !== null
+            ? Indicator::make(sprintf('%s: %s', $this->label, $item))->removeField($this->name)
+            : null;
     }
 }

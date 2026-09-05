@@ -15,50 +15,6 @@ final class SearchUsersRequest
         return new self;
     }
 
-    public function archived(bool $archived = true): self
-    {
-        return $this->set('isArchived', (int) $archived);
-    }
-
-    public function email(string $email): self
-    {
-        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
-            throw new InvalidArgumentException('Email must be valid.');
-        }
-
-        return $this->set('email', $email);
-    }
-
-    public function emailLike(string $email): self
-    {
-        return $this->setNonEmpty('email_like', $email);
-    }
-
-    public function fullNameLike(string $fullName): self
-    {
-        return $this->setNonEmpty('fullName_like', $fullName);
-    }
-
-    public function lastName(string $lastName): self
-    {
-        return $this->setNonEmpty('lastName', $lastName);
-    }
-
-    public function lastNameLike(string $lastName): self
-    {
-        return $this->setNonEmpty('lastName_like', $lastName);
-    }
-
-    public function name(string $name): self
-    {
-        return $this->setNonEmpty('name', $name);
-    }
-
-    public function nameLike(string $name): self
-    {
-        return $this->setNonEmpty('name_like', $name);
-    }
-
     public function page(int $page): self
     {
         return $this->positive('page', $page);
@@ -75,11 +31,6 @@ final class SearchUsersRequest
         return $this;
     }
 
-    public function role(UserRole $role): self
-    {
-        return $this->set('role', $role->value);
-    }
-
     public function sortBy(string $sortBy): self
     {
         if (!in_array($sortBy, ['+id', '-id'], true)) {
@@ -87,6 +38,55 @@ final class SearchUsersRequest
         }
 
         return $this->set('sortBy', $sortBy);
+    }
+
+    public function archived(bool $archived = true): self
+    {
+        return $this->set('isArchived', (int) $archived);
+    }
+
+    public function name(string $name): self
+    {
+        return $this->setNonEmpty('name', $name);
+    }
+
+    public function nameLike(string $name): self
+    {
+        return $this->setNonEmpty('name_like', $name);
+    }
+
+    public function lastName(string $lastName): self
+    {
+        return $this->setNonEmpty('lastName', $lastName);
+    }
+
+    public function lastNameLike(string $lastName): self
+    {
+        return $this->setNonEmpty('lastName_like', $lastName);
+    }
+
+    public function fullNameLike(string $fullName): self
+    {
+        return $this->setNonEmpty('fullName_like', $fullName);
+    }
+
+    public function email(string $email): self
+    {
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            throw new InvalidArgumentException('Email must be valid.');
+        }
+
+        return $this->set('email', $email);
+    }
+
+    public function emailLike(string $email): self
+    {
+        return $this->setNonEmpty('email_like', $email);
+    }
+
+    public function role(UserRole $role): self
+    {
+        return $this->set('role', $role->value);
     }
 
     /** @return array<string, int|string> */
@@ -104,13 +104,6 @@ final class SearchUsersRequest
         return $this->set($key, $value);
     }
 
-    private function set(string $key, int|string $value): self
-    {
-        $this->query[$key] = $value;
-
-        return $this;
-    }
-
     private function setNonEmpty(string $key, string $value): self
     {
         if (trim($value) === '') {
@@ -118,5 +111,12 @@ final class SearchUsersRequest
         }
 
         return $this->set($key, $value);
+    }
+
+    private function set(string $key, int|string $value): self
+    {
+        $this->query[$key] = $value;
+
+        return $this;
     }
 }

@@ -57,6 +57,31 @@ class Provider extends Model implements HasLabel
             ->orderBy('sort');
     }
 
+    /**
+     * @return Collection<self>
+     */
+    public static function valid(): Collection
+    {
+        return self::active()
+            ->get()
+            ->filter(fn (self $provider) => $provider->isConfigValid());
+    }
+
+    public static function list(): Collection
+    {
+        return self::active()->pluck('name', 'type');
+    }
+
+    public static function get(string $type): self
+    {
+        return self::active()->where('type', $type)->firstOrFail();
+    }
+
+    public static function find(string $type): ?self
+    {
+        return self::active()->where('type', $type)->first();
+    }
+
     public static function booted(): void
     {
         self::creating(function (self $record) {
@@ -69,51 +94,15 @@ class Provider extends Model implements HasLabel
         });
     }
 
-    public static function find(string $type): ?self
-    {
-        return self::active()->where('type', $type)->first();
-    }
-
-    public static function get(string $type): self
-    {
-        return self::active()->where('type', $type)->firstOrFail();
-    }
-
-    public static function list(): Collection
-    {
-        return self::active()->pluck('name', 'type');
-    }
-
-    /**
-     * @return Collection<self>
-     */
-    public static function valid(): Collection
-    {
-        return self::active()
-            ->get()
-            ->filter(fn (self $provider) => $provider->isConfigValid());
-    }
-
-    public function accounts(): HasMany
-    {
-        return $this->hasMany(SocialAccount::class);
-    }
-
-    public function callbackUrl(?Panel $panel = null): string
-    {
-        $panel ??= Filament::getCurrentOrDefaultPanel();
-
-        return $panel->route('auth.callback', ['provider' => $this->getKey()]);
-    }
-
     public function getLabel(): string
     {
         return $this->name;
     }
 
-    public function isConfigValid(): bool
+    public function toggleActive(): void
     {
-        return filled($this->config['client_id'] ?? null) && filled($this->config['client_secret'] ?? null);
+        $this->is_active = !$this->is_active;
+        $this->save();
     }
 
     public function redirectUrl(?Panel $panel = null): string
@@ -123,9 +112,20 @@ class Provider extends Model implements HasLabel
         return $panel->route('auth.redirect', ['provider' => $this->getKey()]);
     }
 
-    public function toggleActive(): void
+    public function callbackUrl(?Panel $panel = null): string
     {
-        $this->is_active = !$this->is_active;
-        $this->save();
+        $panel ??= Filament::getCurrentOrDefaultPanel();
+
+        return $panel->route('auth.callback', ['provider' => $this->getKey()]);
+    }
+
+    public function isConfigValid(): bool
+    {
+        return filled($this->config['client_id'] ?? null) && filled($this->config['client_secret'] ?? null);
+    }
+
+    public function accounts(): HasMany
+    {
+        return $this->hasMany(SocialAccount::class);
     }
 }

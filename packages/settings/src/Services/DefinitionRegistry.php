@@ -16,21 +16,6 @@ class DefinitionRegistry
 
     private ?string $default = null;
 
-    public function all(): Collection
-    {
-        return collect($this->definitions);
-    }
-
-    public function default(): ?string
-    {
-        return $this->default;
-    }
-
-    public function get(string $group): ?Definition
-    {
-        return $this->definitions[$group] ?? null;
-    }
-
     public function register(Definition ...$definitions): void
     {
         foreach ($definitions as $definition) {
@@ -40,5 +25,20 @@ class DefinitionRegistry
         uasort($this->definitions, fn (Definition $a, Definition $b) => $a->sort <=> $b->sort);
 
         $this->default ??= array_key_first($this->definitions);
+    }
+
+    public function default(): ?string
+    {
+        return $this->default;
+    }
+
+    public function all(): Collection
+    {
+        return collect($this->definitions);
+    }
+
+    public function get(string $group): ?Definition
+    {
+        return $this->definitions[$group] ?? null;
     }
 }

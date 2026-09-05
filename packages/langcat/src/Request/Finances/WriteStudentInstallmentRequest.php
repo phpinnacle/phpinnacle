@@ -15,6 +15,13 @@ final class WriteStudentInstallmentRequest
         return new self;
     }
 
+    public function value(int|float $value): self
+    {
+        $this->data['value'] = RequestValue::nonNegative($value, 'Installment value');
+
+        return $this;
+    }
+
     public function dueDate(string $value): self
     {
         $this->data['dueDate'] = RequestValue::date($value, 'Due date', false);
@@ -32,12 +39,5 @@ final class WriteStudentInstallmentRequest
         }
 
         return $this->data;
-    }
-
-    public function value(int|float $value): self
-    {
-        $this->data['value'] = RequestValue::nonNegative($value, 'Installment value');
-
-        return $this;
     }
 }

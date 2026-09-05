@@ -47,142 +47,6 @@ class DatePicker extends Field implements HasAffixActions
 
     protected Closure|bool $autoclose = true;
 
-    public function autoclose(Closure|bool $value): self
-    {
-        $this->autoclose = $value;
-
-        return $this;
-    }
-
-    public function date(): static
-    {
-        $this->mode = self::MODE_DATE;
-
-        return $this;
-    }
-
-    public function dateFormat(Closure|string|null $format): static
-    {
-        $this->dateFormat = $format;
-
-        return $this;
-    }
-
-    public function datetime(): static
-    {
-        $this->mode = self::MODE_DATETIME;
-
-        return $this;
-    }
-
-    public function getAutoclose(): bool
-    {
-        return $this->evaluate($this->autoclose);
-    }
-
-    public function getDateFormat(): string
-    {
-        return $this->evaluate($this->dateFormat) ?? 'Y-m-d';
-    }
-
-    public function getFullFormat(): string
-    {
-        return sprintf('%s %s', $this->getDateFormat(), $this->getTimeFormat());
-    }
-
-    public function getLocale(): string
-    {
-        return $this->evaluate($this->locale) ?? config('app.locale');
-    }
-
-    public function getMaskFormat(): string
-    {
-        return match ($this->mode) {
-            self::MODE_DATE, self::MODE_RANGE => $this->getDateFormat(),
-            self::MODE_TIME => $this->getTimeFormat(),
-            self::MODE_DATETIME => $this->getFullFormat(),
-            default => throw new \LogicException(sprintf('Unsupported date picker mode [%s].', $this->mode)),
-        };
-    }
-
-    public function getMaxDate(): ?string
-    {
-        return $this->evaluate($this->maxDate)?->format($this->getFullFormat());
-    }
-
-    public function getMinDate(): ?string
-    {
-        return $this->evaluate($this->minDate)?->format($this->getFullFormat());
-    }
-
-    public function getMode(): string
-    {
-        return $this->mode;
-    }
-
-    public function getMomentDateFormat(): string
-    {
-        return $this->convertFormat($this->getDateFormat());
-    }
-
-    public function getMomentFullFormat(): string
-    {
-        return sprintf('%s %s', $this->getMomentDateFormat(), $this->getMomentTimeFormat());
-    }
-
-    public function getMomentMaskFormat(): string
-    {
-        return match ($this->mode) {
-            self::MODE_DATE, self::MODE_RANGE => $this->getMomentDateFormat(),
-            self::MODE_TIME => $this->getMomentTimeFormat(),
-            self::MODE_DATETIME => $this->getMomentFullFormat(),
-            default => throw new \LogicException(sprintf('Unsupported date picker mode [%s].', $this->mode)),
-        };
-    }
-
-    public function getMomentTimeFormat(): string
-    {
-        return $this->convertFormat($this->getTimeFormat());
-    }
-
-    public function getTimeFormat(): string
-    {
-        return $this->evaluate($this->timeFormat) ?? 'H:i';
-    }
-
-    public function getTimezone(): string
-    {
-        return $this->evaluate($this->timezone) ?? config('app.timezone');
-    }
-
-    public function locale(Closure|string|null $locale): static
-    {
-        $this->locale = $locale;
-
-        return $this;
-    }
-
-    public function maxDate(Closure|DateTimeInterface|string|null $date): static
-    {
-        $this->maxDate = is_string($date) ? Date::parse($date) : $date;
-
-        return $this->before($this->getMaxDate(...));
-    }
-
-    public function minDate(Closure|DateTimeInterface|string|null $date): static
-    {
-        $this->minDate = is_string($date) ? Date::parse($date) : $date;
-
-        return $this->after($this->getMinDate(...));
-    }
-
-    public function range(): static
-    {
-        $this->mode = self::MODE_RANGE;
-
-        return $this;
-    }
-
     public function setUp(): void
     {
         parent::setUp();
@@ -214,14 +78,37 @@ class DatePicker extends Field implements HasAffixActions
         //            })
     }
 
-    public function table(): self
+    public function date(): static
     {
-        return $this->prefixIcon(null);
+        $this->mode = self::MODE_DATE;
+
+        return $this;
     }
 
     public function time(): static
     {
         $this->mode = self::MODE_TIME;
+
+        return $this;
+    }
+
+    public function datetime(): static
+    {
+        $this->mode = self::MODE_DATETIME;
+
+        return $this;
+    }
+
+    public function range(): static
+    {
+        $this->mode = self::MODE_RANGE;
+
+        return $this;
+    }
+
+    public function dateFormat(Closure|string|null $format): static
+    {
+        $this->dateFormat = $format;
 
         return $this;
     }
@@ -233,11 +120,124 @@ class DatePicker extends Field implements HasAffixActions
         return $this;
     }
 
+    public function locale(Closure|string|null $locale): static
+    {
+        $this->locale = $locale;
+
+        return $this;
+    }
+
     public function timezone(Closure|string|null $timezone): static
     {
         $this->timezone = $timezone;
 
         return $this;
+    }
+
+    public function minDate(Closure|DateTimeInterface|string|null $date): static
+    {
+        $this->minDate = is_string($date) ? Date::parse($date) : $date;
+
+        return $this->after($this->getMinDate(...));
+    }
+
+    public function maxDate(Closure|DateTimeInterface|string|null $date): static
+    {
+        $this->maxDate = is_string($date) ? Date::parse($date) : $date;
+
+        return $this->before($this->getMaxDate(...));
+    }
+
+    public function autoclose(Closure|bool $value): self
+    {
+        $this->autoclose = $value;
+
+        return $this;
+    }
+
+    public function getMode(): string
+    {
+        return $this->mode;
+    }
+
+    public function getDateFormat(): string
+    {
+        return $this->evaluate($this->dateFormat) ?? 'Y-m-d';
+    }
+
+    public function getTimeFormat(): string
+    {
+        return $this->evaluate($this->timeFormat) ?? 'H:i';
+    }
+
+    public function getFullFormat(): string
+    {
+        return sprintf('%s %s', $this->getDateFormat(), $this->getTimeFormat());
+    }
+
+    public function getMaskFormat(): string
+    {
+        return match ($this->mode) {
+            self::MODE_DATE, self::MODE_RANGE => $this->getDateFormat(),
+            self::MODE_TIME => $this->getTimeFormat(),
+            self::MODE_DATETIME => $this->getFullFormat(),
+            default => throw new \LogicException(sprintf('Unsupported date picker mode [%s].', $this->mode)),
+        };
+    }
+
+    public function getMomentDateFormat(): string
+    {
+        return $this->convertFormat($this->getDateFormat());
+    }
+
+    public function getMomentTimeFormat(): string
+    {
+        return $this->convertFormat($this->getTimeFormat());
+    }
+
+    public function getMomentFullFormat(): string
+    {
+        return sprintf('%s %s', $this->getMomentDateFormat(), $this->getMomentTimeFormat());
+    }
+
+    public function getMomentMaskFormat(): string
+    {
+        return match ($this->mode) {
+            self::MODE_DATE, self::MODE_RANGE => $this->getMomentDateFormat(),
+            self::MODE_TIME => $this->getMomentTimeFormat(),
+            self::MODE_DATETIME => $this->getMomentFullFormat(),
+            default => throw new \LogicException(sprintf('Unsupported date picker mode [%s].', $this->mode)),
+        };
+    }
+
+    public function getLocale(): string
+    {
+        return $this->evaluate($this->locale) ?? config('app.locale');
+    }
+
+    public function getTimezone(): string
+    {
+        return $this->evaluate($this->timezone) ?? config('app.timezone');
+    }
+
+    public function getMinDate(): ?string
+    {
+        return $this->evaluate($this->minDate)?->format($this->getFullFormat());
+    }
+
+    public function getMaxDate(): ?string
+    {
+        return $this->evaluate($this->maxDate)?->format($this->getFullFormat());
+    }
+
+    public function getAutoclose(): bool
+    {
+        return $this->evaluate($this->autoclose);
+    }
+
+    public function table(): self
+    {
+        return $this->prefixIcon(null);
     }
 
     private function convertFormat(string $format): string

@@ -56,10 +56,39 @@ class TwigEditor extends BaseRichEditor
         ];
     }
 
-    /** @param array<string, mixed> $document */
-    public function compileStructuredConditions(array $document): array
+    /** @return array<StateCast> */
+    public function getDefaultStateCasts(): array
     {
-        return $this->compileConditionNode($document, []);
+        return [
+            app(TwigEditorStateCast::class, ['twigEditor' => $this]),
+        ];
+    }
+
+    public function variables(Variable ...$variables): static
+    {
+        $this->variables = [];
+        $this->variableDefinitions = [];
+
+        foreach ($variables as $variable) {
+            foreach ($variable->flatten() as $name => $flattenedVariable) {
+                $this->variables[$name] = $flattenedVariable;
+            }
+
+            $this->variableDefinitions[$variable->getName()] = $variable;
+        }
+
+        return $this;
+    }
+
+    public function filters(Filter ...$filters): static
+    {
+        $this->filters = [];
+
+        foreach ($filters as $filter) {
+            $this->filters[$filter->getName()] = $filter;
+        }
+
+        return $this;
     }
 
     public function conditions(Condition ...$conditions): static
@@ -76,36 +105,43 @@ class TwigEditor extends BaseRichEditor
         return $this;
     }
 
-    public function filters(Filter ...$filters): static
+    public function snippets(Snippet ...$snippets): static
     {
-        $this->filters = [];
+        $this->snippets = [];
 
-        foreach ($filters as $filter) {
-            $this->filters[$filter->getName()] = $filter;
+        foreach ($snippets as $snippet) {
+            $this->snippets[$snippet->name] = $snippet;
         }
 
         return $this;
     }
 
-    /** @return array<string, Filter> */
-    public function getBlockFilters(): array
+    /** @return array<string, Snippet> */
+    public function getSnippets(): array
     {
-        return array_filter(
-            $this->filters,
-            static fn (Filter $filter) => $filter->supportsBlocks(),
-        );
+        return $this->snippets;
     }
 
-    /** @return array<string, Filter> */
-    public function getCollectionFilters(): array
+    public function getSnippet(string $name): ?Snippet
     {
-        return array_filter(
-            $this->filters,
-            static fn (Filter $filter) => (
-                $filter->supports('collection')
-                && $filter->getOutput() !== FilterOutput::CollectionItem
-            ),
-        );
+        return $this->snippets[$name] ?? null;
+    }
+
+    /** @param array<int, mixed> $loopStack */
+    public function getMissingSnippetVariables(Snippet $snippet, array $loopStack = []): array
+    {
+        $scope = $this->getVariableScope($loopStack);
+
+        return array_values(array_filter(
+            $snippet->requiredVariables,
+            static fn (string $variable) => !$scope->getVariable($variable),
+        ));
+    }
+
+    /** @return array<string, Condition> */
+    public function getConditions(): array
+    {
+        return $this->conditions;
     }
 
     public function getCondition(string $key): ?Condition
@@ -147,163 +183,26 @@ class TwigEditor extends BaseRichEditor
         return $definitions;
     }
 
-    /** @return array<string, Condition> */
-    public function getConditions(): array
+    /** @param array<string, mixed> $expression */
+    public function serializeCondition(array $expression, array $loopStack = []): string
     {
-        return $this->conditions;
+        return new ConditionExpressionSerializer(
+            $this->getVariableScope($loopStack),
+            $this->conditions,
+            $this->filters,
+        )->serialize($expression);
     }
 
-    /** @return array<StateCast> */
-    public function getDefaultStateCasts(): array
+    /** @param array<string, mixed> $document */
+    public function compileStructuredConditions(array $document): array
     {
-        return [
-            app(TwigEditorStateCast::class, ['twigEditor' => $this]),
-        ];
+        return $this->compileConditionNode($document, []);
     }
 
-    /**
-     * @return array<string | array<string | ToolbarButtonGroup>>
-     */
-    public function getDefaultToolbarButtons(): array
+    /** @return array<string, Variable> */
+    public function getVariables(): array
     {
-        return [
-            ['bold', 'italic', 'underline', 'strike', 'subscript', 'superscript', 'link'],
-            [
-                ToolbarButtonGroup::make(
-                    __('phpinnacle-stylus::forms.twig_editor.tools.text_style'),
-                    ['paragraph', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
-                )->textualButtons(),
-            ],
-            ['alignStart', 'alignCenter', 'alignEnd'],
-            ['blockquote', 'table', 'bulletList', 'orderedList'],
-            ...(filled($this->variables) ? [['twigVariables']] : []),
-            [
-                ToolbarButtonGroup::make(
-                    __('phpinnacle-stylus::forms.twig_editor.tools.insert_condition'),
-                    $this->getConditionRuleToolNames(),
-                )
-                    ->icon('heroicon-o-arrows-right-left')
-                    ->textualButtons(),
-                ...(filled($this->getBlockFilters()) ? ['insertTwigApply'] : []),
-                ...(filled($this->snippets) ? ['insertTwigSnippet'] : []),
-                ToolbarButtonGroup::make(
-                    __('phpinnacle-stylus::forms.twig_editor.tools.condition_view'),
-                    ['twigConditionViewBoth', 'twigConditionViewIf', 'twigConditionViewElse'],
-                )->textualButtons(),
-                'twigOutline',
-                'twigTemplateStructure',
-            ],
-            ['undo', 'redo'],
-        ];
-    }
-
-    public function getFilter(string $name): ?Filter
-    {
-        return $this->filters[$name] ?? null;
-    }
-
-    /** @return list<array{name: string, label: string, description: string|null, types: list<string>, configurable: bool, collectionCompatible: bool, blockCompatible: bool, conditionCompatible: bool, color: string|null, iconHtml: string|null}> */
-    public function getFilterDefinitionsForBrowser(): array
-    {
-        return array_map(
-            static fn (Filter $filter) => [
-                'name' => $filter->getName(),
-                'label' => $filter->getLabel(),
-                'description' => $filter->getDescription(),
-                'types' => $filter->getTypes(),
-                'configurable' => $filter->getSchema() !== [],
-                'collectionCompatible' =>
-                    $filter->supports('collection') && $filter->getOutput() !== FilterOutput::CollectionItem,
-                'blockCompatible' => $filter->supportsBlocks(),
-                'conditionCompatible' => $filter->getOutput() === FilterOutput::Same,
-                'color' => is_string($filter->getColor()) ? $filter->getColor() : null,
-                'iconHtml' => generate_icon_html(
-                    $filter->getIcon(),
-                    attributes: new FilamentComponentAttributeBag()
-                        ->class(['fi-stylus-twig-metadata-icon'])
-                        ->color(IconComponent::class, $filter->getColor()),
-                )?->toHtml(),
-            ],
-            array_values($this->filters),
-        );
-    }
-
-    /**
-     * @param  array<int, mixed>  $loopStack
-     * @return array<string, string>
-     */
-    public function getFilterOptionsForVariable(string $variableName, array $loopStack = []): array
-    {
-        $variable = $this->getVariable($variableName, $loopStack);
-
-        if (!$variable) {
-            return [];
-        }
-
-        $options = [];
-
-        foreach ($this->filters as $filter) {
-            if ($filter->supports($variable->getType())) {
-                $options[$filter->getName()] = $filter->getLabel();
-            }
-        }
-
-        return $options;
-    }
-
-    /** @return array<string, Filter> */
-    public function getFilters(): array
-    {
-        return $this->filters;
-    }
-
-    /** @return list<Component> */
-    public function getFilterSchema(string $filterName): array
-    {
-        return $this->getFilter($filterName)?->getSchema() ?? [];
-    }
-
-    /** @return array<string, list<Variable>> */
-    public function getGroupedVariables(): array
-    {
-        $groups = [];
-
-        foreach ($this->variables as $variable) {
-            $groups[$variable->getGroup() ?? ''][] = $variable;
-        }
-
-        return $groups;
-    }
-
-    /**
-     * @param  array<int, mixed>  $loopStack
-     * @return array<string, string>
-     */
-    public function getIterableOptions(array $loopStack = []): array
-    {
-        return $this->getVariableScope($loopStack)->getIterableOptions();
-    }
-
-    /** @param array<int, mixed> $loopStack */
-    public function getMissingSnippetVariables(Snippet $snippet, array $loopStack = []): array
-    {
-        $scope = $this->getVariableScope($loopStack);
-
-        return array_values(array_filter(
-            $snippet->requiredVariables,
-            static fn (string $variable) => !$scope->getVariable($variable),
-        ));
-    }
-
-    public function getSnippet(string $name): ?Snippet
-    {
-        return $this->snippets[$name] ?? null;
-    }
-
-    /** @return array<string, Snippet> */
-    public function getSnippets(): array
-    {
-        return $this->snippets;
+        return $this->variables;
     }
 
     /** @param array<int, mixed> $loopStack */
@@ -319,30 +218,6 @@ class TwigEditor extends BaseRichEditor
             static fn (Variable $variable) => $variable->toArray(),
             array_values($this->variableDefinitions),
         );
-    }
-
-    /** @return list<array{label: string, variables: list<array<string, mixed>>}> */
-    public function getVariableGroupsForBrowser(): array
-    {
-        $groups = [];
-
-        foreach ($this->getGroupedVariables() as $label => $variables) {
-            $groups[] = [
-                'label' => $label,
-                'variables' => array_map(
-                    static fn (Variable $variable) => $variable->toArray(),
-                    $variables,
-                ),
-            ];
-        }
-
-        return $groups;
-    }
-
-    /** @return array<string, Variable> */
-    public function getVariables(): array
-    {
-        return $this->variables;
     }
 
     /** @param array<int, mixed> $loopStack */
@@ -383,25 +258,166 @@ class TwigEditor extends BaseRichEditor
         return $scope;
     }
 
-    /** @param array<string, mixed> $expression */
-    public function serializeCondition(array $expression, array $loopStack = []): string
+    /** @return array<string, list<Variable>> */
+    public function getGroupedVariables(): array
     {
-        return new ConditionExpressionSerializer(
-            $this->getVariableScope($loopStack),
-            $this->conditions,
-            $this->filters,
-        )->serialize($expression);
-    }
+        $groups = [];
 
-    public function snippets(Snippet ...$snippets): static
-    {
-        $this->snippets = [];
-
-        foreach ($snippets as $snippet) {
-            $this->snippets[$snippet->name] = $snippet;
+        foreach ($this->variables as $variable) {
+            $groups[$variable->getGroup() ?? ''][] = $variable;
         }
 
-        return $this;
+        return $groups;
+    }
+
+    /** @return list<array{label: string, variables: list<array<string, mixed>>}> */
+    public function getVariableGroupsForBrowser(): array
+    {
+        $groups = [];
+
+        foreach ($this->getGroupedVariables() as $label => $variables) {
+            $groups[] = [
+                'label' => $label,
+                'variables' => array_map(
+                    static fn (Variable $variable) => $variable->toArray(),
+                    $variables,
+                ),
+            ];
+        }
+
+        return $groups;
+    }
+
+    /** @return array<string, Filter> */
+    public function getFilters(): array
+    {
+        return $this->filters;
+    }
+
+    public function getFilter(string $name): ?Filter
+    {
+        return $this->filters[$name] ?? null;
+    }
+
+    /** @return list<array{name: string, label: string, description: string|null, types: list<string>, configurable: bool, collectionCompatible: bool, blockCompatible: bool, conditionCompatible: bool, color: string|null, iconHtml: string|null}> */
+    public function getFilterDefinitionsForBrowser(): array
+    {
+        return array_map(
+            static fn (Filter $filter) => [
+                'name' => $filter->getName(),
+                'label' => $filter->getLabel(),
+                'description' => $filter->getDescription(),
+                'types' => $filter->getTypes(),
+                'configurable' => $filter->getSchema() !== [],
+                'collectionCompatible' =>
+                    $filter->supports('collection') && $filter->getOutput() !== FilterOutput::CollectionItem,
+                'blockCompatible' => $filter->supportsBlocks(),
+                'conditionCompatible' => $filter->getOutput() === FilterOutput::Same,
+                'color' => is_string($filter->getColor()) ? $filter->getColor() : null,
+                'iconHtml' => generate_icon_html(
+                    $filter->getIcon(),
+                    attributes: new FilamentComponentAttributeBag()
+                        ->class(['fi-stylus-twig-metadata-icon'])
+                        ->color(IconComponent::class, $filter->getColor()),
+                )?->toHtml(),
+            ],
+            array_values($this->filters),
+        );
+    }
+
+    /** @return array<string, Filter> */
+    public function getCollectionFilters(): array
+    {
+        return array_filter(
+            $this->filters,
+            static fn (Filter $filter) => (
+                $filter->supports('collection')
+                && $filter->getOutput() !== FilterOutput::CollectionItem
+            ),
+        );
+    }
+
+    /** @return array<string, Filter> */
+    public function getBlockFilters(): array
+    {
+        return array_filter(
+            $this->filters,
+            static fn (Filter $filter) => $filter->supportsBlocks(),
+        );
+    }
+
+    /**
+     * @param  array<int, mixed>  $loopStack
+     * @return array<string, string>
+     */
+    public function getFilterOptionsForVariable(string $variableName, array $loopStack = []): array
+    {
+        $variable = $this->getVariable($variableName, $loopStack);
+
+        if (!$variable) {
+            return [];
+        }
+
+        $options = [];
+
+        foreach ($this->filters as $filter) {
+            if ($filter->supports($variable->getType())) {
+                $options[$filter->getName()] = $filter->getLabel();
+            }
+        }
+
+        return $options;
+    }
+
+    /**
+     * @param  array<int, mixed>  $loopStack
+     * @return array<string, string>
+     */
+    public function getIterableOptions(array $loopStack = []): array
+    {
+        return $this->getVariableScope($loopStack)->getIterableOptions();
+    }
+
+    /** @return list<Component> */
+    public function getFilterSchema(string $filterName): array
+    {
+        return $this->getFilter($filterName)?->getSchema() ?? [];
+    }
+
+    /**
+     * @return array<string | array<string | ToolbarButtonGroup>>
+     */
+    public function getDefaultToolbarButtons(): array
+    {
+        return [
+            ['bold', 'italic', 'underline', 'strike', 'subscript', 'superscript', 'link'],
+            [
+                ToolbarButtonGroup::make(
+                    __('phpinnacle-stylus::forms.twig_editor.tools.text_style'),
+                    ['paragraph', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+                )->textualButtons(),
+            ],
+            ['alignStart', 'alignCenter', 'alignEnd'],
+            ['blockquote', 'table', 'bulletList', 'orderedList'],
+            ...(filled($this->variables) ? [['twigVariables']] : []),
+            [
+                ToolbarButtonGroup::make(
+                    __('phpinnacle-stylus::forms.twig_editor.tools.insert_condition'),
+                    $this->getConditionRuleToolNames(),
+                )
+                    ->icon('heroicon-o-arrows-right-left')
+                    ->textualButtons(),
+                ...(filled($this->getBlockFilters()) ? ['insertTwigApply'] : []),
+                ...(filled($this->snippets) ? ['insertTwigSnippet'] : []),
+                ToolbarButtonGroup::make(
+                    __('phpinnacle-stylus::forms.twig_editor.tools.condition_view'),
+                    ['twigConditionViewBoth', 'twigConditionViewIf', 'twigConditionViewElse'],
+                )->textualButtons(),
+                'twigOutline',
+                'twigTemplateStructure',
+            ],
+            ['undo', 'redo'],
+        ];
     }
 
     public function toEmbeddedHtml(): string
@@ -420,22 +436,6 @@ class TwigEditor extends BaseRichEditor
             'variableGroups' => $this->getVariableGroupsForBrowser(),
             'variableDefinitions' => $this->getVariableDefinitions(),
         ])->render();
-    }
-
-    public function variables(Variable ...$variables): static
-    {
-        $this->variables = [];
-        $this->variableDefinitions = [];
-
-        foreach ($variables as $variable) {
-            foreach ($variable->flatten() as $name => $flattenedVariable) {
-                $this->variables[$name] = $flattenedVariable;
-            }
-
-            $this->variableDefinitions[$variable->getName()] = $variable;
-        }
-
-        return $this;
     }
 
     protected function setUp(): void
@@ -492,24 +492,105 @@ class TwigEditor extends BaseRichEditor
             ]);
     }
 
-    /**
-     * @param  array<int, mixed>  $loopStack
-     * @param  array<string, mixed>  $attributes
-     * @return array<int, mixed>
-     */
-    private function appendAttributeLoop(array $loopStack, array $attributes): array
+    /** @return list<string> */
+    private function getConditionRuleToolNames(): array
     {
-        if (!filled($attributes['twigLoopIterable'] ?? null)) {
-            return $loopStack;
+        return array_map(
+            fn (Condition $condition) => $this->getConditionToolName('insertTwigIf', $condition),
+            array_values($this->conditions),
+        );
+    }
+
+    /** @return list<string> */
+    private function getTableRowConditionRuleToolNames(): array
+    {
+        return array_map(
+            fn (Condition $condition) => $this->getConditionToolName('insertTwigTableRowIf', $condition),
+            array_values($this->conditions),
+        );
+    }
+
+    /** @return list<RichEditorTool> */
+    private function getConditionRuleTools(): array
+    {
+        $tools = [];
+
+        foreach ($this->conditions as $condition) {
+            $conditionType = Js::from($condition->getKey())->toHtml();
+
+            $tools[] = RichEditorTool::make($this->getConditionToolName('insertTwigIf', $condition))
+                ->label($condition->getLabel())
+                ->icon(generate_icon_html(
+                    $condition->getIcon() ?? match ($condition->getType()) {
+                        ConditionKind::Truthy => 'heroicon-o-check-circle',
+                        ConditionKind::Comparison => 'heroicon-o-arrows-right-left',
+                        ConditionKind::Test => 'heroicon-o-beaker',
+                    },
+                    attributes: new FilamentComponentAttributeBag()
+                        ->class(['fi-stylus-twig-metadata-icon'])
+                        ->color(IconComponent::class, $condition->getColor()),
+                ))
+                ->extraAttributes([
+                    'class' => 'fi-stylus-twig-condition-rule-option',
+                    'data-stylus-twig-condition-description' => $condition->getDescription(),
+                    'data-stylus-twig-color' => is_string($condition->getColor()) ? $condition->getColor() : null,
+                ])
+                ->action('insertTwigIf', <<<JS
+                    {
+                        conditionType: {$conditionType},
+                        inline: window.PHPinnacleStylusTwigEditor?.canInsertTwigInlineIf(\$getEditor()) ?? false,
+                        loopStack: window.PHPinnacleStylusTwigEditor?.getLoopStack(\$getEditor()) ?? [],
+                    }
+                    JS);
+
+            $tools[] = RichEditorTool::make($this->getConditionToolName('insertTwigTableRowIf', $condition))
+                ->label($condition->getLabel())
+                ->icon(generate_icon_html(
+                    $condition->getIcon() ?? match ($condition->getType()) {
+                        ConditionKind::Truthy => 'heroicon-o-check-circle',
+                        ConditionKind::Comparison => 'heroicon-o-arrows-right-left',
+                        ConditionKind::Test => 'heroicon-o-beaker',
+                    },
+                    attributes: new FilamentComponentAttributeBag()
+                        ->class(['fi-stylus-twig-metadata-icon'])
+                        ->color(IconComponent::class, $condition->getColor()),
+                ))
+                ->extraAttributes([
+                    'class' => 'fi-stylus-twig-condition-rule-option',
+                    'data-stylus-twig-condition-description' => $condition->getDescription(),
+                    'data-stylus-twig-color' => is_string($condition->getColor()) ? $condition->getColor() : null,
+                ])
+                ->action('insertTwigTableRowIf', <<<JS
+                    {
+                        conditionType: {$conditionType},
+                        conditionTarget: 'row',
+                        loopStack: window.PHPinnacleStylusTwigEditor?.getLoopStack(\$getEditor()) ?? [],
+                    }
+                    JS)
+                ->activeJsExpression(
+                    'window.PHPinnacleStylusTwigEditor?.canInsertTwigTableRowIf($getEditor()) ?? false',
+                )
+                ->disabledWhenNotActive()
+                ->activeStyling(false);
         }
 
-        $loopStack[] = [
-            'item' => $attributes['twigLoopItem'] ?? null,
-            'key' => $attributes['twigLoopKey'] ?? null,
-            'iterable' => $attributes['twigLoopIterable'],
-        ];
+        return $tools;
+    }
 
-        return $loopStack;
+    private function makeTruthyCondition(): Condition
+    {
+        return ConditionDescriptor::truthy()
+            ->label(__('phpinnacle-stylus::forms.twig_editor.condition.truthy'))
+            ->icon('heroicon-o-check-circle')
+            ->description(__('phpinnacle-stylus::forms.twig_editor.condition.truthy_description'))
+            ->color('success');
+    }
+
+    private function getConditionToolName(string $baseName, Condition $condition): string
+    {
+        return $condition->getType() === ConditionKind::Truthy
+            ? $baseName
+            : "{$baseName}.{$condition->getKey()}";
     }
 
     /**
@@ -608,104 +689,23 @@ class TwigEditor extends BaseRichEditor
         return $node;
     }
 
-    /** @return list<string> */
-    private function getConditionRuleToolNames(): array
+    /**
+     * @param  array<int, mixed>  $loopStack
+     * @param  array<string, mixed>  $attributes
+     * @return array<int, mixed>
+     */
+    private function appendAttributeLoop(array $loopStack, array $attributes): array
     {
-        return array_map(
-            fn (Condition $condition) => $this->getConditionToolName('insertTwigIf', $condition),
-            array_values($this->conditions),
-        );
-    }
-
-    /** @return list<RichEditorTool> */
-    private function getConditionRuleTools(): array
-    {
-        $tools = [];
-
-        foreach ($this->conditions as $condition) {
-            $conditionType = Js::from($condition->getKey())->toHtml();
-
-            $tools[] = RichEditorTool::make($this->getConditionToolName('insertTwigIf', $condition))
-                ->label($condition->getLabel())
-                ->icon(generate_icon_html(
-                    $condition->getIcon() ?? match ($condition->getType()) {
-                        ConditionKind::Truthy => 'heroicon-o-check-circle',
-                        ConditionKind::Comparison => 'heroicon-o-arrows-right-left',
-                        ConditionKind::Test => 'heroicon-o-beaker',
-                    },
-                    attributes: new FilamentComponentAttributeBag()
-                        ->class(['fi-stylus-twig-metadata-icon'])
-                        ->color(IconComponent::class, $condition->getColor()),
-                ))
-                ->extraAttributes([
-                    'class' => 'fi-stylus-twig-condition-rule-option',
-                    'data-stylus-twig-condition-description' => $condition->getDescription(),
-                    'data-stylus-twig-color' => is_string($condition->getColor()) ? $condition->getColor() : null,
-                ])
-                ->action('insertTwigIf', <<<JS
-                    {
-                        conditionType: {$conditionType},
-                        inline: window.PHPinnacleStylusTwigEditor?.canInsertTwigInlineIf(\$getEditor()) ?? false,
-                        loopStack: window.PHPinnacleStylusTwigEditor?.getLoopStack(\$getEditor()) ?? [],
-                    }
-                    JS);
-
-            $tools[] = RichEditorTool::make($this->getConditionToolName('insertTwigTableRowIf', $condition))
-                ->label($condition->getLabel())
-                ->icon(generate_icon_html(
-                    $condition->getIcon() ?? match ($condition->getType()) {
-                        ConditionKind::Truthy => 'heroicon-o-check-circle',
-                        ConditionKind::Comparison => 'heroicon-o-arrows-right-left',
-                        ConditionKind::Test => 'heroicon-o-beaker',
-                    },
-                    attributes: new FilamentComponentAttributeBag()
-                        ->class(['fi-stylus-twig-metadata-icon'])
-                        ->color(IconComponent::class, $condition->getColor()),
-                ))
-                ->extraAttributes([
-                    'class' => 'fi-stylus-twig-condition-rule-option',
-                    'data-stylus-twig-condition-description' => $condition->getDescription(),
-                    'data-stylus-twig-color' => is_string($condition->getColor()) ? $condition->getColor() : null,
-                ])
-                ->action('insertTwigTableRowIf', <<<JS
-                    {
-                        conditionType: {$conditionType},
-                        conditionTarget: 'row',
-                        loopStack: window.PHPinnacleStylusTwigEditor?.getLoopStack(\$getEditor()) ?? [],
-                    }
-                    JS)
-                ->activeJsExpression(
-                    'window.PHPinnacleStylusTwigEditor?.canInsertTwigTableRowIf($getEditor()) ?? false',
-                )
-                ->disabledWhenNotActive()
-                ->activeStyling(false);
+        if (!filled($attributes['twigLoopIterable'] ?? null)) {
+            return $loopStack;
         }
 
-        return $tools;
-    }
+        $loopStack[] = [
+            'item' => $attributes['twigLoopItem'] ?? null,
+            'key' => $attributes['twigLoopKey'] ?? null,
+            'iterable' => $attributes['twigLoopIterable'],
+        ];
 
-    private function getConditionToolName(string $baseName, Condition $condition): string
-    {
-        return $condition->getType() === ConditionKind::Truthy
-            ? $baseName
-            : "{$baseName}.{$condition->getKey()}";
-    }
-
-    /** @return list<string> */
-    private function getTableRowConditionRuleToolNames(): array
-    {
-        return array_map(
-            fn (Condition $condition) => $this->getConditionToolName('insertTwigTableRowIf', $condition),
-            array_values($this->conditions),
-        );
-    }
-
-    private function makeTruthyCondition(): Condition
-    {
-        return ConditionDescriptor::truthy()
-            ->label(__('phpinnacle-stylus::forms.twig_editor.condition.truthy'))
-            ->icon('heroicon-o-check-circle')
-            ->description(__('phpinnacle-stylus::forms.twig_editor.condition.truthy_description'))
-            ->color('success');
+        return $loopStack;
     }
 }

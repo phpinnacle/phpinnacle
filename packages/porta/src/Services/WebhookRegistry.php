@@ -11,14 +11,21 @@ class WebhookRegistry
 {
     private array $handlers = [];
 
-    public function all(): Collection
+    public function register(Handler ...$handlers): void
     {
-        return collect($this->handlers);
+        foreach ($handlers as $handler) {
+            $this->handlers[$handler->getType()] = $handler;
+        }
     }
 
     public function get(string $type): ?Handler
     {
         return $this->handlers[$type] ?? null;
+    }
+
+    public function all(): Collection
+    {
+        return collect($this->handlers);
     }
 
     public function options(): array
@@ -27,12 +34,5 @@ class WebhookRegistry
             ->all()
             ->mapWithKeys(fn (Handler $handler) => [$handler->getType() => $handler->getLabel()])
             ->all();
-    }
-
-    public function register(Handler ...$handlers): void
-    {
-        foreach ($handlers as $handler) {
-            $this->handlers[$handler->getType()] = $handler;
-        }
     }
 }

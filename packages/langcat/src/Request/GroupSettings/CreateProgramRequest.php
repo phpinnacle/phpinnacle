@@ -15,16 +15,16 @@ final class CreateProgramRequest
         return new self;
     }
 
-    public function name(string $value): self
+    public function schoolId(int $value): self
     {
-        $this->data['name'] = RequestValue::nonEmpty($value, 'Program name');
+        $this->data['schoolId'] = RequestValue::positive($value, 'School ID');
 
         return $this;
     }
 
-    public function schoolId(int $value): self
+    public function name(string $value): self
     {
-        $this->data['schoolId'] = RequestValue::positive($value, 'School ID');
+        $this->data['name'] = RequestValue::nonEmpty($value, 'Program name');
 
         return $this;
     }

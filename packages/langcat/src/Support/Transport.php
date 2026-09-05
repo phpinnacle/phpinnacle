@@ -39,6 +39,17 @@ final readonly class Transport
         $this->baseUri = $baseUri;
     }
 
+    public function withAccessToken(#[\SensitiveParameter] string $accessToken): self
+    {
+        return new self(
+            $this->baseUri,
+            $this->httpClient,
+            $this->requestFactory,
+            $this->streamFactory,
+            $accessToken,
+        );
+    }
+
     /**
      * @param  array<string, int|string>  $query
      * @param  array<array-key, mixed>|null  $body
@@ -104,17 +115,6 @@ final readonly class Transport
         return is_array($payload)
             ? $payload
             : throw new UnexpectedResponseException($response->getStatusCode(), $responseBody);
-    }
-
-    public function withAccessToken(#[\SensitiveParameter] string $accessToken): self
-    {
-        return new self(
-            $this->baseUri,
-            $this->httpClient,
-            $this->requestFactory,
-            $this->streamFactory,
-            $accessToken,
-        );
     }
 
     private function errorResponse(string $body): ?ErrorResponse

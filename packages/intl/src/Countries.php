@@ -10,13 +10,6 @@ class Countries
 
     private const string TRANS = 'phpinnacle-intl::forms.country.other';
 
-    public static function exists(string $code): bool
-    {
-        $code = strtoupper(trim($code));
-
-        return $code === self::OTHER || Intl::exists($code);
-    }
-
     public static function list(?string $display = null): array
     {
         $all = Intl::getNames($display);
@@ -30,5 +23,12 @@ class Countries
         $code = strtoupper(trim($code));
 
         return $code !== self::OTHER ? Intl::getName($code, $display) : __(self::TRANS, locale: $display);
+    }
+
+    public static function exists(string $code): bool
+    {
+        $code = strtoupper(trim($code));
+
+        return $code === self::OTHER || Intl::exists($code);
     }
 }

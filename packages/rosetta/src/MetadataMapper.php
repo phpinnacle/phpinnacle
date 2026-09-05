@@ -96,88 +96,6 @@ final class MetadataMapper
         );
     }
 
-    /** Read a value using the one-based vectors used by the 1C format. */
-    private function at(mixed $value, int ...$path): mixed
-    {
-        foreach ($path as $position) {
-            if (!is_array($value) || !array_key_exists($position - 1, $value)) {
-                return null;
-            }
-
-            $value = $value[$position - 1];
-        }
-
-        return $value;
-    }
-
-    /** @return list<mixed> */
-    private function collectionItems(mixed $collection, string $subject): array
-    {
-        if (!is_array($collection)) {
-            return [];
-        }
-
-        $count = $collection[1] ?? null;
-        $items = array_values(array_slice($collection, 2));
-
-        if (!is_int($count) || $count < 0 || count($items) !== $count) {
-            throw new RuntimeException(sprintf('%s count does not match declared count', $subject));
-        }
-
-        return $items;
-    }
-
-    /** @return list<array<mixed>> */
-    private function descriptors(mixed $pattern): array
-    {
-        if (!is_array($pattern) || ($pattern[0] ?? null) !== 'Pattern') {
-            return [];
-        }
-
-        return array_values(array_filter(
-            array_slice($pattern, 1),
-            fn ($descriptor) => is_array($descriptor),
-        ));
-    }
-
-    /** @param list<array<mixed>> $descriptors */
-    private function field(array $descriptors): Field
-    {
-        if ($descriptors === []) {
-            return new ScalarField(FieldType::Undefined);
-        }
-
-        if (count($descriptors) > 1) {
-            return new UnionField(array_map($this->fieldVariant(...), $descriptors));
-        }
-
-        return $this->fieldVariant($descriptors[0]);
-    }
-
-    /** @param array<mixed> $descriptor */
-    private function fieldVariant(array $descriptor): Field
-    {
-        return match ($descriptor[0] ?? null) {
-            'B' => new ScalarField(FieldType::Boolean),
-            'N' => new NumberField(
-                precision: is_int($descriptor[1] ?? null) ? $descriptor[1] : null,
-                scale: is_int($descriptor[2] ?? null) ? $descriptor[2] : null,
-                unsigned: ($descriptor[3] ?? 0) === 1,
-            ),
-            'D' => new ScalarField(match ($descriptor[1] ?? null) {
-                'D' => FieldType::Date,
-                'T' => FieldType::Time,
-                default => FieldType::DateTime,
-            }),
-            'S' => new StringField(
-                length: is_int($descriptor[1] ?? null) ? $descriptor[1] : null,
-                fixed: ($descriptor[2] ?? null) === 0,
-            ),
-            '#' => $this->referencedField($descriptor[1] ?? null),
-            default => new ScalarField(FieldType::Unknown),
-        };
-    }
-
     /** @return list<EnumerationValue> */
     private function parseEnumerationValues(mixed $collection): array
     {
@@ -203,75 +121,6 @@ final class MetadataMapper
         }
 
         return $values;
-    }
-
-    /** @return list<MetadataProperty> */
-    private function parseProperties(mixed $collection): array
-    {
-        $properties = [];
-
-        foreach ($this->collectionItems($collection, 'Metadata property') as $position => $item) {
-            if (!is_array($item)) {
-                throw new RuntimeException(sprintf(
-                    'Invalid metadata property at position %d',
-                    $position + 1,
-                ));
-            }
-
-            $id = $this->at($item, 1, 2, 2, 2, 2, 3);
-            $label = $this->at($item, 1, 2, 2, 2, 3);
-
-            if (!is_string($id) || !is_string($label)) {
-                throw new RuntimeException(sprintf(
-                    'Invalid metadata property identifier or logical name at position %d',
-                    $position + 1,
-                ));
-            }
-
-            $code = $this->storageMap->code($id, 'Fld');
-            $name = $this->storageMap->name($id, 'Fld');
-
-            // A metadata property without Fld in DBNames has no physical column.
-            if (!is_int($code) || !is_string($name)) {
-                continue;
-            }
-
-            $title = $this->title($this->at($item, 1, 2, 2, 2, 4), $label);
-            $descriptors = $this->descriptors($this->at($item, 1, 2, 2, 3));
-            $descriptor = count($descriptors) === 1 ? $descriptors[0] : null;
-
-            if (
-                is_array($descriptor)
-                && ($descriptor[0] ?? null) === '#'
-                && is_string($descriptor[1] ?? null)
-                && !in_array($descriptor[1], [self::VALUE_STORAGE, self::UNIQUE_IDENTIFIER], true)
-                && $this->typeMap->descriptors($descriptor[1]) === null
-            ) {
-                $properties[] = new MetadataProperty(
-                    id: $id,
-                    name: strtolower($name),
-                    code: $code,
-                    kind: PropertyKind::Reference,
-                    label: $label,
-                    title: $title,
-                    field: new ReferenceField($descriptor[1]),
-                );
-
-                continue;
-            }
-
-            $properties[] = new MetadataProperty(
-                id: $id,
-                name: strtolower($name),
-                code: $code,
-                kind: PropertyKind::Field,
-                label: $label,
-                title: $title,
-                field: $this->field($descriptors),
-            );
-        }
-
-        return $properties;
     }
 
     /** @return list<MetadataDefinition> */
@@ -347,6 +196,130 @@ final class MetadataMapper
         return $sections;
     }
 
+    /** @return list<MetadataProperty> */
+    private function parseProperties(mixed $collection): array
+    {
+        $properties = [];
+
+        foreach ($this->collectionItems($collection, 'Metadata property') as $position => $item) {
+            if (!is_array($item)) {
+                throw new RuntimeException(sprintf(
+                    'Invalid metadata property at position %d',
+                    $position + 1,
+                ));
+            }
+
+            $id = $this->at($item, 1, 2, 2, 2, 2, 3);
+            $label = $this->at($item, 1, 2, 2, 2, 3);
+
+            if (!is_string($id) || !is_string($label)) {
+                throw new RuntimeException(sprintf(
+                    'Invalid metadata property identifier or logical name at position %d',
+                    $position + 1,
+                ));
+            }
+
+            $code = $this->storageMap->code($id, 'Fld');
+            $name = $this->storageMap->name($id, 'Fld');
+
+            // A metadata property without Fld in DBNames has no physical column.
+            if (!is_int($code) || !is_string($name)) {
+                continue;
+            }
+
+            $title = $this->title($this->at($item, 1, 2, 2, 2, 4), $label);
+            $descriptors = $this->descriptors($this->at($item, 1, 2, 2, 3));
+            $descriptor = count($descriptors) === 1 ? $descriptors[0] : null;
+
+            if (
+                is_array($descriptor)
+                && ($descriptor[0] ?? null) === '#'
+                && is_string($descriptor[1] ?? null)
+                && !in_array($descriptor[1], [self::VALUE_STORAGE, self::UNIQUE_IDENTIFIER], true)
+                && $this->typeMap->descriptors($descriptor[1]) === null
+            ) {
+                $properties[] = new MetadataProperty(
+                    id: $id,
+                    name: strtolower($name),
+                    code: $code,
+                    kind: PropertyKind::Reference,
+                    label: $label,
+                    title: $title,
+                    field: new ReferenceField($descriptor[1]),
+                );
+
+                continue;
+            }
+
+            $properties[] = new MetadataProperty(
+                id: $id,
+                name: strtolower($name),
+                code: $code,
+                kind: PropertyKind::Field,
+                label: $label,
+                title: $title,
+                field: $this->field($descriptors),
+            );
+        }
+
+        return $properties;
+    }
+
+    /** @return list<mixed> */
+    private function collectionItems(mixed $collection, string $subject): array
+    {
+        if (!is_array($collection)) {
+            return [];
+        }
+
+        $count = $collection[1] ?? null;
+        $items = array_values(array_slice($collection, 2));
+
+        if (!is_int($count) || $count < 0 || count($items) !== $count) {
+            throw new RuntimeException(sprintf('%s count does not match declared count', $subject));
+        }
+
+        return $items;
+    }
+
+    /** @param list<array<mixed>> $descriptors */
+    private function field(array $descriptors): Field
+    {
+        if ($descriptors === []) {
+            return new ScalarField(FieldType::Undefined);
+        }
+
+        if (count($descriptors) > 1) {
+            return new UnionField(array_map($this->fieldVariant(...), $descriptors));
+        }
+
+        return $this->fieldVariant($descriptors[0]);
+    }
+
+    /** @param array<mixed> $descriptor */
+    private function fieldVariant(array $descriptor): Field
+    {
+        return match ($descriptor[0] ?? null) {
+            'B' => new ScalarField(FieldType::Boolean),
+            'N' => new NumberField(
+                precision: is_int($descriptor[1] ?? null) ? $descriptor[1] : null,
+                scale: is_int($descriptor[2] ?? null) ? $descriptor[2] : null,
+                unsigned: ($descriptor[3] ?? 0) === 1,
+            ),
+            'D' => new ScalarField(match ($descriptor[1] ?? null) {
+                'D' => FieldType::Date,
+                'T' => FieldType::Time,
+                default => FieldType::DateTime,
+            }),
+            'S' => new StringField(
+                length: is_int($descriptor[1] ?? null) ? $descriptor[1] : null,
+                fixed: ($descriptor[2] ?? null) === 0,
+            ),
+            '#' => $this->referencedField($descriptor[1] ?? null),
+            default => new ScalarField(FieldType::Unknown),
+        };
+    }
+
     private function referencedField(mixed $target): Field
     {
         if ($target === self::VALUE_STORAGE) {
@@ -362,6 +335,19 @@ final class MetadataMapper
         }
 
         return new ReferenceField(is_string($target) ? $target : '');
+    }
+
+    /** @return list<array<mixed>> */
+    private function descriptors(mixed $pattern): array
+    {
+        if (!is_array($pattern) || ($pattern[0] ?? null) !== 'Pattern') {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_slice($pattern, 1),
+            fn ($descriptor) => is_array($descriptor),
+        ));
     }
 
     private function title(mixed $localizations, string $fallback): string
@@ -388,5 +374,19 @@ final class MetadataMapper
         }
 
         return $first ?? $fallback;
+    }
+
+    /** Read a value using the one-based vectors used by the 1C format. */
+    private function at(mixed $value, int ...$path): mixed
+    {
+        foreach ($path as $position) {
+            if (!is_array($value) || !array_key_exists($position - 1, $value)) {
+                return null;
+            }
+
+            $value = $value[$position - 1];
+        }
+
+        return $value;
     }
 }

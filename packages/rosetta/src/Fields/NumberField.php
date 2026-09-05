@@ -13,6 +13,16 @@ final readonly class NumberField implements Field
         public bool $unsigned,
     ) {}
 
+    public function type(): FieldType
+    {
+        return FieldType::Number;
+    }
+
+    public function targets(): array
+    {
+        return [];
+    }
+
     /** @return array<string, int|bool|string> */
     public function jsonSerialize(): array
     {
@@ -22,15 +32,5 @@ final readonly class NumberField implements Field
             ...($this->scale !== null ? ['scale' => $this->scale] : []),
             'unsigned' => $this->unsigned,
         ];
-    }
-
-    public function targets(): array
-    {
-        return [];
-    }
-
-    public function type(): FieldType
-    {
-        return FieldType::Number;
     }
 }

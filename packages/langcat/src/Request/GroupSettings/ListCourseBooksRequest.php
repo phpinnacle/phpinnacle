@@ -15,21 +15,6 @@ final class ListCourseBooksRequest
         return new self;
     }
 
-    public function archived(bool $value = true): self
-    {
-        return $this->set('isArchived', (int) $value);
-    }
-
-    public function name(string $value): self
-    {
-        return $this->set('name', RequestValue::nonEmpty($value, 'Course book name'));
-    }
-
-    public function nameLike(string $value): self
-    {
-        return $this->set('name_like', RequestValue::nonEmpty($value, 'Course book name'));
-    }
-
     public function page(int $value): self
     {
         return $this->set('page', RequestValue::positive($value, 'Page'));
@@ -42,11 +27,6 @@ final class ListCourseBooksRequest
         }
 
         return $this->set('perPage', RequestValue::positive($value, 'Items per page'));
-    }
-
-    public function schoolId(int $id): self
-    {
-        return $this->set('schoolId', RequestValue::positive($id, 'School ID'));
     }
 
     public function sortBy(string $value): self
@@ -69,6 +49,26 @@ final class ListCourseBooksRequest
         }
 
         return $this->set('sortBy', $value);
+    }
+
+    public function archived(bool $value = true): self
+    {
+        return $this->set('isArchived', (int) $value);
+    }
+
+    public function schoolId(int $id): self
+    {
+        return $this->set('schoolId', RequestValue::positive($id, 'School ID'));
+    }
+
+    public function name(string $value): self
+    {
+        return $this->set('name', RequestValue::nonEmpty($value, 'Course book name'));
+    }
+
+    public function nameLike(string $value): self
+    {
+        return $this->set('name_like', RequestValue::nonEmpty($value, 'Course book name'));
     }
 
     /** @return array<string, int|string> */

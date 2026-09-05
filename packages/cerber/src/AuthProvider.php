@@ -24,13 +24,28 @@ class AuthProvider implements HasColor, HasIcon, HasLabel
         private string|BackedEnum|Htmlable|null $icon = null,
     ) {}
 
-    public static function facebook(): self
+    public static function make(string $class): self
+    {
+        return new self($class, str($class)->afterLast('\\')->apa());
+    }
+
+    public static function google(): self
     {
         return new self(
-            class: FacebookProvider::class,
-            label: __('phpinnacle-cerber::auth.providers.facebook'),
-            color: Color::hex('#1877F2'),
-            icon: 'cerber-facebook',
+            class: GoogleProvider::class,
+            label: __('phpinnacle-cerber::auth.providers.google'),
+            color: Color::hex('#4285F4'),
+            icon: 'cerber-google',
+        );
+    }
+
+    public static function yandex(): self
+    {
+        return new self(
+            class: YandexProvider::class,
+            label: __('phpinnacle-cerber::auth.providers.yandex'),
+            color: Color::hex('#FFCC00'),
+            icon: 'cerber-yandex',
         );
     }
 
@@ -44,29 +59,48 @@ class AuthProvider implements HasColor, HasIcon, HasLabel
         );
     }
 
-    public static function google(): self
+    public static function facebook(): self
     {
         return new self(
-            class: GoogleProvider::class,
-            label: __('phpinnacle-cerber::auth.providers.google'),
-            color: Color::hex('#4285F4'),
-            icon: 'cerber-google',
+            class: FacebookProvider::class,
+            label: __('phpinnacle-cerber::auth.providers.facebook'),
+            color: Color::hex('#1877F2'),
+            icon: 'cerber-facebook',
         );
     }
 
-    public static function make(string $class): self
+    public function getClass(): string
     {
-        return new self($class, str($class)->afterLast('\\')->apa());
+        return $this->class;
     }
 
-    public static function yandex(): self
+    public function getLabel(): string|Htmlable
     {
-        return new self(
-            class: YandexProvider::class,
-            label: __('phpinnacle-cerber::auth.providers.yandex'),
-            color: Color::hex('#FFCC00'),
-            icon: 'cerber-yandex',
-        );
+        return $this->label;
+    }
+
+    public function getIcon(): string|BackedEnum|Htmlable|null
+    {
+        return $this->icon;
+    }
+
+    public function getColor(): string|array|null
+    {
+        return $this->color;
+    }
+
+    public function label(string|Htmlable $label): self
+    {
+        $this->label = $label;
+
+        return $this;
+    }
+
+    public function icon(string|BackedEnum|Htmlable|null $icon): self
+    {
+        $this->icon = $icon;
+
+        return $this;
     }
 
     public function color(string|array|null $color): self
@@ -79,39 +113,5 @@ class AuthProvider implements HasColor, HasIcon, HasLabel
     public function driver(array $config): Provider
     {
         return Socialite::buildProvider($this->class, $config);
-    }
-
-    public function getClass(): string
-    {
-        return $this->class;
-    }
-
-    public function getColor(): string|array|null
-    {
-        return $this->color;
-    }
-
-    public function getIcon(): string|BackedEnum|Htmlable|null
-    {
-        return $this->icon;
-    }
-
-    public function getLabel(): string|Htmlable
-    {
-        return $this->label;
-    }
-
-    public function icon(string|BackedEnum|Htmlable|null $icon): self
-    {
-        $this->icon = $icon;
-
-        return $this;
-    }
-
-    public function label(string|Htmlable $label): self
-    {
-        $this->label = $label;
-
-        return $this;
     }
 }

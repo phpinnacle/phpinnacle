@@ -19,6 +19,11 @@ class MoneySynth extends Synth
         return [$target->toLivewire(), []];
     }
 
+    public function hydrate(mixed $value): Money
+    {
+        return Money::parse($value);
+    }
+
     public function get(&$target, $key): ?string
     {
         return match ($key) {
@@ -26,11 +31,6 @@ class MoneySynth extends Synth
             'amount' => $target->decimal(),
             default => null,
         };
-    }
-
-    public function hydrate(mixed $value): Money
-    {
-        return Money::parse($value);
     }
 
     public function set(&$target, $key, $value): void

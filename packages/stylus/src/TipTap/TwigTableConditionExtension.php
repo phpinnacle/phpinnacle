@@ -39,29 +39,6 @@ class TwigTableConditionExtension extends Extension
         ]];
     }
 
-    /** @return array<string, mixed>|null */
-    private function parseConditionAst(?string $value): ?array
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        try {
-            $conditionAst = json_decode($value, true, flags: JSON_THROW_ON_ERROR);
-        } catch (JsonException $exception) {
-            throw new InvalidArgumentException(
-                'Twig table row condition AST must be valid JSON.',
-                previous: $exception,
-            );
-        }
-
-        if (!is_array($conditionAst) || array_is_list($conditionAst)) {
-            throw new InvalidArgumentException('Twig table row condition AST must be an object.');
-        }
-
-        return $conditionAst;
-    }
-
     /** @return array<string, mixed> */
     private function stringAttribute(string $htmlName): array
     {
@@ -83,5 +60,28 @@ class TwigTableConditionExtension extends Extension
                 return filled($value) ? [$htmlName => $value] : [];
             },
         ];
+    }
+
+    /** @return array<string, mixed>|null */
+    private function parseConditionAst(?string $value): ?array
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        try {
+            $conditionAst = json_decode($value, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw new InvalidArgumentException(
+                'Twig table row condition AST must be valid JSON.',
+                previous: $exception,
+            );
+        }
+
+        if (!is_array($conditionAst) || array_is_list($conditionAst)) {
+            throw new InvalidArgumentException('Twig table row condition AST must be an object.');
+        }
+
+        return $conditionAst;
     }
 }

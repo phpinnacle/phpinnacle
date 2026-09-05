@@ -12,6 +12,11 @@ enum TenantStatus: string implements HasColor, HasIcon, HasLabel
     case Blocked = 'blocked';
     case Archived = 'archived';
 
+    public function getLabel(): string
+    {
+        return __('phpinnacle-cerber::enums.tenant_status.' . $this->value);
+    }
+
     public function getColor(): string
     {
         return match ($this) {
@@ -28,10 +33,5 @@ enum TenantStatus: string implements HasColor, HasIcon, HasLabel
             self::Blocked => 'phosphor-x-circle',
             self::Archived => 'phosphor-archive',
         };
-    }
-
-    public function getLabel(): string
-    {
-        return __('phpinnacle-cerber::enums.tenant_status.' . $this->value);
     }
 }

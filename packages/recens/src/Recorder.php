@@ -18,6 +18,11 @@ class Recorder
 
     private array $pages = [];
 
+    public function register(string $page, ?Closure $callback = null): void
+    {
+        $this->pages[$page] = $callback;
+    }
+
     public function record(Page $page): void
     {
         if (Livewire::isLivewireRequest()) {
@@ -30,11 +35,6 @@ class Recorder
         ]);
 
         Recent::record(is_array($custom) ? array_replace($default, $custom) : $default);
-    }
-
-    public function register(string $page, ?Closure $callback = null): void
-    {
-        $this->pages[$page] = $callback;
     }
 
     private function defaults(Page $page): array

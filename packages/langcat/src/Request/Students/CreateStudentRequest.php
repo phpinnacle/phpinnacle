@@ -30,13 +30,6 @@ final class CreateStudentRequest
         return $this;
     }
 
-    public function hasParentAccounts(bool $hasParentAccounts = true): self
-    {
-        $this->hasParentAccounts = $hasParentAccounts;
-
-        return $this;
-    }
-
     public function lastName(string $lastName): self
     {
         $this->lastName = $this->nonEmpty($lastName, 'Last name');
@@ -55,6 +48,20 @@ final class CreateStudentRequest
         return $this;
     }
 
+    public function hasParentAccounts(bool $hasParentAccounts = true): self
+    {
+        $this->hasParentAccounts = $hasParentAccounts;
+
+        return $this;
+    }
+
+    public function type(StudentType $type): self
+    {
+        $this->type = $type;
+
+        return $this;
+    }
+
     /** @return array{firstName: string, lastName: string, schoolId: int, hasParentAccounts: bool, type: string} */
     public function toArray(): array
     {
@@ -69,13 +76,6 @@ final class CreateStudentRequest
             ),
             'type' => $type->value,
         ];
-    }
-
-    public function type(StudentType $type): self
-    {
-        $this->type = $type;
-
-        return $this;
     }
 
     private function nonEmpty(string $value, string $name): string

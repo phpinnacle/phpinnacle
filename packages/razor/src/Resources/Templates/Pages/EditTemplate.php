@@ -36,6 +36,13 @@ class EditTemplate extends EditRecord
         $this->data['content'] = $history->content;
     }
 
+    protected function handleRecordUpdate(Model $record, array $data): Model
+    {
+        $this->activeVersion = null;
+
+        return parent::handleRecordUpdate($record, $data);
+    }
+
     protected function getHeaderActions(): array
     {
         return [
@@ -44,12 +51,5 @@ class EditTemplate extends EditRecord
             DeleteAction::make()
                 ->label(__('phpinnacle-razor::resources.template.actions.delete')),
         ];
-    }
-
-    protected function handleRecordUpdate(Model $record, array $data): Model
-    {
-        $this->activeVersion = null;
-
-        return parent::handleRecordUpdate($record, $data);
     }
 }
