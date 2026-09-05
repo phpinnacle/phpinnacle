@@ -8,7 +8,7 @@ use PHPinnacle\Grimoire\GrimoireExtension;
 
 require $_composer_autoload_path ?? dirname(__DIR__) . '/vendor/autoload.php';
 
-/** @var array{rules?: array{class-method-order?: list<array{extends?: string, order: list<string>}>, compact-empty-method-body?: array{method-pattern?: string}}} $configuration */
+/** @var array{rules?: array{class-member-order?: list<array{extends?: string, order: list<string>}>, class-method-order?: list<array{extends?: string, order: list<string>}>, compact-empty-method-body?: array{method-pattern?: string}}} $configuration */
 $configuration = isset($argv[1])
     ? json_decode(file_get_contents($argv[1]), true, flags: JSON_THROW_ON_ERROR)
     : [];

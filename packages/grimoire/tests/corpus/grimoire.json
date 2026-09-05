@@ -1,5 +1,27 @@
 {
     "rules": {
+        "class-member-order": [
+            {
+                "extends": "MemberBase",
+                "order": [
+                    "trait-use:*",
+                    "public:constant:*",
+                    "private:constant:*",
+                    "public:static:property:*",
+                    "public:property:*",
+                    "private:property:*",
+                    "method:__construct",
+                    "public:method:*",
+                    "private:method:*"
+                ]
+            },
+            {
+                "order": [
+                    "enum-case:*",
+                    "method:*"
+                ]
+            }
+        ],
         "class-method-order": [
             {
                 "extends": "Illuminate\\Database\\Migrations\\Migration",

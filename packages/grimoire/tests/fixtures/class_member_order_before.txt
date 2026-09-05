@@ -1,0 +1,18 @@
+<?php
+
+trait MemberTrait {}
+
+abstract class MemberBase {}
+
+final class Subject extends MemberBase
+{
+    private function helper(): void {} // Keeps its trailing comment when moved.
+
+    /** Keeps its documentation when moved. */
+    #[Deprecated]
+    public const ENABLED = true;
+
+    use MemberTrait;
+
+    public string $name;
+}

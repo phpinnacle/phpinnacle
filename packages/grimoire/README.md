@@ -21,6 +21,30 @@ Create `grimoire.json`:
 ```json
 {
     "rules": {
+        "class-member-order": [
+            {
+                "order": [
+                    "trait-use:*",
+                    "enum-case:*",
+                    "public:constant:*",
+                    "protected:constant:*",
+                    "private:constant:*",
+                    "public:static:property:*",
+                    "protected:static:property:*",
+                    "private:static:property:*",
+                    "public:property:*",
+                    "protected:property:*",
+                    "private:property:*",
+                    "method:__construct",
+                    "public:static:method:*",
+                    "public:method:*",
+                    "protected:static:method:*",
+                    "protected:method:*",
+                    "private:static:method:*",
+                    "private:method:*"
+                ]
+            }
+        ],
         "class-method-order": [
             {
                 "extends": "Illuminate\\Database\\Migrations\\Migration",
@@ -44,6 +68,12 @@ Create `grimoire.json`:
 
 ## Rules
 
+### `phpinnacle/class-member-order`
+
+Orders trait uses, enum cases, constants, properties, and methods using the first matching configuration in the `class-member-order` array. The optional `extends` glob matches the resolved direct parent class; omit it to match every class-like declaration.
+
+Selectors use the form `[modifier:...:]type:name-pattern`. Supported types are `trait-use`, `enum-case`, `constant`, `property`, and `method`. For example, `public:static:property:cache*` matches public static properties whose names begin with `cache`, while `method:__construct` matches constructors. A grouped property, constant, or trait-use declaration matches when any declared name matches. Members unmatched by any selector remain last in their original order. Comments and attributes move with their member.
+
 ### `phpinnacle/class-method-order`
 
 Orders class methods using the first matching configuration in the `class-method-order` array. The optional `extends` glob matches the resolved direct parent class; omit it to match any class.
@@ -59,7 +89,7 @@ By default, the rule applies to every method. Restrict it with the `method-patte
 Apply the safe fixes with:
 
 ```bash
-mago lint --fix --only phpinnacle/class-method-order,phpinnacle/compact-empty-method-body
+mago lint --fix --only phpinnacle/class-member-order,phpinnacle/class-method-order,phpinnacle/compact-empty-method-body
 ```
 
 ## Testing
