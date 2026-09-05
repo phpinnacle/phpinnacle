@@ -3,11 +3,11 @@
 namespace PHPinnacle\Babylon\Http\Middleware;
 
 use Closure;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Locale;
 use PHPinnacle\Babylon\BabylonPlugin;
-use PHPinnacle\Settings\Models\Preference;
 
 class SetLocale
 {
@@ -36,17 +36,11 @@ class SetLocale
             }
         }
 
-        if (($user = $request->user()) !== null) {
-            /** @var ?string $locale */
-            $locale = Preference::get(
-                $user,
-                $plugin->getPreferenceGroup(),
-                BabylonPlugin::PREFERENCE_KEY,
-            ) ?? Preference::get($user, BabylonPlugin::PREFERENCE_GROUP, BabylonPlugin::PREFERENCE_KEY);
-
-            if ($locale !== null) {
-                return $locale;
-            }
+        if (
+            ($user = $request->user()) instanceof Authenticatable
+            && ($locale = $plugin->getUserLocale($user)) !== null
+        ) {
+            return $locale;
         }
 
         $locales = array_keys($plugin->getLocales());

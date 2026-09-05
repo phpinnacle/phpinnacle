@@ -4,11 +4,9 @@ use Filament\Facades\Filament;
 use Filament\Panel;
 use Filament\PanelRegistry;
 use Illuminate\Auth\GenericUser;
-use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use PHPinnacle\Babylon\BabylonPlugin;
 use PHPinnacle\Babylon\Http\Middleware\SetLocale;
 use Tests\TestCase;
@@ -113,25 +111,13 @@ it('keeps preference groups separate for each panel', function () {
         ->toBe('babylon-member');
 });
 
-it('applies the locale stored in the panel preference', function () {
-    Schema::create('preferences', function (Blueprint $table) {
-        $table->uuid('id')->primary();
-        $table->string('user_id');
-        $table->string('group');
-        $table->string('key');
-        $table->json('value')->nullable();
-        $table->timestamps();
-    });
-
-    DB::table('preferences')->insert([
-        'id' => '019caaa3-9a0c-7d13-bd86-e208d2644489',
-        'user_id' => 'user-1',
-        'group' => $this->plugin->getPreferenceGroup(),
-        'key' => BabylonPlugin::PREFERENCE_KEY,
-        'value' => json_encode('ru', JSON_THROW_ON_ERROR),
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
+it('applies the locale returned by the user locale callback', function () {
+    $this->plugin->userLocaleUsing(
+        fn (BabylonPlugin $plugin, Authenticatable $user) => $user->getAuthIdentifier() === 'user-1'
+            && $plugin === $this->plugin
+                ? 'ru'
+                : null,
+    );
 
     $request = Request::create('/dashboard');
     $request->setUserResolver(fn () => new GenericUser(['id' => 'user-1']));

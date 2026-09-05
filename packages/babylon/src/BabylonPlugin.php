@@ -2,17 +2,22 @@
 
 namespace PHPinnacle\Babylon;
 
+use Closure;
 use Filament\Contracts\Plugin;
 use Filament\Forms\Components\Select;
 use Filament\Panel;
 use Filament\Schemas\Components\Section;
+use Filament\Support\Concerns\EvaluatesClosures;
 use Filament\View\PanelsRenderHook;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Str;
-use PHPinnacle\Intl\Locales;
+use Locale;
 
 class BabylonPlugin implements Plugin
 {
+    use EvaluatesClosures;
+
     public const string ID = 'phpinnacle/babylon';
 
     public const string PREFERENCE_GROUP = 'babylon';
@@ -25,6 +30,8 @@ class BabylonPlugin implements Plugin
      * @var array<int, string>
      */
     private array $locales = [];
+
+    private ?Closure $userLocaleResolver = null;
 
     public static function get(): static
     {
@@ -72,7 +79,7 @@ class BabylonPlugin implements Plugin
         return array_combine(
             $this->locales,
             array_map(
-                fn (string $locale) => Str::title(Locales::name($locale, $locale)),
+                fn (string $locale) => Str::title((string) Locale::getDisplayName($locale, $locale)),
                 $this->locales,
             ),
         );
@@ -86,6 +93,23 @@ class BabylonPlugin implements Plugin
     public function getSessionKey(): string
     {
         return $this->getPreferenceGroup() . '.' . self::PREFERENCE_KEY;
+    }
+
+    public function getUserLocale(Authenticatable $user): ?string
+    {
+        /** @var ?string $locale */
+        $locale = $this->evaluate(
+            $this->userLocaleResolver,
+            namedInjections: [
+                'user' => $user,
+                'plugin' => $this,
+            ],
+            typedInjections: [
+                Authenticatable::class => $user,
+            ],
+        );
+
+        return $locale;
     }
 
     public function locales(string ...$locales): self
@@ -114,5 +138,12 @@ class BabylonPlugin implements Plugin
                 'panel' => $panel->getId(),
             ]),
         );
+    }
+
+    public function userLocaleUsing(Closure $callback): self
+    {
+        $this->userLocaleResolver = $callback;
+
+        return $this;
     }
 }

@@ -7,21 +7,21 @@ Babylon adds locale selection to Filament panels. It keeps each panel's selected
 
 ## Features
 
-- Per-panel session and user preferences.
+- Per-panel session storage.
+- Configurable user locale resolution.
 - First-visit locale detection from the browser's Accept-Language header.
 - Configurable list of available locales.
 - Locale selector for the user profile schema.
-- Locale names supplied by `phpinnacle/intl`.
+- Locale names supplied by PHP's Intl extension.
 - Native Filament language and text-direction support.
 - No database tables or published assets.
 
 ## Requirements
 
 - PHP 8.4 or later
+- PHP Intl extension
 - Laravel 13
 - Filament 5
-- `phpinnacle/intl`
-- `phpinnacle/settings`
 
 ## Installation
 
@@ -45,11 +45,33 @@ public function panel(Panel $panel): Panel
 }
 ```
 
-The plugin registers `SetLocale` as persistent panel middleware. It resolves the locale from the current panel's session, the user's current-panel preference, the browser language, and finally Laravel's configured application locale. Browser and switcher values are limited to the locales passed to `locales()`.
+The plugin registers `SetLocale` as persistent panel middleware. It resolves the locale from the current panel's session, an optional user locale callback, the browser language, and finally Laravel's configured application locale. Browser and switcher values are limited to the locales passed to `locales()`.
 
-Session and preference keys include the Filament panel ID, so changing one panel does not affect another. Existing global `locale` session values and `babylon` preferences remain readable as fallbacks.
+Session and profile state keys include the Filament panel ID, so changing one panel does not affect another. Existing global `locale` session values remain readable as a fallback.
 
 Filament uses the resolved application locale for the document language and its own locale metadata for text direction, including right-to-left languages.
+
+## Resolving a saved user locale
+
+Configure a callback when the application persists locale preferences. The callback receives the authenticated user and the current plugin instance:
+
+```php
+use Illuminate\Contracts\Auth\Authenticatable;
+use PHPinnacle\Babylon\BabylonPlugin;
+use PHPinnacle\Settings\Models\Preference;
+
+BabylonPlugin::make()
+    ->locales('en', 'pl', 'ru')
+    ->userLocaleUsing(
+        fn (Authenticatable $user, BabylonPlugin $plugin) => Preference::get(
+            $user,
+            $plugin->getPreferenceGroup(),
+            BabylonPlugin::PREFERENCE_KEY,
+        ),
+    );
+```
+
+This keeps storage optional; Babylon does not require `phpinnacle/settings`.
 
 ## Adding the profile selector
 
@@ -63,7 +85,7 @@ return [
 ];
 ```
 
-The selector only contains locales passed to `locales()`. Locale codes should be valid entries supported by `PHPinnacle\Intl\Locales`.
+The selector only contains locales passed to `locales()`. Locale codes should be valid ICU locale identifiers. The containing profile form remains responsible for persistence.
 
 ## Testing
 
