@@ -67,7 +67,11 @@ class TwigTableConditionExtension extends Extension
     {
         return [
             'default' => null,
-            'parseHTML' => fn ($domNode) => $domNode->getAttribute($htmlName) ?: null,
+            'parseHTML' => static function ($domNode) use ($htmlName) {
+                $value = $domNode->getAttribute($htmlName);
+
+                return $value === '' ? null : $value;
+            },
             'renderHTML' => function ($attributes) use ($htmlName) {
                 $name = $htmlName === 'data-twig-row-condition'
                     ? 'twigCondition'

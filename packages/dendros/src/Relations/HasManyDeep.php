@@ -28,8 +28,8 @@ class HasManyDeep extends HasMany
         return new self(
             $relatedInstance->newQuery(),
             $parent,
-            $foreignKey ?: $relatedInstance->qualifyColumn($parent->getForeignKey()),
-            $localKey ?: $relatedInstance->getKeyName(),
+            $foreignKey ?? $relatedInstance->qualifyColumn($parent->getForeignKey()),
+            $localKey ?? $relatedInstance->getKeyName(),
         );
     }
 

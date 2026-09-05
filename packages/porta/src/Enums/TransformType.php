@@ -112,9 +112,9 @@ enum TransformType: string
                 ])
                 : '<div class="fi-ta-placeholder text-sm leading-6 text-gray-400 dark:text-gray-500">-</div>',
             self::DATE => '<span class="fi-ta-placeholder text-sm leading-6 text-gray-400 dark:text-gray-500">'
-                . ($config['input'] ?? null ?: 'Any')
+                . (filled($config['input'] ?? null) ? $config['input'] : 'Any')
                 . ' => '
-                . ($config['output'] ?? null ?: 'd.m.Y')
+                . (filled($config['output'] ?? null) ? $config['output'] : 'd.m.Y')
                 . '</span>',
         };
     }
@@ -338,7 +338,7 @@ enum TransformType: string
                 continue;
             }
 
-            $value = trim($value, $chars ?: " \n\r\t\v\0");
+            $value = trim($value, $chars !== '' ? $chars : " \n\r\t\v\0");
         }
 
         return (array) $json->getValue();

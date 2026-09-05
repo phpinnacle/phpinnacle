@@ -15,7 +15,11 @@ class ConditionInlineExtension extends Mark
         return [
             'condition' => [
                 'default' => null,
-                'parseHTML' => fn ($DOMNode) => $DOMNode->getAttribute('data-condition') ?: null,
+                'parseHTML' => static function ($DOMNode) {
+                    $condition = $DOMNode->getAttribute('data-condition');
+
+                    return $condition === '' ? null : $condition;
+                },
                 'renderHTML' => $this->renderConditionAttribute(...),
             ],
         ];

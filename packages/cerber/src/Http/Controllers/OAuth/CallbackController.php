@@ -22,7 +22,7 @@ readonly class CallbackController
     private function handleProfileLinking(Provider $provider, Request $request): RedirectResponse
     {
         $panel = Filament::getCurrentOrDefaultPanel();
-        $profileUrl = $panel->getProfileUrl() ?: EditProfile::getUrl();
+        $profileUrl = $panel->getProfileUrl() ?? EditProfile::getUrl();
 
         try {
             $this->linker->linkAccount($provider, $request->user());

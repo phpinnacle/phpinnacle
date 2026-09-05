@@ -43,7 +43,11 @@ class TwigInlineIfExtension extends Mark
             ],
             'conditionId' => [
                 'default' => null,
-                'parseHTML' => fn ($domNode) => $domNode->getAttribute('data-twig-inline-condition-id') ?: null,
+                'parseHTML' => static function ($domNode) {
+                    $conditionId = $domNode->getAttribute('data-twig-inline-condition-id');
+
+                    return $conditionId === '' ? null : $conditionId;
+                },
                 'renderHTML' => function ($attributes) {
                     $conditionId = is_array($attributes)
                         ? $attributes['conditionId'] ?? null
@@ -58,7 +62,11 @@ class TwigInlineIfExtension extends Mark
             ],
             'branch' => [
                 'default' => null,
-                'parseHTML' => fn ($domNode) => $domNode->getAttribute('data-twig-inline-branch') ?: null,
+                'parseHTML' => static function ($domNode) {
+                    $branch = $domNode->getAttribute('data-twig-inline-branch');
+
+                    return $branch === '' ? null : $branch;
+                },
                 'renderHTML' => function ($attributes) {
                     $branch = is_array($attributes)
                         ? $attributes['branch'] ?? null

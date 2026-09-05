@@ -10,7 +10,9 @@ final readonly class LinkHeader
         preg_match_all('/<([^>]+)>\s*;\s*rel="([^"]+)"/i', $header, $matches, PREG_SET_ORDER);
 
         foreach ($matches as $match) {
-            if (in_array('next', preg_split('/\s+/', strtolower($match[2])) ?: [], true)) {
+            $relations = preg_split('/\s+/', strtolower($match[2]));
+
+            if ($relations !== false && in_array('next', $relations, true)) {
                 return $match[1];
             }
         }

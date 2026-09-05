@@ -86,7 +86,11 @@ class TwigForExtension extends Node
     {
         return [
             'default' => $default,
-            'parseHTML' => fn ($domNode) => $domNode->getAttribute($htmlName) ?: $default,
+            'parseHTML' => static function ($domNode) use ($default, $htmlName) {
+                $value = $domNode->getAttribute($htmlName);
+
+                return $value === null || $value === '' ? $default : $value;
+            },
             'renderHTML' => function ($attributes) use ($htmlName) {
                 $name = match ($htmlName) {
                     'data-twig-item' => 'item',
