@@ -14,7 +14,7 @@ try {
     file_put_contents($temporary, $source);
     $command = sprintf(
         '%s --config %s lint --only phpinnacle/class-member-order --fix %s',
-        escapeshellarg(dirname(__DIR__) . '/vendor/bin/mago'),
+        'mago',
         escapeshellarg(__DIR__ . '/corpus/mago.toml'),
         escapeshellarg($temporary),
     );
