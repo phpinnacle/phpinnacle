@@ -70,6 +70,12 @@
 
 </trusted-state-and-extension-rules>
 
+## Commit Messages
+
+- Prefix a package-specific commit subject with the package name: `[package]: Some awesome changes`.
+- For changes spanning two or three packages, join every package name with `+`: `[package+package+package]: Some awesome changes`.
+- For changes spanning four or more packages, use the primary package followed by the total number of affected packages: `[package+5]: Some awesome changes`.
+
 ## Working Method and Verification
 
 - Inspect the relevant implementation and tests before choosing a design. Surface assumptions only when they materially affect public contracts, persisted data, authorization, security, or external side effects.

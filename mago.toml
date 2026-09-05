@@ -9,6 +9,6 @@ excludes = ["packages/*/node_modules/**", "packages/*/vendor/**"]
 
 [formatter]
 preset = "laravel"
-sort-class-methods = true
+sort-class-methods = false
 space-after-logical-not-unary-prefix-operator = false
 space-around-concatenation-binary-operator = true
