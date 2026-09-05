@@ -10,10 +10,16 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use PHPinnacle\Comments\Models\Comment;
+use PHPinnacle\Comments\Models\CommentSubscription;
+use PHPinnacle\Comments\Services\CommentNotifier;
 
 /**
  * @property-read Schema $form
@@ -25,50 +31,73 @@ class Comments extends Component implements HasActions, HasForms
 
     public ?array $data = [];
 
+    public ?string $editing = null;
+
     public Model $record;
+
+    public ?string $replying = null;
 
     public string $layout = 'default';
 
+    public function cancel(): void
+    {
+        $this->resetComposer();
+    }
+
     public function create(): void
     {
-        $user = Filament::auth()->user();
-
-        if ($user->cant('create', Comment::class)) {
+        if (($user = $this->authorizedUser('create', Comment::class)) === null) {
             return;
         }
 
         $this->form->validate();
 
+        $parent = $this->replying === null
+            ? null
+            : $this->commentsQuery()->whereNull('parent_id')->find($this->replying);
+
+        if ($this->replying !== null && $parent === null) {
+            throw ValidationException::withMessages([
+                'data.text' => __('phpinnacle-comments::forms.invalid_reply'),
+            ]);
+        }
+
+        /** @var array{text: string} $data */
         $data = $this->form->getState();
 
         $comment = new Comment;
         $comment->author_id = $user->getAuthIdentifier();
         $comment->subject_type = $this->record->getMorphClass();
         $comment->subject_id = $this->record->getKey();
+        $comment->parent_id = $parent?->getKey();
         $comment->text = $data['text'];
         $comment->save();
+
+        app(CommentNotifier::class)->send($comment, $user);
 
         Notification::make()
             ->title(__('phpinnacle-comments::notifications.comment.created'))
             ->success()
             ->send();
 
-        $this->form->fill();
+        $this->resetComposer();
     }
 
     public function delete(string $id): void
     {
-        if (!($comment = Comment::query()->find($id))) {
+        if (!($comment = $this->commentsQuery()->find($id))) {
             return;
         }
 
-        $user = Filament::auth()->user();
-
-        if ($user->cant('delete', $comment)) {
+        if ($this->authorizedUser('delete', $comment) === null) {
             return;
         }
 
         $comment->delete();
+
+        if ($this->editing === $id || $this->replying === $id) {
+            $this->resetComposer();
+        }
 
         Notification::make()
             ->title(__('phpinnacle-comments::notifications.comment.deleted'))
@@ -76,11 +105,22 @@ class Comments extends Component implements HasActions, HasForms
             ->send();
     }
 
+    public function edit(string $id): void
+    {
+        $comment = $this->commentsQuery()->find($id);
+
+        if ($comment === null || $this->authorizedUser('update', $comment) === null) {
+            return;
+        }
+
+        $this->editing = $id;
+        $this->replying = null;
+        $this->form->fill(['text' => $comment->text]);
+    }
+
     public function form(Schema $schema): Schema
     {
-        $user = Filament::auth()->user();
-
-        if ($user->cant('create', Comment::class)) {
+        if ($this->editing === null && $this->authorizedUser('create', Comment::class) === null) {
             return $schema;
         }
 
@@ -88,6 +128,7 @@ class Comments extends Component implements HasActions, HasForms
             ->components([
                 RichEditor::make('text')
                     ->hiddenLabel()
+                    ->mentions([app(CommentNotifier::class)->mentionProvider()])
                     ->toolbarButtons(config('phpinnacle-comments.toolbar'))
                     ->extraInputAttributes([
                         'class' => '!min-h-2',
@@ -104,10 +145,109 @@ class Comments extends Component implements HasActions, HasForms
 
     public function render(): View
     {
+        $comments = Comment::list($this->record);
+        $user = Filament::auth()->user();
+
         return view('phpinnacle-comments::livewire.comments', [
-            'comments' => Comment::list($this->record),
+            'canCreate' => $this->authorizedUser('create', Comment::class) !== null,
+            'comments' => $comments,
+            'editingComment' => $comments->firstWhere('id', $this->editing),
             'layout' => $this->layout,
-            'user' => Filament::auth()->user(),
+            'mentionProvider' => app(CommentNotifier::class)->mentionProvider(),
+            'replyingTo' => $comments->firstWhere('id', $this->replying),
+            'subscribed' => $user !== null && CommentSubscription::query()
+                ->forSubject($this->record)
+                ->where('user_id', $user->getAuthIdentifier())
+                ->exists(),
+            'user' => $user,
         ]);
+    }
+
+    public function reply(string $id): void
+    {
+        if ($this->authorizedUser('create', Comment::class) === null) {
+            return;
+        }
+
+        if (($comment = $this->commentsQuery()->find($id)) === null) {
+            return;
+        }
+
+        $this->editing = null;
+        $this->replying = $comment->parent_id ?? $comment->getKey();
+        $this->form->fill();
+    }
+
+    public function toggleSubscription(): void
+    {
+        if (($user = Filament::auth()->user()) === null) {
+            return;
+        }
+
+        $subscription = CommentSubscription::query()
+            ->forSubject($this->record)
+            ->where('user_id', $user->getAuthIdentifier());
+
+        if ($subscription->exists()) {
+            $subscription->delete();
+
+            return;
+        }
+
+        CommentSubscription::query()->create([
+            'user_id' => $user->getAuthIdentifier(),
+            'subject_type' => $this->record->getMorphClass(),
+            'subject_id' => $this->record->getKey(),
+        ]);
+    }
+
+    public function update(): void
+    {
+        if ($this->editing === null || ($comment = $this->commentsQuery()->find($this->editing)) === null) {
+            return;
+        }
+
+        if ($this->authorizedUser('update', $comment) === null) {
+            return;
+        }
+
+        $this->form->validate();
+
+        /** @var array{text: string} $data */
+        $data = $this->form->getState();
+
+        $comment->text = $data['text'];
+        $comment->edited_at = now();
+        $comment->save();
+
+        Notification::make()
+            ->title(__('phpinnacle-comments::notifications.comment.updated'))
+            ->success()
+            ->send();
+
+        $this->resetComposer();
+    }
+
+    private function authorizedUser(string $ability, mixed $arguments): ?Authenticatable
+    {
+        $user = Filament::auth()->user();
+
+        if ($user === null || Gate::forUser($user)->denies($ability, $arguments)) {
+            return null;
+        }
+
+        return $user;
+    }
+
+    private function commentsQuery(): Builder
+    {
+        return Comment::query()->forSubject($this->record);
+    }
+
+    private function resetComposer(): void
+    {
+        $this->editing = null;
+        $this->replying = null;
+        $this->form->fill();
     }
 }

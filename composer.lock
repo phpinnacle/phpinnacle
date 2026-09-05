@@ -8421,10 +8421,10 @@
             "dist": {
                 "type": "path",
                 "url": "packages/comments",
-                "reference": "4ad2712902d4617ea380dee576cce6cdb8c257ab"
+                "reference": "82d2be753758c5e3dcabf2e4bbdb85b717ab0b6f"
             },
             "require": {
-                "filament/filament": "^4.0|^5.0",
+                "filament/filament": "^4.5|^5.0",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92"
             },
