@@ -247,12 +247,13 @@ class TwigDocumentSerializer
     {
         $condition = $this->requireExpression($node['attrs']['condition'] ?? null, 'Twig if condition');
         $branches = $this->requireList($node['content'] ?? []);
+        $branchCount = count($branches);
         $thenBranch = array_key_exists(0, $branches) ? $this->requireNode($branches[0]) : null;
         $elseBranch = array_key_exists(1, $branches) ? $this->requireNode($branches[1]) : null;
 
         if (
-            count($branches) < 1
-            || count($branches) > 2
+            $branchCount < 1
+            || $branchCount > 2
             || ($thenBranch['type'] ?? null) !== 'twigThen'
             || $elseBranch !== null
             && ($elseBranch['type'] ?? null) !== 'twigElse'

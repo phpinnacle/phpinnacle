@@ -253,10 +253,6 @@ final class MetadataLoader
             );
 
             foreach ($rows as $row) {
-                if (!is_object($row)) {
-                    throw new RuntimeException('Invalid Config row');
-                }
-
                 $fileName = property_exists($row, 'filename') ? $row->filename : null;
                 $data = property_exists($row, 'data') ? $row->data : null;
 

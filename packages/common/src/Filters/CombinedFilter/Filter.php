@@ -100,7 +100,13 @@ class Filter
                 }
             })
             ->disabled(
-                fn (Get $get) => $this->depends !== [] && array_any($this->depends, $get->blank(...)),
+                fn (Get $get) => (
+                    $this->depends !== []
+                    && array_any(
+                        $this->depends,
+                        fn (string $field, int|string $_key) => $get->blank($field),
+                    )
+                ),
             );
     }
 

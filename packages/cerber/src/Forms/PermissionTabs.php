@@ -3,6 +3,7 @@
 namespace PHPinnacle\Cerber\Forms;
 
 use Filament\Forms\Components\CheckboxList;
+use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -127,7 +128,7 @@ class PermissionTabs
         $options = Cerberus::getPermissions();
         $prefixes = self::prefixes();
 
-        /** @var class-string<resource> $resource */
+        /** @var class-string<Resource> $resource */
         foreach ($options as $resource => $permissions) {
             $label = $resource::getNavigationLabel();
             $parent = $resource::getParentResource();

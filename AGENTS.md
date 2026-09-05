@@ -82,6 +82,6 @@
 - Make surgical changes: every changed line must serve the requested outcome, its verification, or cleanup made necessary by the change. Preserve unrelated user work and report unrelated defects instead of fixing them.
 - Remove only imports, code, tests, assets, and configuration made obsolete by the current change.
 - Define observable success before implementation. Reproduce bugs with the narrowest practical test, cover invalid inputs for validation changes, and establish a passing baseline before refactors.
-- Run the narrowest relevant checks first, then broaden according to risk. For changed PHP, run `composer format`; before finishing, run the repository-wide `composer lint`. Run the package's focused Pest tests and PHPStan configuration, plus asset or JavaScript checks when frontend behavior changes.
+- Run the narrowest relevant checks first, then broaden according to risk. For changed PHP, run `composer format`; before finishing, run the repository-wide `composer lint`. Run the package's focused Pest tests, plus asset or JavaScript checks when frontend behavior changes.
 - Finish by inspecting the diff for scope drift, hidden behavior changes, unnecessary complexity, and incomplete cleanup, and run `git diff --check`.
 - Update an existing README when the public API or documented user-facing behavior changes. Do not create new documentation files unless explicitly requested.

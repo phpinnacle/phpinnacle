@@ -20,16 +20,16 @@ use PHPinnacle\Sequentia\Sequence;
  * @property string $parent_id
  * @property string $tenant_id
  * @property string $name
- * @property string $numeration
+ * @property string|null $numeration
  * @property Format $format
  * @property Engine $engine
  * @property string $section
  * @property string|array $content
  * @property array $context
  * @property int $version
- * @property string $is_active
- * @property string $is_default
- * @property string $is_history
+ * @property bool $is_active
+ * @property bool $is_default
+ * @property bool $is_history
  * @property string $created_by
  * @property string $created_at
  * @property string $updated_at
@@ -57,6 +57,8 @@ class Template extends Model implements HasLabel
         'engine' => Engine::class,
         'context' => 'array',
         'is_active' => 'bool',
+        'is_default' => 'bool',
+        'is_history' => 'bool',
     ];
 
     protected $fillable = [
@@ -75,6 +77,7 @@ class Template extends Model implements HasLabel
         'updated_at',
     ];
 
+    /** @return Builder<self> */
     public static function active(): Builder
     {
         return self::query()

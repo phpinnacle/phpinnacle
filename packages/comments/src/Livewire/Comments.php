@@ -2,6 +2,7 @@
 
 namespace PHPinnacle\Comments\Livewire;
 
+use Carbon\CarbonImmutable;
 use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Actions\Contracts\HasActions;
 use Filament\Facades\Filament;
@@ -217,7 +218,7 @@ class Comments extends Component implements HasActions, HasForms
         $data = $this->form->getState();
 
         $comment->text = $data['text'];
-        $comment->edited_at = now();
+        $comment->edited_at = CarbonImmutable::now();
         $comment->save();
 
         Notification::make()
@@ -239,6 +240,7 @@ class Comments extends Component implements HasActions, HasForms
         return $user;
     }
 
+    /** @return Builder<Comment> */
     private function commentsQuery(): Builder
     {
         return Comment::query()->forSubject($this->record);

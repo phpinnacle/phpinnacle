@@ -380,7 +380,7 @@ class Timeline
     }
 
     /**
-     * @return Collection<int, array{
+     * @return Collection<int, covariant array{
      *     causer: string,
      *     changes: list<array{
      *         label: string,
@@ -405,6 +405,7 @@ class Timeline
             ->with(['causer', 'subject'])
             ->orderBy('created_at', $this->descending ? 'desc' : 'asc')
             ->get()
+            ->toBase()
             ->map($this->present(...));
     }
 
@@ -532,7 +533,6 @@ class Timeline
         }
 
         return $subjects
-            ->filter(fn ($subject) => $subject instanceof Model)
             ->unique(fn (Model $subject) => $subject->getMorphClass() . ':' . $subject->getKey())
             ->values();
     }

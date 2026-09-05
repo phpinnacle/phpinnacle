@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PHPinnacle\Grimoire\Linter\Rules;
 
+use LogicException;
 use Mago\Sdk\Linter\LintContext;
 use Mago\Sdk\Linter\Rule;
 use Mago\Sdk\Linter\RuleDefinition;
@@ -167,6 +168,7 @@ final class ClassMemberOrderRule implements Rule
             NodeKind::Method => 'method',
             NodeKind::Property => 'property',
             NodeKind::TraitUse => 'trait-use',
+            default => throw new LogicException("Unsupported class member node kind: {$node->kind->value}"),
         };
 
         return [
@@ -220,6 +222,7 @@ final class ClassMemberOrderRule implements Rule
                 $file->getChildren($node),
                 static fn (Node $child) => $child->kind === NodeKind::Identifier,
             ),
+            default => throw new LogicException("Unsupported class member node kind: {$node->kind->value}"),
         };
 
         return array_map(

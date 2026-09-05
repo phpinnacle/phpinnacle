@@ -191,7 +191,6 @@ Run the package checks from the package root:
 ```bash
 composer install
 composer test
-../../../vendor/bin/phpstan analyse -c phpstan.neon.dist --no-progress
 npm run build
 ```
 

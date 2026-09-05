@@ -53,7 +53,7 @@ class CombinedFilter extends BaseFilter
             })
             ->indicateUsing(function (array $data) {
                 $components = $this->getTable()->getFiltersForm()->getComponent($this->getName())->getChildComponents();
-                $components = $components[0]?->getChildComponents() ?? [];
+                $components = ($components[0] ?? null)?->getChildComponents() ?? [];
 
                 $indicators = [];
                 $options = [];

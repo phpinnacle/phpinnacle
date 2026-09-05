@@ -60,6 +60,7 @@ composer test
 `composer test` runs all package PHPUnit and Pest suites.
 
 Run `composer format` to apply the repository's Mago formatting rules.
+Run `composer phpstan` to run static analysis across all package sources.
 
 ## Composer Repository
 

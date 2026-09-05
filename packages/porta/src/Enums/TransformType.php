@@ -11,7 +11,6 @@ use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Group;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Date;
-use Illuminate\Support\HtmlString;
 use JsonPath\JsonObject;
 use PHPinnacle\Intl\Forms\LocalePicker;
 use PHPinnacle\Intl\Locales;
@@ -99,7 +98,7 @@ enum TransformType: string
         };
     }
 
-    public function preview(array $config): string|HtmlString
+    public function preview(array $config): string
     {
         return match ($this) {
             self::MAP, self::INSERT => Blade::render(
@@ -166,7 +165,7 @@ enum TransformType: string
         $parts = explode('.', $path);
         $field = array_pop($parts);
 
-        if ($field === null || $field === '') {
+        if ($field === '') {
             return $data;
         }
 

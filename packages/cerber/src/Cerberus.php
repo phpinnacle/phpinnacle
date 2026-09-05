@@ -4,6 +4,7 @@ namespace PHPinnacle\Cerber;
 
 use Filament\Facades\Filament;
 use Filament\Panel;
+use Filament\Resources\Resource;
 use Filament\Widgets\WidgetConfiguration;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
@@ -109,7 +110,7 @@ class Cerberus
     public static function getPermissions(?Panel $panel = null, bool $flatten = false): array
     {
         $panel ??= Filament::getCurrentPanel();
-        /** @var array<class-string<resource>> $resources */
+        /** @var array<class-string<Resource>> $resources */
         $resources = array_diff($panel?->getResources() ?? [], config('phpinnacle-cerber.exclude.resources', []));
         $resources = array_filter($resources, fn (string $r) => !$r::shouldSkipAuthorization());
         $permissions = [];

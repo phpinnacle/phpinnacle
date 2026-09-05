@@ -82,7 +82,7 @@ class Webhook extends Model
     {
         $this->status = WebhookStatus::Completed;
         $this->error = null;
-        $this->processed_at = now();
+        $this->processed_at = CarbonImmutable::now();
         $this->save();
     }
 
@@ -98,7 +98,7 @@ class Webhook extends Model
 
         $this->status = WebhookStatus::Failed;
         $this->error = $info;
-        $this->processed_at = now();
+        $this->processed_at = CarbonImmutable::now();
         $this->save();
     }
 
@@ -110,7 +110,7 @@ class Webhook extends Model
     public function progress(): array
     {
         $this->status = WebhookStatus::Progress;
-        $this->processed_at = now();
+        $this->processed_at = CarbonImmutable::now();
         $this->save();
 
         return [

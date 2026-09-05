@@ -298,7 +298,6 @@ class TwigTemplatePlugin implements RichContentPlugin
 
     /**
      * @param  array<int, mixed>  $loopStack
-     * @param  list<string>  $types
      * @return list<Component>
      */
     private function conditionOperandSchema(

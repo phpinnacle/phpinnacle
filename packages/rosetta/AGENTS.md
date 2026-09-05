@@ -11,4 +11,4 @@
 - Keep database access behind `Contracts\Connection`; `Connections\PdoConnection` is an adapter and must not own the PDO lifecycle.
 - Treat infobase rows and positional serialization as external input. Reject malformed structures explicitly instead of silently repairing or guessing values.
 - Preserve the public positional and JSON representation of metadata objects unless a breaking change is explicitly requested.
-- Use PHPUnit for package tests. Run the Rosetta tests, its PHPStan configuration at maximum level, and `git diff --check` after implementation changes.
+- Use PHPUnit for package tests. Run the Rosetta tests, repository-wide `composer phpstan`, and `git diff --check` after implementation changes.

@@ -17,10 +17,6 @@ final readonly class PdoConnection implements Connection
     {
         $rows = $this->statement($query, $bindings)->fetchAll(PDO::FETCH_OBJ);
 
-        if (!is_array($rows)) {
-            throw new RuntimeException('Cannot fetch infobase rows');
-        }
-
         $objects = [];
 
         foreach ($rows as $row) {

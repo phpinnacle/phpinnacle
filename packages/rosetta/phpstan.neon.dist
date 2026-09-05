@@ -1,7 +1,0 @@
-parameters:
-    level: max
-    paths:
-        - src
-        - tests
-    tmpDir: /tmp/phpstan-phpinnacle-rosetta
-    treatPhpDocTypesAsCertain: false

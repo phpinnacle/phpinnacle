@@ -5,6 +5,7 @@ namespace PHPinnacle\Cerber;
 use BladeUI\Icons\Factory;
 use Filament\Exceptions\NoDefaultPanelSetException;
 use Filament\Facades\Filament;
+use Filament\PanelRegistry;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Lab404\Impersonate\Events\LeaveImpersonation;
@@ -63,6 +64,11 @@ class CerberServiceProvider extends PackageServiceProvider
             });
     }
 
+    /**
+     * A missing default Filament panel has no panel-specific authentication hash to clear.
+     *
+     * @mago-expect lint:no-empty-catch-clause
+     */
     private function clearAuthHashes(): void
     {
         $hashes = [
@@ -77,19 +83,15 @@ class CerberServiceProvider extends PackageServiceProvider
         }
 
         try {
-            $panel = Filament::getCurrentOrDefaultPanel();
+            /** @throws NoDefaultPanelSetException */
+            $hashes[] = 'password_hash_' . Filament::getCurrentOrDefaultPanel()->getAuthGuard();
         } catch (NoDefaultPanelSetException) {
-            $panel = null;
-        }
-
-        if ($panel !== null) {
-            $hashes[] = 'password_hash_' . $panel->getAuthGuard();
         }
 
         $backToPanelId = session()->get('impersonate.back_to_panel');
 
         if ($backToPanelId) {
-            $panel = Filament::getPanel($backToPanelId);
+            $panel = app(PanelRegistry::class)->get($backToPanelId);
 
             if ($panel !== null) {
                 $hashes[] = 'password_hash_' . $panel->getAuthGuard();

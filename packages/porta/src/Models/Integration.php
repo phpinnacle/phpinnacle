@@ -65,6 +65,7 @@ class Integration extends Model
         'is_active',
     ];
 
+    /** @return Builder<self> */
     public static function active(): Builder
     {
         return self::query()->where('is_active', true);
@@ -89,7 +90,6 @@ class Integration extends Model
         $secret = match ($this->auth) {
             IntegrationAuth::Header => $request->header($this->auth_key),
             IntegrationAuth::Query => $request->query($this->auth_key),
-            default => null,
         };
 
         abort_unless(
