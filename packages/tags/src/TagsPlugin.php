@@ -14,20 +14,20 @@ class TagsPlugin implements Plugin
     use EvaluatesClosures;
 
     /**
-     * @var array<array-key, Closure|string>
+     * @var array<array-key, (Closure(): string)|string>
      */
     private array $models = [];
 
     public static function make(): static
     {
-        return app(static::class);
+        return app()->get(static::class);
     }
 
     public static function get(): static
     {
         // @mago-expect lint:inline-variable-return
         /** @var static $plugin */
-        $plugin = filament(app(static::class)->getId());
+        $plugin = filament(static::make()->getId());
 
         return $plugin;
     }
@@ -37,6 +37,9 @@ class TagsPlugin implements Plugin
         return 'phpinnacle/tags';
     }
 
+    /**
+     * @param (Closure(): string)|string ...$models
+     */
     public function models(Closure|string ...$models): self
     {
         $this->models = $models;
@@ -54,6 +57,7 @@ class TagsPlugin implements Plugin
     public function boot(Panel $panel): void
     {
         foreach ($this->models as $model) {
+            /** @var string $class */
             $class = $this->evaluate($model);
 
             if (!class_exists($class) || !is_subclass_of($class, Model::class)) {

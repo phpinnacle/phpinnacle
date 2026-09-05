@@ -5,6 +5,7 @@ namespace PHPinnacle\Tags\Filters;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Tables\Filters\Filter;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use PHPinnacle\Tags\Models\Tag;
 
@@ -36,9 +37,19 @@ class TagsFilter extends Filter
                     ->columns(4)
                     ->bulkToggleable()
                     ->searchable()
-                    ->options(fn () => Tag::select($this->model)),
+                    ->options(function () {
+                        if ($this->model !== null) {
+                            return Tag::select($this->model);
+                        }
+
+                        /** @var class-string<Model> $model */
+                        $model = $this->getTable()->getModel();
+
+                        return Tag::select(new $model()->getMorphClass());
+                    }),
             ])
             ->query(function (Builder $query, array $data) {
+                /** @var array{tags?: array<array-key, string>|null} $data */
                 $tags = array_filter($data['tags'] ?? []);
 
                 return $tags !== []
@@ -46,6 +57,7 @@ class TagsFilter extends Filter
                     : $query;
             })
             ->indicateUsing(function (array $data) {
+                /** @var array{tags?: array<array-key, string>|null} $data */
                 $tags = $data['tags'] ?? [];
 
                 if ($tags === []) {

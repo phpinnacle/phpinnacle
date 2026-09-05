@@ -40,6 +40,8 @@ TagsFilter::make('tags');
 TagsBulkAction::make();
 ```
 
+The filter uses the table model's morph class to load available tags, including any registered morph alias. Use `TagsFilter::make()->model($type)` to explicitly select the type stored in `tags.type`.
+
 The tagged model must expose the relationship expected by these components. Follow the relation naming and morph contract used by `Tag` and the package migration when integrating an existing model. Authorization for tag records is handled by `TagPolicy`.
 
 ## Testing

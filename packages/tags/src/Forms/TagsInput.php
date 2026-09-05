@@ -19,6 +19,7 @@ class TagsInput extends BaseTagsInput
             ->disabled(fn () => Gate::denies('modify', Tag::class))
             ->saveRelationshipsWhenDisabled(false)
             ->saveRelationshipsUsing(function (Model $record, ?array $state) {
+                /** @var array<array-key, string>|null $state */
                 Tag::manage($record, (array) $state);
             })
             ->loadStateFromRelationshipsUsing(function (self $component, Model $record) {

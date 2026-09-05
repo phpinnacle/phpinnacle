@@ -45,6 +45,8 @@ class TagsBulkAction extends BulkAction
                 TagsInput::make('tags'),
             ])
             ->action(function (Collection $records, array $data, array $arguments) {
+                /** @var array{tags?: array<array-key, string>|null} $data */
+                /** @var array{drop?: bool} $arguments */
                 $drop = $arguments['drop'] ?? false;
 
                 Tag::manage($records, $data['tags'] ?? [], $drop);

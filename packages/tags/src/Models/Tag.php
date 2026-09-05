@@ -8,6 +8,7 @@ use Filament\Support\Contracts\HasLabel;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use PHPinnacle\Palette\Color;
 
@@ -47,9 +48,13 @@ class Tag extends Model implements HasColor, HasLabel
      */
     public static function list(string ...$ids): Collection
     {
-        return $ids !== []
+        // @mago-expect lint:inline-variable-return
+        /** @var Collection<string, string> $tags */
+        $tags = $ids !== []
             ? self::query()->whereKey($ids)->pluck('name', 'id')
             : self::query()->pluck('name', 'id');
+
+        return $tags;
     }
 
     /**
@@ -86,12 +91,16 @@ class Tag extends Model implements HasColor, HasLabel
      */
     public static function retrieve(Model $record): Collection
     {
-        return DB::table('taggables')
+        // @mago-expect lint:inline-variable-return
+        /** @var Collection<int, string> $tags */
+        $tags = DB::table('taggables')
             ->select(['tags.name'])
             ->leftJoin('tags', 'tags.id', 'taggables.tag_id')
             ->where('tags.type', $record->getMorphClass())
             ->where('taggables.taggable_id', $record->getKey())
             ->pluck('name');
+
+        return $tags;
     }
 
     /**
@@ -99,7 +108,11 @@ class Tag extends Model implements HasColor, HasLabel
      */
     public static function select(string $type): Collection
     {
-        return self::query()->where('type', $type)->pluck('name', 'id');
+        // @mago-expect lint:inline-variable-return
+        /** @var Collection<string, string> $tags */
+        $tags = self::query()->where('type', $type)->pluck('name', 'id');
+
+        return $tags;
     }
 
     public function getColor(): array
@@ -109,7 +122,9 @@ class Tag extends Model implements HasColor, HasLabel
 
     public function getConnectionName(): ?string
     {
-        return config('phpinnacle-tags.connection');
+        return Config::get('phpinnacle-tags.connection') === null
+            ? null
+            : Config::string('phpinnacle-tags.connection');
     }
 
     public function getLabel(): string
@@ -132,14 +147,17 @@ class Tag extends Model implements HasColor, HasLabel
     {
         $tags = array_unique(array_filter(array_map('trim', $tags)));
 
-        return array_map(fn ($tag) => self::query()
-            ->firstOrCreate([
-                'name' => $tag,
-                'type' => $type,
-            ], [
-                'color' => Color::random(),
-            ])
-            ->getKey(), $tags);
+        return array_map(
+            fn ($tag) => self::query()
+                ->firstOrCreate([
+                    'name' => $tag,
+                    'type' => $type,
+                ], [
+                    'color' => Color::random(),
+                ])
+                ->id,
+            $tags,
+        );
     }
 
     /**
@@ -196,8 +214,10 @@ class Tag extends Model implements HasColor, HasLabel
             ->each(function (Collection $records, string $definition) use ($tags) {
                 [$table, $key] = explode(':', $definition);
 
-                $records
-                    ->pluck($key)
+                /** @var Collection<array-key, int|string> $recordIds */
+                $recordIds = $records->pluck($key);
+
+                $recordIds
                     ->chunk(100)
                     ->each(fn (Collection $ids) => self::doSyncQuery($tags, $table, $key, $ids->all()));
             });
