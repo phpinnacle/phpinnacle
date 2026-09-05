@@ -7,7 +7,7 @@ use PHPinnacle\Stylus\Twig\ConditionExpressionSerializer;
 use PHPinnacle\Stylus\Variable;
 use PHPinnacle\Stylus\VariableScope;
 
-function stylusConditionSerializer(): ConditionExpressionSerializer
+function stylus_condition_serializer(): ConditionExpressionSerializer
 {
     $truthy = Condition::truthy();
     $equals = Condition::comparison('equals', '==')->types('text', 'number', 'boolean');
@@ -66,14 +66,14 @@ it('serializes structured boolean conditions with registered descriptors', funct
         ],
     ];
 
-    expect(stylusConditionSerializer()->serialize($expression))
+    expect(stylus_condition_serializer()->serialize($expression))
         ->toBe(
             '(user.active) and (not (user.age == 18)) and (user.email is defined)',
         );
 });
 
 it('serializes ordered filters on variable operands', function () {
-    expect(stylusConditionSerializer()->serialize([
+    expect(stylus_condition_serializer()->serialize([
         'type' => 'comparison',
         'left' => [
             'type' => 'variable',
@@ -91,7 +91,7 @@ it('serializes ordered filters on variable operands', function () {
 });
 
 it('rejects null literals', function () {
-    expect(fn () => stylusConditionSerializer()->serialize([
+    expect(fn () => stylus_condition_serializer()->serialize([
         'type' => 'comparison',
         'left' => ['type' => 'variable', 'name' => 'user.age'],
         'operator' => 'equals',
@@ -102,7 +102,7 @@ it('rejects null literals', function () {
 });
 
 it('serializes containment and typed variable operands', function () {
-    expect(stylusConditionSerializer()->serialize([
+    expect(stylus_condition_serializer()->serialize([
         'type' => 'comparison',
         'left' => ['type' => 'variable', 'name' => 'needle'],
         'operator' => 'contains',
@@ -113,7 +113,7 @@ it('serializes containment and typed variable operands', function () {
 });
 
 it('serializes typed tests for supported variables', function () {
-    expect(stylusConditionSerializer()->serialize([
+    expect(stylus_condition_serializer()->serialize([
         'type' => 'test',
         'subject' => ['type' => 'variable', 'name' => 'orders'],
         'test' => 'sequence',
@@ -123,7 +123,7 @@ it('serializes typed tests for supported variables', function () {
 });
 
 it('rejects unregistered or malformed persisted condition input', function (array $expression, string $message) {
-    expect(fn () => stylusConditionSerializer()->serialize($expression))
+    expect(fn () => stylus_condition_serializer()->serialize($expression))
         ->toThrow(InvalidArgumentException::class, $message);
 })->with([
     'unknown variable' => [

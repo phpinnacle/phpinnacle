@@ -16,7 +16,7 @@ use Tests\TestCase;
 
 uses(TestCase::class);
 
-function paletteColorPicker(?Closure $configure = null, ?string $state = null): ColorPicker
+function palette_color_picker(?Closure $configure = null, ?string $state = null): ColorPicker
 {
     view()->share('errors', new ViewErrorBag);
 
@@ -42,7 +42,7 @@ function paletteColorPicker(?Closure $configure = null, ?string $state = null): 
 }
 
 it('offers the complete Tailwind palette as hex colors', function () {
-    $colors = paletteColorPicker(
+    $colors = palette_color_picker(
         fn (ColorPicker $picker) => $picker->shades(),
     )->getTailwindColors();
 
@@ -56,7 +56,7 @@ it('offers the complete Tailwind palette as hex colors', function () {
 });
 
 it('can use only the custom source', function () {
-    $picker = paletteColorPicker(
+    $picker = palette_color_picker(
         fn (ColorPicker $picker) => $picker->disable(
             ColorSource::Tailwind,
             ColorSource::Filament,
@@ -76,7 +76,7 @@ it('can use only the custom source', function () {
 });
 
 it('enables and disables color sources fluently', function () {
-    $picker = paletteColorPicker(
+    $picker = palette_color_picker(
         fn (ColorPicker $picker) => $picker
             ->enable(
                 ColorSource::Tailwind,
@@ -93,7 +93,7 @@ it('enables and disables color sources fluently', function () {
 });
 
 it('limits the displayed Tailwind shades', function () {
-    $picker = paletteColorPicker(
+    $picker = palette_color_picker(
         fn (ColorPicker $picker) => $picker
             ->enable(ColorSource::Tailwind)
             ->shades(min: 125, max: 875),
@@ -108,10 +108,10 @@ it('limits the displayed Tailwind shades', function () {
 });
 
 it('can make the popover as wide as the input', function () {
-    $widePicker = paletteColorPicker(
+    $widePicker = palette_color_picker(
         fn (ColorPicker $picker) => $picker->wide(),
     );
-    $regularPicker = paletteColorPicker(
+    $regularPicker = palette_color_picker(
         fn (ColorPicker $picker) => $picker->wide(false),
     );
 
@@ -131,7 +131,7 @@ it('uses colors registered in the Filament theme', function () {
         'brand' => FilamentColorPalette::Fuchsia,
     ]);
 
-    $picker = paletteColorPicker();
+    $picker = palette_color_picker();
     $brand = Color::hex(FilamentColorPalette::Fuchsia);
 
     expect($picker->getThemeColors())
@@ -141,13 +141,13 @@ it('uses colors registered in the Filament theme', function () {
 });
 
 it('renders only enabled color sources', function () {
-    $html = paletteColorPicker(
+    $html = palette_color_picker(
         fn (ColorPicker $picker) => $picker->disable(
             ColorSource::Tailwind,
             ColorSource::Filament,
         ),
     )->toHtml();
-    $allSourcesHtml = paletteColorPicker(
+    $allSourcesHtml = palette_color_picker(
         fn (ColorPicker $picker) => $picker
             ->enable(ColorSource::Tailwind, ColorSource::Filament),
     )->toHtml();
@@ -171,7 +171,7 @@ it('dehydrates colors in the configured format', function (
     ColorFormat $format,
     string $expected,
 ) {
-    $picker = paletteColorPicker(
+    $picker = palette_color_picker(
         fn (ColorPicker $picker) => $picker->format($format),
         $expected,
     );
@@ -189,7 +189,7 @@ it('dehydrates colors in the configured format', function (
 ]);
 
 it('preserves the alpha channel in RGBA format', function () {
-    $picker = paletteColorPicker(
+    $picker = palette_color_picker(
         fn (ColorPicker $picker) => $picker->format(ColorFormat::Rgba),
         'rgba(255,0,0,0.50)',
     );
@@ -209,7 +209,7 @@ it('stores Filament aliases in semantic format', function () {
         'brand' => FilamentColorPalette::Fuchsia,
     ]);
 
-    $picker = paletteColorPicker(
+    $picker = palette_color_picker(
         fn (ColorPicker $picker) => $picker->format(ColorFormat::Semantic),
     );
 
@@ -226,8 +226,8 @@ it('validates the picker state for its configured format', function () {
         'brand' => FilamentColorPalette::Fuchsia,
     ]);
 
-    $picker = paletteColorPicker();
-    $semantic = paletteColorPicker(
+    $picker = palette_color_picker();
+    $semantic = palette_color_picker(
         fn (ColorPicker $picker) => $picker->format(ColorFormat::Semantic),
     );
 

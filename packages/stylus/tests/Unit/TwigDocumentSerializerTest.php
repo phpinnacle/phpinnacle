@@ -538,21 +538,21 @@ it('rejects malformed table cell loop groups', function (array $cells, string $m
 })->with([
     'non-contiguous group' => [
         [
-            twigLoopTestCell('group'),
-            twigLoopTestCell(loop: false),
-            twigLoopTestCell('group'),
+            twig_loop_test_cell('group'),
+            twig_loop_test_cell(loop: false),
+            twig_loop_test_cell('group'),
         ],
         'must be contiguous',
     ],
     'mismatched attributes' => [
         [
-            twigLoopTestCell('group', item: 'column'),
-            twigLoopTestCell('group', item: 'value'),
+            twig_loop_test_cell('group', item: 'column'),
+            twig_loop_test_cell('group', item: 'value'),
         ],
         'must use identical loop attributes',
     ],
     'missing group ID' => [
-        [twigLoopTestCell(id: null, item: 'column')],
+        [twig_loop_test_cell(id: null, item: 'column')],
         'loop ID must be a string',
     ],
 ]);
@@ -567,9 +567,9 @@ it('wraps contiguous table rows in one Twig condition', function () {
         'content' => [[
             'type' => 'table',
             'content' => [
-                twigConditionTestRow($conditionAttributes, 'First'),
-                twigConditionTestRow($conditionAttributes, 'Second'),
-                twigConditionTestRow([], 'Always'),
+                twig_condition_test_row($conditionAttributes, 'First'),
+                twig_condition_test_row($conditionAttributes, 'Second'),
+                twig_condition_test_row([], 'Always'),
             ],
         ]],
     ];
@@ -597,7 +597,7 @@ it('places a single row condition inside its row loop', function () {
         'type' => 'doc',
         'content' => [[
             'type' => 'table',
-            'content' => [twigConditionTestRow([
+            'content' => [twig_condition_test_row([
                 'twigLoopItem' => 'order',
                 'twigLoopKey' => null,
                 'twigLoopIterable' => 'orders',
@@ -670,7 +670,7 @@ it('rejects invalid nodes and Twig identifiers', function () {
         ->toThrow(InvalidArgumentException::class, 'Twig loop item must be a valid Twig identifier');
 });
 
-function twigLoopTestCell(?string $id = null, string $item = 'column', bool $loop = true): array
+function twig_loop_test_cell(?string $id = null, string $item = 'column', bool $loop = true): array
 {
     return [
         'type' => 'tableCell',
@@ -690,7 +690,7 @@ function twigLoopTestCell(?string $id = null, string $item = 'column', bool $loo
 }
 
 /** @param array<string, mixed> $attributes */
-function twigConditionTestRow(array $attributes, string $content): array
+function twig_condition_test_row(array $attributes, string $content): array
 {
     return [
         'type' => 'tableRow',

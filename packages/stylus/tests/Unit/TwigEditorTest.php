@@ -29,7 +29,7 @@ use Tests\TestCase;
 
 uses(TestCase::class);
 
-function stylusTwigEditor(array $state = [], bool $disabled = false, ?Closure $configure = null): TwigEditor
+function stylus_twig_editor(array $state = [], bool $disabled = false, ?Closure $configure = null): TwigEditor
 {
     view()->share('errors', new ViewErrorBag);
 
@@ -60,7 +60,7 @@ function stylusTwigEditor(array $state = [], bool $disabled = false, ?Closure $c
 }
 
 it('is a Filament field with a versioned empty document default', function () {
-    $editor = stylusTwigEditor();
+    $editor = stylus_twig_editor();
 
     expect($editor)
         ->toBeInstanceOf(RichEditor::class)
@@ -78,7 +78,7 @@ it('is a Filament field with a versioned empty document default', function () {
 });
 
 it('renders the asynchronous editor assets and entangled Filament state', function () {
-    $html = stylusTwigEditor()->toHtml();
+    $html = stylus_twig_editor()->toHtml();
 
     expect($html)
         ->toContain('fi-fo-rich-editor')
@@ -186,7 +186,7 @@ it('renders the asynchronous editor assets and entangled Filament state', functi
 });
 
 it('shows typed and grouped variables in its own panel', function () {
-    $editor = stylusTwigEditor()
+    $editor = stylus_twig_editor()
         ->variables(
             Variable::text('foo')->label('My var')->sample('Example value'),
             Variable::make('order.total', 'number')->label('Order total')->group('Order'),
@@ -323,7 +323,7 @@ it('exposes Filament presentation metadata for Twig editor descriptors', functio
         ->icon(Heroicon::Scale)
         ->description('Compare two values for equality.')
         ->color('info');
-    $editorHtml = stylusTwigEditor()
+    $editorHtml = stylus_twig_editor()
         ->variables($variable)
         ->snippets($snippet)
         ->toHtml();
@@ -413,7 +413,7 @@ it('exposes Filament presentation metadata for Twig editor descriptors', functio
 });
 
 it('shows reusable snippets in its own panel instead of a modal action', function () {
-    $editor = stylusTwigEditor()
+    $editor = stylus_twig_editor()
         ->variables(Variable::text('user.name'))
         ->snippets(
             Snippet::make('account_signature', [[
@@ -438,7 +438,7 @@ it('shows reusable snippets in its own panel instead of a modal action', functio
 });
 
 it('derives typed variables from nested lexical loop scopes', function () {
-    $editor = stylusTwigEditor()
+    $editor = stylus_twig_editor()
         ->variables(
             Variable::collection('orders')
                 ->label('Orders')
@@ -521,7 +521,7 @@ it('derives typed variables from nested lexical loop scopes', function () {
 });
 
 it('initializes browser variables from the root scope', function () {
-    $editor = stylusTwigEditor()
+    $editor = stylus_twig_editor()
         ->variables(
             Variable::collection('orders')->items(
                 Variable::make('order', 'order')->properties(
@@ -538,7 +538,7 @@ it('initializes browser variables from the root scope', function () {
 });
 
 it('flattens object properties and serializes collection definitions for the browser', function () {
-    $editor = stylusTwigEditor()
+    $editor = stylus_twig_editor()
         ->variables(
             Variable::make('user', 'user')
                 ->group('Customer')
@@ -632,12 +632,12 @@ it('matches conditions and variable options by type while empty type lists suppo
 });
 
 it('renders a disabled editor as non-editable', function () {
-    expect(stylusTwigEditor(disabled: true)->toHtml())
+    expect(stylus_twig_editor(disabled: true)->toHtml())
         ->toContain('isDisabled: true');
 });
 
 it('normalizes raw documents and regenerates the dehydrated Twig template', function () {
-    $editor = stylusTwigEditor([
+    $editor = stylus_twig_editor([
         'type' => 'doc',
         'content' => [[
             'type' => 'paragraph',
@@ -661,7 +661,7 @@ it('normalizes raw documents and regenerates the dehydrated Twig template', func
 });
 
 it('registers Twig tools and Filament configuration actions', function () {
-    $editor = stylusTwigEditor(configure: fn (TwigEditor $editor) => $editor->conditions(
+    $editor = stylus_twig_editor(configure: fn (TwigEditor $editor) => $editor->conditions(
         Condition::comparison('equals', '==')->description('Compare values.'),
         Condition::test('defined')->description('Check whether a value exists.'),
     ));
@@ -774,7 +774,7 @@ it('registers Twig tools and Filament configuration actions', function () {
 });
 
 it('includes every registered condition in the table row condition toolbar', function () {
-    $editor = stylusTwigEditor(configure: fn (TwigEditor $editor) => $editor->conditions(
+    $editor = stylus_twig_editor(configure: fn (TwigEditor $editor) => $editor->conditions(
         Condition::comparison('equals', '=='),
         Condition::test('defined'),
     ));
@@ -799,7 +799,7 @@ it('includes every registered condition in the table row condition toolbar', fun
 });
 
 it('uses descriptor metadata in focused filter and condition rule modals', function () {
-    $editor = stylusTwigEditor()
+    $editor = stylus_twig_editor()
         ->filters(
             Filter::make('strip_html')
                 ->icon(Heroicon::CodeBracket)
@@ -853,7 +853,7 @@ it('uses descriptor metadata in focused filter and condition rule modals', funct
 });
 
 it('uses a boolean select for condition literals', function () {
-    $editor = stylusTwigEditor(configure: fn (TwigEditor $editor) => $editor
+    $editor = stylus_twig_editor(configure: fn (TwigEditor $editor) => $editor
         ->variables(Variable::make('payment.transfer_enabled', 'boolean'))
         ->conditions(Condition::comparison('equals', '==')->types('boolean')));
     $action = $editor->getActions()['insertTwigIf']->arguments([
@@ -881,7 +881,7 @@ it('uses a boolean select for condition literals', function () {
 });
 
 it('exposes condition definitions to the condition settings panel', function () {
-    $editor = stylusTwigEditor()
+    $editor = stylus_twig_editor()
         ->conditions(
             Condition::comparison('equals', '==')
                 ->description('Compare values.')
@@ -939,7 +939,7 @@ it('drives truthy behavior through the condition contract', function () {
     $truthy->method('getIcon')->willReturn('heroicon-o-document-text');
     $truthy->method('getDescription')->willReturn('The text must not be empty.');
     $truthy->method('getColor')->willReturn('info');
-    $editor = stylusTwigEditor()
+    $editor = stylus_twig_editor()
         ->variables(Variable::text('message'))
         ->conditions($truthy);
     $definition = $editor->getConditionDefinitionsForBrowser()[0];
@@ -980,7 +980,7 @@ it('drives filter capabilities through the filter contract', function () {
         ->willReturnCallback(
             static fn (string $variableType) => $variableType === 'text',
         );
-    $editor = stylusTwigEditor()
+    $editor = stylus_twig_editor()
         ->variables(Variable::text('message'))
         ->filters($filter);
     $definition = $editor->getFilterDefinitionsForBrowser()[0];
@@ -1003,7 +1003,7 @@ it('drives filter capabilities through the filter contract', function () {
 });
 
 it('registers conditions and compiles persisted structured conditions', function () {
-    $editor = stylusTwigEditor()
+    $editor = stylus_twig_editor()
         ->variables(Variable::make('user.active', 'boolean'))
         ->conditions(
             Condition::comparison('equals', '=='),
@@ -1084,7 +1084,7 @@ it('compiles and serializes paired inline condition branches', function () {
         'conditionAst' => $conditionAst,
         'conditionId' => 'active-user',
     ];
-    $editor = stylusTwigEditor([
+    $editor = stylus_twig_editor([
         'version' => 1,
         'document' => [
             'type' => 'doc',
@@ -1140,7 +1140,7 @@ it('compiles and serializes nested inline conditions', function () {
     ];
     $outerCondition = $condition('user.visible', 'visible-user');
     $innerCondition = $condition('user.active', 'active-user');
-    $editor = stylusTwigEditor([
+    $editor = stylus_twig_editor([
         'version' => 1,
         'document' => [
             'type' => 'doc',
@@ -1171,7 +1171,7 @@ it('compiles and serializes nested inline conditions', function () {
 });
 
 it('rejects unstructured persisted conditions', function (array $node, string $message) {
-    expect(fn () => stylusTwigEditor()->compileStructuredConditions([
+    expect(fn () => stylus_twig_editor()->compileStructuredConditions([
         'type' => 'doc',
         'content' => [$node],
     ]))
@@ -1211,7 +1211,7 @@ it('rejects unstructured persisted conditions', function (array $node, string $m
 ]);
 
 it('compiles filters applied to structured condition operands', function () {
-    $editor = stylusTwigEditor()
+    $editor = stylus_twig_editor()
         ->variables(Variable::text('user.email'))
         ->filters(Filter::make('trim')->types('text'))
         ->conditions(Condition::comparison('equals', '==')->types('text'));
@@ -1237,7 +1237,7 @@ it('compiles filters applied to structured condition operands', function () {
 });
 
 it('compiles table row conditions in the repeated row scope', function () {
-    $editor = stylusTwigEditor()->variables(
+    $editor = stylus_twig_editor()->variables(
         Variable::collection('orders')->items(
             Variable::make('order', 'order')->properties(
                 Variable::make('active', 'boolean'),
@@ -1280,7 +1280,7 @@ it('compiles table row conditions in the repeated row scope', function () {
 });
 
 it('keeps comparison and test conditions with the same name separate', function () {
-    $editor = stylusTwigEditor()->conditions(
+    $editor = stylus_twig_editor()->conditions(
         Condition::comparison('empty', '=='),
         Condition::test('empty'),
     );
@@ -1299,7 +1299,7 @@ it('regenerates structured condition expressions while dehydrating state', funct
             'negated' => false,
         ]],
     ];
-    $editor = stylusTwigEditor([
+    $editor = stylus_twig_editor([
         'version' => 1,
         'document' => [
             'type' => 'doc',
@@ -1353,7 +1353,7 @@ it('reports snippet requirements against the lexical variable scope', function (
     $snippet = Snippet::make('order_heading', [
         ['type' => 'paragraph'],
     ])->requires('order.number', 'user.name');
-    $editor = stylusTwigEditor()
+    $editor = stylus_twig_editor()
         ->variables(
             Variable::text('user.name'),
             Variable::collection('orders')->items(

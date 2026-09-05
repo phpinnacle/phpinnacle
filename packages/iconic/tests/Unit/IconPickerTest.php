@@ -11,7 +11,7 @@ use Tests\TestCase;
 
 uses(TestCase::class);
 
-function mountedIconPicker(?Closure $configure = null): IconPicker
+function mounted_icon_picker(?Closure $configure = null): IconPicker
 {
     view()->share('errors', new ViewErrorBag);
 
@@ -155,7 +155,7 @@ it('loads one configured page of icons at a time', function () {
 });
 
 it('renders the paginated icon loader without embedding icon options', function () {
-    $picker = mountedIconPicker(
+    $picker = mounted_icon_picker(
         fn (IconPicker $picker) => $picker
             ->columns(3)
             ->rows(2),
