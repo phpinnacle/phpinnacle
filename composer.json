@@ -38,7 +38,6 @@
         "phpinnacle/sequentia": "*",
         "phpinnacle/settings": "*",
         "phpinnacle/signum": "*",
-        "phpinnacle/skeleton": "*",
         "phpinnacle/stylus": "*",
         "phpinnacle/tags": "*",
         "phpinnacle/tempo": "*",
@@ -66,7 +65,7 @@
             "mago lint --minimum-fail-level warning"
         ],
         "format": "mago format",
-        "test": "pest packages/*/tests"
+        "test": "pest $(find packages -mindepth 2 -maxdepth 2 -type d -name tests ! -path packages/skeleton/tests)"
     },
     "config": {
         "allow-plugins": {

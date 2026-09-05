@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4abd38cdd6723ffacf2e389336e97896",
+    "content-hash": "39b6c15cffae1385d77991ae67dbf175",
     "packages": [],
     "packages-dev": [
         {
@@ -9719,69 +9719,6 @@
             "support": {
                 "issues": "https://github.com/phpinnacle/signum/issues",
                 "source": "https://github.com/phpinnacle/signum"
-            },
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
-        },
-        {
-            "name": "phpinnacle/skeleton",
-            "version": "dev-master",
-            "dist": {
-                "type": "path",
-                "url": "packages/skeleton",
-                "reference": "981c6de8f692c1b580ab8a769155bc0d73ffff1c"
-            },
-            "require": {
-                "filament/filament": "^4.0|^5.0",
-                "php": "^8.4",
-                "spatie/laravel-package-tools": "^1.92"
-            },
-            "require-dev": {
-                "pestphp/pest": "^4.0"
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "1.x-dev"
-                },
-                "laravel": {
-                    "providers": [
-                        "PHPinnacle\\Skeleton\\SkeletonServiceProvider"
-                    ]
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "PHPinnacle\\Skeleton\\": "src/"
-                }
-            },
-            "scripts": {
-                "test": [
-                    "pest --no-coverage"
-                ]
-            },
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "PHPinnacle Devs",
-                    "email": "dev@phpinnacle.edu.pl",
-                    "role": "Developer"
-                }
-            ],
-            "description": "Starting template for PHPinnacle Laravel Filament plugins.",
-            "homepage": "https://github.com/phpinnacle/skeleton",
-            "keywords": [
-                "filament",
-                "laravel",
-                "phpinnacle"
-            ],
-            "support": {
-                "issues": "https://github.com/phpinnacle/skeleton/issues",
-                "source": "https://github.com/phpinnacle/skeleton"
             },
             "transport-options": {
                 "symlink": true,
