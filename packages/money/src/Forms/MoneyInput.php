@@ -47,7 +47,8 @@ class MoneyInput extends Field
     public function equal(Closure|Money|string|int $value): static
     {
         $this->eqValue = $value;
-        $this->minValue = $this->maxValue = null;
+        $this->minValue = null;
+        $this->maxValue = null;
 
         return $this->rule(
             fn (self $component) => MoneyRule::eq($component->getEqValue()),

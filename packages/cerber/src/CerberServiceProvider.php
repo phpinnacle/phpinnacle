@@ -3,6 +3,7 @@
 namespace PHPinnacle\Cerber;
 
 use BladeUI\Icons\Factory;
+use Filament\Exceptions\NoDefaultPanelSetException;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -17,7 +18,6 @@ use SocialiteProviders\Yandex\Provider;
 use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use Throwable;
 
 class CerberServiceProvider extends PackageServiceProvider
 {
@@ -78,19 +78,22 @@ class CerberServiceProvider extends PackageServiceProvider
 
         try {
             $panel = Filament::getCurrentOrDefaultPanel();
+        } catch (NoDefaultPanelSetException) {
+            $panel = null;
+        }
+
+        if ($panel !== null) {
+            $hashes[] = 'password_hash_' . $panel->getAuthGuard();
+        }
+
+        $backToPanelId = session()->get('impersonate.back_to_panel');
+
+        if ($backToPanelId) {
+            $panel = Filament::getPanel($backToPanelId);
 
             if ($panel !== null) {
                 $hashes[] = 'password_hash_' . $panel->getAuthGuard();
             }
-
-            $backToPanelId = session()->get('impersonate.back_to_panel');
-
-            if ($backToPanelId) {
-                $panel = Filament::getPanel($backToPanelId);
-                $hashes[] = 'password_hash_' . $panel->getAuthGuard();
-            }
-        } catch (Throwable) {
-            // Log or handle the error if needed
         }
 
         session()->forget(array_unique($hashes));

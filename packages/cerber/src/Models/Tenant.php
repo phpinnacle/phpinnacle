@@ -79,7 +79,7 @@ class Tenant extends Model implements HasAvatar, HasCurrentTenantLabel, HasName
 
     public static function resolve(Panel $panel): ?self
     {
-        $pattern = str_replace('\{tenant\:domain\}', '(\w+)', preg_quote($panel->getTenantDomain()));
+        $pattern = str_replace('\{tenant\:domain\}', '(\w+)', preg_quote($panel->getTenantDomain(), '/'));
 
         preg_match(sprintf('/%s/', $pattern), request()->getHost(), $matches);
 

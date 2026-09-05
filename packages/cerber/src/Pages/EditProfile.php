@@ -96,7 +96,7 @@ class EditProfile extends BasePage
         $components = [];
 
         foreach (Provider::valid() as $provider) {
-            $isLinked = in_array($provider->getKey(), $linked);
+            $isLinked = in_array($provider->getKey(), $linked, strict: true);
 
             $components[] = Actions::make(
                 fn (ProviderRegistry $registry) => $this->oauthActions($registry, $provider, $isLinked),

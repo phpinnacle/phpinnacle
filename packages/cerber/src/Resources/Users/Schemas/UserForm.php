@@ -90,7 +90,7 @@ class UserForm
                                 $operation
                             ) {
                                 'create' => $disabled->contains($value),
-                                'edit' => $disabled->contains($value) && !in_array($value, $state),
+                                'edit' => $disabled->contains($value) && !in_array($value, $state, strict: true),
                                 default => false,
                             })
                             ->columns(4)

@@ -41,19 +41,19 @@ class Mark
 
     public function exists(array $state, string $key = self::STATE_KEY): bool
     {
-        return array_any($state, fn ($item) => in_array($this->key, $item[$key] ?? []));
+        return array_any($state, fn ($item) => in_array($this->key, $item[$key] ?? [], strict: true));
     }
 
     public function getColor(array $state, string $key = self::STATE_KEY): string
     {
-        return in_array($this->key, $state[$key] ?? [])
+        return in_array($this->key, $state[$key] ?? [], strict: true)
             ? $this->color
             : 'gray';
     }
 
     public function getIcon(array $state, string $key = self::STATE_KEY): string
     {
-        return in_array($this->key, $state[$key] ?? [])
+        return in_array($this->key, $state[$key] ?? [], strict: true)
             ? sprintf('%s-fill', $this->icon)
             : $this->icon;
     }
@@ -75,7 +75,7 @@ class Mark
     public function toggle(string $index, array $state): array
     {
         $current = $state[$index]['marks'] ?? [];
-        $marked = in_array($this->key, $current);
+        $marked = in_array($this->key, $current, strict: true);
 
         $state[$index]['marks'] = $marked
             ? array_diff($current, [$this->key])

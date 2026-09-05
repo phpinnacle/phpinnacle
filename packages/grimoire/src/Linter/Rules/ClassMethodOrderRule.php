@@ -16,7 +16,6 @@ use Mago\Sdk\Syntax\NodeKind;
 use Mago\Sdk\Syntax\ResolvedName;
 use Mago\Sdk\Syntax\SourceFile;
 
-/** @mago-expect lint:cyclomatic-complexity */
 final class ClassMethodOrderRule implements Rule
 {
     /**

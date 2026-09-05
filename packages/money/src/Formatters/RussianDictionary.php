@@ -39,7 +39,7 @@ class RussianDictionary
             return $forms[1]; // родительный падеж единственного числа
         }
 
-        if ($n1 == 1) {
+        if ($n1 === 1) {
             return $forms[0]; // единственное число
         }
 

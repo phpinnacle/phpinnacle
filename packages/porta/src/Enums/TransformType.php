@@ -264,7 +264,7 @@ enum TransformType: string
         foreach ($values as &$value) {
             $type = gettype($value);
 
-            if (!in_array($type, ['boolean', 'bool', 'integer', 'int', 'float', 'double', 'string'])) {
+            if (!in_array($type, ['boolean', 'bool', 'integer', 'int', 'float', 'double', 'string'], strict: true)) {
                 continue;
             }
 

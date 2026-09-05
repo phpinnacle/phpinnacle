@@ -143,7 +143,7 @@ readonly class Money implements JsonSerializable, Wireable
             $formatted = '0.' . str_pad('', $subunit - $valueLength, '0') . $valueBase;
         }
 
-        assert($formatted !== '');
+        assert($formatted !== '', 'Formatted money value must not be empty.');
 
         return $formatted;
     }
