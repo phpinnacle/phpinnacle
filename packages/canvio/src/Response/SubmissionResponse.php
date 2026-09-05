@@ -6,7 +6,7 @@ use PHPinnacle\Canvio\Support\ResponseValue;
 
 final readonly class SubmissionResponse
 {
-    /** @param array<string, mixed> $raw */
+    /** @param array<array-key, mixed> $raw */
     public function __construct(
         public int $assignmentId,
         public int $userId,
@@ -24,7 +24,7 @@ final readonly class SubmissionResponse
         public array $raw,
     ) {}
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function fromArray(array $payload): self
     {
         return new self(

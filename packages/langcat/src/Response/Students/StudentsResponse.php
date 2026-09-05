@@ -14,7 +14,7 @@ final readonly class StudentsResponse
         public PaginationResponse $meta,
     ) {}
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function fromArray(array $payload): self
     {
         $students = array_map(

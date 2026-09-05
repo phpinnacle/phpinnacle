@@ -16,7 +16,7 @@ final readonly class BillingDetailsResponse
         public ?string $email,
     ) {}
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function fromArray(array $payload): self
     {
         return new self(

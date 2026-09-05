@@ -10,12 +10,27 @@ use PHPinnacle\Langcat\Support\RequestValue;
 /** @internal */
 trait GroupSettingFields
 {
-    /** @var array<string, mixed> */
+    /**
+     * @var array{
+     *     subjectId?: int,
+     *     teachers?: list<array{id: int, salary: int|float}>|null,
+     *     classroomId?: int,
+     *     day?: string,
+     *     startTime?: string,
+     *     lessonLength?: int,
+     *     breakLength?: int|float,
+     *     isOnlineLessonEnabled?: bool,
+     *     onlineLessonProvider?: string|null,
+     *     onlineLessonProviderUrl?: string|null
+     * }
+     */
     private array $data = [];
 
     public function subjectId(int $value): self
     {
-        return $this->set('subjectId', RequestValue::positive($value, 'Subject ID'));
+        $this->data['subjectId'] = RequestValue::positive($value, 'Subject ID');
+
+        return $this;
     }
 
     public function teacher(int $id, int|float $salary): self
@@ -30,32 +45,44 @@ trait GroupSettingFields
 
     public function classroomId(int $value): self
     {
-        return $this->set('classroomId', RequestValue::positive($value, 'Classroom ID'));
+        $this->data['classroomId'] = RequestValue::positive($value, 'Classroom ID');
+
+        return $this;
     }
 
     public function day(Weekday $value): self
     {
-        return $this->set('day', $value->value);
+        $this->data['day'] = $value->value;
+
+        return $this;
     }
 
     public function startTime(string $value): self
     {
-        return $this->set('startTime', RequestValue::time($value, 'Start time'));
+        $this->data['startTime'] = RequestValue::time($value, 'Start time');
+
+        return $this;
     }
 
     public function lessonLength(int $value): self
     {
-        return $this->set('lessonLength', RequestValue::positive($value, 'Lesson length'));
+        $this->data['lessonLength'] = RequestValue::positive($value, 'Lesson length');
+
+        return $this;
     }
 
     public function breakLength(int $value): self
     {
-        return $this->set('breakLength', RequestValue::nonNegative($value, 'Break length'));
+        $this->data['breakLength'] = RequestValue::nonNegative($value, 'Break length');
+
+        return $this;
     }
 
     public function onlineLesson(bool $enabled): self
     {
-        return $this->set('isOnlineLessonEnabled', $enabled);
+        $this->data['isOnlineLessonEnabled'] = $enabled;
+
+        return $this;
     }
 
     public function onlineLessonProvider(?OnlineLessonProvider $provider, ?string $url = null): self
@@ -68,13 +95,6 @@ trait GroupSettingFields
         $this->data['onlineLessonProviderUrl'] = $url === null
             ? null
             : RequestValue::httpUrl($url, 'Online lesson provider URL');
-
-        return $this;
-    }
-
-    private function set(string $key, mixed $value): self
-    {
-        $this->data[$key] = $value;
 
         return $this;
     }

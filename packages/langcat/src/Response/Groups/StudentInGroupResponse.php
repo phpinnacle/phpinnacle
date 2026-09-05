@@ -15,7 +15,7 @@ final readonly class StudentInGroupResponse
         public ?StudentAgreementResponse $agreement,
     ) {}
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function fromArray(array $payload): self
     {
         $agreement = ResponseValue::nullableObject($payload, 'agreement');

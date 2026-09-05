@@ -67,10 +67,16 @@
         "lint": [
             "mago format --check",
             "mago lint",
-            "@phpstan"
+            "@phpstan",
+            "@phpstan:level7",
+            "@phpstan:level8",
+            "@phpstan:level10"
         ],
         "format": "mago format",
         "phpstan": "phpstan analyse packages/*/src packages/chronica/tests/Unit/HasHistoryTest.php packages/common/tests/Unit/ConcernsTest.php packages/dendros/tests/Unit/TreeTest.php --no-progress --memory-limit=1G",
+        "phpstan:level7": "phpstan analyse packages/comments/src packages/sequentia/src packages/tags/src --level=7 --no-progress --memory-limit=1G",
+        "phpstan:level8": "phpstan analyse packages/cabeiro/src packages/vulcan/src --level=8 --no-progress --memory-limit=1G",
+        "phpstan:level10": "phpstan analyse packages/babylon/src packages/canvio/src packages/casus/src packages/ferry/src packages/intl/src packages/langcat/src packages/openapi/src packages/rosetta/src --level=10 --no-progress --memory-limit=1G",
         "test": "pest $(find packages -mindepth 2 -maxdepth 2 -type d -name tests ! -path packages/skeleton/tests)"
     },
     "config": {

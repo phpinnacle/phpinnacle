@@ -14,7 +14,7 @@ final readonly class GroupSearchResponse
         public array $teachers,
     ) {}
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function fromArray(array $payload): self
     {
         $basic = ResponseValue::nullableObject($payload, 'group.basic');

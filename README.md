@@ -62,6 +62,14 @@ composer test
 Run `composer format` to apply the repository's Mago formatting rules.
 Run `composer phpstan` to run PHPStan level 6 static analysis across all package sources.
 
+`composer lint` also runs stricter analysis for the following package groups. Each group can be checked separately:
+
+| Command | Level | Packages |
+| --- | --- | --- |
+| `composer phpstan:level7` | 7 | comments, sequentia, tags |
+| `composer phpstan:level8` | 8 | cabeiro, vulcan |
+| `composer phpstan:level10` | 10 | babylon, canvio, casus, ferry, intl, langcat, openapi, rosetta |
+
 ## Composer Repository
 
 Public packages are available from Packagist and require no custom Composer repository. Proprietary packages are distributed through the Satis repository at `packages.phpinnacle.com`.

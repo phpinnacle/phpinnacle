@@ -19,7 +19,7 @@ final readonly class GradeCollectionItemResponse
         public ?GradeValueResponse $grade,
     ) {}
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function fromArray(array $payload): self
     {
         $grade = ResponseValue::nullableObject($payload, 'grade');

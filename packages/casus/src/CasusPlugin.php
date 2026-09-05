@@ -9,14 +9,14 @@ class CasusPlugin implements Plugin
 {
     public static function make(): static
     {
-        return app(static::class);
+        return app()->get(static::class);
     }
 
     public static function get(): static
     {
         // @mago-expect lint:inline-variable-return
         /** @var static $plugin */
-        $plugin = filament(app(static::class)->getId());
+        $plugin = filament(static::make()->getId());
 
         return $plugin;
     }

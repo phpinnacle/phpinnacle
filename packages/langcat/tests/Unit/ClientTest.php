@@ -76,6 +76,20 @@ use Psr\Http\Message\ResponseInterface;
 
 final class ClientTest extends TestCase
 {
+    public function test_it_appends_and_clears_group_setting_teachers(): void
+    {
+        $request = UpdateGroupSettingRequest::make()->teacher(5, 100)->teacher(6, 125.5);
+
+        self::assertSame(
+            [
+                'teachers' => [['id' => 5, 'salary' => 100], ['id' => 6, 'salary' => 125.5]],
+            ],
+            $request->toArray(),
+        );
+        self::assertSame(['teachers' => null], $request->clearTeachers()->toArray());
+        self::assertSame(['teachers' => [['id' => 7, 'salary' => 0]]], $request->teacher(7, 0)->toArray());
+    }
+
     public function test_it_accepts_a_no_content_response_when_assigning_a_school(): void
     {
         $http = new RecordingHttpClient(new Response(204));

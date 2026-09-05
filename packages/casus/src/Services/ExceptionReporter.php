@@ -114,7 +114,9 @@ class ExceptionReporter
             $context = $error->context();
 
             if (is_object($context) || is_array($context)) {
-                return json_decode(json_encode($context, JSON_THROW_ON_ERROR), true);
+                $decoded = json_decode(json_encode($context, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
+
+                return is_array($decoded) ? $decoded : [];
             }
         } catch (Throwable) {
             return [];

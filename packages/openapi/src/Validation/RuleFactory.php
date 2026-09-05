@@ -4,6 +4,7 @@ namespace PHPinnacle\OpenApi\Validation;
 
 use Closure;
 use Illuminate\Support\Arr;
+use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
 use OpenApi\Annotations as OA;
@@ -40,6 +41,7 @@ class RuleFactory
 
     /**
      * @param  array<OA\Schema>  $schemas
+     * @return Closure(string, mixed, Closure(string): PotentiallyTranslatedString): void
      */
     private function oneOfRule(array $schemas): Closure
     {
@@ -51,23 +53,34 @@ class RuleFactory
             return $schema->required;
         }, $schemas);
 
-        return function (string $attribute, mixed $value, Closure $fail) use ($requiredSets) {
-            if (!is_array($value)) {
-                return;
-            }
+        return fn (string $attribute, mixed $value, Closure $fail) => $this->validateOneOf(
+            $value,
+            $fail,
+            $requiredSets,
+        );
+    }
 
-            $matches = count(array_filter(
-                $requiredSets,
-                fn (array $required) => array_all(
-                    $required,
-                    fn (string $property) => filled(Arr::get($value, $property)),
-                ),
-            ));
+    /**
+     * @param Closure(string): PotentiallyTranslatedString $fail
+     * @param array<array<string>> $requiredSets
+     */
+    private function validateOneOf(mixed $value, Closure $fail, array $requiredSets): void
+    {
+        if (!is_array($value)) {
+            return;
+        }
 
-            if ($matches !== 1) {
-                $fail('phpinnacle-openapi::messages.one_of')->translate();
-            }
-        };
+        $matches = count(array_filter(
+            $requiredSets,
+            fn (array $required) => array_all(
+                $required,
+                fn (string $property) => filled(Arr::get($value, $property)),
+            ),
+        ));
+
+        if ($matches !== 1) {
+            $fail('phpinnacle-openapi::messages.one_of')->translate();
+        }
     }
 
     /**

@@ -54,7 +54,7 @@ final class Client
 
     /**
      * @param  array<string, mixed>  $query
-     * @return iterable<int, array<string, mixed>>
+     * @return iterable<int, array<array-key, mixed>>
      */
     public function paginate(string $path, array $query = []): iterable
     {

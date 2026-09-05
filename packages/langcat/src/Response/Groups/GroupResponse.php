@@ -34,7 +34,7 @@ final readonly class GroupResponse
         public string $createdAt,
     ) {}
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function fromArray(array $payload): self
     {
         $type = $payload['type'] ?? null;

@@ -6,7 +6,7 @@ use UnexpectedValueException;
 
 final readonly class EmptyResponse
 {
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function fromArray(array $payload): self
     {
         if ($payload !== []) {

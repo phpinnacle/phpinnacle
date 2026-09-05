@@ -14,7 +14,7 @@ final readonly class GroupBillingResponse
         public ?string $price,
     ) {}
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function fromArray(array $payload): self
     {
         $base = ResponseValue::nullableString($payload, 'calculationBase');

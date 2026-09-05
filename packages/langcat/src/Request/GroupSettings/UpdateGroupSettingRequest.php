@@ -13,7 +13,9 @@ final class UpdateGroupSettingRequest
 
     public function clearTeachers(): self
     {
-        return $this->set('teachers', null);
+        $this->data['teachers'] = null;
+
+        return $this;
     }
 
     /** @return array<string, mixed> */

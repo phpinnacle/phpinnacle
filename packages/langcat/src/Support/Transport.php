@@ -53,7 +53,7 @@ final readonly class Transport
     /**
      * @param  array<string, int|string>  $query
      * @param  array<array-key, mixed>|null  $body
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     public function send(
         string $method,

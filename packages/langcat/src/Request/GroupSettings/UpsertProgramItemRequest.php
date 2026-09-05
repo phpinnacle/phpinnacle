@@ -7,7 +7,7 @@ use PHPinnacle\Langcat\Support\RequestValue;
 
 final class UpsertProgramItemRequest
 {
-    /** @var array<string, mixed> */
+    /** @var array{position?: int, elements?: list<array{lessonDetailsId: int, description: string}>} */
     private array $data = [];
 
     public static function make(): self

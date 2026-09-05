@@ -4,3 +4,6 @@ includes:
 
 parameters:
     level: 6
+    stubFiles:
+        - packages/ferry/phpstan.stub
+        - packages/intl/phpstan.stub

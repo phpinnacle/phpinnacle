@@ -15,7 +15,7 @@ final readonly class ParentResponse
         public string $createdAt,
     ) {}
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function fromArray(array $payload): self
     {
         return new self(

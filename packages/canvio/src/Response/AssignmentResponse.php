@@ -8,7 +8,7 @@ final readonly class AssignmentResponse
 {
     /**
      * @param  list<string>  $submissionTypes
-     * @param  array<string, mixed>  $raw
+     * @param  array<array-key, mixed>  $raw
      */
     public function __construct(
         public int $id,
@@ -26,7 +26,7 @@ final readonly class AssignmentResponse
         public array $raw,
     ) {}
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function fromArray(array $payload): self
     {
         return new self(

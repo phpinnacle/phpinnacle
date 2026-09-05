@@ -305,14 +305,14 @@ final readonly class GroupSettingsApi
 
     /**
      * @param  array<string, int|string>  $query
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     private function get(string $path, array $query): array
     {
         return $this->transport->send('GET', self::ROOT . $path, $query);
     }
 
-    /** @return array<string, mixed> */
+    /** @return array<array-key, mixed> */
     private function getById(string $path, int $id): array
     {
         return $this->transport->send('GET', $this->pathById($path, $id));

@@ -30,6 +30,28 @@ afterEach(function () {
     Filament::setCurrentPanel(null);
 });
 
+it('resolves plugin subclasses through the container and their panel identifier', function () {
+    $plugin = new class extends BabylonPlugin {
+        public function getId(): string
+        {
+            return 'custom-babylon';
+        }
+    };
+
+    app()->instance($plugin::class, $plugin);
+    app()->instance(BabylonPlugin::class, $plugin);
+    $this->panel->plugin($plugin);
+
+    expect($plugin::make())
+        ->toBe($plugin)
+        ->and(BabylonPlugin::make())
+        ->toBe($plugin)
+        ->and($plugin::get())
+        ->toBe($plugin)
+        ->and(BabylonPlugin::get())
+        ->toBe($plugin);
+});
+
 it('applies the locale stored in the session', function () {
     $request = Request::create('/dashboard');
     $request->setLaravelSession(app('session')->driver());

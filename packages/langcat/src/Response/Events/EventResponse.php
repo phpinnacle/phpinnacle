@@ -19,7 +19,7 @@ final readonly class EventResponse
         public string $date,
     ) {}
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function fromArray(array $payload): self
     {
         $context = EventContext::from(ResponseValue::string($payload, 'context'));

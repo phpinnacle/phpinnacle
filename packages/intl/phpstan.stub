@@ -1,0 +1,15 @@
+<?php
+
+namespace Symfony\Component\Intl;
+
+class Locales
+{
+    /** @return array<string, string> */
+    public static function getNames(?string $displayLocale = null): array {}
+}
+
+class Timezones
+{
+    /** @return array<string, string> */
+    public static function getNames(?string $displayLocale = null): array {}
+}

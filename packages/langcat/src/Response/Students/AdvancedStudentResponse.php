@@ -18,7 +18,7 @@ final readonly class AdvancedStudentResponse
         public array $parents,
     ) {}
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function fromArray(array $payload): self
     {
         $basic = ResponseValue::nullableObject($payload, 'student.basic');

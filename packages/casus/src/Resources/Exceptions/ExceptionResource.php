@@ -5,6 +5,7 @@ namespace PHPinnacle\Casus\Resources\Exceptions;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Config;
 use PHPinnacle\Casus\Models\Exception as ExceptionRecord;
 
 class ExceptionResource extends Resource
@@ -25,12 +26,16 @@ class ExceptionResource extends Resource
 
     public static function getNavigationIcon(): ?string
     {
-        return config('phpinnacle-casus.navigation.exception.icon', 'phosphor-bug');
+        return config('phpinnacle-casus.navigation.exception.icon', 'phosphor-bug') === null
+            ? null
+            : Config::string('phpinnacle-casus.navigation.exception.icon', 'phosphor-bug');
     }
 
     public static function getNavigationSort(): ?int
     {
-        return config('phpinnacle-casus.navigation.exception.sort');
+        return config('phpinnacle-casus.navigation.exception.sort') === null
+            ? null
+            : Config::integer('phpinnacle-casus.navigation.exception.sort');
     }
 
     public static function infolist(Schema $schema): Schema

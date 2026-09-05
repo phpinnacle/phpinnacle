@@ -7,7 +7,7 @@ use UnexpectedValueException;
 /** @internal */
 final readonly class ResponseValue
 {
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function int(array $payload, string $key): int
     {
         return is_int($payload[$key] ?? null)
@@ -15,7 +15,7 @@ final readonly class ResponseValue
             : throw new UnexpectedValueException("Response field [{$key}] must be an integer.");
     }
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function string(array $payload, string $key): string
     {
         return is_string($payload[$key] ?? null)
@@ -23,7 +23,7 @@ final readonly class ResponseValue
             : throw new UnexpectedValueException("Response field [{$key}] must be a string.");
     }
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function nullableString(array $payload, string $key): ?string
     {
         $value = $payload[$key] ?? null;
@@ -33,7 +33,7 @@ final readonly class ResponseValue
             : throw new UnexpectedValueException("Response field [{$key}] must be a string or null.");
     }
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function nullableInt(array $payload, string $key): ?int
     {
         $value = $payload[$key] ?? null;
@@ -43,7 +43,7 @@ final readonly class ResponseValue
             : throw new UnexpectedValueException("Response field [{$key}] must be an integer or null.");
     }
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function number(array $payload, string $key): int|float
     {
         $value = $payload[$key] ?? null;
@@ -53,7 +53,7 @@ final readonly class ResponseValue
             : throw new UnexpectedValueException("Response field [{$key}] must be numeric.");
     }
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function nullableNumber(array $payload, string $key): int|float|null
     {
         $value = $payload[$key] ?? null;
@@ -63,7 +63,7 @@ final readonly class ResponseValue
             : throw new UnexpectedValueException("Response field [{$key}] must be numeric or null.");
     }
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function nullableNumberOrString(array $payload, string $key): int|float|string|null
     {
         $value = $payload[$key] ?? null;
@@ -73,7 +73,7 @@ final readonly class ResponseValue
             : throw new UnexpectedValueException("Response field [{$key}] must be numeric, a string, or null.");
     }
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function numberOrString(array $payload, string $key): int|float|string
     {
         $value = $payload[$key] ?? null;
@@ -83,7 +83,7 @@ final readonly class ResponseValue
             : throw new UnexpectedValueException("Response field [{$key}] must be numeric or a string.");
     }
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function nullableBool(array $payload, string $key): ?bool
     {
         $value = $payload[$key] ?? null;
@@ -93,7 +93,7 @@ final readonly class ResponseValue
             : throw new UnexpectedValueException("Response field [{$key}] must be a boolean or null.");
     }
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function bool(array $payload, string $key): bool
     {
         return is_bool($payload[$key] ?? null)
@@ -102,7 +102,7 @@ final readonly class ResponseValue
     }
 
     /**
-     * @param  array<string, mixed>  $payload
+     * @param  array<array-key, mixed>  $payload
      * @return list<string>
      */
     public static function strings(array $payload, string $key): array
@@ -119,7 +119,7 @@ final readonly class ResponseValue
     }
 
     /**
-     * @param  array<string, mixed>  $payload
+     * @param  array<array-key, mixed>  $payload
      * @return list<int>
      */
     public static function integers(array $payload, string $key): array
@@ -138,8 +138,8 @@ final readonly class ResponseValue
     /**
      * @template T
      *
-     * @param  array<string, mixed>  $payload
-     * @param  callable(array<string, mixed>): T  $map
+     * @param  array<array-key, mixed>  $payload
+     * @param  callable(array<array-key, mixed>): T  $map
      * @return list<T>
      */
     public static function objects(array $payload, string $key, callable $map): array
@@ -155,7 +155,7 @@ final readonly class ResponseValue
     }
 
     /**
-     * @param  array<string, mixed>  $payload
+     * @param  array<array-key, mixed>  $payload
      * @return list<int>|null
      */
     public static function nullableIntegers(array $payload, string $key): ?array
@@ -168,8 +168,8 @@ final readonly class ResponseValue
     }
 
     /**
-     * @param  array<string, mixed>  $payload
-     * @return array<string, mixed>
+     * @param  array<array-key, mixed>  $payload
+     * @return array<array-key, mixed>
      */
     public static function object(array $payload, string $key): array
     {
@@ -181,8 +181,8 @@ final readonly class ResponseValue
     }
 
     /**
-     * @param  array<string, mixed>  $payload
-     * @return array<string, mixed>|null
+     * @param  array<array-key, mixed>  $payload
+     * @return array<array-key, mixed>|null
      */
     public static function nullableObject(array $payload, string $key): ?array
     {
@@ -193,7 +193,7 @@ final readonly class ResponseValue
         return self::object($payload, $key);
     }
 
-    /** @param array<string, mixed> $payload
+    /** @param array<array-key, mixed> $payload
      * @return list<mixed>
      */
     public static function list(array $payload, string $key): array

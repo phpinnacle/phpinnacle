@@ -62,7 +62,7 @@ final readonly class Transport
 
     /**
      * @param  array<string, mixed>  $query
-     * @return Generator<int, array<string, mixed>>
+     * @return Generator<int, array<array-key, mixed>>
      */
     public function paginate(string $path, array $query = []): Generator
     {

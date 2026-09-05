@@ -13,7 +13,7 @@ final readonly class AdvancedParentResponse
         public ?DetailsResponse $details,
     ) {}
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function fromArray(array $payload): self
     {
         $id = ResponseValue::int($payload, 'id');

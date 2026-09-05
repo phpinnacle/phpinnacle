@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
+use Phiki\Grammar\Grammar;
 use PHPinnacle\Casus\Enums\ExceptionStatus;
 use PHPinnacle\Casus\Enums\HttpMethod;
 use PHPinnacle\Casus\Models\Exception as ExceptionRecord;
@@ -18,6 +19,49 @@ beforeEach(function () {
     foreach (glob(__DIR__ . '/../../database/migrations/*.php') as $migration) {
         (require $migration)->up();
     }
+});
+
+it('records exceptions when their context serializes to a scalar', function () {
+    $error = new class extends RuntimeException {
+        public function context(): JsonSerializable
+        {
+            return new class implements JsonSerializable {
+                public function jsonSerialize(): string
+                {
+                    return 'external-context';
+                }
+            };
+        }
+    };
+
+    ExceptionRecord::report($error);
+
+    expect(ExceptionRecord::query()->sole()->context)->toBe([]);
+});
+
+it('preserves structured exception context', function () {
+    $error = new class extends RuntimeException {
+        public function context(): object
+        {
+            return (object) ['order' => (object) ['id' => 42]];
+        }
+    };
+
+    ExceptionRecord::report($error);
+
+    expect(ExceptionRecord::query()->sole()->context)->toBe(['order' => ['id' => 42]]);
+});
+
+it('selects body grammar from request headers and handles redacted headers', function () {
+    $record = new ExceptionRecord;
+    $record->method = HttpMethod::Post;
+    $record->headers = ['content-type' => ['application/json']];
+
+    expect($record->bodyGrammar())->toBe(Grammar::Json);
+
+    $record->headers = ['content-type' => '[hidden]'];
+
+    expect($record->bodyGrammar())->toBeNull();
 });
 
 it('builds a redacted request snapshot including the Livewire origin', function () {

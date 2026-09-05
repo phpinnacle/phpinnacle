@@ -7,7 +7,7 @@ use UnexpectedValueException;
 /** @internal */
 final readonly class ResponseValue
 {
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function int(array $payload, string $key): int
     {
         return is_int($payload[$key] ?? null)
@@ -15,7 +15,7 @@ final readonly class ResponseValue
             : throw new UnexpectedValueException("Response field [{$key}] must be an integer.");
     }
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function nullableBool(array $payload, string $key): ?bool
     {
         $value = $payload[$key] ?? null;
@@ -25,7 +25,7 @@ final readonly class ResponseValue
             : throw new UnexpectedValueException("Response field [{$key}] must be a boolean or null.");
     }
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function nullableInt(array $payload, string $key): ?int
     {
         $value = $payload[$key] ?? null;
@@ -35,7 +35,7 @@ final readonly class ResponseValue
             : throw new UnexpectedValueException("Response field [{$key}] must be an integer or null.");
     }
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function nullableNumber(array $payload, string $key): int|float|null
     {
         $value = $payload[$key] ?? null;
@@ -46,7 +46,7 @@ final readonly class ResponseValue
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param array<array-key, mixed> $payload
      * @return array<array-key, mixed>|null
      */
     public static function nullableObject(array $payload, string $key): ?array
@@ -58,7 +58,7 @@ final readonly class ResponseValue
             : throw new UnexpectedValueException("Response field [{$key}] must be an object or null.");
     }
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function nullableString(array $payload, string $key): ?string
     {
         $value = $payload[$key] ?? null;
@@ -68,7 +68,7 @@ final readonly class ResponseValue
             : throw new UnexpectedValueException("Response field [{$key}] must be a string or null.");
     }
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function string(array $payload, string $key): string
     {
         return is_string($payload[$key] ?? null)
@@ -77,7 +77,7 @@ final readonly class ResponseValue
     }
 
     /**
-     * @param  array<string, mixed>  $payload
+     * @param  array<array-key, mixed>  $payload
      * @return list<string>
      */
     public static function strings(array $payload, string $key): array

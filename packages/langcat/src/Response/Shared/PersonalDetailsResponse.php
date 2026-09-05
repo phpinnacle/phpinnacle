@@ -18,7 +18,7 @@ final readonly class PersonalDetailsResponse
         public ?string $description,
     ) {}
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function fromArray(array $payload): self
     {
         return new self(

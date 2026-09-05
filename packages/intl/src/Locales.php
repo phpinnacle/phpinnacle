@@ -2,6 +2,7 @@
 
 namespace PHPinnacle\Intl;
 
+use Illuminate\Support\Facades\Lang;
 use Locale;
 use Symfony\Component\Intl\Locales as Intl;
 
@@ -22,7 +23,7 @@ class Locales
     public static function list(?string $display = null): array
     {
         $all = Intl::getNames($display);
-        $all[self::OTHER] = __(self::TRANS, locale: $display);
+        $all[self::OTHER] = Lang::string(self::TRANS, locale: $display);
 
         return $all;
     }

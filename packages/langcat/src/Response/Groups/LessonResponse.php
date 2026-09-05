@@ -23,7 +23,7 @@ final readonly class LessonResponse
         public string $createdAt,
     ) {}
 
-    /** @param array<string, mixed> $payload */
+    /** @param array<array-key, mixed> $payload */
     public static function fromArray(array $payload): self
     {
         $online = ResponseValue::nullableObject($payload, 'onlineLesson');

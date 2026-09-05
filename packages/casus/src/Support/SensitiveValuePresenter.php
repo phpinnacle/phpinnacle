@@ -2,6 +2,8 @@
 
 namespace PHPinnacle\Casus\Support;
 
+use Illuminate\Support\Facades\Config;
+
 class SensitiveValuePresenter
 {
     /**
@@ -65,12 +67,7 @@ class SensitiveValuePresenter
     {
         $key = strtolower((string) $key);
 
-        foreach (config('phpinnacle-casus.redaction.keys', []) as $pattern) {
-            if (str_contains($key, strtolower($pattern))) {
-                return true;
-            }
-        }
-
-        return false;
+        return Config::collection('phpinnacle-casus.redaction.keys', [])
+            ->contains(fn (string $pattern) => str_contains($key, strtolower($pattern)));
     }
 }

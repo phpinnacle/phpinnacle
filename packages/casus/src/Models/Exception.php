@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Config;
 use Phiki\Grammar\Grammar;
 use PHPinnacle\Casus\Enums\ExceptionStatus;
 use PHPinnacle\Casus\Enums\HttpMethod;
@@ -31,7 +32,7 @@ use Throwable;
  * @property string|null $path
  * @property array<array-key, mixed>|null $query
  * @property array<array-key, mixed>|null $cookies
- * @property array<array-key, mixed>|null $headers
+ * @property array<string, list<string>|string>|null $headers
  * @property string|null $body
  * @property string|null $ip
  * @property ExceptionStatus $status
@@ -96,6 +97,10 @@ class Exception extends Model
             default => [],
         };
 
+        if (is_string($headers)) {
+            return null;
+        }
+
         foreach ($headers as $header) {
             if (array_key_exists($header, self::GRAMMAR)) {
                 return self::GRAMMAR[$header];
@@ -110,13 +115,17 @@ class Exception extends Model
      */
     public function prunable(): Builder
     {
-        $days = config('phpinnacle-casus.prune', 30);
+        $days = Config::integer('phpinnacle-casus.prune', 30);
 
         return static::query()->where('occurred_at', '<=', now()->subDays($days));
     }
 
     public function getConnectionName(): ?string
     {
-        return config('phpinnacle-casus.connection', parent::getConnectionName());
+        $default = parent::getConnectionName();
+
+        return config('phpinnacle-casus.connection', $default) === null
+            ? null
+            : Config::string('phpinnacle-casus.connection', $default);
     }
 }

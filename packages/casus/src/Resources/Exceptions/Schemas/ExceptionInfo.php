@@ -97,14 +97,14 @@ class ExceptionInfo
                             ->label(__('phpinnacle-casus::resources.exception.sections.headers'))
                             ->keyLabel(__('phpinnacle-casus::resources.exception.fields.header_key'))
                             ->valueLabel(__('phpinnacle-casus::resources.exception.fields.header_value'))
-                            ->state(fn ($record) => app(SensitiveValuePresenter::class)->present(
+                            ->state(fn (Exception $record) => app(SensitiveValuePresenter::class)->present(
                                 $record->headers ?? [],
                             )),
                         KeyValueEntry::make('cookies')
                             ->label(__('phpinnacle-casus::resources.exception.sections.cookies'))
                             ->keyLabel(__('phpinnacle-casus::resources.exception.fields.cookie_key'))
                             ->valueLabel(__('phpinnacle-casus::resources.exception.fields.cookie_value'))
-                            ->state(fn ($record) => app(SensitiveValuePresenter::class)->present(
+                            ->state(fn (Exception $record) => app(SensitiveValuePresenter::class)->present(
                                 $record->cookies ?? [],
                             )),
                     ]),
