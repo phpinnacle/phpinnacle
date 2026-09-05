@@ -10,6 +10,7 @@
 }
 
 .phpinnacle-icon-picker .fi-dropdown-panel > .fi-dropdown-list > .fi-select-input-option {
+    position: relative;
     min-height: 2.5rem;
     justify-content: center;
     padding: 0.5rem;
@@ -19,6 +20,30 @@
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.phpinnacle-icon-picker-favorite {
+    position: absolute;
+    top: 0.125rem;
+    right: 0.125rem;
+    padding: 0.125rem;
+    border: 0;
+    background: transparent;
+    color: currentColor;
+    font-size: 0.75rem;
+    line-height: 1;
+    opacity: 0;
+}
+
+.fi-select-input-option:hover > .phpinnacle-icon-picker-favorite,
+.fi-select-input-option:focus-within > .phpinnacle-icon-picker-favorite,
+.phpinnacle-icon-picker-favorite.is-favorite {
+    opacity: 0.7;
+}
+
+.phpinnacle-icon-picker-favorite:hover,
+.phpinnacle-icon-picker-favorite:focus-visible {
+    opacity: 1;
 }
 
 .phpinnacle-icon-picker-load-more {

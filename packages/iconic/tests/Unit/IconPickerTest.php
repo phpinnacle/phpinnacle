@@ -54,6 +54,75 @@ it('renders an icon label through the package view', function () {
     expect(IconPicker::getIconLabel('phosphor-money'))->toContain('<svg');
 });
 
+it('discovers plain icon names before rendering a page', function () {
+    $picker = new class('icon') extends IconPicker {
+        /** @return list<string> */
+        public function discoveredIcons(): array
+        {
+            return $this->getIcons();
+        }
+    };
+
+    $icons = $picker->discoveredIcons();
+
+    expect($icons)
+        ->toContain('phosphor-money')
+        ->and(collect($icons)->contains(fn (string $icon) => str_contains($icon, '<svg')))
+        ->toBeFalse();
+});
+
+it('discovers configured icon sets independently', function () {
+    $phosphorIcons = IconPicker::make('icon')->getSearchResults('phosphor-money');
+    $heroIcons = IconPicker::make('icon')
+        ->iconSets(['heroicons'])
+        ->getSearchResults('heroicon-o-heart');
+
+    expect($phosphorIcons)
+        ->toHaveKey('phosphor-money')
+        ->and($heroIcons)
+        ->toHaveKey('heroicon-o-heart')
+        ->not->toHaveKey('phosphor-money');
+});
+
+it('discovers configured Phosphor weights', function () {
+    $icons = IconPicker::make('icon')
+        ->weights(fn () => ['bold'])
+        ->allowIcons(['phosphor-heart', 'phosphor-heart-bold'])
+        ->getSearchResults('heart');
+
+    expect($icons)
+        ->toHaveKey('phosphor-heart-bold')
+        ->not->toHaveKey('phosphor-heart');
+});
+
+it('restricts available icons', function () {
+    $icons = IconPicker::make('icon')
+        ->allowIcons(fn () => ['phosphor-heart', 'phosphor-money'])
+        ->excludeIcons(['phosphor-heart'])
+        ->getSearchResults('phosphor');
+
+    expect($icons)
+        ->toHaveKey('phosphor-money')
+        ->not->toHaveKey('phosphor-heart');
+});
+
+it('allows an application to disable every icon', function () {
+    expect(IconPicker::make('icon')->allowIcons([])->getSearchResults('phosphor'))->toBe([]);
+});
+
+it('loads preferred icons first', function () {
+    $page = IconPicker::make('icon')
+        ->columns(2)
+        ->rows(1)
+        ->allowIcons(['phosphor-airplane', 'phosphor-heart', 'phosphor-money'])
+        ->getIconPageForJs('', 0, ['phosphor-money']);
+
+    expect($page['options'])
+        ->toHaveCount(2)
+        ->and($page['options'][0]['value'])
+        ->toBe('phosphor-money');
+});
+
 it('configures icon grid columns', function () {
     $picker = IconPicker::make('icon');
 
@@ -97,6 +166,7 @@ it('renders the paginated icon loader without embedding icon options', function 
         ->toBe([])
         ->and($html)
         ->toContain('phpinnacleIconPicker.mount')
+        ->toContain('Add to favorites')
         ->toContain('--phpinnacle-icon-picker-max-height: 9rem');
 });
 
