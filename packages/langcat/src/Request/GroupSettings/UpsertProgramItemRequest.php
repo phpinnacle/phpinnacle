@@ -35,7 +35,7 @@ final class UpsertProgramItemRequest
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        if (!isset($this->data['elements'])) {
+        if (($this->data['elements'] ?? null) === null) {
             throw new LogicException('At least one program item element is required.');
         }
 

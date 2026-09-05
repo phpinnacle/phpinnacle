@@ -25,9 +25,9 @@ class RussianFormatter implements Formatter
     private function getCurrencyName(string $currency, int $type, int $amount): string
     {
         // Проверяем наличие в словаре
-        if (isset(RussianDictionary::$currencyNames[$currency][$type])) {
-            $forms = RussianDictionary::$currencyNames[$currency][$type];
+        $forms = RussianDictionary::$currencyNames[$currency][$type] ?? null;
 
+        if ($forms !== null) {
             return RussianDictionary::pluralize($amount, $forms);
         }
 

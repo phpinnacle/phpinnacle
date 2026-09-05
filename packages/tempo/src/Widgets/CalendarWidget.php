@@ -91,7 +91,7 @@ abstract class CalendarWidget extends Widget implements HasActions, HasSchemas
         $events = [];
 
         foreach ($eventSources as $eventSourceKey => $eventSource) {
-            if ($selectedEventSources !== null && !isset($selectedEventSources[$eventSourceKey])) {
+            if ($selectedEventSources !== null && !array_key_exists($eventSourceKey, $selectedEventSources)) {
                 continue;
             }
 

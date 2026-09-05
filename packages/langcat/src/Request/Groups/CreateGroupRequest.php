@@ -42,8 +42,8 @@ final class CreateGroupRequest
 
         if (
             in_array($this->data['billingModel'], [BillingModel::Hour->value, BillingModel::HourInAdvance->value], true)
-            && (!isset($this->data['billingCalculationBase'])
-            || !isset($this->data['billingUnitPrice']))
+            && (($this->data['billingCalculationBase'] ?? null) === null
+            || ($this->data['billingUnitPrice'] ?? null) === null)
         ) {
             throw new LogicException('Hourly billing requires a calculation base and unit price.');
         }

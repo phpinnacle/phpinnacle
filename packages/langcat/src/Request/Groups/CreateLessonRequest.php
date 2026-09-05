@@ -85,7 +85,7 @@ final class CreateLessonRequest
 
         if (
             ($this->data['onlineLessonProvider'] ?? null) === OnlineLessonProvider::MeetingLink->value
-            && !isset($this->data['onlineLessonProviderUrl'])
+            && ($this->data['onlineLessonProviderUrl'] ?? null) === null
         ) {
             throw new LogicException('MeetingLink lessons require an online URL.');
         }

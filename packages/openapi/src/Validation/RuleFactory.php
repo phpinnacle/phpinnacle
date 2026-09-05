@@ -76,7 +76,7 @@ class RuleFactory
             $rules[] = 'array';
         }
 
-        if (isset($property->x['validation'])) {
+        if (($property->x['validation'] ?? null) !== null) {
             $rules = array_values(array_merge($rules, Arr::wrap($property->x['validation'])));
         }
 

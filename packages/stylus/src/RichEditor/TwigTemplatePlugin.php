@@ -1174,7 +1174,11 @@ class TwigTemplatePlugin implements RichContentPlugin
                 $options = $scope->getIterableOptions();
                 $currentIterable = $arguments['iterable'] ?? null;
 
-                if (is_string($currentIterable) && filled($currentIterable) && !isset($options[$currentIterable])) {
+                if (
+                    is_string($currentIterable)
+                    && filled($currentIterable)
+                    && !array_key_exists($currentIterable, $options)
+                ) {
                     $options[$currentIterable] = $currentIterable;
                 }
 

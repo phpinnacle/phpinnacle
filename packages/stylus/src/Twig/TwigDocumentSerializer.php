@@ -276,8 +276,8 @@ class TwigDocumentSerializer
     private function serializeFor(array $node): string
     {
         $content = $this->requireList($node['content'] ?? []);
-        $firstChild = isset($content[0]) ? $this->requireNode($content[0]) : null;
-        $elseBranch = isset($content[1]) ? $this->requireNode($content[1]) : null;
+        $firstChild = array_key_exists(0, $content) ? $this->requireNode($content[0]) : null;
+        $elseBranch = array_key_exists(1, $content) ? $this->requireNode($content[1]) : null;
 
         if (
             ($firstChild['type'] ?? null) !== 'twigForBody'
@@ -315,8 +315,8 @@ class TwigDocumentSerializer
     {
         $condition = $this->requireExpression($node['attrs']['condition'] ?? null, 'Twig if condition');
         $branches = $this->requireList($node['content'] ?? []);
-        $thenBranch = isset($branches[0]) ? $this->requireNode($branches[0]) : null;
-        $elseBranch = isset($branches[1]) ? $this->requireNode($branches[1]) : null;
+        $thenBranch = array_key_exists(0, $branches) ? $this->requireNode($branches[0]) : null;
+        $elseBranch = array_key_exists(1, $branches) ? $this->requireNode($branches[1]) : null;
 
         if (
             count($branches) < 1
@@ -368,7 +368,7 @@ class TwigDocumentSerializer
                 throw new InvalidArgumentException('Twig inline condition must start with an if branch.');
             }
 
-            if (isset($completedConditionIds[$conditionId])) {
+            if (array_key_exists($conditionId, $completedConditionIds)) {
                 throw new InvalidArgumentException('Twig inline condition branches must be contiguous.');
             }
 
@@ -591,7 +591,7 @@ class TwigDocumentSerializer
 
             $loopId = $this->requireExpression($attributes['twigLoopId'] ?? null, 'Twig table cell loop ID');
 
-            if (isset($completedLoopIds[$loopId])) {
+            if (array_key_exists($loopId, $completedLoopIds)) {
                 throw new InvalidArgumentException('Twig table cell loop groups must be contiguous within a row.');
             }
 
@@ -666,7 +666,7 @@ class TwigDocumentSerializer
                 'Twig table row condition ID',
             );
 
-            if (isset($completedConditionIds[$conditionId])) {
+            if (array_key_exists($conditionId, $completedConditionIds)) {
                 throw new InvalidArgumentException(
                     'Twig table row condition groups must be contiguous within a table.',
                 );

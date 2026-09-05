@@ -52,7 +52,7 @@ class SettingsStorage
     public function register(string ...$sections): void
     {
         foreach ($sections as $section) {
-            if (isset($this->schema[$section])) {
+            if (array_key_exists($section, $this->schema)) {
                 continue;
             }
 
@@ -118,7 +118,7 @@ class SettingsStorage
     {
         $tenant = Filament::hasTenancy() ? Filament::getTenant()->getKey() : self::TENANT;
 
-        if (!isset($this->settings[$tenant][$section])) {
+        if (($this->settings[$tenant][$section] ?? null) === null) {
             $this->init();
         }
 

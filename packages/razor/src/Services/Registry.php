@@ -33,6 +33,6 @@ class Registry
 
     public function has(string $key): bool
     {
-        return isset($this->sections[$key]);
+        return array_key_exists($key, $this->sections);
     }
 }

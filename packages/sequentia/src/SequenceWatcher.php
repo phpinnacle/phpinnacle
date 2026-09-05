@@ -123,7 +123,7 @@ final class SequenceWatcher
 
     private static function watch(string $scope): void
     {
-        if (isset(self::$watched[$scope]) || !is_subclass_of($scope, Model::class)) {
+        if (array_key_exists($scope, self::$watched) || !is_subclass_of($scope, Model::class)) {
             return;
         }
 

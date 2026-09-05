@@ -92,7 +92,7 @@ class Exception extends Model
         };
 
         foreach ($headers as $header) {
-            if (isset(self::GRAMMAR[$header])) {
+            if (array_key_exists($header, self::GRAMMAR)) {
                 return self::GRAMMAR[$header];
             }
         }

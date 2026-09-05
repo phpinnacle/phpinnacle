@@ -41,11 +41,11 @@ class MoneyParser
             return new Money(0, $currency);
         }
 
-        if (!preg_match(self::DECIMAL_PATTERN, $decimal, $matches) || !isset($matches['digits'])) {
+        if (!preg_match(self::DECIMAL_PATTERN, $decimal, $matches) || !array_key_exists('digits', $matches)) {
             throw new InvalidArgumentException(sprintf('Cannot parse "%s" to Money.', $decimal));
         }
 
-        $negative = isset($matches['sign']) && $matches['sign'] === '-';
+        $negative = ($matches['sign'] ?? null) === '-';
         $decimal = $matches['digits'];
 
         if ($negative) {
@@ -54,10 +54,12 @@ class MoneyParser
 
         $subunit = Currencies::subunit($currency);
 
-        if (isset($matches['fraction'])) {
-            $fractionDigits = strlen($matches['fraction']);
+        $fraction = $matches['fraction'] ?? null;
 
-            $decimal .= $matches['fraction'];
+        if ($fraction !== null) {
+            $fractionDigits = strlen($fraction);
+
+            $decimal .= $fraction;
             $decimal = self::roundMoneyValue($decimal, $subunit, $fractionDigits);
 
             if ($fractionDigits > $subunit) {

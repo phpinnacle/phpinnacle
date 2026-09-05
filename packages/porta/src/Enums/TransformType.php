@@ -268,9 +268,9 @@ enum TransformType: string
                 continue;
             }
 
-            if (isset($map[(string) $value])) {
+            if (($map[(string) $value] ?? null) !== null) {
                 $value = $map[$value];
-            } elseif (isset($map['*'])) {
+            } elseif (($map['*'] ?? null) !== null) {
                 $value = $map['*'];
             }
 
