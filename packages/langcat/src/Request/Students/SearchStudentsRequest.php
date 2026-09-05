@@ -8,30 +8,37 @@ use PHPinnacle\Langcat\Enum\StudentType;
 
 final class SearchStudentsRequest
 {
-    private ?int $page = null;
-
-    private ?int $perPage = null;
-
-    private ?string $sortBy = null;
-
-    private ?bool $archived = null;
-
-    private ?StudentType $type = null;
+    /**
+     * @var array{
+     *     page: ?int,
+     *     perPage: ?int,
+     *     sortBy: ?string,
+     *     isArchived: ?int,
+     *     type: ?string,
+     *     schoolId: ?int,
+     *     createdAt: ?string,
+     *     createdAt_gt: ?string,
+     *     createdAt_ge: ?string,
+     *     createdAt_lt: ?string,
+     *     createdAt_le: ?string,
+     * }
+     */
+    private array $query = [
+        'page' => null,
+        'perPage' => null,
+        'sortBy' => null,
+        'isArchived' => null,
+        'type' => null,
+        'schoolId' => null,
+        'createdAt' => null,
+        'createdAt_gt' => null,
+        'createdAt_ge' => null,
+        'createdAt_lt' => null,
+        'createdAt_le' => null,
+    ];
 
     /** @var list<string> */
     private array $expansions = [];
-
-    private ?int $schoolId = null;
-
-    private ?string $createdAt = null;
-
-    private ?string $createdAfter = null;
-
-    private ?string $createdOnOrAfter = null;
-
-    private ?string $createdBefore = null;
-
-    private ?string $createdOnOrBefore = null;
 
     public static function make(): self
     {
@@ -40,42 +47,42 @@ final class SearchStudentsRequest
 
     public function archived(bool $archived = true): self
     {
-        $this->archived = $archived;
+        $this->query['isArchived'] = (int) $archived;
 
         return $this;
     }
 
     public function createdAfter(string $createdAfter): self
     {
-        $this->createdAfter = $this->date($createdAfter);
+        $this->query['createdAt_gt'] = $this->date($createdAfter);
 
         return $this;
     }
 
     public function createdAt(string $createdAt): self
     {
-        $this->createdAt = $this->date($createdAt);
+        $this->query['createdAt'] = $this->date($createdAt);
 
         return $this;
     }
 
     public function createdBefore(string $createdBefore): self
     {
-        $this->createdBefore = $this->date($createdBefore);
+        $this->query['createdAt_lt'] = $this->date($createdBefore);
 
         return $this;
     }
 
     public function createdOnOrAfter(string $createdOnOrAfter): self
     {
-        $this->createdOnOrAfter = $this->date($createdOnOrAfter);
+        $this->query['createdAt_ge'] = $this->date($createdOnOrAfter);
 
         return $this;
     }
 
     public function createdOnOrBefore(string $createdOnOrBefore): self
     {
-        $this->createdOnOrBefore = $this->date($createdOnOrBefore);
+        $this->query['createdAt_le'] = $this->date($createdOnOrBefore);
 
         return $this;
     }
@@ -99,7 +106,7 @@ final class SearchStudentsRequest
             throw new InvalidArgumentException('Page must be at least 1.');
         }
 
-        $this->page = $page;
+        $this->query['page'] = $page;
 
         return $this;
     }
@@ -110,7 +117,7 @@ final class SearchStudentsRequest
             throw new InvalidArgumentException('Items per page must be between 1 and 100.');
         }
 
-        $this->perPage = $perPage;
+        $this->query['perPage'] = $perPage;
 
         return $this;
     }
@@ -121,7 +128,7 @@ final class SearchStudentsRequest
             throw new InvalidArgumentException('School ID must be positive.');
         }
 
-        $this->schoolId = $schoolId;
+        $this->query['schoolId'] = $schoolId;
 
         return $this;
     }
@@ -134,7 +141,7 @@ final class SearchStudentsRequest
             throw new InvalidArgumentException('Unsupported student sort.');
         }
 
-        $this->sortBy = $sortBy;
+        $this->query['sortBy'] = $sortBy;
 
         return $this;
     }
@@ -143,19 +150,7 @@ final class SearchStudentsRequest
     public function toQuery(): array
     {
         $query = array_filter(
-            [
-                'page' => $this->page,
-                'perPage' => $this->perPage,
-                'sortBy' => $this->sortBy,
-                'isArchived' => $this->archived === null ? null : (int) $this->archived,
-                'type' => $this->type?->value,
-                'schoolId' => $this->schoolId,
-                'createdAt' => $this->createdAt,
-                'createdAt_gt' => $this->createdAfter,
-                'createdAt_ge' => $this->createdOnOrAfter,
-                'createdAt_lt' => $this->createdBefore,
-                'createdAt_le' => $this->createdOnOrBefore,
-            ],
+            $this->query,
             static fn (mixed $value) => $value !== null,
         );
 
@@ -168,7 +163,7 @@ final class SearchStudentsRequest
 
     public function type(StudentType $type): self
     {
-        $this->type = $type;
+        $this->query['type'] = $type->value;
 
         return $this;
     }

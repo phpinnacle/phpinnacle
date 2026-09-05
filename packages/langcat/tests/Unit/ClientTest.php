@@ -200,7 +200,7 @@ final class ClientTest extends TestCase
         self::assertSame('Bearer access-token', $http->lastRequest->getHeaderLine('Authorization'));
     }
 
-    public function test_it_searches_students_and_hydrates_expansions(): void
+    public function test_it_searches_students_with_filters_and_hydrates_expansions(): void
     {
         $http = new RecordingHttpClient(new Response(200, [], json_encode([
             'data' => [[
@@ -234,9 +234,18 @@ final class ClientTest extends TestCase
             ->students()
             ->search(
                 SearchStudentsRequest::make()
+                    ->page(2)
+                    ->perPage(10)
+                    ->sortBy('-id')
+                    ->archived(false)
                     ->type(StudentType::Lead)
+                    ->schoolId(3)
                     ->expand('student.basic', 'parents.basic')
-                    ->createdOnOrAfter('2026-01-01'),
+                    ->createdAt('2026-01-15')
+                    ->createdAfter('2026-01-01')
+                    ->createdOnOrAfter('2026-01-02')
+                    ->createdBefore('2026-02-01')
+                    ->createdOnOrBefore('2026-01-31'),
             );
 
         self::assertSame('Ada', $response->data[0]->basic?->name);
@@ -244,7 +253,7 @@ final class ClientTest extends TestCase
         self::assertSame('Ann', $response->data[0]->parents[0]->basic?->name);
         self::assertNotNull($http->lastRequest);
         self::assertSame(
-            'type=lead&createdAt_ge=2026-01-01&expand%5B0%5D=student.basic&expand%5B1%5D=parents.basic',
+            'page=2&perPage=10&sortBy=-id&isArchived=0&type=lead&schoolId=3&createdAt=2026-01-15&createdAt_gt=2026-01-01&createdAt_ge=2026-01-02&createdAt_lt=2026-02-01&createdAt_le=2026-01-31&expand%5B0%5D=student.basic&expand%5B1%5D=parents.basic',
             $http->lastRequest->getUri()->getQuery(),
         );
     }

@@ -22,6 +22,7 @@ use Spatie\Activitylog\Models\Activity;
 use TypeError;
 use ValueError;
 
+/** @mago-expect lint:too-many-properties */
 class Timeline
 {
     private ?string $label = null;
