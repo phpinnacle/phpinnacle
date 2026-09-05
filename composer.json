@@ -64,7 +64,7 @@
     "scripts": {
         "lint": [
             "mago format --check",
-            "mago lint --minimum-fail-level warning"
+            "mago lint"
         ],
         "format": "mago format",
         "test": "pest $(find packages -mindepth 2 -maxdepth 2 -type d -name tests ! -path packages/skeleton/tests)"
