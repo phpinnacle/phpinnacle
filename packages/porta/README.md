@@ -69,7 +69,7 @@ Create an integration in Filament, select a registered handler, and configure it
 POST /webhook/{integration-id}
 ```
 
-Porta stores the raw body and request headers, then dispatches `ProcessWebhook`. Run the application's queue worker so scheduled webhooks can reach their handlers:
+Porta stores the raw body and request headers, then dispatches `ProcessWebhook` after the surrounding database transaction commits. Rolled-back creation does not dispatch a job; retries follow the same commit boundary. Run the application's queue worker so scheduled webhooks can reach their handlers:
 
 ```bash
 php artisan queue:work

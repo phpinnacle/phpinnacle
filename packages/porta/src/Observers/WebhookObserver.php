@@ -9,6 +9,6 @@ class WebhookObserver
 {
     public function created(Webhook $webhook): void
     {
-        ProcessWebhook::dispatch($webhook);
+        ProcessWebhook::dispatch($webhook)->afterCommit();
     }
 }

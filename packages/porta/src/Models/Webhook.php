@@ -92,11 +92,11 @@ class Webhook extends Model
     public function fail(?Throwable $error): void
     {
         $info = [
-            'message' => $error->getMessage(),
+            'message' => $error?->getMessage() ?? 'Webhook processing failed without exception details.',
             'errors' => $error instanceof ValidationException ? $error->errors() : new stdClass,
-            'type' => get_class($error),
-            'file' => $error->getFile(),
-            'line' => $error->getLine(),
+            'type' => $error !== null ? $error::class : null,
+            'file' => $error?->getFile(),
+            'line' => $error?->getLine(),
         ];
 
         $this->status = WebhookStatus::Failed;

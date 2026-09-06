@@ -6,15 +6,11 @@ Reviewed against the working tree on 2026-09-05. Preserve transform order, webho
 
 MOVE/CAST previews now pass configuration as data to static Blade components, and DATE formats are HTML-escaped. The public `preview(array): string` contract and normal badges and labels are preserved. `TransformConfigurationTest` covers literal HTML and Blade syntax alongside ordinary previews.
 
-## 2. Priority: high — specify queue failure and dispatch lifecycle
+## 2. Completed — specify queue failure and dispatch lifecycle
 
-`ProcessWebhook::failed(?Throwable)` forwards a nullable exception to `Webhook::fail()`, which immediately dereferences it. Narrowing only the model signature leaves the queue callback unresolved. Also, retry dispatch uses `afterCommit()`, while `WebhookObserver::created()` dispatches immediately.
+Initial dispatch and retry both wait for the outer transaction to commit. Rolled-back creation or retry does not run a handler. A nullable queue failure persists failed status, a timestamp, and an explicit missing-details message with null exception metadata. Existing exception and validation details are retained.
 
-- Define meaningful failure metadata for the nullable queue callback without inventing an exception or silently returning success. Keep the framework callback signature.
-- Verify creation inside a transaction, rollback, successful processing, handler/transform failure, and retry dispatch. If initial dispatch can precede commit, fix it as a queue correctness change.
-- Retain `complete()`, `progress()`, `fail()`, and `retry()` as model transitions. Their error-clearing and timestamp rules differ; a generic transition method is unnecessary unless it preserves those distinctions clearly.
-
-Acceptance: failed jobs persist useful failed state, rolled-back creation is not processed, retries dispatch once after commit, and unexpected transactional exceptions propagate.
+`WebhookLifecycleTest` exercises actual synchronous queue dispatch through commit/rollback, ordered transformation, completion cleanup, handler/payload failures, nullable failure callbacks, and retry dispatch exactly once.
 
 ## 3. Priority: medium — share only equivalent JSONPath mutation mechanics
 
