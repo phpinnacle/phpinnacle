@@ -49,7 +49,7 @@ final class StoreOrderRules
 }
 ```
 
-The second argument supplies extra Laravel rules keyed by attribute. Use the optional third `prefix` argument when the schema belongs below a nested request key.
+The second argument supplies extra Laravel rules keyed by attribute. These rules precede inferred rules on the same key and are preserved across nested properties and `allOf` branches. Use the optional third `prefix` argument when the schema belongs below a nested request key; extra rules must use the full prefixed attribute name.
 
 ```php
 $rules = $factory->make($schema, [], 'payload');

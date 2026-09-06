@@ -18,7 +18,7 @@ class RuleFactory
      */
     public function make(OA\Schema $schema, array $rules, string $prefix = ''): array
     {
-        $rules = $this->walkProperties($schema, $rules, $prefix);
+        $rules = $this->merge($rules, $this->walkProperties($schema, [], $prefix));
 
         if (!Undefined::isDefault($schema->oneOf)) {
             if ($prefix === '' || $schema->type !== 'object') {
@@ -32,7 +32,7 @@ class RuleFactory
 
         if (!Undefined::isDefault($schema->allOf)) {
             foreach ($schema->allOf as $item) {
-                $rules = $this->merge($rules, $this->make($item, $rules, $prefix));
+                $rules = $this->merge($rules, $this->make($item, [], $prefix));
             }
         }
 
@@ -99,7 +99,7 @@ class RuleFactory
             $rules[$key] = $this->fieldRules($property);
 
             if (!Undefined::isDefault($property->properties)) {
-                $rules = $this->make($property, $rules, $key);
+                $rules = $this->merge($rules, $this->make($property, [], $key));
             }
         }
 

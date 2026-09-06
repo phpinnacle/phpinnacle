@@ -2,15 +2,9 @@
 
 Reviewed against the working tree on 2026-09-05. Keep `RuleFactory::make()` and its documented subset of schema translation; do not expand this into a general OpenAPI validator.
 
-## 1. Priority: high — preserve caller-supplied rules during property traversal
+## 1. Completed — preserve caller-supplied rules during property traversal
 
-The README promises that the second argument adds application rules, but `walkProperties()` assigns `$rules[$key] = $this->fieldRules($property)`, replacing extras on the same key. `allOf` also passes the entire accumulator recursively and merges it back. Current tests omit caller-rule collisions and `allOf` composition.
-
-- First reproduce the README's email example with a caller-supplied rule and a nested prefixed equivalent.
-- Generate schema rules independently, then combine caller rules and composition branches deliberately. Keep every application rule and the established rule order/deduplication semantics, including rule objects and closures.
-- Test nested properties, overlapping/disjoint `allOf` branches, and interaction with prefixed `oneOf`.
-
-Acceptance: schema translation cannot discard application validation, and rules from an unrelated branch are not repeatedly reprocessed. This is a correctness fix as well as an accumulator simplification.
+Property rules and composition branches are generated independently, then merged with application rules. Existing ordering and deduplication are preserved. Regression tests cover root and prefixed extras, rule objects and closures, nested properties, overlapping/disjoint `allOf` branches, and prefixed `oneOf` validation.
 
 ## 2. Priority: low — extract oneOf only if its behavior grows
 
