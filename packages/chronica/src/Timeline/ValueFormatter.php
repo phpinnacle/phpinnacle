@@ -9,6 +9,7 @@ use Filament\Support\Contracts\HasIcon;
 use Filament\Support\Contracts\HasLabel;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Models\Activity;
 use TypeError;
 use ValueError;
@@ -76,7 +77,7 @@ class ValueFormatter
 
     private function castValue(Activity $activity, string $name, mixed $value): mixed
     {
-        $class = $activity->subject_type;
+        $class = Model::getActualClassNameForMorph($activity->subject_type);
         $model = $activity->subject !== null ? clone $activity->subject : new $class;
         $model->setRawAttributes([$name => $value]);
 

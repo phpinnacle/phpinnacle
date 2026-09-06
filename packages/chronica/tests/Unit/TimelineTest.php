@@ -10,6 +10,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Casts\Attribute as EloquentAttribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\Relation as EloquentRelation;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
@@ -303,6 +304,47 @@ it('renders labels, icons, and colors from Filament contracts', function () {
         ->toContain(Str::between(generate_icon_html('heroicon-o-clock')->toHtml(), '>', '</svg>'))
         ->toContain('fi-color-warning');
 });
+
+it('casts deleted subjects through the registered morph map', function (bool $alias) {
+    $morphMap = EloquentRelation::morphMap();
+
+    try {
+        if ($alias) {
+            EloquentRelation::morphMap(['timeline_subject' => PresentableTimelineFixture::class]);
+        }
+
+        $record = new PresentableTimelineFixture;
+        $record->id = 'deleted-subject';
+        $record->save();
+
+        $activity = Activity::query()->create([
+            'log_name' => PresentableTimelineFixture::class,
+            'description' => 'created',
+            'event' => 'created',
+            'subject_type' => $record->getMorphClass(),
+            'subject_id' => $record->getKey(),
+            'attribute_changes' => ['attributes' => ['status' => TimelineState::Reviewing->value]],
+        ]);
+        $record->delete();
+
+        expect($activity->fresh()->subject)->toBeNull();
+
+        $timeline = Timeline::make(PresentableTimelineFixture::class);
+        $html = $timeline->render($record)->render();
+        $formatted = $timeline
+            ->attribute('status', fn (TimelineState $value) => 'Historical: ' . $value->getLabel())
+            ->render($record)
+            ->render();
+
+        expect($html)
+            ->toContain('Awaiting review')
+            ->toContain('fi-color-warning')
+            ->and($formatted)
+            ->toContain('Historical: Awaiting review');
+    } finally {
+        EloquentRelation::morphMap($morphMap, merge: false);
+    }
+})->with(['class name' => false, 'morph alias' => true]);
 
 it('reverts an authorized update and records the reversal', function () {
     config()->set('activitylog.activity_model', Activity::class);

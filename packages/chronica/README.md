@@ -82,6 +82,8 @@ Values cast to objects implementing Filament's `HasLabel`, `HasIcon` or `HasColo
 
 Historical values are formatted on a copy of the subject model. Related-record titles and authorization checks use the unchanged current record.
 
+For deleted subjects, historical casts use a detached model resolved through Eloquent's registered morph map. Both model class names and morph aliases remain supported in history records, including custom formatting callbacks.
+
 Calling `date()`, `datetime()` or `time()` without a format uses the corresponding Filament display format. Pass a PHP date format string to override it.
 
 ## Testing

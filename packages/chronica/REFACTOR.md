@@ -2,21 +2,13 @@
 
 Reviewed against the working tree on 2026-09-05. Preserve the timeline payload, formatting callbacks, configured activity model, and authorization of reversals.
 
-## 1. Priority: high — make historical casting independent of the live subject
+## 1. Completed — make historical casting independent of the live subject
 
-`Timeline::castValue()` calls `setRawAttributes()` on the loaded activity subject. Presentation then uses that same subject for relation titles and `Gate::allows()`. When the subject is deleted, the fallback instantiates `subject_type` directly, which may be a morph alias.
+Historical casting now uses a copy of the live subject or a detached model resolved through Eloquent's morph map. Timeline tests cover unchanged relation titles and authorization state, allowed/denied reversals, unrelated history, and deleted subjects stored as class names or morph aliases. Deleted-subject coverage includes enum presentation and typed formatting callbacks.
 
-- Reproduce rendering with a relation title and an authorization policy that read attributes other than the value being formatted. Verify that rendering does not replace the loaded subject's attributes.
-- Add deleted-subject coverage with a registered morph map. Resolve the model class through Eloquent's morph contract and cast historical values on a detached model.
-- Treat changed titles, authorization outcomes, and morph-alias handling as correctness fixes before any presenter extraction. Do not add repair logic for malformed package-owned history.
+## 2. Completed — isolate cohesive value presentation
 
-Acceptance: historical values retain their casts, the live subject remains intact, and both allowed and denied reversals still use the correct subject. Extend `tests/Unit/TimelineTest.php`, including an unrelated activity ID and a deleted subject.
-
-## 2. Priority: medium — isolate cohesive value presentation
-
-After the casting fix, consider extracting the casting and value-payload pipeline (`castValue()`, `presentableValue()`, `formatValue()`) into an internal presenter. Pass only the formatting settings it needs; keep timeline composition and revert orchestration in `Timeline`.
-
-Acceptance: existing scalar/JSON output, custom callbacks, enum metadata, null/boolean icons, excluded attributes, and empty-value behavior remain unchanged. Avoid a second mutable copy of all timeline configuration.
+`Timeline\ValueFormatter` owns historical casts and value presentation. Timeline composition and revert orchestration remain in `Timeline`; existing formatting and visibility tests preserve the payload contract.
 
 ## Updated assessment
 
