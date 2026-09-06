@@ -1,4 +1,5 @@
 .DS_Store
+.air
 .idea/
 .phpunit.cache/
 .phpunit.result.cache
