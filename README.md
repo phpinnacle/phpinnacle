@@ -102,7 +102,7 @@ composer config prefer-stable true
 composer require phpinnacle/atlas:1.x-dev
 ```
 
-Stable snapshots are published from `master` with the manual `Release` workflow. Enter one semantic version without a `v` prefix; the workflow tags every publishable package mirror at the same version and redeploys the proprietary Satis repository.
+Stable snapshots are published from `master` with the manual `Release` workflow. Enter one semantic version without a `v` prefix and optionally a package name. When no package is selected, the workflow tags every publishable package mirror at the same version. It then redeploys the proprietary Satis repository.
 
 Configure the shared repository credentials outside `composer.json`:
 
