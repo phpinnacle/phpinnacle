@@ -2,15 +2,9 @@
 
 Reviewed against the working tree on 2026-09-05. Preserve integer minor units, public comparison APIs, and the existing cross-currency zero exception.
 
-## 1. Priority: high — resolve MoneyInput/MoneyRule contract mismatches
+## 1. Completed — resolve MoneyInput/MoneyRule contract mismatches
 
-`MoneyInput::greater()` installs `lt/lte`, while `lesser()` installs `gt/gte`. The field accepts `Money|string|int` bounds, but `MoneyRule` factories take only a string and interpret it as another field name. This needs an end-to-end validation check, not a rename. The bound properties are protected, and their getters are public, contrary to the old plan's description of private state.
-
-- Reproduce strict/inclusive bounds with literal integers, Money objects, referenced fields, and closures. Include `required()` because it delegates to `greater(0, strict: true)`.
-- Specify the intended distinction between a literal bound and a field reference before implementation. Fix confirmed inversions and unsupported bound paths as behavior changes, preserving published signatures and subclass access unless a separate API change is agreed.
-- Exercise `MoneyRule::validate()` with malformed user values; validation should report translated failures at the Laravel boundary instead of leaking parser/type errors. Do not repeat those checks on trusted Money objects.
-
-Acceptance: actual form validation accepts values within bounds, rejects values outside them, and handles nullable/required state as documented. Extend `tests/MoneyIntegrationTest.php`; component construction alone is insufficient.
+`greater()` now installs minimum comparisons and `lesser()` maximum comparisons. Rule factories preserve integer and Money bounds; strings remain field references. Conditional `required()` enforces positivity without replacing explicit bounds. Malformed input is rejected with translated Laravel validation errors, while Money objects retain their domain contracts. The README documents bound and nullable semantics; form-submission regression tests cover literal, referenced, and closure bounds, equality, and conditional required state.
 
 ## 2. Priority: medium — characterize decimal rounding before reorganizing it
 

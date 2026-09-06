@@ -3,6 +3,7 @@
 return [
     'currency_code' => 'Pole :attribute musi zawierać prawidłowy kod waluty ISO 4217.',
     'money' => [
+        'invalid' => 'Pole :attribute musi zawierać prawidłową kwotę w zgodnej walucie.',
         'eq' => 'Pole :attribute musi być równe wartości porównawczej.',
         'neq' => 'Pole :attribute nie może być równe wartości porównawczej.',
         'lt' => 'Pole :attribute musi być mniejsze od wartości porównawczej.',

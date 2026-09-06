@@ -72,6 +72,10 @@ MoneyColumn::make('price');
 
 `MoneyInput` dehydrates to a `Money` instance, and `MoneyColumn` formats one using its currency and subunit. Livewire can bind nested `amount` and `currency` properties through the registered synthesizer.
 
+Use `greater($minimum)` and `lesser($maximum)` for inclusive bounds, or pass `strict: true` to exclude the boundary. Both methods, along with `equal()` and `notEqual()`, accept integer minor units, a `Money` value, a full validation attribute path referencing another field, or a closure returning one of these values. For example, `->greater(100)->lesser(1000)` accepts amounts from 1.00 to 10.00 USD.
+
+`required()` requires a positive amount; `required(false)` or a condition returning `false` disables that requirement. Explicit comparison bounds still apply. `nullable()` dehydrates zero to `null` when the other validation rules permit zero.
+
 ## Validation
 
 ```php
@@ -84,6 +88,8 @@ return [
     'amount' => [MoneyRule::lte('maximum')],
 ];
 ```
+
+`MoneyRule` accepts the same literal bounds and field references as `MoneyInput`. Strings always name another validation attribute; use a `Money` instance for a decimal literal. The validated value must be a `Money` instance or an array containing `amount` and `currency`. Referenced scalar amounts use the validated value's currency. Missing comparison fields and `null` values skip comparison; add Laravel presence rules when required. Malformed input and incompatible currencies produce translated validation failures. A zero comparison value remains compatible with any currency.
 
 ## Testing
 

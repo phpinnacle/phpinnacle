@@ -76,9 +76,11 @@ class MoneyInput extends Field
 
     public function required(Closure|bool $condition = true): static
     {
-        $this->greater(0, strict: true);
-
-        return parent::required($condition);
+        return parent::required($condition)
+            ->rule(
+                MoneyRule::gt(0),
+                fn (self $component) => $component->isRequired(),
+            );
     }
 
     public function nullable(Closure|bool $condition = true): static
@@ -112,18 +114,6 @@ class MoneyInput extends Field
 
     public function greater(Closure|Money|string|int $value, bool $strict = false): static
     {
-        $this->maxValue = $value;
-
-        return $this->rule(
-            fn (self $component) => $strict
-                ? MoneyRule::lt($component->getMaxValue())
-                : MoneyRule::lte($component->getMaxValue()),
-            fn (self $component) => filled($component->getMaxValue()),
-        );
-    }
-
-    public function lesser(Closure|Money|string|int $value, bool $strict = false): static
-    {
         $this->minValue = $value;
 
         return $this->rule(
@@ -131,6 +121,18 @@ class MoneyInput extends Field
                 ? MoneyRule::gt($component->getMinValue())
                 : MoneyRule::gte($component->getMinValue()),
             fn (self $component) => filled($component->getMinValue()),
+        );
+    }
+
+    public function lesser(Closure|Money|string|int $value, bool $strict = false): static
+    {
+        $this->maxValue = $value;
+
+        return $this->rule(
+            fn (self $component) => $strict
+                ? MoneyRule::lt($component->getMaxValue())
+                : MoneyRule::lte($component->getMaxValue()),
+            fn (self $component) => filled($component->getMaxValue()),
         );
     }
 
