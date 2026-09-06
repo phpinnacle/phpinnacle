@@ -27,7 +27,7 @@ class Ancestors extends Relation
             $column = $this->related->getPathColumn();
 
             $this->query
-                ->whereRaw(sprintf('?::ltree @> %s', $column), [$this->related->getAttribute($column)])
+                ->whereRaw(sprintf('?::ltree <@ %s', $column), [$this->related->getAttribute($column)])
                 ->whereNot($this->related->getKeyName(), $this->related->getKey());
         }
     }
@@ -38,7 +38,7 @@ class Ancestors extends Relation
 
         $this->query->where(function (Builder $builder) use ($column, $models) {
             foreach ($models as $model) {
-                $builder->orWhereRaw('?::ltree @> ' . $column, [$model->getAttribute($column)]);
+                $builder->orWhereRaw('?::ltree <@ ' . $column, [$model->getAttribute($column)]);
             }
         });
     }
@@ -59,7 +59,7 @@ class Ancestors extends Relation
                 throw new LogicException('Ancestor relations require tree node models.');
             }
 
-            $model->setRelation($relation, $results->filter($model->isAncestorOf(...)));
+            $model->setRelation($relation, $results->filter($model->isDescendantOf(...)));
         }
 
         return $models;
@@ -70,7 +70,7 @@ class Ancestors extends Relation
      */
     public function getResults(): Collection
     {
-        return $this->related->isRoot() ? $this->query->get() : $this->related->newCollection();
+        return $this->query->get();
     }
 
     public function getRelationExistenceQuery(Builder $query, Builder $parentQuery, $columns = ['*']): Builder

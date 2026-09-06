@@ -28,7 +28,7 @@ class Descendants extends Relation
             $column = $this->related->getPathColumn();
 
             $this->query
-                ->whereRaw(sprintf('?::ltree <@ %s', $column), [$this->related->getAttribute($column)])
+                ->whereRaw(sprintf('?::ltree @> %s', $column), [$this->related->getAttribute($column)])
                 ->whereNot($this->related->getKeyName(), $this->related->getKey());
         }
     }
@@ -39,7 +39,7 @@ class Descendants extends Relation
 
         $this->query->where(function ($q) use ($models, $column) {
             foreach ($models as $model) {
-                $q->orWhereRaw('?::ltree <@ ' . $column, [$model->getAttribute($column)]);
+                $q->orWhereRaw('?::ltree @> ' . $column, [$model->getAttribute($column)]);
             }
         });
     }
@@ -60,7 +60,7 @@ class Descendants extends Relation
                 throw new LogicException('Descendant relations require tree node models.');
             }
 
-            $model->setRelation($relation, $results->filter($model->isDescendantOf(...)));
+            $model->setRelation($relation, $results->filter($model->isAncestorOf(...)));
         }
 
         return $models;

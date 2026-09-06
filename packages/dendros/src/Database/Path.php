@@ -10,7 +10,7 @@ class Path
 {
     public static function isAncestorOf(string $left, string $right): bool
     {
-        return str_starts_with($right, $left);
+        return $left === $right || str_starts_with($right, $left . '.');
     }
 
     public static function setup(

@@ -2,15 +2,11 @@
 
 Reviewed against the working tree on 2026-09-05. Establish relation correctness before sharing their implementation or optimizing matching.
 
-## 1. Priority: high — reconcile lazy, eager, and existence queries
+## 1. Completed — reconcile lazy, eager, and existence queries
 
-`Ancestors` uses `?::ltree @> column` and matches results with the parent's `isAncestorOf()`; `Descendants` uses the opposite direction. Their existence queries put the related column on the left instead. `Ancestors::getResults()` also returns an empty collection for non-root nodes. The current `TreeTest` only tests in-memory comparisons, so these paths are not checked against each other.
+Lazy and eager predicates now use the same ancestor/descendant direction as existence queries. Eager matching selects the correct relatives, and non-root nodes can load their ancestors. PHP path matching respects complete labels while preserving the helper's inclusive equality; model relations still exclude self.
 
-- Add PostgreSQL integration cases for root, child, grandchild, and sibling nodes. Compare lazy loading, eager loading, and `whereHas()` results, including self-exclusion and empty results.
-- Correct confirmed direction/root errors in a separate behavior-fix step. Preserve custom path/key columns and query bindings.
-- Cover label boundaries in `Database/Path::isAncestorOf()`: `root.a` must not match `root.ab`. Its current string-prefix comparison does not distinguish them. Decide and test the direct helper's equality semantics separately from model-level self-exclusion.
-
-Acceptance: all three query modes return the same ancestor/descendant sets and PHP path matching agrees with `ltree` label boundaries.
+`TreeRelationsTest` verifies all three query modes on PostgreSQL/ltree with roots, children, grandchildren, siblings with overlapping label prefixes, a separate root, and custom path/key columns. Set `DENDROS_PGSQL_URL` to a dedicated test database to run it.
 
 ## 2. Priority: low — share only proven relation duplication
 

@@ -39,11 +39,21 @@ Use `NodeTree` when a Filament form must select a node, and extend `RecordsTree`
 
 The model and migration must follow the column contract expected by `AsTree`; inspect the concern and sibling models before adapting an existing table.
 
+Ancestor and descendant relations exclude the current node and return the same members through lazy loading, eager loading, and `whereHas()`. Path comparisons respect whole `ltree` labels: `root.a` is not an ancestor of `root.ab`. The direct `Database\Path::isAncestorOf()` helper includes equality, while model comparisons exclude self.
+
 ## Testing
 
 ```bash
 composer test
 ```
+
+Run the PostgreSQL relation tests against a dedicated database with permission to create the `ltree` extension:
+
+```bash
+DENDROS_PGSQL_URL=postgresql://user:password@localhost/test_database vendor/bin/pest packages/dendros/tests --no-coverage
+```
+
+The integration tests use temporary tables inside rolled-back transactions and are skipped when the URL is absent.
 
 ## Changelog and license
 

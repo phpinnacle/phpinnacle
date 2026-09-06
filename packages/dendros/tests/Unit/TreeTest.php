@@ -33,3 +33,12 @@ it('compares tree models', function () {
         ->and($child->getPathSource())
         ->toBe('child');
 });
+
+it('compares complete path labels while preserving inclusive helper equality', function () {
+    expect(Path::isAncestorOf('root.a', 'root.ab'))
+        ->toBeFalse()
+        ->and(Path::isAncestorOf('root.a', 'root.a.leaf'))
+        ->toBeTrue()
+        ->and(Path::isAncestorOf('root.a', 'root.a'))
+        ->toBeTrue();
+});
