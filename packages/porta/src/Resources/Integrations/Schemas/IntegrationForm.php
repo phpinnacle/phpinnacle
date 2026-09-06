@@ -147,7 +147,9 @@ class IntegrationForm
                                     ->state(function (Get $get) {
                                         $type = $get->enum('type', TransformType::class);
 
-                                        return new HtmlString($type->preview($get->array('config')));
+                                        return new HtmlString(new TransformConfiguration($type)->preview($get->array(
+                                            'config',
+                                        )));
                                     }),
                                 Hidden::make('config')
                                     ->default([])
@@ -168,7 +170,9 @@ class IntegrationForm
                                         $id = $arguments['item'];
                                         $state = $component->getRawItemState($id);
 
-                                        return TransformType::resolve($state['type'])->form();
+                                        return new TransformConfiguration(TransformType::resolve(
+                                            $state['type'],
+                                        ))->form();
                                     })
                                     ->fillForm(function (array $arguments, Repeater $component) {
                                         $id = $arguments['item'];
