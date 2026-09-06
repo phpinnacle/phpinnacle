@@ -19,7 +19,7 @@ use Lab404\Impersonate\Services\ImpersonateManager;
 use Livewire\Component;
 use PHPinnacle\Cerber\Models\Provider;
 use PHPinnacle\Cerber\Models\Tenant;
-use PHPinnacle\Cerber\Models\User;
+use PHPinnacle\Cerber\Services\DeveloperLogin;
 use PHPinnacle\Cerber\Services\ProviderRegistry;
 
 class CerberPlugin implements Plugin
@@ -97,6 +97,14 @@ class CerberPlugin implements Plugin
         return $this;
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public function getDevelopers(): array
+    {
+        return $this->developers;
+    }
+
     public function withoutProviders(): static
     {
         $this->disabled[] = Resources\Providers\ProviderResource::class;
@@ -161,37 +169,7 @@ class CerberPlugin implements Plugin
 
     public function auth(string $credentials, Panel $panel, ?Model $tenant): bool
     {
-        if (app()->isProduction()) {
-            return false;
-        }
-
-        if (!array_key_exists($credentials, $this->developers)) {
-            return false;
-        }
-
-        if (!($user = User::find($credentials))) {
-            return false;
-        }
-
-        if (!$user->canAccessPanel($panel)) {
-            return false;
-        }
-
-        if ($tenant !== null && !$user->canAccessTenant($tenant)) {
-            return false;
-        }
-
-        $auth = $panel->auth();
-
-        if ($auth->check()) {
-            $auth->logout();
-        }
-
-        $panel->auth()->login($user);
-
-        session()->regenerate();
-
-        return true;
+        return app(DeveloperLogin::class)->attempt($credentials, $panel, $tenant, $this->developers);
     }
 
     public function doModifyProfileForm(Schema $schema, Pages\EditProfile $page): Schema

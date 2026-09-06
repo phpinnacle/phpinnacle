@@ -8,10 +8,11 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;
 use PHPinnacle\Cerber\CerberPlugin;
 use PHPinnacle\Cerber\Http\Requests\LoginRequest;
+use PHPinnacle\Cerber\Services\DeveloperLogin;
 
 class LoginController extends Controller
 {
-    public function __invoke(LoginRequest $request): RedirectResponse
+    public function __invoke(LoginRequest $request, DeveloperLogin $login): RedirectResponse
     {
         $panel = Filament::getPanel($request->validated('panel'));
         /** @var CerberPlugin $plugin */
@@ -24,7 +25,7 @@ class LoginController extends Controller
             $tenant = $panel->getTenant($request->route()->parameter('tenant'));
         }
 
-        if (!$plugin->auth($credentials, $panel, $tenant)) {
+        if (!$login->attempt($credentials, $panel, $tenant, $plugin->getDevelopers())) {
             throw new AuthorizationException;
         }
 
