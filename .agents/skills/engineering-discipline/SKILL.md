@@ -7,58 +7,31 @@ description: Enforce disciplined, minimal, and verifiable repository work. Manda
 
 Treat this skill as mandatory for repository changes and code review. Apply these rules throughout the task, from investigation through final verification.
 
-## 1. Think Before Coding
+## 1. Resolve Uncertainty and Continue
 
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
-
-Before implementing:
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
+- Infer intent and routine implementation choices from the request, repository conventions, and inspected code. Carry authorized work through implementation and verification.
+- Ask a focused question when missing information materially changes scope, public contracts, persisted data, authorization, security, or external side effects and cannot be resolved from available context. Continue independent work while waiting.
+- State consequential assumptions and tradeoffs. Choose the simplest reasonable approach for routine, reversible decisions without requiring confirmation.
+- Before requesting approval, check whether the user already authorized the action. When approval is required, prepare a concrete, reviewable result within existing permissions and identify the exact action that needs approval.
+- Incorporate corrections and answer side questions while preserving the ongoing task unless the user cancels or replaces it.
 
 ## 2. Simplicity First
 
-**Minimum code that solves the problem. Nothing speculative.**
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
-
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+- Implement the smallest complete solution for the requested outcome.
+- Do not add speculative features, single-use abstractions, unrequested configurability, or error handling for impossible scenarios.
+- Prefer a simpler existing approach when it satisfies the same requirement.
 
 ## 3. Surgical Changes
 
-**Touch only what you must. Clean up only your own mess.**
+- Every changed line must serve the requested outcome, its verification, or cleanup made necessary by the change.
+- Match existing style and preserve unrelated user work. Report unrelated defects without expanding the task to fix them.
+- Remove imports, variables, functions, tests, and assets made obsolete by this change; leave unrelated cleanup for a separate request.
 
-When editing existing code:
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
+## 4. Verify the Outcome
 
-When your changes create orphans:
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: Every changed line should trace directly to the user's request.
-
-## 4. Goal-Driven Execution
-
-**Define success criteria. Loop until verified.**
-
-Transform tasks into verifiable goals:
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-```
-
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+- Define observable success before editing and inspect the relevant implementation and tests. For substantial work, give a brief plan tied to those success criteria.
+- Reproduce bugs with the narrowest practical regression test, test validation at its owning boundary, and establish a passing baseline before refactoring behavior.
+- Use tests that verify observable behavior or meaningful invariants. Do not add tests that only mirror implementation or instruction wording.
+- Apply the repository's required checks for the changed file types, starting with focused verification. Broaden or repeat checks only when new changes, failures, or unresolved risks justify it.
+- Review the final diff for scope drift, hidden behavior changes, unnecessary complexity, and incomplete cleanup. Finish when the requested outcome and required verification are complete.
+- If a check cannot run or an external blocker remains, report what is unverified and why. Distinguish pre-existing failures from regressions caused by the change.

@@ -11,17 +11,17 @@
 
 - These instructions apply to the monorepo root and every package below it.
 - Each package under `packages/` is independently releasable. A package's own `AGENTS.md` adds to or overrides these rules for files inside that package.
-- Before changing a package, read its `AGENTS.md` when present, `README.md`, `composer.json`, tests, and the relevant service provider, plugin, or public entry point.
-- Keep behavior in the package that owns it. Cross-package use must go through public APIs and preserve one-way dependency boundaries.
+- Before changing a package, read its `AGENTS.md` when present, the relevant README sections, and `composer.json`. Inspect implementation, tests, entry points, configuration, migrations, assets, and static-analysis setup as relevant to the change.
+- Keep shared rules here and package-specific additions in package instructions; avoid copying shared rules into each package.
 
 ## Language
 
 - Write repository content in English, including documentation, comments, PHPDoc, test descriptions, TODOs, and developer-facing messages.
 - Keep intentional product translations and localized UI copy in their target language.
+- Respond to the user in their language. Keep progress updates and final reports concise; explain the outcome, relevant verification, and any remaining blockers.
 
 ## Scope and Compatibility
 
-- Treat each package as an independently releasable Composer unit. Before changing it, inspect its `README.md`, `composer.json`, service provider, Filament plugin, configuration, migrations, assets, tests, and static-analysis setup as applicable.
 - Keep changes inside the package and its declared dependency boundaries. Consume another package through its public API; do not create reverse or cyclic dependencies.
 - Preserve observable behavior and public contracts unless the task or package-specific instructions explicitly permit a breaking change.
 - Do not add dependencies or new top-level directories without approval.
@@ -83,6 +83,9 @@
 - Make surgical changes: every changed line must serve the requested outcome, its verification, or cleanup made necessary by the change. Preserve unrelated user work and report unrelated defects instead of fixing them.
 - Remove only imports, code, tests, assets, and configuration made obsolete by the current change.
 - Define observable success before implementation. Reproduce bugs with the narrowest practical test, cover invalid inputs for validation changes, and establish a passing baseline before refactors.
-- Run the narrowest relevant checks first, then broaden according to risk. For changed PHP, run `composer format`; before finishing, run the repository-wide `composer lint`. Run the package's focused Pest tests, plus asset or JavaScript checks when frontend behavior changes.
+- For PHP changes, run `composer format`, focused package tests, and repository-wide `composer lint`. Also run `composer lint` when changing Composer or PHP analysis configuration. Use the package's declared test runner.
+- For frontend behavior changes, run relevant JavaScript and integration checks and rebuild affected committed assets as required by the package.
+- For documentation or instruction-only changes, check consistency, referenced commands and links, and skill metadata where applicable; runtime suites are needed only when executable examples or behavior are affected.
+- Start with the narrowest relevant checks and complete required checks. Broaden or repeat them only for new changes, failures, or unresolved risks; finish once the requested outcome and verification are complete.
 - Finish by inspecting the diff for scope drift, hidden behavior changes, unnecessary complexity, and incomplete cleanup, and run `git diff --check`.
 - Update an existing README when the public API or documented user-facing behavior changes. Do not create new documentation files unless explicitly requested.
