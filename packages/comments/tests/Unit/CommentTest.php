@@ -151,7 +151,7 @@ it('keeps subscriptions scoped to their subject', function () {
         ]);
     }
 
-    expect(CommentSubscription::query()->forSubject($subject)->count())->toBe(1);
+    expect(CommentSubscription::forSubject($subject)->count())->toBe(1);
 });
 
 it('rolls back the feature migration', function () {

@@ -41,9 +41,19 @@ class Comment extends Model
 
     public static function count(Model $record): int
     {
+        return static::forSubject($record)->count();
+    }
+
+    /**
+     * @return Builder<static>
+     */
+    public static function forSubject(Model $record): Builder
+    {
         return static::query()
-            ->forSubject($record)
-            ->count();
+            ->where([
+                'subject_type' => $record->getMorphClass(),
+                'subject_id' => $record->getKey(),
+            ]);
     }
 
     /**
@@ -51,8 +61,7 @@ class Comment extends Model
      */
     public static function list(Model $record): Collection
     {
-        return static::query()
-            ->forSubject($record)
+        return static::forSubject($record)
             ->with(['author', 'parent.author'])
             ->latest()
             ->get();
@@ -109,18 +118,6 @@ class Comment extends Model
         $days = config('phpinnacle-comments.prune', 365);
 
         return static::query()->where('created_at', '<=', now()->subDays($days));
-    }
-
-    /**
-     * @param Builder<static> $query
-     * @return Builder<static>
-     */
-    public function scopeForSubject(Builder $query, Model $record): Builder
-    {
-        return $query->where([
-            'subject_type' => $record->getMorphClass(),
-            'subject_id' => $record->getKey(),
-        ]);
     }
 
     /**

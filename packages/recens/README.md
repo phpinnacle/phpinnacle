@@ -51,14 +51,14 @@ The model also exposes these operations for application code:
 ```php
 use PHPinnacle\Recens\Models\Recent;
 
-$entry = Recent::query()->forCurrentContext()->findOrFail($id);
+$entry = Recent::forCurrentContext()->findOrFail($id);
 $entry->pin();
 $entry->unpin();
 $entry->delete();
 Recent::clearHistory();
 ```
 
-Resolve entries through `forCurrentContext()` before exposing model operations to users. `forUser($userId)` is available for explicit model queries; it filters only ownership, so callers handling panel or tenant boundaries must add those constraints or use `forCurrentContext()`.
+Resolve entries through `Recent::forCurrentContext()` before exposing model operations to users. `Recent::forUser($userId)` is available for explicit model queries; it filters only ownership, so callers handling panel or tenant boundaries must add those constraints or use `Recent::forCurrentContext()`.
 
 ## Identity, panels and tenancy
 

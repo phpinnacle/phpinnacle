@@ -24,6 +24,18 @@ class CommentSubscription extends Model
         'subject_id',
     ];
 
+    /**
+     * @return Builder<static>
+     */
+    public static function forSubject(Model $record): Builder
+    {
+        return static::query()
+            ->where([
+                'subject_type' => $record->getMorphClass(),
+                'subject_id' => $record->getKey(),
+            ]);
+    }
+
     public function getConnectionName(): ?string
     {
         // @mago-expect lint:inline-variable-return
@@ -31,17 +43,5 @@ class CommentSubscription extends Model
         $connection = config('phpinnacle-comments.connection', parent::getConnectionName());
 
         return $connection;
-    }
-
-    /**
-     * @param Builder<static> $query
-     * @return Builder<static>
-     */
-    public function scopeForSubject(Builder $query, Model $record): Builder
-    {
-        return $query->where([
-            'subject_type' => $record->getMorphClass(),
-            'subject_id' => $record->getKey(),
-        ]);
     }
 }

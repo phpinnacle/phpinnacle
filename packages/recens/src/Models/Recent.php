@@ -84,13 +84,13 @@ class Recent extends Model implements HasIcon, HasLabel
      */
     public static function list(?int $limit = null): array
     {
-        $pinned = self::query()
-            ->forCurrentContext()
+        $pinned = self::forCurrentContext()
             ->whereNotNull('pinned_at')
             ->orderBy('pinned_at')
             ->orderBy('id')
             ->get();
-        $query = self::query()->forCurrentContext()->whereNull('pinned_at')->orderByDesc('created_at');
+
+        $query = self::forCurrentContext()->whereNull('pinned_at')->orderByDesc('created_at');
 
         if ($limit) {
             $query->limit($limit);
@@ -99,26 +99,20 @@ class Recent extends Model implements HasIcon, HasLabel
         return array_values($pinned->concat($query->get())->all());
     }
 
-    /**
-     * @param Builder<static> $query
-     * @return Builder<static>
-     */
-    public function scopeForUser(Builder $query, string|int|null $userId): Builder
+    /** @return Builder<static> */
+    public static function forUser(string|int|null $userId): Builder
     {
-        return $query->where('user_id', $userId);
+        return static::query()->where('user_id', $userId);
     }
 
-    /**
-     * @param Builder<static> $query
-     * @return Builder<static>
-     */
-    public function scopeForCurrentContext(Builder $query): Builder
+    /** @return Builder<static> */
+    public static function forCurrentContext(): Builder
     {
         $context = self::context();
         $userId = $context['user_id'];
         unset($context['user_id']);
 
-        return $query->forUser($userId)->where($context);
+        return static::forUser($userId)->where($context);
     }
 
     public function togglePin(): void
@@ -148,7 +142,7 @@ class Recent extends Model implements HasIcon, HasLabel
 
     public static function clearHistory(): void
     {
-        self::query()->forCurrentContext()->whereNull('pinned_at')->delete();
+        self::forCurrentContext()->whereNull('pinned_at')->delete();
     }
 
     /**

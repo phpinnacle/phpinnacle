@@ -163,8 +163,7 @@ class Comments extends Component implements HasActions, HasForms
             'layout' => $this->layout,
             'mentionProvider' => app(CommentNotifier::class)->mentionProvider(),
             'replyingTo' => $comments->firstWhere('id', $this->replying),
-            'subscribed' => $user !== null && CommentSubscription::query()
-                ->forSubject($this->record)
+            'subscribed' => $user !== null && CommentSubscription::forSubject($this->record)
                 ->where('user_id', $user->getAuthIdentifier())
                 ->exists(),
             'user' => $user,
@@ -192,8 +191,7 @@ class Comments extends Component implements HasActions, HasForms
             return;
         }
 
-        $subscription = CommentSubscription::query()
-            ->forSubject($this->record)
+        $subscription = CommentSubscription::forSubject($this->record)
             ->where('user_id', $user->getAuthIdentifier());
 
         if ($subscription->exists()) {
@@ -250,7 +248,7 @@ class Comments extends Component implements HasActions, HasForms
     /** @return Builder<Comment> */
     private function commentsQuery(): Builder
     {
-        return Comment::query()->forSubject($this->record);
+        return Comment::forSubject($this->record);
     }
 
     private function resetComposer(): void

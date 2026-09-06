@@ -45,6 +45,6 @@ class Entries extends Component
 
         Validator::make(['id' => $id], ['id' => ['required', 'uuid']])->validate();
 
-        return Recent::query()->forCurrentContext()->findOrFail($id);
+        return Recent::forCurrentContext()->findOrFail($id);
     }
 }
