@@ -10,7 +10,7 @@ return new class extends Migration {
         Schema::create('recent', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table
-                ->foreignIdFor(config('phpinnacle-recens.user.model'))
+                ->foreignIdFor(config('phpinnacle-recens.user.model'), 'user_id')
                 ->index()
                 ->constrained()
                 ->cascadeOnDelete();

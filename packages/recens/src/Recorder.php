@@ -6,12 +6,10 @@ use Closure;
 use Filament\Pages\Page;
 use Filament\Support\Concerns\EvaluatesClosures;
 use Filament\Support\Icons\Heroicon;
-use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Contracts\Support\Htmlable;
 use Livewire\Livewire;
 use PHPinnacle\Recens\Models\Recent;
 
-#[Singleton]
 class Recorder
 {
     use EvaluatesClosures;

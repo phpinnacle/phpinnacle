@@ -8,7 +8,7 @@ use Filament\Contracts\Plugin;
 use Filament\Panel;
 use Filament\Support\Concerns\EvaluatesClosures;
 use Filament\View\PanelsRenderHook;
-use PHPinnacle\Recens\Models\Recent;
+use Illuminate\Support\Facades\Blade;
 
 class RecensPlugin implements Plugin
 {
@@ -22,6 +22,8 @@ class RecensPlugin implements Plugin
     private string|BackedEnum|Closure $icon = 'heroicon-o-clock';
 
     private int|Closure|null $limit = null;
+
+    private ?Recorder $recorder = null;
 
     /**
      * @var array<string, Closure|null>
@@ -85,11 +87,7 @@ class RecensPlugin implements Plugin
     {
         $panel->renderHook(
             name: PanelsRenderHook::USER_MENU_BEFORE,
-            hook: fn () => view('phpinnacle-recens::entries', [
-                'entries' => Recent::list($this->evaluate($this->limit)),
-                'color' => $this->evaluate($this->color),
-                'icon' => $this->evaluate($this->icon),
-            ]),
+            hook: fn () => Blade::render('@livewire("phpinnacle-recens.entries")'),
         );
 
         $panel->renderHook(
@@ -99,6 +97,32 @@ class RecensPlugin implements Plugin
             ]),
             scopes: array_keys($this->scopes),
         );
+    }
+
+    /** @return string|array<string> */
+    public function getColor(): string|array
+    {
+        return $this->evaluate($this->color);
+    }
+
+    public function getIcon(): string|BackedEnum
+    {
+        return $this->evaluate($this->icon);
+    }
+
+    public function getLimit(): ?int
+    {
+        return $this->evaluate($this->limit);
+    }
+
+    public function getRecorder(): Recorder
+    {
+        if ($this->recorder === null) {
+            $this->recorder = new Recorder;
+            $this->load($this->recorder);
+        }
+
+        return $this->recorder;
     }
 
     public function boot(Panel $panel): void {}

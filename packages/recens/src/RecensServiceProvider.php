@@ -2,6 +2,8 @@
 
 namespace PHPinnacle\Recens;
 
+use Livewire\Livewire;
+use PHPinnacle\Recens\Livewire\Entries;
 use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -12,16 +14,19 @@ class RecensServiceProvider extends PackageServiceProvider
 
     public function packageRegistered(): void
     {
-        $this->callAfterResolving(Recorder::class, function (Recorder $recorder) {
-            RecensPlugin::get()->load($recorder);
-        });
+        $this->app->bind(Recorder::class, fn () => RecensPlugin::get()->getRecorder());
+    }
+
+    public function packageBooted(): void
+    {
+        Livewire::component('phpinnacle-recens.entries', Entries::class);
     }
 
     public function configurePackage(Package $package): void
     {
         $package
             ->name(static::$name)
-            ->discoversMigrations()
+            ->hasMigrations(['create_recens_tables', 'add_panel_and_pins_to_recent'])
             ->hasTranslations()
             ->hasConfigFile()
             ->hasViews()

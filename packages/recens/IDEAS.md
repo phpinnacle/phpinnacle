@@ -1,15 +1,15 @@
-# Ideas
+# Ideas status
 
-Only small, additive features are listed here. Refactors and package-wide redesigns are intentionally excluded.
+Implemented in 1.2.0 on 2026-09-06.
 
-## 1. Pinned pages
+## Pinned pages
 
-Allow users to pin frequently visited pages above their recent history so those entries do not move or disappear during pruning.
+Users can pin and unpin menu entries. Pins appear in stable pin order above ordinary history, remain outside the configured display limit, and are excluded from pruning.
 
-## 2. History controls
+## History controls
 
-Add actions to remove one entry or clear the current user's entire recent-page history from the menu.
+Users can remove one entry or clear ordinary history for the current panel and tenant. Clearing includes entries beyond the visible limit and preserves pinned pages. Removing a pin explicitly deletes it.
 
-## 3. Per-panel history
+## Per-panel history
 
-Store the Filament panel identifier with each entry so applications with multiple panels do not mix unrelated navigation history.
+Entries store their Filament panel identifier and are isolated by authenticated user, panel and configured tenant. Legacy entries retain an unassigned panel until ordinary pruning removes them.
