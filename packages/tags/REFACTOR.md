@@ -2,15 +2,11 @@
 
 Reviewed against the working tree on 2026-09-05. Preserve additive assignment, explicit drop behavior, public model entry points, and morph/tenant isolation.
 
-## 1. Priority: high — make bulk operations use the correct database boundary
+## 1. Completed — make bulk operations use the correct database boundary
 
-`Tag` honors `phpinnacle-tags.connection`, but `manage()`, `clear()`, `retrieve()`, and `doSyncQuery()` use the default `DB` connection for transactions or raw queries. Configuring a separate tag connection can split tag creation and pivot writes across databases.
+Tag definitions, pivot reads/writes, and bulk transactions now use the configured tag connection. Source IDs are checked on each model's own connection, preserving missing-record exclusion without cross-database SQL. Pivot assignments use bound query-builder inserts and retain idempotent duplicate handling.
 
-- Reproduce operations with the tag connection different from the default. Run transactions and tag/pivot queries on the same intended connection.
-- `doSyncQuery()` selects IDs from the source model table inside its insert. Specify behavior when that table is on a different connection; the existing raw SQL cannot assume it is available on the tag connection. Prefer the already selected model IDs where that preserves the required existence semantics.
-- Cover assignment, repeat assignment, drop, empty input, multiple morph types with equal IDs, and rollback. Verify the query only affects selected records and authorized action execution.
-
-Acceptance: no partial tag/pivot write or cross-record deletion occurs, including PostgreSQL execution of the bulk SQL. Existing tests only cover metadata and plugin identity.
+`TagConnectionTest` covers separate connections, repeated assignment, drop/clear isolation, equal IDs across morph types, empty selections, missing source records, and rollback of definitions plus pivot writes. Run it with `TAGS_PGSQL_URL` to verify PostgreSQL execution; its default uses independent SQLite databases. Bulk-action tests now execute assignment SQL instead of asserting a mocked SQL string.
 
 ## 2. Priority: medium — isolate bulk SQL only where it clarifies ownership
 

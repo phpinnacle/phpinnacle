@@ -44,10 +44,18 @@ The filter uses the table model's morph class to load available tags, including 
 
 The tagged model must expose the relationship expected by these components. Follow the relation naming and morph contract used by `Tag` and the package migration when integrating an existing model. Authorization for tag records is handled by `TagPolicy`.
 
+Tag definitions and assignments use `phpinnacle-tags.connection`, including bulk transactions and reads/removals. Tagged models may live on another connection: bulk assignment checks selected IDs on their source connection and writes only to the tag database. Deleted source records are skipped, repeat assignment is idempotent, and a failed bulk operation rolls back its tag definitions and assignments together.
+
 ## Testing
 
 ```bash
 composer test
+```
+
+To exercise tag writes on PostgreSQL while source records remain on another connection, use a dedicated test database:
+
+```bash
+TAGS_PGSQL_URL=postgresql://user:password@localhost/test_database vendor/bin/pest packages/tags/tests --no-coverage
 ```
 
 ## Changelog and license

@@ -78,23 +78,10 @@ it('builds bulk assignments with reused tag IDs and selected record keys', funct
     $records = collect([TaggedRecord::query()->create(), TaggedRecord::query()->create()]);
     $tag = Tag::query()->create(['name' => 'Featured', 'type' => TaggedRecord::class]);
 
-    $database = Mockery::mock(DB::getFacadeRoot())->makePartial();
-    DB::swap($database);
-
-    $database
-        ->shouldReceive('statement')
-        ->once()
-        ->withArgs(function (string $sql, array $bindings) use ($records, $tag) {
-            expect($bindings)->toBe($records->pluck('id')->all());
-            expect($sql)->toContain("'{$tag->id}'::uuid", 'ON CONFLICT DO NOTHING', '"tagged_records"', '?, ?');
-
-            return true;
-        })
-        ->andReturnTrue();
-
     $action = TagsBulkAction::make()->getActionFunction();
     $action($records, ['tags' => [' Featured ', 'Featured']], []);
 
+    expect(DB::table('taggables')->pluck('taggable_id')->all())->toEqualCanonicalizing($records->pluck('id')->all());
     expect(Tag::query()->count())->toBe(1);
     expect(Tag::list($tag->id)->all())->toBe([$tag->id => 'Featured']);
 });
