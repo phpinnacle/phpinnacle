@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b9fa82d500a1e495208c6f73534ca00b",
+    "content-hash": "3961fd6b9c4f21079f218d55ecffcbc6",
     "packages": [],
     "packages-dev": [
         {
@@ -8869,6 +8869,68 @@
             "support": {
                 "issues": "https://github.com/phpinnacle/ferry/issues",
                 "source": "https://github.com/phpinnacle/ferry"
+            },
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "phpinnacle/franz",
+            "version": "dev-master",
+            "dist": {
+                "type": "path",
+                "url": "packages/franz",
+                "reference": "c485e1032838e24233c208b72671b6554f41e148"
+            },
+            "require": {
+                "php": "^8.4",
+                "psr/http-client": "^1.0",
+                "psr/http-factory": "^1.1",
+                "psr/http-message": "^2.0"
+            },
+            "require-dev": {
+                "guzzlehttp/psr7": "^2.7",
+                "phpunit/phpunit": "^12.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "PHPinnacle\\Franz\\": "src/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit --no-coverage"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHPinnacle Devs",
+                    "email": "dev@phpinnacle.edu.pl",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Framework-agnostic PHP client for the Apache Kafka Connect REST API.",
+            "homepage": "https://github.com/phpinnacle/franz",
+            "keywords": [
+                "api",
+                "connectors",
+                "kafka",
+                "kafka-connect",
+                "phpinnacle"
+            ],
+            "support": {
+                "issues": "https://github.com/phpinnacle/franz/issues",
+                "source": "https://github.com/phpinnacle/franz"
             },
             "transport-options": {
                 "symlink": true,
