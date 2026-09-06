@@ -31,6 +31,8 @@ ColorPicker::make('color')
 
 `Color::DEFAULT` contains the standard Filament semantic color scheme, while `Color::SCHEME` contains its supported names.
 
+`Color::resolve()` reads the current Filament color registry on every call. Unknown names fall back to the current `primary` color. Palette does not keep a separate cache, so resolution follows the active Filament registry when it changes.
+
 `ColorPicker` uses only the custom color source and stores HEX by default. Add or remove sources with `enable(ColorSource ...$sources)` and `disable(ColorSource ...$sources)`. `shades(int $min = 50, int $max = 950)` keeps the standard Tailwind shades within the inclusive boundaries.
 
 The popover sizes itself to the selected Tailwind shade range. Call `wide()` to make it match the input width.

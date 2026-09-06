@@ -1,14 +1,14 @@
 # Refactor plan
 
-Reviewed against the working tree on 2026-09-05. The stale semantic-color cache is the clear priority; most proposed field abstractions are unnecessary.
+Reviewed against the working tree on 2026-09-05. The active refactor was completed on 2026-09-06; no active items remain.
 
-## 1. Priority: high — remove the static semantic-color snapshot
+## Completed: remove the static semantic-color snapshot
 
-`Color::resolve()` populates `Color::$colors` on first use and never refreshes it. The picker itself reads `FilamentColor::getColors()` directly, so a later theme registration can give the picker and `resolve()` different colors in the same process.
+`Color::resolve()` now reads `FilamentColor::getColors()` on every call, matching the picker when the active Filament registry changes in the same process. The static semantic-color snapshot has been removed.
 
-Read the current Filament registry when resolving an alias. Keep palette shade aliases, hex conversion, and the existing fallback to the current primary color.
+Palette shade aliases, hex conversion, and the fallback to the current primary color are preserved.
 
-Acceptance: in `tests/Unit/ColorTest.php`, resolve an alias, replace the registered palette, then resolve again and observe the new color without resetting package internals. Verify a missing name falls back to the new primary. This corrects stale behavior and does not require a new cache or service binding.
+`tests/Unit/ColorTest.php` resolves an alias, replaces the Filament registry through its public facade, then verifies the new alias color and primary fallback without resetting package internals. Filament caches colors within each registry instance, so registering more colors after its first read does not replace that instance's cached palette.
 
 ## Removed from the active queue
 

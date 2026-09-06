@@ -79,11 +79,6 @@ class Color
     ];
 
     /**
-     * @var array<string, array<int, string|int>>
-     */
-    private static array $colors = [];
-
-    /**
      * @param string|array<int, string|int> $color
      * @param list<int> $shades
      */
@@ -123,10 +118,8 @@ class Color
 
     public static function resolve(string $name): string
     {
-        if (self::$colors === []) {
-            self::$colors = FilamentColor::getColors();
-        }
+        $colors = FilamentColor::getColors();
 
-        return self::hex(self::$colors[$name] ?? self::$colors['primary']);
+        return self::hex($colors[$name] ?? $colors['primary']);
     }
 }

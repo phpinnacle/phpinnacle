@@ -1,5 +1,6 @@
 <?php
 
+use Filament\Support\Colors\ColorManager;
 use Filament\Support\Facades\FilamentColor;
 use PHPinnacle\Palette\Color;
 use Tests\TestCase;
@@ -30,4 +31,30 @@ it('falls back to the primary semantic color', function () {
         ->toBe(Color::hex(Color::Blue))
         ->and(Color::resolve('missing'))
         ->toBe(Color::hex(Color::Blue));
+});
+
+it('resolves semantic colors from the current Filament registry', function () {
+    FilamentColor::swap(new ColorManager);
+    FilamentColor::register([
+        'brand' => Color::Blue,
+        'primary' => Color::Blue,
+    ]);
+
+    expect(Color::resolve('brand'))
+        ->toBe(Color::hex(Color::Blue))
+        ->and(Color::resolve('missing'))
+        ->toBe(Color::hex(Color::Blue));
+
+    FilamentColor::swap(new ColorManager);
+    FilamentColor::register([
+        'brand' => Color::Green,
+        'primary' => Color::Red,
+    ]);
+
+    expect(Color::resolve('brand'))
+        ->toBe(Color::hex(Color::Green))
+        ->and(Color::resolve('primary'))
+        ->toBe(Color::hex(Color::Red))
+        ->and(Color::resolve('missing'))
+        ->toBe(Color::hex(Color::Red));
 });
