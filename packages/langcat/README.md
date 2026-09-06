@@ -48,6 +48,55 @@ Requests use fluent builders and validate caller input. Successful API payloads 
 
 Request and response namespaces mirror API domains, for example `Request\Students`, `Response\Groups`, and `Response\Finances`. Cross-domain DTOs live under `Request\Shared` and `Response\Shared`.
 
+## Runnable examples
+
+The [examples](examples) directory contains standalone CLI scripts using Guzzle. In your local package checkout, install the example HTTP client if it is not already available:
+
+```bash
+composer require --dev guzzlehttp/guzzle guzzlehttp/psr7
+```
+
+Run the examples from the `langcat` package root with PHP 8.4 or later. Configure credentials with access to the selected LangLion resources:
+
+```bash
+export LANGLION_BASE_URI='https://your-instance.langlion.com/api/v4'
+export LANGLION_CLIENT_ID='replace-with-your-client-id'
+export LANGLION_CLIENT_SECRET='replace-with-your-client-secret'
+```
+
+The shared [bootstrap](examples/bootstrap.php) loads the package's Composer autoloader, or the monorepo autoloader when working in this repository. It authenticates through `/token` once per run and passes the access token to `withAccessToken()`. Tokens remain in memory and are not printed or saved. Environment variables are read directly; `.env` files are not loaded.
+
+| Example | Purpose | LangLion changes |
+| --- | --- | --- |
+| [list-students.php](examples/list-students.php) | Export non-archived regular students from one school across all pages. | None beyond authentication. |
+| [student-profile.php](examples/student-profile.php) | Combine a student's identity with available contact details. | None beyond authentication. |
+| [group-lessons.php](examples/group-lessons.php) | Export a group's lessons starting within a date range across all pages. | None beyond authentication. |
+| [create-lead.php](examples/create-lead.php) | Create a lead in a school without parent accounts. | Creates a new student record on each run. |
+| [assign-student.php](examples/assign-student.php) | Assign an existing student to a group with an explicit enrollment date. | Writes the group assignment. |
+
+Replace the sample IDs with positive numeric IDs from your instance:
+
+```bash
+php examples/list-students.php 1 > students.jsonl
+php examples/student-profile.php 387
+php examples/group-lessons.php 12 '2026-09-01' '2026-10-01' > lessons.jsonl
+```
+
+List examples print one JSON object per line and hold only one page in memory. Langcat returns individual pages; the scripts request subsequent pages using `meta.total` and the configured page size. Results use ascending ID order. The lesson range includes its start boundary and excludes its end boundary; date-only values use the API's date interpretation. For an explicit timezone, supply timestamps such as `2026-09-01T00:00:00+02:00`.
+
+Write examples print result identifiers as JSON. Use a test school and group when trying them:
+
+```bash
+php examples/create-lead.php 1 'Ada' 'Example'
+php examples/assign-student.php 12 387 '2026-09-07'
+```
+
+The creation response provides a student ID that can be used with `student-profile.php`. Leads are excluded by the regular-student filter in `list-students.php`. For assignment, choose an existing student eligible for the target group; the example does not change their student type. The enrollment date must use `YYYY-MM-DD`. Assignment success may have an empty response body, so the script prints the submitted identifiers only after the request succeeds.
+
+API and transport errors propagate as exceptions and terminate the scripts with a nonzero exit status. Read examples can produce partial output before a later page fails.
+
+## Supported operations
+
 All 125 operations from the LangLion API v4 specification are implemented:
 
 - `POST /token`
