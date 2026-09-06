@@ -5,9 +5,6 @@ namespace PHPinnacle\Chronica;
 use BackedEnum;
 use Closure;
 use Filament\Actions\Action;
-use Filament\Support\Contracts\HasColor;
-use Filament\Support\Contracts\HasIcon;
-use Filament\Support\Contracts\HasLabel;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Contracts\View\View;
@@ -18,9 +15,8 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use PHPinnacle\Chronica\Timeline\Attribute;
 use PHPinnacle\Chronica\Timeline\Relation;
+use PHPinnacle\Chronica\Timeline\ValueFormatter;
 use Spatie\Activitylog\Models\Activity;
-use TypeError;
-use ValueError;
 
 /** @mago-expect lint:too-many-properties */
 class Timeline
@@ -72,26 +68,18 @@ class Timeline
 
     private bool $hideEmptyValues = false;
 
-    private bool $boolean = false;
-
     private bool $revertable = false;
 
-    private string|BackedEnum $trueIcon = Heroicon::OutlinedCheckCircle;
-
-    private string|BackedEnum $falseIcon = Heroicon::OutlinedXCircle;
-
-    private string $trueColor = 'success';
-
-    private string $falseColor = 'danger';
-
-    private string|BackedEnum|null $nullIcon = null;
+    private ValueFormatter $values;
 
     /**
      * @param class-string<Model> $class
      */
     public function __construct(
         private readonly string $class,
-    ) {}
+    ) {
+        $this->values = new ValueFormatter;
+    }
 
     /**
      * @param class-string<Model> $class
@@ -119,7 +107,7 @@ class Timeline
 
     public function boolean(bool $value = true): self
     {
-        $this->boolean = $value;
+        $this->values->boolean = $value;
 
         return $this;
     }
@@ -154,16 +142,16 @@ class Timeline
 
     public function falseColor(string $color): self
     {
-        $this->boolean = true;
-        $this->falseColor = $color;
+        $this->values->boolean = true;
+        $this->values->falseColor = $color;
 
         return $this;
     }
 
     public function falseIcon(string|BackedEnum $icon): self
     {
-        $this->boolean = true;
-        $this->falseIcon = $icon;
+        $this->values->boolean = true;
+        $this->values->falseIcon = $icon;
 
         return $this;
     }
@@ -189,7 +177,7 @@ class Timeline
 
     public function nullIcon(string|BackedEnum|null $icon = Heroicon::OutlinedMinusCircle): self
     {
-        $this->nullIcon = $icon;
+        $this->values->nullIcon = $icon;
 
         return $this;
     }
@@ -249,16 +237,16 @@ class Timeline
 
     public function trueColor(string $color): self
     {
-        $this->boolean = true;
-        $this->trueColor = $color;
+        $this->values->boolean = true;
+        $this->values->trueColor = $color;
 
         return $this;
     }
 
     public function trueIcon(string|BackedEnum $icon): self
     {
-        $this->boolean = true;
-        $this->trueIcon = $icon;
+        $this->values->boolean = true;
+        $this->values->trueIcon = $icon;
 
         return $this;
     }
@@ -291,15 +279,6 @@ class Timeline
             });
     }
 
-    private function castValue(Activity $activity, string $name, mixed $value): mixed
-    {
-        $class = $activity->subject_type;
-        $model = $activity->subject ?? new $class;
-        $model->setRawAttributes([$name => $value]);
-
-        return $model->getAttribute($name);
-    }
-
     /**
      * @return list<array{
      *     label: string,
@@ -327,63 +306,19 @@ class Timeline
 
             $changes[] = [
                 'label' => $this->attributes[$name]->label ?? Str::headline($name),
-                'new' => $this->formatValue($activity, $name, $newValue),
-                'old' => array_key_exists($name, $old) ? $this->formatValue($activity, $name, $oldValue) : null,
+                'new' => $this->values->format(
+                    $activity,
+                    $name,
+                    $newValue,
+                    $this->attributes[$name]->formatter ?? null,
+                ),
+                'old' => array_key_exists($name, $old)
+                    ? $this->values->format($activity, $name, $oldValue, $this->attributes[$name]->formatter ?? null)
+                    : null,
             ];
         }
 
         return $changes;
-    }
-
-    /**
-     * @return array{badge: bool, color: array<string>|string|null, icon: BackedEnum|Htmlable|string|null, text: Htmlable|string}
-     */
-    private function formatValue(Activity $activity, string $name, mixed $value): array
-    {
-        $formatter = $this->attributes[$name]->formatter ?? null;
-        $presentable = $formatter === null ? $this->presentableValue($activity, $name, $value) : null;
-
-        if ($formatter !== null) {
-            $value = $this->castValue($activity, $name, $value);
-        }
-
-        $label = $presentable instanceof HasLabel ? $presentable->getLabel() : null;
-        $text = $formatter !== null
-            ? (string) $formatter($value)
-            : match (true) {
-                $label !== null => $label,
-                $value === null => '—',
-                is_bool($value) => $value ? 'true' : 'false',
-                is_scalar($value) => (string) $value,
-                default => json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-            };
-
-        return match (true) {
-            $value === null && $this->nullIcon !== null => [
-                'badge' => false,
-                'color' => 'gray',
-                'icon' => $this->nullIcon,
-                'text' => $text,
-            ],
-            is_bool($value) && $this->boolean => [
-                'badge' => false,
-                'color' => $value ? $this->trueColor : $this->falseColor,
-                'icon' => $value ? $this->trueIcon : $this->falseIcon,
-                'text' => $text,
-            ],
-            $presentable !== null => [
-                'badge' => $presentable instanceof HasIcon || $presentable instanceof HasColor,
-                'color' => $presentable instanceof HasColor ? $presentable->getColor() : null,
-                'icon' => $presentable instanceof HasIcon ? $presentable->getIcon() : null,
-                'text' => $text,
-            ],
-            default => [
-                'badge' => false,
-                'color' => null,
-                'icon' => null,
-                'text' => $text,
-            ],
-        };
     }
 
     private function isEmptyValue(mixed $value): bool
@@ -436,16 +371,7 @@ class Timeline
                 continue;
             }
 
-            $title = match (true) {
-                is_string($relation->title) => data_get($activity->subject, $relation->title),
-                $relation->title instanceof Closure => ($relation->title)($activity->subject),
-                default => null,
-            };
-
-            return implode(' · ', array_filter([
-                $relation->label ?? class_basename($class),
-                $title,
-            ]));
+            return $relation->displayLabel($activity->subject);
         }
 
         return class_basename($activity->subject_type);
@@ -509,27 +435,6 @@ class Timeline
                 ]), $changes),
             ])),
         ];
-    }
-
-    private function presentableValue(Activity $activity, string $name, mixed $value): HasColor|HasIcon|HasLabel|null
-    {
-        $candidates = is_array($value) && array_key_exists('id', $value)
-            ? [$value, $value['id']]
-            : [$value];
-
-        foreach ($candidates as $candidate) {
-            try {
-                $candidate = $this->castValue($activity, $name, $candidate);
-            } catch (TypeError|ValueError) {
-                continue;
-            }
-
-            if ($candidate instanceof HasColor || $candidate instanceof HasIcon || $candidate instanceof HasLabel) {
-                return $candidate;
-            }
-        }
-
-        return null;
     }
 
     /**

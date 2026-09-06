@@ -80,6 +80,8 @@ Boolean icons default to success and danger; the null icon defaults to gray. Cal
 
 Values cast to objects implementing Filament's `HasLabel`, `HasIcon` or `HasColor` contracts are presented automatically.
 
+Historical values are formatted on a copy of the subject model. Related-record titles and authorization checks use the unchanged current record.
+
 Calling `date()`, `datetime()` or `time()` without a format uses the corresponding Filament display format. Pass a PHP date format string to override it.
 
 ## Testing

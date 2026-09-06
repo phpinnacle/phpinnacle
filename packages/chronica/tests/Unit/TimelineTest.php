@@ -326,7 +326,17 @@ it('reverts an authorized update and records the reversal', function () {
         ->and($record->refresh()->status)
         ->toBe('paid');
 
-    Gate::define('update', fn (?Authenticatable $user, Model $subject) => true);
+    Gate::define(
+        'update',
+        fn (?Authenticatable $user, Model $subject) => (
+            $subject->getKey() === $record->getKey()
+            && $subject->status === 'paid'
+        ),
+    );
+
+    $items = $timeline->render($record)->getData()['items'];
+
+    expect($items->firstWhere('id', (string) $activity->getKey())['revertable'])->toBeTrue();
 
     $html = $timeline
         ->render($record, Action::make('revert_activity')->label('Revert'))
@@ -389,6 +399,9 @@ it('includes configured related record activity', function () {
         'event' => 'created',
         'subject_type' => $related->getMorphClass(),
         'subject_id' => $related->getKey(),
+        'attribute_changes' => [
+            'attributes' => ['name' => 'Historical line'],
+        ],
     ]);
 
     $html = Timeline::make(TimelineFixture::class)
@@ -398,5 +411,6 @@ it('includes configured related record activity', function () {
 
     expect($html)
         ->toContain('created')
+        ->toContain('Historical line')
         ->toContain('Line · First line');
 });

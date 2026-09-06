@@ -38,4 +38,18 @@ class Relation
 
         return $this;
     }
+
+    public function displayLabel(?Model $subject): string
+    {
+        $title = match (true) {
+            is_string($this->title) => data_get($subject, $this->title),
+            $this->title instanceof Closure => ($this->title)($subject),
+            default => null,
+        };
+
+        return implode(' · ', array_filter([
+            $this->label ?? class_basename($this->class),
+            $title,
+        ]));
+    }
 }
