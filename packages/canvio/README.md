@@ -153,6 +153,52 @@ OAuth authorization flows and multipart file uploads are not wrapped in the init
 
 Non-successful responses throw `PHPinnacle\Canvio\Exception\ApiException` with the status code, raw response body, decoded response, and the first Canvas error message when available. Invalid JSON, unexpected pagination shapes, and unsafe pagination links throw `UnexpectedResponseException`.
 
+## Runnable examples
+
+The [examples](examples) directory contains standalone CLI scripts. They share a bootstrap that loads the package's Composer autoloader, or the monorepo autoloader when working in this repository.
+
+The examples use Guzzle as the PSR-18 client. In your local package checkout, install it if it is not already available:
+
+```bash
+composer require --dev guzzlehttp/guzzle guzzlehttp/psr7
+```
+
+Run the commands below from the `canvio` package root with PHP 8.4 or later. Set the Canvas API base URI and an access token belonging to a user with permission for the selected operation:
+
+```bash
+export CANVAS_BASE_URI='https://school.instructure.com/api/v1'
+export CANVAS_ACCESS_TOKEN='replace-with-your-access-token'
+```
+
+The scripts read environment variables directly; they do not load `.env` files.
+
+| Example | Purpose | Canvas changes |
+| --- | --- | --- |
+| [list-courses.php](examples/list-courses.php) | Stream accessible courses and included term data across all pages. | None |
+| [course-roster.php](examples/course-roster.php) | Export student IDs, names, and available SIS IDs for a course. | None |
+| [list-modules.php](examples/list-modules.php) | Paginate a resource without a typed wrapper, encoding the course ID in the path. | None |
+| [create-assignment.php](examples/create-assignment.php) | Create a 20-point PDF lab report assignment due in seven days (UTC). | Creates a new unpublished assignment on every run. |
+| [enroll-student.php](examples/enroll-student.php) | Enroll an existing user using numeric or SIS identifiers. | Creates an active student enrollment with `notify: false`. |
+| [grade-submission.php](examples/grade-submission.php) | Post a grade and feedback for one student's assignment. | Replaces the grade and adds a comment; rerunning adds another comment. |
+
+Read examples print one JSON object per line, so their output can be redirected to a `.jsonl` file without collecting every page in memory:
+
+```bash
+php examples/list-courses.php
+php examples/course-roster.php 'sis_course_id:PHY-101' > roster.jsonl
+php examples/list-modules.php 42
+```
+
+Write examples print the resulting resource identifiers and relevant fields as JSON. Use a test course and replace the sample identifiers and grade with your own values:
+
+```bash
+php examples/create-assignment.php 42
+php examples/enroll-student.php 'sis_course_id:PHY-101' 'sis_user_id:student-42'
+php examples/grade-submission.php 42 7 25 '18' 'Clear calculations; explain the measurement uncertainty.'
+```
+
+The grading example targets an existing assignment; use the ID returned by the creation example if you want to grade that assignment. Canvas interprets the grade according to the assignment's grading settings. SIS fields and identifier lookups depend on the token user's permissions. API and transport failures propagate as exceptions and terminate the scripts with a nonzero exit status.
+
 ## Testing
 
 Run the package tests from the package root:
