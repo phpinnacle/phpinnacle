@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Request as RequestFacade;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
@@ -16,7 +15,6 @@ use PHPinnacle\Recens\Livewire\Entries;
 use PHPinnacle\Recens\Models\Recent;
 use PHPinnacle\Recens\RecensPlugin;
 use PHPinnacle\Recens\Recorder;
-use Ramsey\Uuid\Uuid;
 use Tests\TestCase;
 
 uses(TestCase::class);
