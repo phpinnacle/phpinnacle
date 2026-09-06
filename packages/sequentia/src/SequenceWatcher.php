@@ -3,42 +3,31 @@
 namespace PHPinnacle\Sequentia;
 
 use DateTimeInterface;
-use Illuminate\Database\Connection;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\DB;
+use WeakMap;
 
 final class SequenceWatcher
 {
     public const string DEFAULT_TENANT = '00000000-0000-0000-0000-000000000000';
 
-    private const array COUNTERS = [
-        'SA' => ['bucketed' => true, 'format' => '0'],
-        'SY' => ['bucketed' => true, 'format' => 'Y'],
-        'SM' => ['bucketed' => true, 'format' => 'Y-m'],
-        'GA' => ['bucketed' => false, 'format' => '0'],
-        'GY' => ['bucketed' => false, 'format' => 'Y'],
-        'GM' => ['bucketed' => false, 'format' => 'Y-m'],
-    ];
+    /** @var WeakMap<Dispatcher, self>|null */
+    private static ?WeakMap $watchers = null;
 
-    /**
-     * @var array<string, array<string, array{tenant: string|null, bucket: list<string>}>>
-     */
-    private static array $registered = [];
-
-    /**
-     * @var array<class-string<Model>, true>
-     */
-    private static array $watched = [];
+    /** @var array<string, array<string, array{tenant: string|null, bucket: list<string>}>> */
+    private array $registered = [];
 
     public static function rebuild(): void
     {
-        foreach (self::$registered as $scope => $schemes) {
+        $watcher = self::watcher();
+        $store = CounterStore::configured();
+        $counts = [];
+        $now = now();
+
+        foreach (array_keys($watcher->registered) as $scope) {
             if (!is_subclass_of($scope, Model::class)) {
                 continue;
             }
-
-            $now = now();
 
             foreach ($scope::query()->lazy() as $record) {
                 /** @var DateTimeInterface $date */
@@ -46,11 +35,14 @@ final class SequenceWatcher
                     ? $record->getAttributeValue($record->getCreatedAtColumn())
                     : $now;
 
-                foreach ($schemes as $scheme) {
-                    self::store($record, $date, $scheme['tenant'], $scheme['bucket']);
+                foreach ($watcher->rows($store, $record, $date) as $identity => $row) {
+                    $row['value'] += $counts[$identity]['value'] ?? 0;
+                    $counts[$identity] = $row;
                 }
             }
         }
+
+        $store->replace($counts);
     }
 
     /**
@@ -58,14 +50,21 @@ final class SequenceWatcher
      */
     public static function register(string $scope, ?string $tenant = null, array $scheme = []): void
     {
+        $watcher = self::watcher();
+        $watch = !array_key_exists($scope, $watcher->registered);
         $key = sha1(serialize($scheme));
 
-        self::$registered[$scope][$key] = [
+        $watcher->registered[$scope][$key] = [
             'tenant' => $tenant,
             'bucket' => $scheme,
         ];
 
-        self::watch($scope);
+        if ($watch && is_subclass_of($scope, Model::class)) {
+            $scope::created(function (Model $record) use ($watcher) {
+                $store = CounterStore::configured();
+                $store->increment($watcher->rows($store, $record, now()));
+            });
+        }
     }
 
     /**
@@ -73,27 +72,8 @@ final class SequenceWatcher
      */
     public static function store(Model $record, DateTimeInterface $date, ?string $tenant, array $scheme = []): void
     {
-        $scope = $record::class;
-        $tenant = $tenant !== null ? $record->getAttributeValue($tenant) : self::DEFAULT_TENANT;
-        $bucket = array_combine(
-            $scheme,
-            array_map($record->getAttributeValue(...), $scheme),
-        );
-
-        $counters = self::counters($date, $bucket);
-        $bindings = [];
-        $values = implode(',', array_fill(0, count($counters), '(?, ?, ?, ?, 1)'));
-
-        foreach ($counters as $key => $hash) {
-            array_push($bindings, $tenant, $scope, $hash, $key);
-        }
-
-        self::connection()->statement(<<<SQL
-            INSERT INTO sequences (tenant, scope, hash, key, value)
-            VALUES {$values}
-            ON CONFLICT (tenant, scope, hash, key)
-            DO UPDATE SET value = sequences.value + 1
-            SQL, $bindings);
+        $store = CounterStore::configured();
+        $store->increment(self::schemeRows($store, $record, $date, $tenant, $scheme));
     }
 
     /**
@@ -102,64 +82,51 @@ final class SequenceWatcher
      */
     public static function load(string $scope, DateTimeInterface $date, ?string $tenant, array $bucket = []): array
     {
-        /** @var array<string, int|numeric-string> $rows */
-        $rows = self::connection()
-            ->table('sequences')
-            ->where([
-                'tenant' => $tenant ?? self::DEFAULT_TENANT,
-                'scope' => $scope,
-            ])
-            ->whereIn('hash', array_values(self::counters($date, $bucket)))
-            ->pluck('value', 'key')
-            ->all();
-
-        return array_map(
-            fn (int|string $value) => (int) $value + 1,
-            array_replace(array_fill_keys(array_keys(self::COUNTERS), 0), $rows),
-        );
-    }
-
-    private static function watch(string $scope): void
-    {
-        if (array_key_exists($scope, self::$watched) || !is_subclass_of($scope, Model::class)) {
-            return;
-        }
-
-        self::$watched[$scope] = true;
-
-        $scope::created(function (Model $record) {
-            foreach (self::$registered[$record::class] ?? [] as $scheme) {
-                self::store($record, now(), $scheme['tenant'], $scheme['bucket']);
-            }
-        });
+        return CounterStore::configured()->load($scope, $date, $tenant, $bucket);
     }
 
     /**
-     * @param array<string, mixed> $bucket
-     * @return array<string, string>
+     * @return array<string, array{tenant: string, scope: string, hash: string, key: string, value: int}>
      */
-    private static function counters(DateTimeInterface $date, array $bucket): array
+    private function rows(CounterStore $store, Model $record, DateTimeInterface $date): array
     {
-        $result = [];
+        $rows = [];
 
-        foreach (self::COUNTERS as $key => $counter) {
-            $counterBucket = $counter['bucketed'] ? $bucket : [];
-
-            $result[$key] = sha1(serialize([
-                'bucket' => $counterBucket,
-                'period' => $date->format($counter['format']),
-            ]));
+        foreach ($this->registered[$record::class] as $scheme) {
+            $rows = array_replace($rows, self::schemeRows(
+                $store,
+                $record,
+                $date,
+                $scheme['tenant'],
+                $scheme['bucket'],
+            ));
         }
 
-        return $result;
+        return $rows;
     }
 
-    private static function connection(): Connection
+    /**
+     * @param list<string> $scheme
+     * @return array<string, array{tenant: string, scope: string, hash: string, key: string, value: int}>
+     */
+    private static function schemeRows(
+        CounterStore $store,
+        Model $record,
+        DateTimeInterface $date,
+        ?string $tenant,
+        array $scheme,
+    ): array {
+        /** @var string $tenantId */
+        $tenantId = $tenant !== null ? $record->getAttributeValue($tenant) : self::DEFAULT_TENANT;
+        $bucket = array_combine($scheme, array_map($record->getAttributeValue(...), $scheme));
+
+        return $store->rows($record::class, $date, $tenantId, $bucket);
+    }
+
+    private static function watcher(): self
     {
-        return DB::connection(
-            config('phpinnacle-sequentia.connection') === null
-                ? null
-                : Config::string('phpinnacle-sequentia.connection'),
-        );
+        self::$watchers ??= new WeakMap;
+
+        return self::$watchers[Model::getEventDispatcher()] ??= new self;
     }
 }
