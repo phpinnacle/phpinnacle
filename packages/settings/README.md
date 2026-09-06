@@ -44,12 +44,6 @@ $panel->plugin(
 
 `Definition::parent()` groups a definition below another definition. A definition class may also provide its own form contract; the explicit `schema()` method is convenient for small groups.
 
-Register each settings class only through `SettingsPlugin::definitions()`. The plugin also binds it in Laravel's container, so `app(GeneralSettings::class)` and constructor injection load persisted values automatically. Remove the old `phpinnacle-settings.definitions` config entry; it is no longer read.
-
-You can pass a class name directly when its default label, slug and form are sufficient. Closures may return a definition, a class name or an array of either. They are evaluated when the plugin is registered, before a current panel, authenticated user or tenant is selected. Keep these registrations independent of request state.
-
-The panel provider registers these bindings during application boot, including for commands and queue workers. Settings objects are filled lazily on first resolution; registering the plugin does not query the settings table.
-
 ## Storage API
 
 `SettingsStorage` exposes `register()`, `fill()`, `load()` and `save()` for application setting sections. `Preference::get()`, `retrieve()` and `store()` provide the equivalent user-scoped API. Values are stored as JSON and keyed by group and key.

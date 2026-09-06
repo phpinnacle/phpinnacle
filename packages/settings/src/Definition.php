@@ -12,7 +12,6 @@ use PHPinnacle\Settings\Pages\SettingsPage;
 class Definition
 {
     /**
-     * @param class-string $class
      * @param array<Component|\Filament\Actions\Action|\Filament\Actions\ActionGroup|string|\Illuminate\Contracts\Support\Htmlable> $schema
      */
     public function __construct(
@@ -26,9 +25,6 @@ class Definition
         public array $schema = [],
     ) {}
 
-    /**
-     * @param class-string $class
-     */
     public static function make(string $class): self
     {
         $name = Str::chopEnd(Str::afterLast($class, '\\'), 'Settings');

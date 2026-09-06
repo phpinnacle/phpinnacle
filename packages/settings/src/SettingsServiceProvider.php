@@ -3,8 +3,10 @@
 namespace PHPinnacle\Settings;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Application;
 use PHPinnacle\Settings\Models\Preference;
 use PHPinnacle\Settings\Services\DefinitionRegistry;
+use PHPinnacle\Settings\Services\SettingsStorage;
 use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -15,9 +17,18 @@ class SettingsServiceProvider extends PackageServiceProvider
 
     public function packageRegistered(): void
     {
+        $definitions = array_unique((array) config('phpinnacle-settings.definitions', []));
+
         $this->callAfterResolving(DefinitionRegistry::class, function (DefinitionRegistry $registry) {
             SettingsPlugin::get()->load($registry);
         });
+
+        foreach ($definitions as $definition) {
+            $this->app->singleton($definition);
+            $this->app->resolving($definition, function (object $object, Application $app) {
+                $app->make(SettingsStorage::class)->fill($object);
+            });
+        }
     }
 
     public function packageBooted(): void
