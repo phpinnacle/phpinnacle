@@ -158,8 +158,8 @@ class Media extends Model
         $self->holder_type = $record->getMorphClass();
         $self->holder_id = $record->getKey();
         $self->name = $file->getClientOriginalName();
-        $self->mime = $file->getMimeType();
-        $self->size = $file->getSize();
+        $self->mime = Storage::disk($disk)->mimeType($path);
+        $self->size = Storage::disk($disk)->size($path);
         $self->disk = $disk;
         $self->folder = $folder;
         $self->path = $path;

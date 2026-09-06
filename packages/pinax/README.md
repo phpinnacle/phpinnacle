@@ -47,6 +47,10 @@ MediaGallery::make('gallery')
 
 The `Media` model also exposes `fetch()`, `store()`, `clear()`, `one()`, `single()` and `folder()` for application-level access. Public URLs require a disk capable of generating accessible URLs.
 
+Uploads stream from the temporary disk to the configured destination with the field's visibility. `moveFiles()` removes the temporary source only after a successful write, including when the disks differ. A failed transfer returns no stored value and creates no successful media metadata. Storage exceptions propagate according to the disk configuration.
+
+`MediaUpload` returns the saved media ID; the gallery upload returns the destination path. MIME type and size are read from the stored destination, so metadata remains available after moving the temporary file. `Media::store()` expects the supplied destination disk/path to contain the uploaded file.
+
 ## Testing
 
 ```bash

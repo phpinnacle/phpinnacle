@@ -2,13 +2,11 @@
 
 Reviewed against the working tree on 2026-09-05. Preserve holder/folder isolation, upload return values, model lifecycle, and public component configuration.
 
-## 1. Priority: high — establish upload and persistence behavior
+## 1. Completed — establish upload and persistence behavior
 
-The only current package test exercises `Mark`; neither upload flow nor database operations are covered. `MediaUpload::performMove()` operates on the destination disk using the temporary file's path, and callers persist metadata after transfer.
+Copy and move now stream from the temporary file's own storage to the configured destination and check the write result. Moves remove the source only after a successful write. Both fields read MIME type and size from the destination, preserving metadata after source removal. Missing files and failed transfers return no stored value; no successful media metadata is created.
 
-Before moving this code, use fake storage and database fixtures to cover copy/move, custom directories, missing temporary files, public/private visibility, and the different return values: a media ID for `MediaUpload`, a path for `MediaGallery`. Include temporary and destination disks that differ; reproduce any failed-move or orphaned-metadata behavior separately.
-
-Acceptance: successful uploads store matching file metadata; failed transfers do not create successful media records. Preserve existing callback order and missing-file semantics during extraction. New compensation/deletion behavior is a separate fix, not an incidental refactor.
+`MediaUploadTest` covers both upload callbacks, copy/move, same/different disks, custom directories, public/private visibility, failed writes, missing files, and source retention/removal. The media-ID and gallery-path return contracts remain intact.
 
 ## 2. Priority: medium — keep holder constraints in Media
 

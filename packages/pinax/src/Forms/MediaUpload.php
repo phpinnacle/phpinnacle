@@ -77,24 +77,33 @@ class MediaUpload extends FileUpload
             });
     }
 
-    private static function performCopy(BaseFileUpload $component, TemporaryUploadedFile $file): string
+    private static function performCopy(BaseFileUpload $component, TemporaryUploadedFile $file): ?string
     {
-        $storeMethod = $component->getVisibility() === 'public' ? 'storePubliclyAs' : 'storeAs';
+        $path = trim($component->getDirectory() . '/' . $component->getUploadedFileNameForStorage($file), '/');
+        $stream = $file->readStream();
 
-        return $file->{$storeMethod}(
-            $component->getDirectory(),
-            $component->getUploadedFileNameForStorage($file),
-            $component->getDiskName(),
-        );
+        if (!is_resource($stream)) {
+            return null;
+        }
+
+        try {
+            return $component->getDisk()->put($path, $stream, ['visibility' => $component->getVisibility()])
+                ? $path
+                : null;
+        } finally {
+            fclose($stream);
+        }
     }
 
-    private static function performMove(BaseFileUpload $component, TemporaryUploadedFile $file): string
+    private static function performMove(BaseFileUpload $component, TemporaryUploadedFile $file): ?string
     {
-        $newPath = trim($component->getDirectory() . '/' . $component->getUploadedFileNameForStorage($file), '/');
+        $path = self::performCopy($component, $file);
 
-        $component->getDisk()->move($file->path(), $newPath);
+        if ($path === null) {
+            return null;
+        }
 
-        return $newPath;
+        return $file->delete() ? $path : null;
     }
 
     private function deleteAbandonedFiles(?Model $record): void

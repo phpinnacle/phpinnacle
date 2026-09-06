@@ -127,8 +127,8 @@ class MediaGallery extends Repeater
                             return null;
                         }
 
-                        $set('size', $file->getSize());
-                        $set('mime', $file->getMimeType());
+                        $set('size', $component->getDisk()->size($path));
+                        $set('mime', $component->getDisk()->mimeType($path));
                         $set('disk', $component->getDiskName());
 
                         return $path;
