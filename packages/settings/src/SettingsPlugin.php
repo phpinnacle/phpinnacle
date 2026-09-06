@@ -6,15 +6,17 @@ use Closure;
 use Filament\Contracts\Plugin;
 use Filament\Panel;
 use Filament\Support\Concerns\EvaluatesClosures;
+use Illuminate\Foundation\Application;
 use PHPinnacle\Settings\Pages\SettingsPage;
 use PHPinnacle\Settings\Services\DefinitionRegistry;
+use PHPinnacle\Settings\Services\SettingsStorage;
 
 class SettingsPlugin implements Plugin
 {
     use EvaluatesClosures;
 
     /**
-     * @var array<array-key, Definition|Closure|string>
+     * @var array<array-key, Definition|class-string|array<Definition|class-string>|Closure(): (Definition|class-string|array<Definition|class-string>)>
      */
     private array $definitions = [];
 
@@ -37,6 +39,9 @@ class SettingsPlugin implements Plugin
         return 'phpinnacle/settings';
     }
 
+    /**
+     * @param Definition|class-string|Closure(): (Definition|class-string|array<Definition|class-string>) ...$definitions
+     */
     public function definitions(Definition|Closure|string ...$definitions): static
     {
         $this->definitions = [
@@ -49,6 +54,21 @@ class SettingsPlugin implements Plugin
 
     public function register(Panel $panel): void
     {
+        $this->definitions = $this->resolveDefinitionGroups();
+
+        foreach ($this->definitions as $definitions) {
+            foreach ($definitions as $definition) {
+                $class = $definition->class;
+
+                app()->singleton($class, function (Application $app) use ($class) {
+                    $settings = $app->build($class);
+                    $app->make(SettingsStorage::class)->fill($settings);
+
+                    return $settings;
+                });
+            }
+        }
+
         $panel->pages([
             SettingsPage::class,
         ]);
@@ -58,13 +78,29 @@ class SettingsPlugin implements Plugin
 
     public function load(DefinitionRegistry $registry): void
     {
-        foreach ($this->definitions as $definition) {
-            $definitions = array_map(
-                fn (Definition|string $def) => is_string($def) ? Definition::make($def) : $def,
-                (array) $this->evaluate($definition),
-            );
-
-            $registry->register(...array_values($definitions));
+        foreach ($this->resolveDefinitionGroups() as $definitions) {
+            $registry->register(...$definitions);
         }
+    }
+
+    /**
+     * @return list<list<Definition>>
+     */
+    private function resolveDefinitionGroups(): array
+    {
+        $resolved = [];
+
+        foreach ($this->definitions as $definition) {
+            $definitions = $this->evaluate($definition);
+            $group = [];
+
+            foreach (is_array($definitions) ? $definitions : [$definitions] as $item) {
+                $group[] = is_string($item) ? Definition::make($item) : $item;
+            }
+
+            $resolved[] = $group;
+        }
+
+        return $resolved;
     }
 }

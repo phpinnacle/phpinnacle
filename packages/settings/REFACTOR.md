@@ -1,10 +1,10 @@
 # Refactor plan
 
-Reviewed against the working tree on 2026-09-05. Fix storage isolation and consistency before optimizing queries. Existing tests cover `DefinitionRegistry`, not `SettingsStorage`.
+Reviewed against the working tree on 2026-09-05. Fix storage isolation and consistency before optimizing queries. Tests now cover `DefinitionRegistry` and plugin-only registration with persisted-value hydration; storage isolation and consistency remain uncovered.
 
 ## 1. Priority: high — scope both storage values and hydrated objects
 
-`SettingsStorage` is a singleton caching values by tenant/section, and `SettingsServiceProvider` separately binds configured settings objects as singletons. Changing only the storage binding leaves already filled objects available to later requests/tenants.
+`SettingsStorage` is a singleton caching values by tenant/section, and `SettingsPlugin` binds its settings classes as singletons. Changing only the storage binding leaves already filled objects available to later requests/tenants.
 
 Separate reusable reflection definitions from request/tenant values. Align storage and hydrated-object lifetimes, retaining registration after scope reset. Cover consecutive requests for tenants A and B and the non-tenant default; if tenant switching within one request is supported, define object resolution for that case explicitly.
 
