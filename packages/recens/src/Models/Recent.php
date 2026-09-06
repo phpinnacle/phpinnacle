@@ -17,13 +17,12 @@ use Ramsey\Uuid\Uuid;
 /**
  * @property string $id
  * @property string $user_id
- * @property string|null $panel_id
- * @property string|int|null $tenant_id
- * @property CarbonImmutable|null $pinned_at
+ * @property string $panel_id
  * @property string|null $group
  * @property string $url
  * @property string|null $icon
  * @property string $title
+ * @property CarbonImmutable|null $pinned_at
  * @property CarbonImmutable $created_at
  */
 class Recent extends Model implements HasIcon, HasLabel

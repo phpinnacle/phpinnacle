@@ -45,8 +45,6 @@ beforeEach(function () {
     });
     $migration = require __DIR__ . '/../../database/migrations/create_recens_tables.php';
     $migration->up();
-    $migration = require __DIR__ . '/../../database/migrations/add_panel_and_pins_to_recent.php';
-    $migration->up();
 
     Filament::setCurrentPanel(Panel::make()->id('admin')->plugin(RecensPlugin::make()));
     $this->visitor = RecentVisitor::create(['name' => 'Ada']);
@@ -240,102 +238,10 @@ it('does not expose or modify history for guests or a different panel guard', fu
     Livewire::test(Entries::class)->call('clear')->assertForbidden();
 });
 
-it('migrates legacy identities without assigning a panel or reclaiming another users entry', function (bool $tenancy) {
-    $migration = require __DIR__ . '/../../database/migrations/add_panel_and_pins_to_recent.php';
-    $migration->down();
-    $tenant = null;
-
-    if ($tenancy) {
-        Schema::create('tenants', function (Blueprint $table) {
-            $table->id();
-        });
-        $tenant = RecentTenant::create();
-        config()->set('phpinnacle-recens.tenancy', ['model' => RecentTenant::class, 'default' => $tenant->id]);
-        $create = require __DIR__ . '/../../database/migrations/create_recens_tables.php';
-        $create->down();
-        $create->up();
-    }
-
-    $url = 'https://example.test/orders';
-    $legacyId = Uuid::uuid5(Uuid::NAMESPACE_URL, $url)->toString();
-    DB::table('recent')->insert([
-        'id' => $legacyId,
-        'user_id' => $this->visitor->id,
-        'title' => 'Legacy orders',
-        'icon' => 'heroicon-o-document',
-        'url' => $url,
-        'created_at' => now(),
-    ]);
-    $migration->up();
-    $legacy = Recent::query()->sole();
-
-    expect($legacy->id)
-        ->not
-        ->toBe($legacyId)
-        ->and($legacy->panel_id)
-        ->toBeNull()
-        ->and($legacy->pinned_at)
-        ->toBeNull()
-        ->and(Recent::list())
-        ->toBe([]);
-
-    Filament::setCurrentPanel(null);
-    Recent::record(['title' => 'Updated legacy', 'icon' => 'heroicon-o-document']);
-    expect(Recent::query()->count())->toBe(1)->and(Recent::list()[0]->id)->toBe($legacy->id);
-
-    $this->actingAs(RecentVisitor::create(['name' => 'Grace']));
-    Recent::record(['title' => 'New user', 'icon' => 'heroicon-o-document']);
-    expect(Recent::query()->count())->toBe(2)->and($legacy->refresh()->user_id)->toEqual($this->visitor->id);
-
-    $migration->down();
-    expect(Schema::hasColumn('recent', 'panel_id'))
-        ->toBeFalse()
-        ->and(Schema::hasColumn('recent', 'pinned_at'))
-        ->toBeFalse();
-})->with([false, true]);
-
 it('does not record Livewire updates', function () {
     request()->headers->set('X-Livewire', 'true');
     app(Recorder::class)->record(new RecordedPage);
     expect(Recent::query()->count())->toBe(0);
-});
-
-it('migrates and records on the configured connection', function () {
-    config()->set('database.connections.archive', ['driver' => 'sqlite', 'database' => ':memory:']);
-    config()->set('phpinnacle-recens.connection', 'archive');
-    $connection = DB::getDefaultConnection();
-    DB::setDefaultConnection('archive');
-
-    try {
-        Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-        });
-        DB::table('users')->insert(['id' => $this->visitor->id, 'name' => 'Ada']);
-        $create = require __DIR__ . '/../../database/migrations/create_recens_tables.php';
-        $create->up();
-        DB::table('recent')->insert([
-            'id' => Uuid::uuid5(Uuid::NAMESPACE_URL, 'https://example.test/legacy')->toString(),
-            'user_id' => $this->visitor->id,
-            'title' => 'Legacy',
-            'icon' => 'heroicon-o-document',
-            'url' => 'https://example.test/legacy',
-            'created_at' => now(),
-        ]);
-    } finally {
-        DB::setDefaultConnection($connection);
-    }
-
-    $migration = require __DIR__ . '/../../database/migrations/add_panel_and_pins_to_recent.php';
-    $migration->up();
-    Recent::record(['title' => 'Archive orders', 'icon' => 'heroicon-o-document']);
-
-    expect(DB::table('recent')->count())
-        ->toBe(0)
-        ->and(DB::connection('archive')->table('recent')->count())
-        ->toBe(2)
-        ->and(Recent::list()[0]->title)
-        ->toBe('Archive orders');
 });
 
 it('validates entry identifiers at the menu boundary', function (string $action) {

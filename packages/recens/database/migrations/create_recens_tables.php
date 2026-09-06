@@ -14,6 +14,7 @@ return new class extends Migration {
                 ->index()
                 ->constrained()
                 ->cascadeOnDelete();
+            $table->string('panel_id')->index();
             $table
                 ->string('group')
                 ->index()
@@ -21,6 +22,10 @@ return new class extends Migration {
             $table->text('url');
             $table->string('icon');
             $table->string('title');
+            $table
+                ->timestamp('pinned_at')
+                ->index()
+                ->nullable();
             $table->timestamp('created_at')->index();
 
             $this->addTenancy($table);
