@@ -2,13 +2,9 @@
 
 Reviewed against the working tree on 2026-09-05. Preserve transform order, webhook response formats, handler contracts, and model-owned status transitions. Behavior fixes below precede cosmetic extraction.
 
-## 1. Priority: high — render transform configuration as data
+## 1. Completed — render transform configuration as data
 
-`TransformType::preview()` interpolates MOVE/CAST values into Blade source and concatenates DATE formats into HTML. These values originate in integration forms; moving markup alone does not fix that boundary.
-
-Use package views/components with escaped data bindings, keeping the public `preview(array): string` return contract. Do not change it to structured data as the old plan suggested.
-
-Acceptance: normal previews retain their badges and labels; user-entered HTML and Blade syntax render as text instead of becoming markup or template code. Add focused preview tests; current `IntegrationTest` only covers header authentication.
+MOVE/CAST previews now pass configuration as data to static Blade components, and DATE formats are HTML-escaped. The public `preview(array): string` contract and normal badges and labels are preserved. `TransformConfigurationTest` covers literal HTML and Blade syntax alongside ordinary previews.
 
 ## 2. Priority: high — specify queue failure and dispatch lifecycle
 

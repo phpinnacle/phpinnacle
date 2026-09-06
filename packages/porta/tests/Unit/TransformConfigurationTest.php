@@ -40,4 +40,24 @@ final class TransformConfigurationTest extends TestCase
         $this->assertStringContainsString('Y-m-d => d.m.Y', $date);
         $this->assertSame($date, TransformType::DATE->preview(['input' => 'Y-m-d', 'output' => 'd.m.Y']));
     }
+
+    public function test_it_renders_preview_configuration_as_text(): void
+    {
+        $text = '<em>{{ 7 * 7 }}</em>';
+
+        foreach ([
+            [TransformType::MOVE, ['dest' => $text]],
+            [TransformType::CAST, ['type' => $text]],
+            [TransformType::DATE, ['input' => $text, 'output' => $text]],
+            [TransformType::MAP, ['fields' => [$text => $text]]],
+            [TransformType::RENAME, ['fields' => [$text => $text]]],
+            [TransformType::INSERT, ['fields' => [$text => $text]]],
+        ] as [$type, $config]) {
+            $preview = $type->preview($config);
+
+            $this->assertStringContainsString(e($text), $preview);
+            $this->assertStringNotContainsString('<em>', $preview);
+            $this->assertStringNotContainsString('49', $preview);
+        }
+    }
 }

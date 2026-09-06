@@ -91,14 +91,14 @@ readonly class TransformConfiguration
                     'fields' => $config['fields'] ?? [],
                 ],
             ),
-            TransformType::MOVE => Blade::render(sprintf(
-                '<x-filament::badge>%s</x-filament::badge>',
-                $config['dest'] ?? '$',
-            )),
-            TransformType::CAST => Blade::render(sprintf(
-                '<x-filament::badge color="warning">%s</x-filament::badge>',
-                $config['type'] ?? 'string',
-            )),
+            TransformType::MOVE => Blade::render(
+                '<x-filament::badge>{{ $destination }}</x-filament::badge>',
+                ['destination' => $config['dest'] ?? '$'],
+            ),
+            TransformType::CAST => Blade::render(
+                '<x-filament::badge color="warning">{{ $type }}</x-filament::badge>',
+                ['type' => $config['type'] ?? 'string'],
+            ),
             TransformType::DROP
                 => '<div class="fi-ta-placeholder text-sm leading-6 text-gray-400 dark:text-gray-500">-</div>',
             TransformType::TRIM => filled($config['chars'] ?? null)
@@ -107,9 +107,9 @@ readonly class TransformConfiguration
                 ])
                 : '<div class="fi-ta-placeholder text-sm leading-6 text-gray-400 dark:text-gray-500">-</div>',
             TransformType::DATE => '<span class="fi-ta-placeholder text-sm leading-6 text-gray-400 dark:text-gray-500">'
-                . (filled($config['input'] ?? null) ? $config['input'] : 'Any')
+                . e(filled($config['input'] ?? null) ? $config['input'] : 'Any')
                 . ' => '
-                . (filled($config['output'] ?? null) ? $config['output'] : 'd.m.Y')
+                . e(filled($config['output'] ?? null) ? $config['output'] : 'd.m.Y')
                 . '</span>',
         };
     }
