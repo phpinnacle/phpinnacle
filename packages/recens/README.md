@@ -70,16 +70,11 @@ Pruning excludes pinned entries and honors `prune.enabled` and `prune.days`. Sch
 
 ## Upgrading to 1.2
 
-Publish and run the additional migration before serving requests with the updated package:
+As of 1.2.1, fresh installations create `panel_id` and `pinned_at` in the initial migration. The package no longer ships the separate `add_panel_and_pins_to_recent` migration.
 
-```bash
-php artisan vendor:publish --tag="phpinnacle-recens-migrations"
-php artisan migrate
-```
+Existing installations with the pre-1.2 schema require an application migration before serving requests with the updated package. Republishing the initial migration does not update an existing table. The application migration must add the panel and pin columns and account for the old URL-only entry IDs and unknown original panels. Use the configured database connection and the application's normal maintenance deployment process.
 
-Use the application's normal maintenance deployment process while this migration runs. It adds `panel_id` and `pinned_at` and replaces existing URL-only IDs with IDs containing the stored owner and tenant. Existing records and timestamps are retained, but `panel_id` stays `null`: the old schema cannot identify their original panel. Those entries are not shown inside a panel and age out through ordinary pruning; revisiting a page creates a panel-specific entry. There is no runtime fallback that claims an old row for another user. The configured database connection is used for the migration and model queries.
-
-Rollback removes the new columns; it does not restore the unsafe URL-only IDs. Downgrading code to the old ownership model is not supported by this migration.
+Applications that already ran the 1.2.0 upgrade migration can retain it and their migrated data; no additional schema migration is required for 1.2.1.
 
 ## Testing
 

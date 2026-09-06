@@ -2,6 +2,12 @@
 
 All notable changes to `recens` will be documented in this file.
 
+## 1.2.1 - 2026-09-06
+
+- Include panel and pin columns in the initial migration and remove registration of the deleted upgrade migration.
+- Replace local Eloquent scopes with explicit model query methods.
+- Clarify that installations with the pre-1.2 schema require an application migration.
+
 ## 1.2.0 - 2026-09-06
 
 - Add stable pinned pages above limited recent history and protect pins from pruning.

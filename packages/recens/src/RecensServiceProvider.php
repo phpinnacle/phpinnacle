@@ -26,7 +26,7 @@ class RecensServiceProvider extends PackageServiceProvider
     {
         $package
             ->name(static::$name)
-            ->hasMigrations(['create_recens_tables', 'add_panel_and_pins_to_recent'])
+            ->hasMigrations(['create_recens_tables'])
             ->hasTranslations()
             ->hasConfigFile()
             ->hasViews()
