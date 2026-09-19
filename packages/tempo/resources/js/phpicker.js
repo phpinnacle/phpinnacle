@@ -198,7 +198,11 @@ export default function phpPicker ({
         },
 
         formatDate: function (date) {
-            return moment(date).format(this.maskFormat) || '';
+            const parsed = typeof date === 'string'
+                ? moment(date, [this.maskFormat, moment.ISO_8601], true)
+                : moment(date)
+
+            return parsed.format(this.maskFormat) || '';
         },
 
         parseDate: function (value) {
