@@ -60,6 +60,8 @@ composer test
 
 `composer test` runs all package PHPUnit and Pest suites.
 
+CI runs on pushes to any branch. A new run cancels any unfinished CI run for the same branch.
+
 Run `composer format` to apply the repository's Mago formatting rules.
 Run `composer phpstan` to run PHPStan level 6 static analysis across all package sources.
 
