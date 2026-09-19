@@ -344,7 +344,7 @@ class TwigTemplatePlugin implements RichContentPlugin
             ->required()
             ->visible(fn (Get $get) => !$literals || $get("{$side}_type") === 'variable');
 
-        if ($resetVariable !== null || $resetType !== null) {
+        if ($resetType !== null) {
             $variableField
                 ->live()
                 ->afterStateUpdated(function (Set $set) use ($resetType, $resetVariable) {
@@ -352,9 +352,7 @@ class TwigTemplatePlugin implements RichContentPlugin
                         $set($resetVariable, null);
                     }
 
-                    if ($resetType !== null) {
-                        $set($resetType, 'variable');
-                    }
+                    $set($resetType, 'variable');
                 });
         }
 
