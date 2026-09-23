@@ -16,6 +16,7 @@ use PHPinnacle\Tempo\Forms\CronExpression;
 use PHPinnacle\Tempo\Forms\DatePicker;
 use PHPinnacle\Tempo\Forms\DateRangePicker;
 use PHPinnacle\Tempo\Forms\DateTimePicker;
+use PHPinnacle\Tempo\Forms\Duration;
 use PHPinnacle\Tempo\Forms\TimePicker;
 
 DatePicker::make('published_on');
@@ -29,9 +30,16 @@ CronExpression::make('schedule')
     ->defaultMode('expression')
     ->presets(['Late weekdays' => '0 23 ? * MON-FRI'])
     ->required();
+Duration::make('timeout')->required();
+Duration::make('retention')->storeAs('string');
+Duration::make('short_timer')
+    ->units(['minute', 'second'])
+    ->quickValues(['minute' => [0, 1, 5, 15, 30, 60]]);
 ```
 
 The date and time pickers support custom formats, locale, timezone, minimum and maximum values, and optional automatic closing. The package registers its field JavaScript and CSS through Filament assets.
+
+`Duration` has visual day, hour, minute, and second controls plus one masked text input. Its translated unit suffixes stay fixed within the input; Space and the Left and Right arrow keys move between numbers. When the text input loses focus, its value is redistributed across the enabled units. Months and years are not supported because their length depends on the calendar date. The field stores a non-negative integer number of seconds by default. Use `storeAs('string')` to store a duration string instead; `storeAs('seconds')` restores the default. `units()` limits both editors to the listed units; for example, minutes and seconds can represent `1h 30m` as `90m`. Values in seconds must be divisible by the smallest enabled unit. The text editor has a clear button and writes normalized values; invalid numbers remain available for validation. `storeAs('string')` always stores canonical `d/h/m/s` suffixes regardless of the display language. An empty field stores `null`, while zero stores `0` or a string with the smallest enabled unit. `quickValues()` overrides the number shortcuts separately for any unit, leaving unspecified units at their defaults. `presets()` replaces the built-in quick durations with a label-to-duration map; pass an empty array to hide the preset menu. All options accept Filament callbacks.
 
 `CronExpression` stores a five-field cron string. Call `showDescription()` to display a localized plain-language description below the editor; it is hidden by default. It offers presets and visual controls for intervals and selected values in each field. In the `Every` grid, interval `1` writes `*`; larger intervals write `*/N`. Consecutive or evenly spaced selections are written as ranges, with a step when needed. The day-of-month grid includes `Last`, which writes `L` for the last day of each month; `L` must stand alone in that field. Use the expression tab for combinations the visual controls cannot represent. Validation accepts numeric values, three-letter English month and weekday names, and `?` as an unspecified day of the month or week (but not both).
 
