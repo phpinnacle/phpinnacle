@@ -71,6 +71,16 @@ await Promise.all([
     }),
     compile({
         ...defaultOptions,
+        entryPoints: ['./resources/js/cron-expression.js'],
+        outfile: './resources/dist/cron-expression.js',
+    }),
+    compile({
+        ...defaultOptions,
+        entryPoints: ['./resources/css/cron-expression.css'],
+        outfile: './resources/dist/cron-expression.css',
+    }),
+    compile({
+        ...defaultOptions,
         entryPoints: ['./resources/css/calendar.css'],
         outfile: './resources/dist/calendar.css',
     }),

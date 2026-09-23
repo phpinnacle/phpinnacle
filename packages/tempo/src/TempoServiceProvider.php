@@ -26,8 +26,10 @@ class TempoServiceProvider extends PackageServiceProvider
         FilamentAsset::register(
             assets: [
                 AlpineComponent::make('phpicker', __DIR__ . '/../resources/dist/phpicker.js'),
+                AlpineComponent::make('tempo-cron', __DIR__ . '/../resources/dist/cron-expression.js'),
                 AlpineComponent::make('tempo-calendar', __DIR__ . '/../resources/dist/calendar.js'),
                 Css::make('phpicker', __DIR__ . '/../resources/dist/phpicker.css'),
+                Css::make('tempo-cron', __DIR__ . '/../resources/dist/cron-expression.css'),
                 Css::make('tempo-calendar', __DIR__ . '/../resources/dist/calendar.css'),
             ],
             package: 'phpinnacle/tempo',

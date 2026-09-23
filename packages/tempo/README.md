@@ -12,6 +12,7 @@ php artisan filament:assets
 ## Filament fields
 
 ```php
+use PHPinnacle\Tempo\Forms\CronExpression;
 use PHPinnacle\Tempo\Forms\DatePicker;
 use PHPinnacle\Tempo\Forms\DateRangePicker;
 use PHPinnacle\Tempo\Forms\DateTimePicker;
@@ -21,9 +22,24 @@ DatePicker::make('published_on');
 DateTimePicker::make('published_at');
 DateRangePicker::make('period');
 TimePicker::make('starts_at');
+CronExpression::make('schedule')
+    ->showDescription()
+    ->showDayOfWeek(false)
+    ->gridColumns(['month' => 4])
+    ->defaultMode('expression')
+    ->presets(['Late weekdays' => '0 23 ? * MON-FRI'])
+    ->required();
 ```
 
-The fields support custom formats, locale, timezone, minimum and maximum values, and optional automatic closing. The package registers its picker JavaScript and CSS through Filament assets.
+The date and time pickers support custom formats, locale, timezone, minimum and maximum values, and optional automatic closing. The package registers its field JavaScript and CSS through Filament assets.
+
+`CronExpression` stores a five-field cron string. Call `showDescription()` to display a localized plain-language description below the editor; it is hidden by default. It offers presets and visual controls for intervals and selected values in each field. In the `Every` grid, interval `1` writes `*`; larger intervals write `*/N`. Consecutive or evenly spaced selections are written as ranges, with a step when needed. The day-of-month grid includes `Last`, which writes `L` for the last day of each month; `L` must stand alone in that field. Use the expression tab for combinations the visual controls cannot represent. Validation accepts numeric values, three-letter English month and weekday names, and `?` as an unspecified day of the month or week (but not both).
+
+`gridColumns()` sets the number of value-grid columns per cron part (`minute`, `hour`, `day`, `month`, or `weekday`). Unspecified parts keep their defaults: six for minutes, four for hours and days of the month, three for months, and two for weekdays.
+
+`defaultMode()` accepts `visual` (the default) or `expression` for the initially selected editor. `presets()` replaces the built-in list with a label-to-expression map; pass an empty array to hide the preset menu.
+
+`showDayOfWeek(false)` hides the weekday controls in Visual mode. The fifth cron field remains available in Expression mode and keeps its value when other parts are edited visually. Weekday controls are shown by default. All cron field options (`gridColumns()`, `showDescription()`, `showDayOfWeek()`, `defaultMode()`, and `presets()`) also accept Filament callbacks. For example, `fn (Get $get) => (bool) $get('show_day_of_week')` can read a live checkbox elsewhere in the form.
 
 ## Table filters
 

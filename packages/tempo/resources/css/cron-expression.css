@@ -1,0 +1,281 @@
+.tempo-cron {
+    display: grid;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.tempo-cron__toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.tempo-cron__visual {
+    position: relative;
+}
+
+.tempo-cron__fields {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    z-index: 50;
+    width: min(36rem, 100%);
+}
+
+.tempo-cron__fields--narrow {
+    width: min(20rem, 100%);
+}
+
+.tempo-cron__fields--medium {
+    width: min(28rem, 100%);
+}
+
+.tempo-cron__fields--above {
+    top: auto;
+    bottom: calc(100% + 0.5rem);
+}
+
+.tempo-cron__flow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.tempo-cron__part {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid var(--gray-300);
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--gray-950);
+    cursor: pointer;
+    font-size: 0.875rem;
+    padding: 0.4rem 0.6rem;
+}
+
+.tempo-cron__part::after {
+    content: '⌄';
+    color: var(--gray-500);
+    margin-left: 0.2rem;
+}
+
+.tempo-cron__part-label {
+    color: var(--gray-600);
+}
+
+.tempo-cron__part-value {
+    font-weight: 600;
+}
+
+.tempo-cron__part--active {
+    border-color: var(--primary-500);
+    background: color-mix(in srgb, var(--primary-500) 7%, transparent);
+}
+
+.tempo-cron__field {
+    display: grid;
+    gap: 0.75rem;
+    border: 1px solid var(--gray-200);
+    border-radius: 0.5rem;
+    background: var(--gray-50);
+    box-shadow: 0 0.75rem 2rem color-mix(in srgb, var(--gray-950) 16%, transparent);
+    padding: 0.75rem;
+}
+
+.tempo-cron__field-header,
+.tempo-cron__field-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.tempo-cron__field-header {
+    justify-content: space-between;
+}
+
+.tempo-cron__field-mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid var(--primary-500);
+    border-radius: 0.375rem;
+    background: color-mix(in srgb, var(--primary-500) 12%, transparent);
+    color: var(--primary-700);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.35rem 0.6rem;
+}
+
+.tempo-cron__grid {
+    display: grid;
+    grid-template-columns: repeat(var(--tempo-cron-grid-columns), minmax(0, 1fr));
+    gap: 0.3rem;
+    width: 100%;
+}
+
+.tempo-cron__grid-value {
+    border: 1px solid var(--gray-300);
+    border-radius: 0.3rem;
+    background: transparent;
+    color: var(--gray-700);
+    cursor: pointer;
+    font-size: 0.8rem;
+    min-height: 2rem;
+    padding: 0.25rem;
+}
+
+.tempo-cron__grid-value[aria-pressed='true'] {
+    border-color: var(--primary-500);
+    background: color-mix(in srgb, var(--primary-500) 16%, transparent);
+    color: var(--primary-700);
+    font-weight: 600;
+}
+
+.tempo-cron__label {
+    color: var(--gray-700);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.tempo-cron__input,
+.tempo-cron__mode {
+    border: 1px solid var(--gray-300);
+    border-radius: 0.375rem;
+    background: var(--gray-50);
+    color: var(--gray-950);
+    font-size: 0.875rem;
+    padding: 0.375rem 0.625rem;
+}
+
+.tempo-cron__input {
+    display: block;
+    width: 100%;
+    font-family: monospace;
+}
+
+.tempo-cron__modes {
+    display: inline-flex;
+    gap: 0.25rem;
+}
+
+.tempo-cron__mode {
+    cursor: pointer;
+    border-color: transparent;
+    border-radius: 0;
+    border-bottom-color: var(--gray-300);
+    background: transparent;
+}
+
+.tempo-cron__mode[aria-pressed='true'] {
+    border-bottom-color: var(--primary-600);
+    background: transparent;
+    color: var(--primary-700);
+}
+
+.tempo-cron__preset {
+    position: relative;
+}
+
+.tempo-cron__preset-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: 10rem;
+}
+
+.tempo-cron__preset-trigger span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tempo-cron__preset-trigger::after {
+    content: '⌄';
+    color: var(--gray-500);
+}
+
+.tempo-cron__preset-panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.25rem);
+    z-index: 50;
+    width: max-content;
+    min-width: 100%;
+    max-width: min(18rem, calc(100vw - 2rem));
+    border: 1px solid var(--gray-200);
+    border-radius: 0.5rem;
+    background: var(--gray-50);
+    box-shadow: 0 0.75rem 2rem color-mix(in srgb, var(--gray-950) 16%, transparent);
+    padding: 0.25rem;
+}
+
+.tempo-cron__preset-option {
+    display: block;
+    width: 100%;
+    border-radius: 0.375rem;
+    color: var(--gray-700);
+    cursor: pointer;
+    font-size: 0.875rem;
+    overflow-wrap: anywhere;
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+}
+
+.tempo-cron__preset-option:hover,
+.tempo-cron__preset-option[aria-pressed='true'] {
+    background: color-mix(in srgb, var(--primary-500) 10%, transparent);
+    color: var(--primary-700);
+}
+
+.tempo-cron__close {
+    color: var(--gray-500);
+    cursor: pointer;
+    font-size: 1.25rem;
+    line-height: 1;
+    padding: 0.25rem;
+}
+
+.tempo-cron__input:focus-visible,
+.tempo-cron__mode:focus-visible,
+.tempo-cron__preset-option:focus-visible,
+.tempo-cron__part:focus-visible,
+.tempo-cron__close:focus-visible,
+.tempo-cron__field-mode:focus-visible,
+.tempo-cron__grid-value:focus-visible {
+    outline: 2px solid var(--primary-500);
+    outline-offset: 2px;
+}
+
+.tempo-cron__input:disabled,
+.tempo-cron__mode:disabled,
+.tempo-cron__part:disabled,
+.tempo-cron__field-mode:disabled,
+.tempo-cron__grid-value:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.tempo-cron__grid-value[aria-pressed='true']:disabled {
+    opacity: 1;
+}
+
+.tempo-cron__hint {
+    margin: 0;
+    color: var(--gray-600);
+    font-size: 0.75rem;
+}
+
+.tempo-cron__hint--error {
+    color: var(--danger-600);
+}
+
+.tempo-cron__description {
+    margin: 0;
+    color: var(--gray-600);
+    font-size: 0.875rem;
+}
