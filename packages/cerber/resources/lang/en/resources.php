@@ -94,6 +94,7 @@ return [
             'redirect' => 'Redirect URL',
             'scopes' => 'Scopes',
             'additional' => 'Additional Parameters',
+            'oauth_scopes' => 'OAuth scopes',
         ],
         'pages' => [
             'list' => 'Auth Providers',
@@ -102,10 +103,16 @@ return [
         ],
         'placeholders' => [
             'scopes' => 'Enter scope and press Enter',
+            'oauth_scopes' => 'email, profile',
         ],
         'sections' => [
             'general' => 'General Information',
             'configuration' => 'Auth Configuration',
+        ],
+        'scopes' => [
+            'session' => 'Panel (session)',
+            'stateless' => 'API (stateless)',
+            'bff' => 'BFF (SPA cookie)',
         ],
     ],
     'accounts' => [

@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Route;
 use Lab404\Impersonate\Services\ImpersonateManager;
 use Livewire\Component;
+use PHPinnacle\Cerber\Enums\ProviderScope;
 use PHPinnacle\Cerber\Models\Provider;
 use PHPinnacle\Cerber\Models\Tenant;
 use PHPinnacle\Cerber\Services\DeveloperLogin;
@@ -29,11 +30,6 @@ class CerberPlugin implements Plugin
     public const string ID = 'phpinnacle/cerber';
 
     private bool $tenancy = false;
-
-    /**
-     * @var array<array-key, AuthProvider|Closure|string>
-     */
-    private array $authProviders = [];
 
     /**
      * @var array<string, string>
@@ -73,16 +69,6 @@ class CerberPlugin implements Plugin
     public function tenancy(bool $value = true): static
     {
         $this->tenancy = $value;
-
-        return $this;
-    }
-
-    public function authProviders(AuthProvider|Closure|string ...$providers): static
-    {
-        $this->authProviders = [
-            ...$this->authProviders,
-            ...$providers,
-        ];
 
         return $this;
     }
@@ -248,7 +234,7 @@ class CerberPlugin implements Plugin
             ]);
         }
 
-        if ($this->authProviders !== []) {
+        if ($this->providers->all()->isNotEmpty()) {
             $panel->renderHook(
                 PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
                 fn (ProviderRegistry $registry) => $this->providersHook($panel, $registry),
@@ -280,22 +266,16 @@ class CerberPlugin implements Plugin
             Resource::scopeToTenant(false);
             Cerberus::registerScoped();
         }
-
-        foreach ($this->authProviders as $providers) {
-            $providers = (array) $this->evaluate($providers);
-
-            foreach ($providers as $provider) {
-                $provider = is_string($provider) ? AuthProvider::make($provider) : $provider;
-
-                $this->providers->add($provider);
-            }
-        }
     }
 
     protected function providersHook(Panel $panel, ProviderRegistry $registry): string
     {
-        $providers = Provider::valid()->map(function (Provider $provider) use ($panel, $registry) {
+        $providers = Provider::valid(ProviderScope::Session)->map(function (Provider $provider) use (
+            $panel,
+            $registry,
+        ) {
             $type = $registry->get($provider->type);
+            $redirectUrl = $panel->route('auth.redirect', ['provider' => $provider->getKey()]);
 
             return (
                 $type !== null
@@ -303,7 +283,7 @@ class CerberPlugin implements Plugin
                         'label' => $provider->getLabel(),
                         'color' => $type->getColor(),
                         'icon' => $type->getIcon(),
-                        'url' => $provider->redirectUrl($panel),
+                        'url' => $redirectUrl,
                     ]
                     : null
             );
@@ -323,5 +303,18 @@ class CerberPlugin implements Plugin
                 'tenant' => $this->tenancy ? Tenant::resolve($panel)?->domain : null,
             ]),
         ]);
+    }
+
+    /**
+     * @deprecated Providers are now configured via config('phpinnacle-cerber.auth_providers').
+     */
+    public function authProviders(AuthProvider|Closure|string ...$providers): static
+    {
+        trigger_error(
+            'CerberPlugin::authProviders() is deprecated. Use config("phpinnacle-cerber.auth_providers") instead.',
+            E_USER_DEPRECATED,
+        );
+
+        return $this;
     }
 }

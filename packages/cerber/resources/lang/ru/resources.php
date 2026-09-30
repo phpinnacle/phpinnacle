@@ -92,8 +92,9 @@ return [
             'client_id' => 'Client ID',
             'client_secret' => 'Client Secret',
             'redirect' => 'Redirect URL',
-            'scopes' => 'Scopes',
             'additional' => 'Дополнительные параметры',
+            'scopes' => 'Области применения',
+            'oauth_scopes' => 'OAuth-разрешения',
         ],
         'pages' => [
             'list' => 'Провайдеры',
@@ -102,10 +103,16 @@ return [
         ],
         'placeholders' => [
             'scopes' => 'Введите scope и нажмите Enter',
+            'oauth_scopes' => 'email, profile',
         ],
         'sections' => [
             'general' => 'Основная информация',
             'configuration' => 'Настройки OAuth',
+        ],
+        'scopes' => [
+            'session' => 'Панель (session)',
+            'stateless' => 'API (stateless)',
+            'bff' => 'BFF (SPA cookie)',
         ],
     ],
     'accounts' => [

@@ -53,6 +53,7 @@ class CerberServiceProvider extends PackageServiceProvider
             ->hasTranslations()
             ->hasConfigFile()
             ->hasViews()
+            ->hasRoutes(['api'])
             ->hasCommands(
                 SyncPermissions::class,
             )

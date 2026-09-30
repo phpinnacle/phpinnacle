@@ -2,18 +2,21 @@
 
 namespace PHPinnacle\Cerber\Http\Controllers\OAuth;
 
+use PHPinnacle\Cerber\Enums\ProviderScope;
 use PHPinnacle\Cerber\Models\Provider;
-use PHPinnacle\Cerber\Services\ProviderRegistry;
+use PHPinnacle\Cerber\OAuth\OAuthFactory;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
 readonly class RedirectController
 {
     public function __construct(
-        private ProviderRegistry $providers,
+        private OAuthFactory $factory,
     ) {}
 
     public function __invoke(Provider $provider): RedirectResponse
     {
-        return $this->providers->build($provider->type, $provider->config)->redirect();
+        return $this->factory
+            ->make(ProviderScope::Session)
+            ->redirect($provider);
     }
 }

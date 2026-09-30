@@ -5,6 +5,7 @@ namespace PHPinnacle\Cerber\Resources\Providers\Tables;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Facades\Filament;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -19,6 +20,8 @@ class ProviderTable
 {
     public static function configure(Table $table): Table
     {
+        $panel = Filament::getCurrentOrDefaultPanel();
+
         return $table
             ->heading(__('phpinnacle-cerber::resources.provider.pages.list'))
             ->emptyStateHeading(__('phpinnacle-cerber::resources.provider.empty.heading'))
@@ -30,22 +33,33 @@ class ProviderTable
             ->columns([
                 TextColumn::make('name')
                     ->label(__('phpinnacle-cerber::resources.provider.fields.name'))
-                    ->description(fn (Provider $record) => $record->redirectUrl())
+                    ->description(fn (Provider $record) => $panel->route('auth.redirect', [
+                        'provider' => $record->getKey(),
+                    ]))
                     ->searchable()
                     ->sortable(),
+
                 TextColumn::make('type')
                     ->label(__('phpinnacle-cerber::resources.provider.fields.type'))
                     ->getStateUsing(fn (ProviderRegistry $registry, Provider $record) => $registry->get($record->type))
                     ->badge()
                     ->sortable(),
+
+                TextColumn::make('scopes')
+                    ->label(__('phpinnacle-cerber::resources.provider.fields.scopes'))
+                    ->badge()
+                    ->separator(','),
+
                 TextColumn::make('accounts_count')
                     ->label(__('phpinnacle-cerber::resources.provider.fields.accounts'))
                     ->counts('accounts')
                     ->badge()
                     ->alignCenter()
                     ->sortable(),
+
                 ActiveColumn::make()
                     ->action(fn (Provider $record) => $record->toggleActive()),
+
                 CreatedColumn::make(),
                 UpdatedColumn::make(),
             ])

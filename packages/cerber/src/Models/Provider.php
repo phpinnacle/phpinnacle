@@ -3,13 +3,13 @@
 namespace PHPinnacle\Cerber\Models;
 
 use Carbon\CarbonImmutable;
-use Filament\Facades\Filament;
-use Filament\Panel;
 use Filament\Support\Contracts\HasLabel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use PHPinnacle\Cerber\Enums\ProviderScope;
+use PHPinnacle\Cerber\Models\Casts\ProviderScopeCast;
 
 /**
  * @property string $id
@@ -37,6 +37,7 @@ class Provider extends Model implements HasLabel
     protected $casts = [
         'config' => 'encrypted:array',
         'is_active' => 'bool',
+        'scopes' => ProviderScopeCast::class,
     ];
 
     protected $fillable = [
@@ -44,6 +45,7 @@ class Provider extends Model implements HasLabel
         'type',
         'config',
         'is_active',
+        'scopes',
         'sort',
     ];
 
@@ -60,9 +62,10 @@ class Provider extends Model implements HasLabel
     /**
      * @return Collection<int, self>
      */
-    public static function valid(): Collection
+    public static function valid(ProviderScope $scope): Collection
     {
         return self::active()
+            ->whereJsonContains('scopes', $scope->value)
             ->get()
             ->filter(fn (self $provider) => $provider->isConfigValid());
     }
@@ -89,11 +92,6 @@ class Provider extends Model implements HasLabel
     {
         self::creating(function (self $record) {
             reset_sort($record);
-
-            $config = $record->config;
-            $config['redirect'] ??= $record->callbackUrl();
-
-            $record->config = $config;
         });
     }
 
@@ -106,20 +104,6 @@ class Provider extends Model implements HasLabel
     {
         $this->is_active = !$this->is_active;
         $this->save();
-    }
-
-    public function redirectUrl(?Panel $panel = null): string
-    {
-        $panel ??= Filament::getCurrentOrDefaultPanel();
-
-        return $panel->route('auth.redirect', ['provider' => $this->getKey()]);
-    }
-
-    public function callbackUrl(?Panel $panel = null): string
-    {
-        $panel ??= Filament::getCurrentOrDefaultPanel();
-
-        return $panel->route('auth.callback', ['provider' => $this->getKey()]);
     }
 
     public function isConfigValid(): bool

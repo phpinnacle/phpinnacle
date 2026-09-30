@@ -25,6 +25,7 @@
         "lab404/laravel-impersonate": "^1.7",
         "laravel/sanctum": "^4.0",
         "laravel/socialite": "^5.0",
+        "php-open-source-saver/jwt-auth": "^2.9",
         "phpinnacle/common": "^1.0",
         "phpinnacle/tempo": "^1.0",
         "socialiteproviders/yandex": "^4.1",

@@ -2,6 +2,7 @@
 
 namespace PHPinnacle\Cerber\Services;
 
+use Filament\Facades\Filament;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Hash;
@@ -28,9 +29,8 @@ class UserLinker
         public ?string $defaultRole,
     ) {}
 
-    public function findOrCreateUser(Provider $provider): User
+    public function findOrCreateUser(Provider $provider, SocialiteUser $socialiteUser): User
     {
-        $socialiteUser = $this->providers->build($provider->type, $provider->config)->user();
         $socialAccount = SocialAccount::find($provider, $socialiteUser->getId());
 
         if ($socialAccount !== null) {
@@ -58,7 +58,14 @@ class UserLinker
 
     public function linkAccount(Provider $provider, Authenticatable $user): SocialAccount
     {
-        $socialiteUser = $this->providers->build($provider->type, $provider->config)->user();
+        $panel = Filament::getCurrentOrDefaultPanel();
+
+        $config = $provider->config;
+        $config['redirect'] = $panel->route('auth.callback', [
+            'provider' => $provider->getKey(),
+        ]);
+
+        $socialiteUser = $this->providers->build($provider->type, $config)->user();
 
         $values = [
             'external_id' => $socialiteUser->getId(),

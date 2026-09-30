@@ -15,6 +15,8 @@ class ProviderRegistry
      */
     private array $providers = [];
 
+    private bool $booted = false;
+
     public function add(AuthProvider $provider): void
     {
         $this->providers[$provider->getClass()] = $provider;
@@ -22,6 +24,8 @@ class ProviderRegistry
 
     public function get(string $class): ?AuthProvider
     {
+        $this->boot();
+
         return $this->providers[$class] ?? null;
     }
 
@@ -30,6 +34,8 @@ class ProviderRegistry
      */
     public function all(): Collection
     {
+        $this->boot();
+
         return collect($this->providers);
     }
 
@@ -38,6 +44,31 @@ class ProviderRegistry
      */
     public function build(string $class, array $config): Provider
     {
-        return $this->get($class)->driver($config);
+        $this->boot();
+
+        $provider = $this->get($class);
+
+        if ($provider === null) {
+            throw new \RuntimeException("OAuth provider [{$class}] is not registered.");
+        }
+
+        return $provider->driver($config);
+    }
+
+    private function boot(): void
+    {
+        if ($this->booted) {
+            return;
+        }
+
+        $this->booted = true;
+
+        foreach (config('phpinnacle-cerber.auth_providers', []) as $provider) {
+            if (is_string($provider)) {
+                $provider = AuthProvider::make($provider);
+            }
+
+            $this->add($provider);
+        }
     }
 }

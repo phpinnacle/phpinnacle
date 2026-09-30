@@ -18,6 +18,7 @@ use Illuminate\Support\Collection;
 use PHPinnacle\Cerber\Cerberus;
 use PHPinnacle\Cerber\Contracts\Viewer;
 use PHPinnacle\Cerber\Enums\UserStatus;
+use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 use Stringable;
 
 /**
@@ -41,7 +42,7 @@ use Stringable;
  * @property-read Collection<int, Permission> $permissions
  * @property-read Collection<int, Role> $roles
  */
-class User extends Authenticatable implements HasLabel, Viewer
+class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
 {
     use HasUuids;
     use Notifiable;
@@ -78,6 +79,17 @@ class User extends Authenticatable implements HasLabel, Viewer
         'two_factor_secret',
         'two_factor_recovery_codes',
     ];
+
+    public function getJWTIdentifier(): mixed
+    {
+        return $this->getKey();
+    }
+
+    /** @return array<string, mixed> */
+    public function getJWTCustomClaims(): array
+    {
+        return [];
+    }
 
     public static function find(string $login): ?self
     {

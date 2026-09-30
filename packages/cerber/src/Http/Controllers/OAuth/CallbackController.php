@@ -5,9 +5,11 @@ namespace PHPinnacle\Cerber\Http\Controllers\OAuth;
 use Filament\Facades\Filament;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use PHPinnacle\Cerber\Enums\ProviderScope;
 use PHPinnacle\Cerber\Exceptions\OAuthException;
 use PHPinnacle\Cerber\Models\Provider;
+use PHPinnacle\Cerber\OAuth\CallbackData;
+use PHPinnacle\Cerber\OAuth\OAuthFactory;
 use PHPinnacle\Cerber\Pages\EditProfile;
 use PHPinnacle\Cerber\Services\UserLinker;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -16,13 +18,12 @@ use Throwable;
 readonly class CallbackController
 {
     public function __construct(
-        protected UserLinker $linker,
+        private OAuthFactory $factory,
+        private UserLinker $linker,
     ) {}
 
     public function __invoke(Provider $provider, Request $request): RedirectResponse|View
     {
-        $panel = Filament::getCurrentOrDefaultPanel();
-
         if ($request->session()->get('oauth_test_mode')) {
             return app(TestController::class)->callback($provider, $request);
         }
@@ -32,22 +33,14 @@ readonly class CallbackController
         }
 
         try {
-            $user = $this->linker->findOrCreateUser($provider);
+            return $this->factory
+                ->make(ProviderScope::Session)
+                ->callback($provider, CallbackData::fromRequest($request));
         } catch (OAuthException $e) {
-            return redirect($panel->getLoginUrl())
-                ->with('error', $e->getError());
+            $panel = \Filament\Facades\Filament::getCurrentOrDefaultPanel();
+
+            return redirect($panel->getLoginUrl())->with('error', $e->getMessage());
         }
-
-        if ($user->roles()->count() === 0) {
-            return redirect($panel->getLoginUrl())
-                ->with('error', __('phpinnacle-cerber::auth.login.no_permission_contact_admin'));
-        }
-
-        Auth::login($user);
-
-        $request->session()->regenerate();
-
-        return redirect()->intended($panel->getHomeUrl());
     }
 
     private function handleProfileLinking(Provider $provider, Request $request): RedirectResponse

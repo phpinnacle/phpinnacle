@@ -29,7 +29,13 @@ class AuthProvider implements HasColor, HasIcon, HasLabel
 
     public static function make(string $class): self
     {
-        return new self($class, str($class)->afterLast('\\')->apa());
+        return match ($class) {
+            GoogleProvider::class => self::google(),
+            GithubProvider::class => self::github(),
+            FacebookProvider::class => self::facebook(),
+            YandexProvider::class => self::yandex(),
+            default => new self($class, str($class)->afterLast('\\')->apa()),
+        };
     }
 
     public static function google(): self

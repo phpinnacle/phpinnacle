@@ -17,6 +17,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Enums\Alignment;
 use LogicException;
 use PHPinnacle\Cerber\CerberPlugin;
+use PHPinnacle\Cerber\Enums\ProviderScope;
 use PHPinnacle\Cerber\Forms\AvatarUpload;
 use PHPinnacle\Cerber\Models\Provider;
 use PHPinnacle\Cerber\Models\SocialAccount;
@@ -124,7 +125,7 @@ class EditProfile extends BasePage
         $linked = SocialAccount::linked(Filament::auth()->user());
         $components = [];
 
-        foreach (Provider::valid() as $provider) {
+        foreach (Provider::valid(ProviderScope::Session) as $provider) {
             $isLinked = in_array($provider->getKey(), $linked, strict: true);
 
             $components[] = Actions::make(

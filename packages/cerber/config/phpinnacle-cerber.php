@@ -1,6 +1,20 @@
 <?php
 
+use PHPinnacle\Cerber\Enums\ProviderScope;
+use PHPinnacle\Cerber\OAuth\Strategies\Bff;
+use PHPinnacle\Cerber\OAuth\Strategies\Session;
+use PHPinnacle\Cerber\OAuth\Strategies\TokenHandoff;
+
 return [
+    'auth_providers' => [
+        //        GoogleProvider::class,
+        //        GithubProvider::class,
+    ],
+    'strategies' => [
+        ProviderScope::Session->value => Session::class,
+        ProviderScope::Stateless->value => TokenHandoff::class,
+        ProviderScope::Bff->value => Bff::class,
+    ],
     'navigation' => [
         'user' => [
             'sort' => 80,
@@ -21,6 +35,10 @@ return [
         'pages' => [],
         'widgets' => [],
         'resources' => [],
+    ],
+    'api' => [
+        'callback_url' => env('CERBER_API_CALLBACK_URL', ''),
+        'frontend_url' => env('CERBER_API_FRONTEND_URL', ''),
     ],
 
     /*

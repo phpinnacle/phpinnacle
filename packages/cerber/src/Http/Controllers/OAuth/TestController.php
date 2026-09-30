@@ -2,10 +2,13 @@
 
 namespace PHPinnacle\Cerber\Http\Controllers\OAuth;
 
+use Filament\Facades\Filament;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Laravel\Socialite\Contracts\User;
+use PHPinnacle\Cerber\Enums\ProviderScope;
 use PHPinnacle\Cerber\Models\Provider;
+use PHPinnacle\Cerber\OAuth\OAuthFactory;
 use PHPinnacle\Cerber\Services\ProviderRegistry;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Throwable;
@@ -14,6 +17,7 @@ readonly class TestController
 {
     public function __construct(
         private ProviderRegistry $providers,
+        private OAuthFactory $factory,
     ) {}
 
     public function callback(Provider $provider, Request $request): View|RedirectResponse
@@ -23,7 +27,14 @@ readonly class TestController
                 return redirect()->route('filament.master.auth.login');
             }
 
-            $user = $this->providers->build($provider->type, $provider->config)->user();
+            $panel = Filament::getCurrentOrDefaultPanel();
+
+            $config = $provider->config;
+            $config['redirect'] = $panel->route('auth.callback', [
+                'provider' => $provider->getKey(),
+            ]);
+
+            $user = $this->providers->build($provider->type, $config)->user();
 
             return $this->renderResult($provider, user: $user);
         } catch (Throwable $e) {
@@ -35,11 +46,12 @@ readonly class TestController
 
     public function __invoke(Provider $provider, Request $request): View|RedirectResponse
     {
-        $oauthProvider = $this->providers->build($provider->type, $provider->config);
+        $oauthProvider = $this->factory
+            ->make(ProviderScope::Session);
 
         $request->session()->put('oauth_test_mode', true);
 
-        return $oauthProvider->redirect();
+        return $oauthProvider->redirect($provider);
     }
 
     private function renderResult(
