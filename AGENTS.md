@@ -35,6 +35,7 @@
 - Use explicit parameter and return types on named methods, constructor property promotion, descriptive names, and PHPDoc array shapes where arrays are intentional.
 - Do not declare return types on anonymous functions or arrow functions.
 - Let Eloquent models own their persisted state, relationships, lifecycle defaults, model-scoped reads, and cohesive state transitions.
+- All package-owned models use the package's configured database connection. Resolve it on the models; do not manually propagate connection names between models, queries, services, or jobs with `setConnection()`, `on()`, or serialized connection fields. Keep explicit connection selection at boundaries that access external data sources.
 - Do not define or use Eloquent local scopes. Put reusable model-owned queries in explicit static methods that return typed Eloquent builders. Global scopes are allowed when they apply an invariant to every model query.
 - Use services for external APIs, provider protocols, registries, reflection or storage adapters, parsing and formatting, authorization orchestration, and cross-boundary transactions.
 - Never store request-, user-, or tenant-specific state in static properties or singleton services under Octane.
