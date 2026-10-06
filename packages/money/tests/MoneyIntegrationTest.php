@@ -227,3 +227,22 @@ it('combines minimum and maximum bounds with the positive requirement', function
         }
     }
 });
+
+it('formats Belarusian rubles with the default amount format', function (string $locale, string $expected) {
+    $money = new Money(1234, 'BYN');
+
+    expect($money->format(locale: $locale))->toBe($expected);
+})->with([
+    'English' => ['en', '12.34 Belarusian ruble'],
+    'Polish' => ['pl', '12.34 rubli'],
+    'Russian' => ['ru', '12.34 белорусских рублей'],
+]);
+
+it('formats Belarusian rubles and kopecks in words', function (string $locale, string $expected) {
+    $money = new Money(1234, 'BYN');
+
+    expect($money->format('%S', $locale))->toBe($expected);
+})->with([
+    'English' => ['en', 'twelve Belarusian ruble thirty-four kopeck'],
+    'Polish' => ['pl', 'dwanaście rubli trzydzieści cztery kopiejki'],
+]);

@@ -42,7 +42,13 @@ class PolishFormatter implements Formatter
     {
         [$paper, $coins] = $money->explode();
 
-        $currency = PolishDictionary::$currencyNames[$money->currency];
+        $currency = match ($money->currency) {
+            'BYN' => [
+                ['rubel',    'ruble',    'rubli'],
+                ['kopiejka', 'kopiejki', 'kopiejek'],
+            ],
+            default => PolishDictionary::$currencyNames[$money->currency],
+        };
 
         $words['%A'] = $this->transformer->toWords($paper->amount);
         $words['%a'] = $this->transformer->toWords($coins->amount);

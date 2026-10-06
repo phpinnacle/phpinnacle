@@ -41,10 +41,15 @@ class EnglishFormatter implements Formatter
     {
         [$paper, $coins] = $money->explode();
 
+        $currency = match ($money->currency) {
+            'BYN' => [['Belarusian ruble'], ['kopeck']],
+            default => EnglishDictionary::$currencyNames[$money->currency],
+        };
+
         $words['%A'] = $this->transformer->toWords($paper->amount);
         $words['%a'] = $this->transformer->toWords($coins->amount);
-        $words['%C'] = EnglishDictionary::$currencyNames[$paper->currency][0][0];
-        $words['%c'] = EnglishDictionary::$currencyNames[$coins->currency][1][0];
+        $words['%C'] = $currency[0][0];
+        $words['%c'] = $currency[1][0];
         $words['%D'] = $money->decimal();
         $words['%d'] = $coins->decimal();
         $words['%N'] = number_format($paper->amount, decimals: 0, decimal_separator: ',', thousands_separator: ' ');

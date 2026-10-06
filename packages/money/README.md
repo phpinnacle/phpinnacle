@@ -11,7 +11,7 @@
 - Eloquent multi-column `Attribute` helper.
 - JSON, Wireable, and Livewire synthesizer support.
 - Filament `MoneyInput`, `CurrencyPicker`, `MoneyColumn`, and `MoneyRangeFilter`.
-- English, Polish, and Russian translations and money formatting.
+- English, Polish, and Russian translations and money formatting, including Belarusian rubles (`BYN`).
 
 ## Installation
 
