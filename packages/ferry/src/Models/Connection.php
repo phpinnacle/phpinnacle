@@ -4,23 +4,27 @@ namespace PHPinnacle\Ferry\Models;
 
 use Carbon\CarbonImmutable;
 use Filament\Support\Contracts\HasLabel;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Config;
 use PHPinnacle\Ferry\Casts\StorageMapCast;
 use PHPinnacle\Ferry\Casts\TypeMapCast;
+use PHPinnacle\Ferry\Data\ConnectionTestResult;
 use PHPinnacle\Ferry\Enums\Driver;
 use PHPinnacle\Ferry\Enums\StructureStatus;
+use PHPinnacle\Ferry\Enums\SyncStatus;
 use PHPinnacle\Ferry\Jobs\PrepareStructureJob;
-use PHPinnacle\Ferry\Services\ConnectionTestResult;
+use PHPinnacle\Ferry\Observers\ConnectionObserver;
 use PHPinnacle\Ferry\Support\ConnectionErrorFormatter;
 use PHPinnacle\Rosetta\StorageMap;
 use PHPinnacle\Rosetta\TypeMap;
 
 /**
  * @property string $id
+ * @property string|null $connector_id
  * @property string $name
  * @property string $code
  * @property Driver $driver
@@ -47,7 +51,10 @@ use PHPinnacle\Rosetta\TypeMap;
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $updated_at
  * @property-read Collection<int, ConnectionMetadata> $metadata
+ * @property-read Collection<int, Sync> $syncs
+ * @property-read Connector|null $connector
  */
+#[ObservedBy(ConnectionObserver::class)]
 class Connection extends Model implements HasLabel
 {
     use HasUuids;
@@ -62,8 +69,6 @@ class Connection extends Model implements HasLabel
         'schema',
         'ssl_mode',
     ];
-
-    public $timestamps = true;
 
     protected $table = 'connections';
 
@@ -104,9 +109,25 @@ class Connection extends Model implements HasLabel
         'is_active',
     ];
 
-    public function canPrepareStructure(): bool
+    /** @return Collection<int, Sync> */
+    public function trackedSyncs(): Collection
     {
-        return $this->status !== StructureStatus::Preparing || $this->structureIsStale();
+        return $this->syncs()->whereIn('status', [SyncStatus::Active, SyncStatus::Pause])->get();
+    }
+
+    public function canPrepareStructure(int $staleAfter): bool
+    {
+        return $this->status !== StructureStatus::Preparing || $this->structureIsStale($staleAfter);
+    }
+
+    public function credentialsChanged(): bool
+    {
+        return $this->wasChanged(self::CREDENTIAL_ATTRIBUTES);
+    }
+
+    public function structurePublished(): bool
+    {
+        return $this->wasChanged('generation');
     }
 
     /**
@@ -155,9 +176,15 @@ class Connection extends Model implements HasLabel
         return $this->name;
     }
 
+    public function handleCredentialsChanged(): void
+    {
+        $this->discardDraftMetadata();
+        $this->dispatchStructurePreparation();
+    }
+
     public function isInUse(): bool
     {
-        return false;
+        return $this->syncs()->exists();
     }
 
     /** @return HasMany<ConnectionMetadata, $this> */
@@ -176,9 +203,9 @@ class Connection extends Model implements HasLabel
         ]);
     }
 
-    public function prepareStructure(): bool
+    public function prepareStructure(int $staleAfter): bool
     {
-        if (!$this->canPrepareStructure()) {
+        if (!$this->canPrepareStructure($staleAfter)) {
             return false;
         }
 
@@ -186,7 +213,9 @@ class Connection extends Model implements HasLabel
             $this->failStructure(ConnectionErrorFormatter::stale());
         }
 
-        $this->startStructure();
+        $this->discardDraftMetadata();
+        $this->beginStructureRun();
+        $this->save();
         $this->dispatchStructurePreparation();
 
         return true;
@@ -208,6 +237,11 @@ class Connection extends Model implements HasLabel
             ->where('revision', $this->generation)
             ->whereNull('parent_id')
             ->orderBy('position');
+    }
+
+    public function publishedObject(string $source): ?ConnectionMetadata
+    {
+        return $this->publishedMetadata()->where('external_id', $source)->first();
     }
 
     public function publishStructure(): void
@@ -237,6 +271,27 @@ class Connection extends Model implements HasLabel
         $this->save();
     }
 
+    /** @return HasMany<Sync, $this> */
+    public function syncs(): HasMany
+    {
+        return $this->hasMany(Sync::class, 'connection_id');
+    }
+
+    public function recordConnector(Connector $connector): void
+    {
+        $this->connector()->associate($connector);
+
+        if ($this->isDirty('connector_id')) {
+            $this->saveQuietly();
+        }
+    }
+
+    /** @return BelongsTo<Connector, $this> */
+    public function connector(): BelongsTo
+    {
+        return $this->belongsTo(Connector::class, 'connector_id');
+    }
+
     public function toggleActive(): void
     {
         $this->is_active = !$this->is_active;
@@ -259,13 +314,6 @@ class Connection extends Model implements HasLabel
             }
 
             $connection->beginStructureRun();
-        });
-
-        static::updated(function (self $connection) {
-            if ($connection->wasChanged(self::CREDENTIAL_ATTRIBUTES)) {
-                $connection->discardDraftMetadata();
-                $connection->dispatchStructurePreparation();
-            }
         });
     }
 
@@ -306,14 +354,7 @@ class Connection extends Model implements HasLabel
         PrepareStructureJob::dispatch($this->id, $this->run_id)->afterCommit();
     }
 
-    private function startStructure(): void
-    {
-        $this->discardDraftMetadata();
-        $this->beginStructureRun();
-        $this->save();
-    }
-
-    private function structureIsStale(): bool
+    private function structureIsStale(int $staleAfter): bool
     {
         $heartbeat = $this->heartbeat_at;
 
@@ -321,9 +362,7 @@ class Connection extends Model implements HasLabel
             return true;
         }
 
-        return $heartbeat->lte(CarbonImmutable::now()->subSeconds(
-            Config::integer('phpinnacle-ferry.structure.stale_after'),
-        ));
+        return $heartbeat->lte(CarbonImmutable::now()->subSeconds($staleAfter));
     }
 
     /**

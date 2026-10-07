@@ -13,6 +13,7 @@ use PHPinnacle\Common\Tables\ActiveColumn;
 use PHPinnacle\Common\Tables\CreatedColumn;
 use PHPinnacle\Common\Tables\UpdatedColumn;
 use PHPinnacle\Ferry\Models\Connection;
+use PHPinnacle\Ferry\Resources\Actions\CheckConnectorStatusAction;
 use PHPinnacle\Ferry\Resources\Connections\Actions\PrepareStructureAction;
 use PHPinnacle\Ferry\Resources\Connections\Actions\TestConnectionAction;
 use PHPinnacle\Ferry\Resources\Connections\ConnectionResource;
@@ -51,6 +52,10 @@ class ConnectionTable
                     ->label(__('phpinnacle-ferry::resources.connection.fields.structure'))
                     ->badge()
                     ->sortable(),
+                TextColumn::make('connector.status')
+                    ->label(__('phpinnacle-ferry::resources.connection.fields.source_connector_status'))
+                    ->badge()
+                    ->sortable(),
                 ActiveColumn::make()
                     ->action(fn (Connection $record) => $record->toggleActive()),
                 CreatedColumn::make(),
@@ -67,6 +72,10 @@ class ConnectionTable
             ->recordActions([
                 TestConnectionAction::table(),
                 PrepareStructureAction::table(),
+                CheckConnectorStatusAction::table(
+                    'check_source_status',
+                    __('phpinnacle-ferry::resources.connection.actions.check_source_status'),
+                ),
                 EditAction::make()
                     ->label(__('phpinnacle-ferry::resources.connection.actions.update'))
                     ->iconButton(),

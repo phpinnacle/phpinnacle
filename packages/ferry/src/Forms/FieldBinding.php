@@ -34,7 +34,7 @@ class FieldBinding extends Field
     /** @var list<string>|null */
     protected ?array $cachedBoundSourceKeys = null;
 
-    /** @param array<array-key, string|object>|Closure(): array<array-key, string|object> $sources */
+    /** @param array<array-key, string|object>|Closure $sources */
     public function options(array|Closure $sources): static
     {
         $this->sources = $sources;
@@ -81,12 +81,7 @@ class FieldBinding extends Field
 
     public function getSimpleField(): ?Field
     {
-        return $this->simpleField === null ? null : $this->evaluate($this->simpleField);
-    }
-
-    public function isSimple(): bool
-    {
-        return $this->simpleField !== null;
+        return $this->simpleField !== null ? $this->evaluate($this->simpleField) : null;
     }
 
     public function getBindingKey(string $source): string
@@ -157,7 +152,7 @@ class FieldBinding extends Field
     public function getBindAction(): Action
     {
         return Action::make('bind')
-            ->label('Bind')
+            ->label(__('phpinnacle-ferry::resources.binding.bind'))
             ->icon('heroicon-m-plus')
             ->button()
             ->disabled(fn (self $component) => $component->isDisabled())
@@ -167,7 +162,7 @@ class FieldBinding extends Field
     public function getUnbindAction(): Action
     {
         return Action::make('unbind')
-            ->label('Unbind')
+            ->label(__('phpinnacle-ferry::resources.binding.unbind'))
             ->icon('heroicon-m-x-mark')
             ->color('gray')
             ->iconButton()
@@ -266,7 +261,7 @@ class FieldBinding extends Field
                 continue;
             }
 
-            $bindings[$source['id']] = $simple === null ? $state[$key] : data_get($state[$key], $simple->getName());
+            $bindings[$source['id']] = $simple !== null ? data_get($state[$key], $simple->getName()) : $state[$key];
         }
 
         return $bindings;
