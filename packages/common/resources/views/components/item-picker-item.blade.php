@@ -1,5 +1,5 @@
 @php
-    $hasChildren = $item->children !== [];
+    $hasChildren = !$resolved && $item->children !== [];
     $descriptionId = $item->description !== null ? $id . '-description' . $row['key'] : null;
     $badgesId = $item->badges !== [] ? $id . '-badges' . $row['key'] : null;
     $describedBy = implode(' ', array_filter([$descriptionId, $badgesId]));
@@ -22,10 +22,12 @@
     @endif
     aria-disabled="{{ $disabled || $item->disabled ? 'true' : 'false' }}"
     x-bind:tabindex="@js($disabled) ? -1 : tabIndex(@js($row['key']))"
-    @if ($disabled && !$select)
+    @if ($resolved)
+        x-show="inlineVisible(@js($item->value))"
+    @elseif ($disabled && !$select)
         x-show="selected(@js($item->value))"
     @else
-        x-show="visible({ ancestors: @js($row['ancestors']) })"
+        x-show="visible({ ancestors: @js($row['ancestors']) }) && !inlineVisible(@js($item->value))"
     @endif
     x-on:focus="active = @js($row['key'])"
     x-on:click="activate(@js($row['key']))"

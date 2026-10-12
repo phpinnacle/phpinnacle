@@ -1,10 +1,47 @@
-export function itemPicker({ state, nodes, select = false, disabled = false, multiple = false }) {
-    return {
+export function itemPicker({
+    state,
+    nodes = [],
+    html = '',
+    selectionNodes = null,
+    selectionHtml = '',
+    empty = false,
+    limit = null,
+    searchable = false,
+    hasResolver = false,
+    fetchItems = null,
+    fetchSelection = null,
+    select = false,
+    disabled = false,
+    multiple = false,
+}) {
+    const component = {
         state,
         nodes,
         select,
         disabled,
         multiple,
+        itemsHtml: html,
+        sourceHtml: null,
+        selectionNodes,
+        selectionHtml,
+        inlineNodes: [],
+        inlineHtml: selectionHtml,
+        inlineSearch: null,
+        limit,
+        searchable,
+        hasResolver,
+        fetchItems,
+        fetchSelection,
+        search: '',
+        loading: false,
+        error: false,
+        errorOffset: 0,
+        selectionError: false,
+        nextOffset: limit ?? 0,
+        hasMore: limit !== null && !empty,
+        requestVersion: 0,
+        selectionVersion: 0,
+        searchTimer: null,
         open: false,
         expanded: [],
         active: null,
@@ -20,7 +57,10 @@ export function itemPicker({ state, nodes, select = false, disabled = false, mul
                 this.revealSelection()
                 this.$nextTick(() => this.fitSelection())
             }
-            this.$watch('state', refresh)
+            this.$watch('state', () => {
+                refresh()
+                if (this.hasResolver) this.refreshSelection()
+            })
             this.$watch('nodes', refresh)
             if (this.select && this.multiple) {
                 this.$nextTick(() => {
@@ -33,6 +73,120 @@ export function itemPicker({ state, nodes, select = false, disabled = false, mul
 
         destroy() {
             this.resizeObserver?.disconnect()
+            clearTimeout(this.searchTimer)
+            this.requestVersion++
+            this.selectionVersion++
+        },
+
+        sync(data) {
+            const sourceChanged = this.sourceHtml !== data.html
+                || this.disabled !== data.disabled
+                || this.searchable !== data.searchable
+                || this.hasResolver !== data.hasResolver
+                || this.limit !== data.limit
+            this.sourceHtml = data.html
+            this.disabled = data.disabled
+            this.searchable = data.searchable
+            this.hasResolver = data.hasResolver
+            this.limit = data.limit
+            if (!sourceChanged) {
+                this.selectionVersion++
+                this.setSelection(data.selectionNodes, data.selectionHtml)
+                this.selectionError = false
+                this.$nextTick(() => this.fitSelection())
+                return
+            }
+            if (!this.disabled && (this.search || this.nextOffset > (this.limit ?? 0))) {
+                this.requestVersion++
+                this.loading = false
+                this.load(0)
+                return
+            }
+            this.requestVersion++
+            this.selectionVersion++
+            this.loading = false
+            this.error = false
+            this.selectionError = false
+            this.applyResult(data, 0, JSON.stringify(this.state))
+        },
+
+        scheduleSearch() {
+            clearTimeout(this.searchTimer)
+            this.requestVersion++
+            this.loading = false
+            this.error = false
+            this.hasMore = false
+            this.nodes = []
+            this.itemsHtml = ''
+            this.searchTimer = setTimeout(() => this.load(0), 300)
+        },
+
+        async load(offset = 0) {
+            if (this.disabled || this.loading) return
+            const version = ++this.requestVersion
+            const state = JSON.stringify(this.state)
+            this.loading = true
+            this.error = false
+            try {
+                const result = await this.fetchItems(this.search || null, offset, JSON.parse(state))
+                if (version !== this.requestVersion) return
+                this.applyResult(result, offset, state)
+            } catch {
+                if (version === this.requestVersion) {
+                    this.error = true
+                    this.errorOffset = offset
+                }
+            } finally {
+                if (version === this.requestVersion) this.loading = false
+            }
+        },
+
+        applyResult(result, offset, state) {
+            const focused = this.$refs.panel.querySelector('[data-item-key]:focus')?.dataset.itemKey
+            this.nodes = offset ? [...this.nodes, ...result.nodes] : result.nodes
+            this.itemsHtml = offset ? this.itemsHtml + result.html : result.html
+            this.nextOffset = offset + (this.limit ?? 0)
+            this.hasMore = this.limit !== null && !result.empty
+            if (state === JSON.stringify(this.state)) {
+                const append = offset && !this.hasResolver
+                this.setSelection(
+                    append ? [...this.selectionNodes, ...result.selectionNodes] : result.selectionNodes,
+                    append ? this.selectionHtml + result.selectionHtml : result.selectionHtml,
+                )
+            }
+            if (!this.select && this.hasResolver && !offset && this.inlineSearch !== this.search) {
+                this.retainInlineSelection((this.selectionNodes ?? []).filter(node => this.selected(node.value)))
+            }
+            if (!offset) this.expanded = []
+            if (this.search) this.expanded = this.nodes.filter(node => node.branch).map(node => node.key)
+            this.revealSelection()
+            this.$nextTick(() => {
+                this.fitSelection()
+                this.position()
+                if (focused) this.$refs.panel.querySelector(`[data-item-key="${focused}"]`)?.focus({ preventScroll: true })
+                this.loadMore()
+            })
+        },
+
+        loadMore() {
+            if (!this.hasMore || this.loading || this.error || this.disabled) return
+            const panel = this.$refs.panel
+            if (!panel.clientHeight) return
+            if (panel.scrollHeight - panel.scrollTop - panel.clientHeight <= 48) this.load(this.nextOffset)
+        },
+
+        async refreshSelection() {
+            const version = ++this.selectionVersion
+            const state = JSON.stringify(this.state)
+            this.selectionError = false
+            try {
+                const result = await this.fetchSelection(JSON.parse(state))
+                if (version !== this.selectionVersion || state !== JSON.stringify(this.state)) return
+                this.setSelection(result.nodes, result.html)
+                this.$nextTick(() => this.fitSelection())
+            } catch {
+                if (version === this.selectionVersion) this.selectionError = true
+            }
         },
 
         fitSelection() {
@@ -64,8 +218,30 @@ export function itemPicker({ state, nodes, select = false, disabled = false, mul
             return this.multiple ? (this.state ?? []).includes(value) : this.state === value
         },
 
+        setSelection(nodes, html) {
+            this.selectionNodes = nodes
+            this.selectionHtml = html
+        },
+
+        retainInlineSelection(nodes) {
+            const loaded = new Set(this.nodes.filter(node => !node.group).map(node => node.value))
+            this.inlineNodes = nodes.filter(node => !loaded.has(node.value)).map(node => ({ ...node, branch: false }))
+            this.inlineHtml = this.selectionHtml
+            this.inlineSearch = this.search
+        },
+
+        visibleInlineNodes() {
+            return this.inlineNodes.filter(node => this.inlineVisible(node.value))
+        },
+
+        inlineVisible(value) {
+            return !this.select
+                && this.inlineNodes.some(node => node.value === value)
+                && !this.nodes.some(node => node.branch && node.value === value)
+        },
+
         selectedNodes() {
-            return this.nodes.filter(node => !node.group && this.selected(node.value))
+            return (this.selectionNodes ?? this.nodes).filter(node => !node.group && this.selected(node.value))
         },
 
         selectionText() {
@@ -73,7 +249,7 @@ export function itemPicker({ state, nodes, select = false, disabled = false, mul
         },
 
         revealSelection() {
-            const selected = this.selectedNodes()
+            const selected = this.displayNodes().filter(node => !node.group && this.selected(node.value))
             this.expanded = [...new Set([...this.expanded, ...selected.flatMap(node => node.ancestors)])]
             if (!this.multiple || !this.navigable().some(node => node.key === this.active)) {
                 this.active = selected[0]?.key ?? this.navigable()[0]?.key ?? null
@@ -85,7 +261,14 @@ export function itemPicker({ state, nodes, select = false, disabled = false, mul
         },
 
         navigable() {
-            return this.nodes.filter(node => !node.group && this.visible(node))
+            return this.displayNodes().filter(node => !node.group && this.visible(node))
+        },
+
+        displayNodes() {
+            if (this.select) return this.nodes
+            const inline = this.visibleInlineNodes()
+            const retained = new Set(inline.map(node => node.value))
+            return [...inline, ...this.nodes.filter(node => node.group || !retained.has(node.value))]
         },
 
         toggleBranch(key) {
@@ -96,7 +279,7 @@ export function itemPicker({ state, nodes, select = false, disabled = false, mul
         },
 
         activate(key) {
-            const node = this.nodes.find(node => node.key === key)
+            const node = this.displayNodes().find(node => node.key === key)
             if (this.disabled || node.disabled || node.group) return
             if (!node.selectable) {
                 if (node.branch) this.toggleBranch(key)
@@ -146,7 +329,12 @@ export function itemPicker({ state, nodes, select = false, disabled = false, mul
             this.open = true
             this.position()
             this.$refs.panel.showPopover()
-            this.focus(this.active ?? this.navigable()[0]?.key)
+            this.$nextTick(() => this.loadMore())
+            if (this.searchable) {
+                this.$nextTick(() => this.$refs.search.focus())
+            } else {
+                this.focus(this.active ?? this.navigable()[0]?.key)
+            }
         },
 
         close() {
@@ -182,6 +370,10 @@ export function itemPicker({ state, nodes, select = false, disabled = false, mul
             }
         },
     }
+
+    if (!select && hasResolver) component.retainInlineSelection(selectionNodes ?? [])
+
+    return component
 }
 
 export default itemPicker

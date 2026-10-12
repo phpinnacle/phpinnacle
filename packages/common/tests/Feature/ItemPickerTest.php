@@ -19,6 +19,8 @@ it('uses title case labels from factory values and retains the original selectio
     $item = Item::make('dry food');
     $group = ItemGroup::make('pet products')->children([$item]);
     $picker = ItemPicker::make('choice')->items([$group]);
+    expect($picker->getItems())->toBe([$group]);
+    expect($picker->getSelectableValues())->toBe(['dry food']);
     [$schema] = common_picker_form($picker);
     $schema->fill(['choice' => 'dry food']);
     view()->share('errors', new ViewErrorBag);
@@ -276,7 +278,7 @@ it('keeps embedded groups out of tree depth and keyboard parent relationships', 
     view()->share('errors', new ViewErrorBag);
 
     $html = $picker->toHtml();
-    $nodes = $picker->getViewData()['nodes'];
+    $nodes = $picker->getViewData()['pickerData']['nodes'];
 
     expect($html)->toContain('aria-level="2"');
     expect($nodes[2]['group'])->toBeTrue();
@@ -443,6 +445,184 @@ it('uses an empty list for optional multiple selection and keeps numeric identit
     expect($schema->getState())->toBe(['choice' => ['0', 'root', 'leaf']]);
 });
 
+it('loads server search portions and resolves saved selections outside the results', function (bool $multiple) {
+    $calls = [];
+    $saved = Item::make('saved')->label('Saved person')->image('/saved.png');
+    $state = $multiple ? ['saved'] : 'saved';
+    $picker = ItemPicker::make('choice')
+        ->mode(ItemPickerMode::Select)
+        ->multiple($multiple)
+        ->searchable()
+        ->limit(2)
+        ->items(function (?string $search, int $offset, int $limit, array|string|null $state) use (&$calls) {
+            $calls[] = ['items', $search, $offset, $limit, $state];
+
+            return $offset < 4 ? [Item::make('result-' . $offset), Item::make('result-' . ($offset + 1))] : [];
+        })
+        ->resolve(function (array|string|null $state, array $items) use (&$calls, $saved) {
+            $calls[] = ['resolve', $state, array_map(fn (Item $item) => $item->value, $items)];
+
+            return $state === null || $state === [] ? [] : [$saved];
+        });
+    [$schema, $livewire] = common_picker_form($picker);
+    $schema->fill(['choice' => $state]);
+    $data = $livewire->callSchemaComponentMethod($picker->getKey(), 'getItemsForJs', [
+        'search' => 'person',
+        'offset' => 2,
+        'state' => $state,
+    ]);
+
+    expect($calls)->toBe([
+        ['items', 'person', 2, 2, $state],
+        ['resolve', $state, ['result-2', 'result-3']],
+    ]);
+    expect(array_column($data['nodes'], 'value'))->toBe(['result-2', 'result-3']);
+    expect(array_column($data['selectionNodes'], 'value'))->toBe(['saved']);
+    expect($data['html'])->not->toContain('Saved person', '/saved.png');
+    expect($data['selectionHtml'])->toContain('Saved person', '/saved.png');
+    expect($data['empty'])->toBeFalse();
+    expect($picker->getItemsForJs('person', 4, $state)['empty'])->toBeTrue();
+    expect($schema->getState())->toBe(['choice' => $state]);
+
+    $selection = $livewire->callSchemaComponentMethod($picker->getKey(), 'getSelectionForJs', ['state' => $state]);
+    expect(array_column($selection['nodes'], 'value'))->toBe(['saved']);
+    expect($picker->getSelectionForJs($multiple ? [] : null)['nodes'])->toBe([]);
+})->with(['single' => false, 'multiple' => true]);
+
+it('keeps unlimited callbacks searchable without injecting pagination arguments', function () {
+    $received = [];
+    $searchable = true;
+    $picker = ItemPicker::make('choice')
+        ->searchable(function () use (&$searchable) {
+            return $searchable;
+        })
+        ->items(function (?string $search, ?int $offset = null, ?int $limit = null) use (&$received) {
+            $received = [$search, $offset, $limit];
+
+            return [Item::make('result')];
+        });
+    [$schema] = common_picker_form($picker);
+    $schema->fill();
+
+    expect($picker->getItemsForJs('query', 20, null)['limit'])->toBeNull();
+    expect($received)->toBe(['query', null, null]);
+
+    $searchable = false;
+    expect($picker->getItemsForJs('query', 20, null)['searchable'])->toBeFalse();
+    expect($received)->toBe([null, null, null]);
+});
+
+it('paginates static items and keeps node keys distinct across portions', function () {
+    $picker = ItemPicker::make('choice')
+        ->limit(1)
+        ->items([Item::make('first'), Item::make('second')]);
+    [$schema] = common_picker_form($picker);
+    $schema->fill();
+    $first = $picker->getItemsForJs(null, 0, null);
+    $second = $picker->getItemsForJs(null, 1, null);
+
+    expect(array_column($first['nodes'], 'value'))->toBe(['first']);
+    expect(array_column($second['nodes'], 'value'))->toBe(['second']);
+    expect($first['nodes'][0]['key'])->not->toBe($second['nodes'][0]['key']);
+    expect($picker->getItemsForJs(null, 2, null)['empty'])->toBeTrue();
+
+    $schema->fill(['choice' => 'second']);
+    expect($schema->getState())->toBe(['choice' => 'second']);
+    expect(array_column($picker->getItemsForJs(null, 0, 'second')['selectionNodes'], 'value'))->toBe(['second']);
+});
+
+it('validates resolved availability and branch selection independently of search results', function (string $state) {
+    $picker = ItemPicker::make('choice')
+        ->branches(false)
+        ->items([Item::make('first')])
+        ->resolve(fn () => [
+            Item::make('saved'),
+            Item::make('disabled')->disabled(),
+            Item::make('parent')->children([Item::make('child')]),
+        ]);
+    [$schema] = common_picker_form($picker);
+    $schema->fill(['choice' => $state]);
+
+    expect($schema->getState(...))->toThrow(ValidationException::class);
+
+    $schema->fill(['choice' => 'saved']);
+    expect($schema->getState())->toBe(['choice' => 'saved']);
+})->with(['missing', 'disabled', 'parent', 'first']);
+
+it('rejects invalid loading requests before invoking developer callbacks', function (
+    mixed $search,
+    mixed $offset,
+    mixed $state,
+    bool $multiple,
+) {
+    $called = false;
+    $picker = ItemPicker::make('choice')
+        ->multiple($multiple)
+        ->searchable()
+        ->limit(2)
+        ->items(function () use (&$called) {
+            $called = true;
+
+            return [];
+        });
+    [$schema] = common_picker_form($picker);
+    $schema->fill();
+
+    expect(fn () => $picker->getItemsForJs($search, $offset, $state))->toThrow(ValidationException::class);
+    expect($called)->toBeFalse();
+})->with([
+    'array search' => [[], 0, null, false],
+    'negative offset' => [null, -1, null, false],
+    'fractional offset' => [null, 1.5, null, false],
+    'invalid single state' => [null, 0, [], false],
+    'invalid multiple member' => [null, 0, [1], true],
+    'duplicate multiple state' => [null, 0, ['first', 'first'], true],
+]);
+
+it('renders resolved saved selections for disabled inline pickers', function () {
+    $picker = ItemPicker::make('choice')
+        ->disabled()
+        ->items([])
+        ->resolve(fn () => [Item::make('saved')->label('Saved person')]);
+    [$schema] = common_picker_form($picker);
+    $schema->fill(['choice' => 'saved']);
+    view()->share('errors', new ViewErrorBag);
+
+    expect($picker->toHtml())->toContain('Saved person', 'aria-disabled="true"');
+});
+
+it('displays resolved inline selections as selectable tree cards with descriptions and badges', function (bool $multiple) {
+    $picker = ItemPicker::make('choice')
+        ->multiple($multiple)
+        ->items([Item::make('result')])
+        ->resolve(fn () => [Item::make('saved')
+            ->label('Saved person')
+            ->description('Saved description')
+            ->badges([
+                ItemBadge::make('Active'),
+            ])]);
+    [$schema] = common_picker_form($picker);
+    $schema->fill(['choice' => $multiple ? ['saved'] : 'saved']);
+    view()->share('errors', new ViewErrorBag);
+    $document = new DOMDocument;
+    $document->loadHTML($picker->toHtml(), LIBXML_NOERROR | LIBXML_NOWARNING);
+    $xpath = new DOMXPath($document);
+
+    $resolved = $xpath->query('//*[contains(@class, "common-item-picker__resolved")]')->item(0);
+    expect($xpath->query(
+        './/*[@role="treeitem" and contains(@class, "common-item-picker__item")]',
+        $resolved,
+    )->length)
+        ->toBe(1);
+    expect($resolved->textContent)->toContain('Saved person', 'Saved description', 'Active');
+    $card = $xpath->query('.//*[@role="treeitem"]', $resolved)->item(0);
+    expect($card->getAttribute('aria-label'))->toBe('Saved person');
+    expect($card->getAttribute('aria-disabled'))->toBe('false');
+    expect($card->getAttribute('x-on:click'))->toContain('activate(');
+    expect($xpath->query('//*[@role="treeitem"]')->length)->toBe(2);
+    expect($xpath->query('//*[@role="treeitem"]')->item(1)->getAttribute('aria-label'))->toBe('Result');
+})->with(['single' => false, 'multiple' => true]);
+
 function common_multiple_picker(): ItemPicker
 {
     return ItemPicker::make('choice')
@@ -465,9 +645,14 @@ function common_picker_form(ItemPicker $picker): array
 
         /** @var array<string, mixed> */
         public array $data = [];
+
+        public function pickerForm(ItemPicker $picker): Schema
+        {
+            return $this->cacheSchema('form', Schema::make($this)->statePath('data')->components([$picker]));
+        }
     };
     $livewire->setId('common-picker-test');
     $livewire->setName('common-picker-test');
 
-    return [Schema::make($livewire)->statePath('data')->components([$picker]), $livewire];
+    return [$livewire->pickerForm($picker), $livewire];
 }
