@@ -374,7 +374,7 @@ class ItemPicker extends Field implements HasNestedRecursiveValidationRulesContr
         ];
     }
 
-    /** @return array{id: string, select: bool, disabled: bool, multiple: bool, branchesSelectable: bool, isCompact: Closure, isCircular: Closure} */
+    /** @return array{id: string, select: bool, disabled: bool, multiple: bool, hasResolver: bool, branchesSelectable: bool, isCompact: Closure, isCircular: Closure} */
     private function rowViewData(): array
     {
         return [
@@ -382,6 +382,7 @@ class ItemPicker extends Field implements HasNestedRecursiveValidationRulesContr
             'select' => $this->getMode() === ItemPickerMode::Select,
             'disabled' => $this->isDisabled(),
             'multiple' => $this->isMultiple(),
+            'hasResolver' => $this->resolveUsing !== null || is_array($this->items) && $this->itemsLimit !== null,
             'branchesSelectable' => $this->canSelectBranches(),
             'isCompact' => $this->isCompact(...),
             'isCircular' => $this->isCircular(...),

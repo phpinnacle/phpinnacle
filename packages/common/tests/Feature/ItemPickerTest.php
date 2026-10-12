@@ -478,6 +478,15 @@ it('loads server search portions and resolves saved selections outside the resul
     ]);
     expect(array_column($data['nodes'], 'value'))->toBe(['result-2', 'result-3']);
     expect(array_column($data['selectionNodes'], 'value'))->toBe(['saved']);
+    $document = new DOMDocument;
+    $document->loadHTML($data['html'], LIBXML_NOERROR | LIBXML_NOWARNING);
+    $xpath = new DOMXPath($document);
+    $templates = $xpath->query('//template[@data-item-selection]');
+    expect($templates->length)->toBe(2);
+    expect($templates->item(0)->getElementsByTagName('span')->item(0)->getAttribute('data-selected-value'))
+        ->toBe('result-2');
+    expect($templates->item(1)->getElementsByTagName('span')->item(0)->getAttribute('data-selected-value'))
+        ->toBe('result-3');
     expect($data['html'])->not->toContain('Saved person', '/saved.png');
     expect($data['selectionHtml'])->toContain('Saved person', '/saved.png');
     expect($data['empty'])->toBeFalse();

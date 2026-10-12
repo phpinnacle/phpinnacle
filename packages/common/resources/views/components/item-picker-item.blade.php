@@ -36,6 +36,11 @@
     style="--item-depth: {{ $row['depth'] }}; {{ \Filament\Support\get_color_css_variables($item->color, [50, 400, 600]) }}"
     class="common-item-picker__item"
 >
+    @if ($select && $hasResolver)
+        <template data-item-selection>
+            @include('phpinnacle-common::components.item-picker-selection', ['rows' => [$row]])
+        </template>
+    @endif
     @include('phpinnacle-common::components.item-picker-content', [
         'item' => $item,
         'descriptionId' => $descriptionId,

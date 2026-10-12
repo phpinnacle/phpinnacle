@@ -414,6 +414,48 @@ test('keeps selected items separate and ignores stale selection resolutions', as
     assert.equal(component.selectionError, true)
 })
 
+test('shows a loaded dropdown choice immediately while its selected metadata is resolving', async () => {
+    let resolveSelection
+    const node = { key: 'anna', value: 'anna@example.test', selectable: true, ancestors: [] }
+    const html = '<span data-selected-value="anna@example.test"><img src="anna.png">Anna<span>anna@example.test</span></span>'
+    const component = remotePicker({
+        select: true,
+        nodes: [node],
+        fetchSelection: () => new Promise(done => { resolveSelection = done }),
+    })
+    component.close = () => {}
+    component.$refs.panel.querySelector = () => ({ innerHTML: html })
+
+    component.activate('anna')
+    const resolving = component.refreshSelection()
+
+    assert.equal(component.state, 'anna@example.test')
+    assert.deepEqual(component.selectedNodes(), [node])
+    assert.ok(component.selectionHtml.includes(html))
+
+    resolveSelection({ nodes: [node], html: 'resolved Anna' })
+    await resolving
+    assert.equal(component.selectionHtml, 'resolved Anna')
+})
+
+test('keeps loaded multiple dropdown labels through selection changes and a failed resolver', async () => {
+    const nodes = ['anna', 'bob'].map(value => ({ key: value, value, selectable: true, ancestors: [] }))
+    const component = remotePicker({ select: true, multiple: true, state: [], nodes, selectionNodes: [], selectionHtml: '',
+        fetchSelection: async () => { throw new Error('Offline') },
+    })
+    component.$refs.panel.querySelector = selector => ({ innerHTML: selector.includes('anna') ? 'Anna' : 'Bob' })
+
+    component.activate('anna')
+    component.activate('bob')
+    component.activate('anna')
+    component.activate('anna')
+    await component.refreshSelection()
+
+    assert.deepEqual(component.selectedNodes(), nodes)
+    assert.equal(component.selectionHtml, 'AnnaBob')
+    assert.equal(component.selectionError, true)
+})
+
 test('does not replace a newer selection with a search response carrying an older state', async () => {
     let resolve
     const component = remotePicker({ fetchItems: () => new Promise(done => { resolve = done }) })

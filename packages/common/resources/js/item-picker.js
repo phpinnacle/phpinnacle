@@ -223,6 +223,14 @@ export function itemPicker({
             this.selectionHtml = html
         },
 
+        cacheSelection(node) {
+            if (!this.select || !this.hasResolver) return
+            const nodes = this.selectionNodes ?? []
+            if (nodes.some(selected => selected.value === node.value)) return
+            const template = this.$refs.panel.querySelector(`[data-item-key="${node.key}"] [data-item-selection]`)
+            this.setSelection([...nodes, node], this.selectionHtml + template.innerHTML)
+        },
+
         retainInlineSelection(nodes) {
             const loaded = new Set(this.nodes.filter(node => !node.group).map(node => node.value))
             this.inlineNodes = nodes.filter(node => !loaded.has(node.value)).map(node => ({ ...node, branch: false }))
@@ -285,6 +293,7 @@ export function itemPicker({
                 if (node.branch) this.toggleBranch(key)
                 return
             }
+            this.cacheSelection(node)
             if (this.multiple) {
                 const values = this.state ?? []
                 this.state = this.selected(node.value)
