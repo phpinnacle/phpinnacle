@@ -5,12 +5,12 @@ namespace PHPinnacle\Eidos\Forms;
 use Closure;
 use Filament\Forms\Components\Field;
 use Illuminate\JsonSchema\Types\Type;
-use PHPinnacle\Eidos\Concerns\HasJsonSchemaConstraints;
+use PHPinnacle\Eidos\Concerns\HasJsonSchemaPresentation;
 use PHPinnacle\Eidos\Forms\JsonSchemaPicker\ValidPath;
 
 class JsonSchemaPicker extends Field
 {
-    use HasJsonSchemaConstraints;
+    use HasJsonSchemaPresentation;
 
     protected string $view = 'phpinnacle-eidos::forms.json-schema-picker';
 

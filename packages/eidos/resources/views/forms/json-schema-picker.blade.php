@@ -1,9 +1,3 @@
-@php
-    $definition = $getJsonSchema()->toArray();
-    $propertyTitles = app(\PHPinnacle\Eidos\JsonSchema\PropertyTitles::class)->render($definition);
-    $icons = $areIconsVisible() ? app(\PHPinnacle\Eidos\JsonSchema\Icons::class)->render($definition) : [];
-@endphp
-
 <x-dynamic-component :component="$getFieldWrapperView()" :field="$field">
     <div
         x-data="{ schemaValue: $wire.{{ $applyStateBindingModifiers("\$entangle('{$getStatePath()}')") }}, schemaDocument: null }"

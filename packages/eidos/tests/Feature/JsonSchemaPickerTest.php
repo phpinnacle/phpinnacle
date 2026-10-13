@@ -285,20 +285,22 @@ it('keeps native Filament PHP enum configuration independent of schema formats',
     expect($picker->enum(null)->getEnum())->toBeNull();
 });
 
-it('evaluates the picker schema once per render', function () {
+it('evaluates the schema once per render in both components', function (int $index) {
     [$form] = eidos_json_schema_form(null);
     $calls = 0;
-    $form->getComponents()[0]->jsonSchema(function () use (&$calls) {
+    $component = $form->getComponents()[$index];
+    $schema = function () use (&$calls) {
         $calls++;
 
         return JsonSchema::object(['name' => JsonSchema::string()]);
-    });
+    };
+    $index === 0 ? $component->jsonSchema($schema) : $component->state($schema);
     view()->share('errors', new ViewErrorBag);
 
-    $form->getComponents()[0]->toHtml();
+    $component->toHtml();
 
     expect($calls)->toBe(1);
-});
+})->with(['picker' => 0, 'entry' => 1]);
 
 it('loads the schema only to validate a nonempty property path', function (mixed $selection, bool $valid, int $calls) {
     [$form] = eidos_json_schema_form($selection);
@@ -370,6 +372,31 @@ it('validates exact union paths against the current schema closure', function ()
 
     expect($form->getState(...))->toThrow(ValidationException::class);
 });
+
+it('keeps nested union paths within one complete branch', function (array $selection, bool $valid) {
+    [$form] = eidos_json_schema_form($selection);
+    $form->getComponents()[0]->jsonSchema(JsonSchema::anyOf([
+        JsonSchema::object([
+            'payload' => JsonSchema::anyOf([
+                JsonSchema::object(['metadata' => JsonSchema::object(['version' => JsonSchema::integer()])]),
+                JsonSchema::object(['contact' => JsonSchema::object(['email' => JsonSchema::string()])]),
+            ]),
+        ]),
+        JsonSchema::object(['payload' => JsonSchema::object(['tags' => JsonSchema::array()])]),
+    ]));
+
+    if ($valid) {
+        expect($form->getState()['selection'])->toBe($selection);
+    } else {
+        expect($form->getState(...))->toThrow(ValidationException::class);
+    }
+})->with([
+    'nested union property' => [['payload', 'metadata', 'version'], true],
+    'other nested variant' => [['payload', 'contact', 'email'], true],
+    'other root variant' => [['payload', 'tags'], true],
+    'crossed variants' => [['payload', 'metadata', 'email'], false],
+    'array item' => [['payload', 'tags', 'name'], false],
+]);
 
 it('accepts exact schema path segments', function (array $selection) {
     [$form] = eidos_json_schema_form($selection);
