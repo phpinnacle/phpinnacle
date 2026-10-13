@@ -606,7 +606,7 @@ test('reveals a selected field in a large tree while keeping unrelated branches 
     assert.equal(visible.some(source => source.fieldLabel === 'object0 → third'), false)
 })
 
-test('reveals the new selected path after selection changes and never selects readonly entries', () => {
+test('reveals an externally selected path and lets readonly branches expand without a selected path', () => {
     const groups = schemaGroups(schema, 'Result')
     let value = null
     const picker = createPicker({ groups: () => groups, selected: field => field.key === JSON.stringify(value) })
@@ -618,7 +618,7 @@ test('reveals the new selected path after selection changes and never selects re
 
     assert.equal(picker.jsonSchemaVisible(email), true)
     assert.equal(picker.jsonSchemaSelected(email), true)
-    const entry = createPicker({ groups: () => groups, disabled: true, selected: () => { throw new Error('Readonly selection') } })
+    const entry = createPicker({ groups: () => groups, disabled: true })
     entry.jsonSchemaSyncSelection()
     assert.equal(entry.jsonSchemaSelected(email), false)
     assert.equal(entry.jsonSchemaVisible(email), false)
@@ -688,6 +688,36 @@ function createPicker(options) {
     picker.jsonSchemaSyncSearch()
     return picker
 }
+
+test('highlights and reveals the current readonly path without allowing another field to be chosen', () => {
+    let value = ['customer', 'email']
+    const groups = schemaGroups(schema, 'Schema', { includeRoot: false, descendArrays: true })
+    const entry = createPicker({
+        groups: () => groups,
+        selected: source => source.key === JSON.stringify(value),
+        choose: source => { value = source.value },
+        disabled: true,
+    })
+    const email = groups[0].sources.find(source => source.fieldName === 'email')
+    const phone = groups[0].sources.find(source => source.fieldName === 'phone')
+    const arrayItem = groups[0].sources.find(source => source.fieldName === 'name')
+
+    assert.equal(entry.jsonSchemaSelected(email), true)
+    assert.equal(entry.jsonSchemaSelected(phone), false)
+    assert.equal(entry.jsonSchemaVisible(email), true)
+    assert.equal(entry.jsonSchemaChoose(phone), false)
+    assert.deepEqual(value, ['customer', 'email'])
+    assert.equal(entry.jsonSchemaSelected(arrayItem), false)
+
+    value = ['customer', 'phone']
+    entry.jsonSchemaSyncSelection()
+    assert.equal(entry.jsonSchemaSelected(email), false)
+    assert.equal(entry.jsonSchemaSelected(phone), true)
+
+    value = null
+    entry.jsonSchemaSyncSelection()
+    assert.equal(entry.jsonSchemaSelected(phone), false)
+})
 
 
 test('traverses oneOf and allOf properties with scoped limits and required markers', () => {

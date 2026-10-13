@@ -25,9 +25,7 @@
             <x-filament::input type="search" x-model.debounce.150ms="jsonSchemaSearch" placeholder="{{ __('phpinnacle-eidos::json-schema.search') }}" aria-label="{{ __('phpinnacle-eidos::json-schema.search') }}" />
         </x-filament::input.wrapper>
     </div>
-    @if (!$disabled)
-        <template x-effect="jsonSchemaSyncSelection()"></template>
-    @endif
+    <template x-effect="jsonSchemaSyncSelection()"></template>
     <template x-effect="jsonSchemaSyncSearch()"></template>
     <template x-for="group in jsonSchemaMatches" :key="group.key">
         <div class="eidos-json-schema-tree__rows">
@@ -35,8 +33,9 @@
                 <div
                     class="eidos-json-schema-tree__row"
                     :style="`--json-schema-depth: ${jsonSchemaSearching ? 0 : source.depth}`"
+                    :class="{ 'eidos-json-schema-tree__row--selected': jsonSchemaSelected(source), 'eidos-json-schema-tree__row--expandable': @js($disabled) && source.hasChildren && !jsonSchemaSearching }"
+                    :aria-current="jsonSchemaSelected(source) ? 'true' : null"
                     @if ($disabled)
-                        :class="{ 'eidos-json-schema-tree__row--expandable': source.hasChildren && !jsonSchemaSearching }"
                         :role="source.hasChildren && !jsonSchemaSearching ? 'button' : null"
                         :tabindex="source.hasChildren && !jsonSchemaSearching ? 0 : null"
                         :aria-label="source.hasChildren && !jsonSchemaSearching ? source.fieldLabel : null"
@@ -64,7 +63,7 @@
                             :compact="$compact"
                             :properties="$properties"
                             :description="$descriptions"
-                            :selected="$disabled ? null : 'jsonSchemaSelected(source)'"
+                            selected="jsonSchemaSelected(source)"
                         />
                     @if ($disabled)
                         </div>

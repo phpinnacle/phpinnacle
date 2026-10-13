@@ -7,22 +7,22 @@ use Closure;
 trait HasJsonSchemaConstraints
 {
     /** @var bool|Closure(): bool */
-    private bool|Closure $hasFormat = false;
-
-    /** @var bool|Closure(): bool */
-    private bool|Closure $hasProperties = true;
-
-    /** @var bool|Closure(): bool */
-    private bool|Closure $hasRequiredMarker = false;
-
-    /** @var bool|Closure(): bool */
-    private bool|Closure $hasConstraints = false;
+    private bool|Closure $isSearchable = false;
 
     /** @var bool|Closure(): bool */
     private bool|Closure $isCompact = false;
 
     /** @var bool|Closure(): bool */
-    private bool|Closure $isSearchable = false;
+    private bool|Closure $hasProperties = true;
+
+    /** @var bool|Closure(): bool */
+    private bool|Closure $hasDescriptions = true;
+
+    /** @var bool|Closure(): bool */
+    private bool|Closure $hasFormat = false;
+
+    /** @var bool|Closure(): bool */
+    private bool|Closure $hasConstraints = false;
 
     /** @var bool|Closure(): bool */
     private bool|Closure $hasIcons = true;
@@ -31,58 +31,19 @@ trait HasJsonSchemaConstraints
     private bool|Closure $hasColors = true;
 
     /** @var bool|Closure(): bool */
-    private bool|Closure $hasDescriptions = true;
+    private bool|Closure $hasRequiredMarker = false;
 
     /** @param bool|Closure(): bool $condition */
-    public function format(bool|Closure $condition = true): static
+    public function searchable(bool|Closure $condition = true): static
     {
-        $this->hasFormat = $condition;
+        $this->isSearchable = $condition;
 
         return $this;
     }
 
-    public function isFormatVisible(): bool
+    public function isSearchable(): bool
     {
-        return $this->evaluate($this->hasFormat);
-    }
-
-    /** @param bool|Closure(): bool $condition */
-    public function properties(bool|Closure $condition = true): static
-    {
-        $this->hasProperties = $condition;
-
-        return $this;
-    }
-
-    public function arePropertiesVisible(): bool
-    {
-        return $this->evaluate($this->hasProperties);
-    }
-
-    /** @param bool|Closure(): bool $condition */
-    public function requiredMarker(bool|Closure $condition = true): static
-    {
-        $this->hasRequiredMarker = $condition;
-
-        return $this;
-    }
-
-    public function isRequiredMarkerVisible(): bool
-    {
-        return $this->evaluate($this->hasRequiredMarker);
-    }
-
-    /** @param bool|Closure(): bool $condition */
-    public function constraints(bool|Closure $condition = true): static
-    {
-        $this->hasConstraints = $condition;
-
-        return $this;
-    }
-
-    public function areConstraintsVisible(): bool
-    {
-        return $this->evaluate($this->hasConstraints);
+        return $this->evaluate($this->isSearchable);
     }
 
     /** @param bool|Closure(): bool $condition */
@@ -99,16 +60,55 @@ trait HasJsonSchemaConstraints
     }
 
     /** @param bool|Closure(): bool $condition */
-    public function searchable(bool|Closure $condition = true): static
+    public function properties(bool|Closure $condition = true): static
     {
-        $this->isSearchable = $condition;
+        $this->hasProperties = $condition;
 
         return $this;
     }
 
-    public function isSearchable(): bool
+    public function arePropertiesVisible(): bool
     {
-        return $this->evaluate($this->isSearchable);
+        return $this->evaluate($this->hasProperties);
+    }
+
+    /** @param bool|Closure(): bool $condition */
+    public function descriptions(bool|Closure $condition = true): static
+    {
+        $this->hasDescriptions = $condition;
+
+        return $this;
+    }
+
+    public function areDescriptionsVisible(): bool
+    {
+        return $this->evaluate($this->hasDescriptions);
+    }
+
+    /** @param bool|Closure(): bool $condition */
+    public function format(bool|Closure $condition = true): static
+    {
+        $this->hasFormat = $condition;
+
+        return $this;
+    }
+
+    public function isFormatVisible(): bool
+    {
+        return $this->evaluate($this->hasFormat);
+    }
+
+    /** @param bool|Closure(): bool $condition */
+    public function constraints(bool|Closure $condition = true): static
+    {
+        $this->hasConstraints = $condition;
+
+        return $this;
+    }
+
+    public function areConstraintsVisible(): bool
+    {
+        return $this->evaluate($this->hasConstraints);
     }
 
     /** @param bool|Closure(): bool $condition */
@@ -138,15 +138,15 @@ trait HasJsonSchemaConstraints
     }
 
     /** @param bool|Closure(): bool $condition */
-    public function descriptions(bool|Closure $condition = true): static
+    public function requiredMarker(bool|Closure $condition = true): static
     {
-        $this->hasDescriptions = $condition;
+        $this->hasRequiredMarker = $condition;
 
         return $this;
     }
 
-    public function areDescriptionsVisible(): bool
+    public function isRequiredMarkerVisible(): bool
     {
-        return $this->evaluate($this->hasDescriptions);
+        return $this->evaluate($this->hasRequiredMarker);
     }
 }

@@ -3,6 +3,8 @@
 return [
     'placeholder' => 'Select a field',
     'clear' => 'Clear selection',
+    'view_schema' => 'View full schema',
+    'no_selection' => 'No field selected',
     'search' => 'Search fields',
     'expand' => 'Expand',
     'empty' => 'No defined fields',

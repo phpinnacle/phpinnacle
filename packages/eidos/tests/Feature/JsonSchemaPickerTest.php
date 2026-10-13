@@ -1,5 +1,6 @@
 <?php
 
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
@@ -51,7 +52,7 @@ it('uses Laravel schema objects and closures for selection and readonly renderin
     $picker = $form->getComponents()[0];
     $entry = $form->getComponents()[1];
     $picker->jsonSchema($useClosure ? fn () => $schema : $schema);
-    $entry->state($useClosure ? fn () => $schema : $schema);
+    $entry->jsonSchema($useClosure ? fn () => $schema : $schema);
     view()->share('errors', new ViewErrorBag);
 
     expect($form->getState()['selection'])->toBe($selection);
@@ -61,7 +62,36 @@ it('uses Laravel schema objects and closures for selection and readonly renderin
     $form->fill(['selection' => ['count']]);
 
     expect($form->getState()['selection'])->toBe(['count']);
+    expect($entry->getState())->toBe(['count']);
 })->with(['direct' => false, 'closure' => true]);
+
+it('offers a schema inspector in regular mode and preserves the path when switching to inline mode', function (
+    ?array $path,
+) {
+    [$form] = eidos_json_schema_form($path);
+    $entry = $form->getComponents()[1];
+    view()->share('errors', new ViewErrorBag);
+
+    expect($entry->toHtml())->toContain('aria-label="View full schema"');
+    expect($entry->getState())->toBe($path);
+
+    $inline = true;
+    $entry->inline(function () use (&$inline) {
+        return $inline;
+    });
+
+    expect($entry->toHtml())->not->toContain('aria-label="View full schema"');
+    expect($entry->getState())->toBe($path);
+
+    $inline = false;
+
+    expect($entry->toHtml())->toContain('aria-label="View full schema"');
+    expect($entry->getState())->toBe($path);
+})->with([
+    'nested path' => [['customer', 'email']],
+    'literal names' => [['literal.key', 'slash/key']],
+    'no path' => [null],
+]);
 
 it('validates exact union paths against the current schema closure', function () {
     $selection = ['данные/客户', 'email'];
@@ -258,7 +288,9 @@ function eidos_json_schema_form(mixed $selection): array
                 ->statePath('data')
                 ->components([
                     JsonSchemaPicker::make('selection')->jsonSchema($jsonSchema),
-                    JsonSchemaEntry::make('preview')->state($jsonSchema),
+                    JsonSchemaEntry::make('preview')
+                        ->jsonSchema($jsonSchema)
+                        ->state(fn (Get $get) => $get('selection')),
                 ]);
         }
     };

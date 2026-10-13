@@ -1,4 +1,5 @@
 .eidos-json-schema-picker,
+.eidos-json-schema-entry,
 .eidos-json-schema-tree {
     --json-schema-indent: 1.5rem;
     --json-schema-slot: 1.5rem;
@@ -17,6 +18,7 @@
 }
 
 .dark .eidos-json-schema-picker,
+.dark .eidos-json-schema-entry,
 .dark .eidos-json-schema-tree {
     --json-schema-surface: var(--gray-950, #030712);
     --json-schema-hover: var(--gray-800, #1f2937);
@@ -31,8 +33,14 @@
 .eidos-json-schema-picker__dropdown,
 .eidos-json-schema-picker__input,
 .eidos-json-schema-picker__dropdown > .fi-dropdown-trigger { width: 100%; }
-.fi-dropdown-panel.eidos-json-schema-picker__floating { z-index: 50; }
-.eidos-json-schema-picker__panel { max-height: min(32rem, 60dvh); overflow-y: auto; overscroll-behavior: contain; padding: .5rem; }
+.fi-dropdown-panel.eidos-json-schema-picker__floating,
+.fi-dropdown-panel.eidos-json-schema-entry__floating { z-index: 50; }
+.eidos-json-schema-picker__panel,
+.eidos-json-schema-entry__panel { max-height: min(32rem, 60dvh); overflow-y: auto; overscroll-behavior: contain; padding: .5rem; }
+.eidos-json-schema-entry__summary { display: flex; min-width: 0; align-items: start; gap: .5rem; }
+.eidos-json-schema-entry__selection { flex: 1; min-width: 0; font-size: .875rem; line-height: 1.5rem; color: var(--json-schema-value); }
+.eidos-json-schema-entry__dropdown { flex-shrink: 0; }
+.eidos-json-schema-entry__placeholder { color: var(--json-schema-muted); }
 .eidos-json-schema-picker__control { display: flex; min-width: 0; align-items: center; }
 .eidos-json-schema-picker__clear { flex-shrink: 0; margin-inline-end: .75rem; }
 .eidos-json-schema-picker__trigger {
@@ -49,13 +57,17 @@
     color: var(--json-schema-text);
 }
 .eidos-json-schema-picker__selection { display: block; flex: 1; min-width: 0; text-align: start; }
-.eidos-json-schema-picker__selected-field { display: block; min-width: 0; }
-.eidos-json-schema-picker__selected-field .eidos-json-schema-tree__heading { grid-template-columns: minmax(0, 1fr) fit-content(60%); }
-.eidos-json-schema-picker__selected-field .eidos-json-schema-tree__content--icons > .eidos-json-schema-tree__heading { grid-template-columns: 1.25rem minmax(0, 1fr) fit-content(60%); }
+.eidos-json-schema-picker__selected-field,
+.eidos-json-schema-entry__selected-field { display: block; min-width: 0; }
+.eidos-json-schema-picker__selected-field .eidos-json-schema-tree__heading,
+.eidos-json-schema-entry__selected-field .eidos-json-schema-tree__heading { grid-template-columns: minmax(0, 1fr) fit-content(60%); }
+.eidos-json-schema-picker__selected-field .eidos-json-schema-tree__content--icons > .eidos-json-schema-tree__heading,
+.eidos-json-schema-entry__selected-field .eidos-json-schema-tree__content--icons > .eidos-json-schema-tree__heading { grid-template-columns: 1.25rem minmax(0, 1fr) fit-content(60%); }
 .eidos-json-schema-picker__selection--placeholder { color: var(--json-schema-muted); }
 .eidos-json-schema-picker__icon { width: 1rem; height: 1rem; flex-shrink: 0; color: var(--json-schema-muted); }
 .eidos-json-schema-tree__search { padding: .25rem .5rem .625rem; }
-.eidos-json-schema-picker__panel .eidos-json-schema-tree__search { position: sticky; top: 0; z-index: 1; background: var(--json-schema-panel); }
+.eidos-json-schema-picker__panel .eidos-json-schema-tree__search,
+.eidos-json-schema-entry__panel .eidos-json-schema-tree__search { position: sticky; top: 0; z-index: 1; background: var(--json-schema-panel); }
 .eidos-json-schema-tree__row:hover { background: var(--json-schema-hover); }
 .eidos-json-schema-tree__arrow { width: .875rem; height: .875rem; flex-shrink: 0; color: var(--json-schema-muted); transition: transform 120ms; }
 .eidos-json-schema-tree__branch[aria-expanded="true"] > .eidos-json-schema-tree__arrow,
@@ -76,7 +88,7 @@
 }
 button.eidos-json-schema-tree__value--readonly { cursor: default; }
 button.eidos-json-schema-tree__value:disabled { cursor: not-allowed; opacity: .55; }
-.eidos-json-schema-tree__row:has(.eidos-json-schema-tree__value[aria-pressed="true"]) { background: color-mix(in oklab, var(--json-schema-accent) 8%, transparent); }
+.eidos-json-schema-tree__row--selected { background: color-mix(in oklab, var(--json-schema-accent) 8%, transparent); }
 .eidos-json-schema-tree__content { display: grid; min-width: 0; gap: var(--json-schema-content-gap); }
 .eidos-json-schema-tree__heading { display: grid; grid-template-columns: minmax(0, 1fr) fit-content(60%) auto; min-width: 0; min-height: 1.5rem; align-items: start; gap: .25rem; }
 .eidos-json-schema-tree__content--icons > .eidos-json-schema-tree__heading { grid-template-columns: 1.25rem minmax(0, 1fr) fit-content(60%) auto; }

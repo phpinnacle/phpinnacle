@@ -167,10 +167,11 @@ $schema = JsonSchema::object([
 ]);
 
 JsonSchemaPicker::make('output_path')->jsonSchema($schema);
-JsonSchemaEntry::make('schema')->state($schema);
+JsonSchemaEntry::make('output_path')->jsonSchema($schema);
 ```
 
-Both components accept schema types directly or through Filament callbacks.
+Both components accept schema types through `jsonSchema()`, directly or through
+Filament callbacks. Their state is an exact property path or `null`.
 The picker stores exact property names as a path array, such as
 `['customer', 'email']`. Its default value is `null`. Optional pickers allow
 clearing; required pickers need a nonempty path. Disabled pickers cannot be
@@ -193,9 +194,30 @@ JsonSchemaPicker::make('output_path')
 
 A dotted string loses the distinction between literal dots and path separators.
 
+### Entry modes
+
+The readonly entry normally shows the field identified by its state, with its
+title, full path, icon, and enabled badges. The magnifying-glass button opens the
+complete schema in a popover. An absent state shows `No field selected`; the
+complete schema remains available for inspection.
+
+Use `inline()` to display the complete tree directly:
+
+```php
+JsonSchemaEntry::make('output_path')
+    ->jsonSchema($schema)
+    ->state(['customer', 'email'])
+    ->inline();
+```
+
+`inline()` accepts a boolean or Filament callback and is off by default. Both the
+popover and inline tree highlight the current path and expand its parent fields.
+Opening branches or searching does not change the entry's state. The entry does
+not offer field selection or clearing.
+
 ### Display options
 
-Both components show titles, type and nullable badges, descriptions, and
+The schema trees show titles, type and nullable badges, descriptions, and
 expandable object and array fields. Explicit titles take precedence; a name such
 as `unit_price` gets the fallback title `Unit Price`. The entry is readonly.
 Its branches expand or collapse on click, Enter, or Space.
@@ -205,14 +227,14 @@ Each option accepts a boolean or Filament callback:
 | Method | Default | Effect |
 | --- | --- | --- |
 | `searchable()` | Picker: on; entry: off | Search paths, titles, descriptions, types, and enabled restrictions locally. |
+| `compact()` | Off | Reduce spacing and show descriptions and limits in tooltips. |
 | `properties()` | On | Show technical names beside titles. |
 | `descriptions()` | On | Show descriptions; hidden descriptions remain searchable. |
+| `format()` | Off | Show formats or enum badges instead of type badges. |
+| `constraints()` | Off | Display value limits and other restrictions. |
 | `icons()` | On | Show `x-icon` annotations. |
 | `colors()` | On | Apply `x-color` to titles and icons. |
-| `format()` | Off | Show formats or enum badges instead of type badges. |
 | `requiredMarker()` | Off | Mark properties required by their schema. |
-| `constraints()` | Off | Display value limits and other restrictions. |
-| `compact()` | Off | Reduce spacing and show descriptions and limits in tooltips. |
 
 `requiredMarker()` controls presentation. Use Filament's `required()` to require
 a picker selection. Display options do not change selected paths or validation.
@@ -240,12 +262,19 @@ or `<x-phpinnacle-eidos::json-schema-entry>`:
     label="'Choose a field'"
 />
 
-<x-phpinnacle-eidos::json-schema-entry schema="schema" label="'Schema'" />
+<x-phpinnacle-eidos::json-schema-entry
+    schema="schema"
+    value="selectedPath"
+    label="'Schema'"
+    :inline="true"
+/>
 ```
 
 Provide a serialized schema object and a writable path array or `null` in Alpine.
 Set `:clearable="false"` for a required selection. The same display options are
 available as boolean props; the required-marker prop is named `required`.
+The entry reads `value` without modifying it; omit `inline` for the normal
+field summary and popover.
 
 For icons and fallback titles, pass the `icons` and `property-titles` props from
 `SchemaPresentation::render($schema->toArray())`. Its result contains `definition`,

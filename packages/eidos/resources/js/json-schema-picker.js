@@ -25,13 +25,11 @@ export function jsonSchemaPicker({ groups, selected = () => false, choose = null
         jsonSchemaSyncSelection() {
             const keys = new Set()
             const ancestors = new Set()
-            if (!disabled) {
-                for (const group of this.jsonSchemaData) {
-                    for (const source of group.sources) {
-                        if (source.value === null || !selected(source)) continue
-                        keys.add(source.key)
-                        for (const key of source.ancestors) ancestors.add(key)
-                    }
+            for (const group of this.jsonSchemaData) {
+                for (const source of group.sources) {
+                    if (source.value === null || !selected(source)) continue
+                    keys.add(source.key)
+                    for (const key of source.ancestors) ancestors.add(key)
                 }
             }
             this.jsonSchemaSelectedKeys = keys
