@@ -4,7 +4,8 @@ All notable changes to `phpinnacle/eidos` will be documented in this file.
 
 ## Unreleased
 
-- Generate and cache Eloquent JSON Schema, with configurable discovery and warmup.
+- Generate Eloquent JSON Schema from model classes and instances.
+- Register schema handlers for custom Eloquent casts.
 - Mark stored and virtual generated columns as `readOnly`.
 - Preserve schema compositions, local references, and display annotations.
 - Convert schema constraints into Laravel validation rules.

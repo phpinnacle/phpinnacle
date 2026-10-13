@@ -22,7 +22,7 @@ beforeEach(function () {
     });
 });
 
-it('creates and caches schemas on demand for model classes and instances', function (bool $useInstance) {
+it('creates independent schemas for model classes and instances', function (bool $useInstance) {
     $factory = app(SchemaFactory::class);
     $model = $useInstance ? new EidosFactoryModel : EidosFactoryModel::class;
     $schema = $factory->create($model);
@@ -30,18 +30,12 @@ it('creates and caches schemas on demand for model classes and instances', funct
 
     expect($definition['properties']['name']['type'])->toBe('string');
 
-    DatabaseSchema::drop('eidos_factory_models');
     $schema->title('Changed in this consumer');
 
-    expect(app(SchemaFactory::class)->create(EidosFactoryModel::class)->toArray())
-        ->toBe($definition)
-        ->and($factory->create(new EidosFactoryModel)->toArray())
-        ->toBe($definition);
+    expect($factory->create($model)->toArray())->toBe($definition);
 })->with(['model class' => false, 'model instance' => true]);
 
-it('warms explicitly configured models once and refreshes cached schemas', function () {
-    config()->set('phpinnacle-eidos.models', [EidosFactoryModel::class, EidosFactoryModel::class]);
-    config()->set('phpinnacle-eidos.discovery.except', [EidosFactoryModel::class]);
+it('reflects column changes on the next request', function () {
     $factory = app(SchemaFactory::class);
     $original = $factory->create(EidosFactoryModel::class)->toArray();
 
@@ -49,42 +43,24 @@ it('warms explicitly configured models once and refreshes cached schemas', funct
         $table->string('description')->nullable();
     });
 
-    expect($factory->create(EidosFactoryModel::class)->toArray())->toBe($original);
+    $schema = $factory->create(EidosFactoryModel::class)->toArray();
 
-    $this
-        ->artisan('eidos:cache-eloquent-schemas')
-        ->expectsOutputToContain('Cached schemas for 1 Eloquent model(s).')
-        ->assertSuccessful();
-
-    $refreshed = $factory->create(EidosFactoryModel::class)->toArray();
-    expect($refreshed['properties']['description']['type'])->toBe(['string', 'null']);
-
-    DatabaseSchema::drop('eidos_factory_models');
-    config()->set('phpinnacle-eidos.models', []);
-
-    $this
-        ->artisan('eidos:cache-eloquent-schemas')
-        ->expectsOutputToContain('Cached schemas for 0 Eloquent model(s).')
-        ->assertSuccessful();
-
-    expect($factory->create(EidosFactoryModel::class)->toArray())->toBe($refreshed);
+    expect($original['properties'])
+        ->not
+        ->toHaveKey('description')
+        ->and($schema['properties']['description']['type'])
+        ->toBe(['string', 'null']);
 });
 
-it('warms and reads schemas in the configured cache store without changing the default store', function () {
-    $defaultFactory = app(SchemaFactory::class);
-    $original = $defaultFactory->create(EidosFactoryModel::class)->toArray();
-    DatabaseSchema::table('eidos_factory_models', function (Blueprint $table) {
+it('uses the supplied model instance table', function () {
+    DatabaseSchema::create('eidos_alternative_models', function (Blueprint $table) {
+        $table->id();
         $table->string('description');
     });
-    config()->set('cache.stores.eidos', ['driver' => 'array', 'serialize' => false]);
-    config()->set('phpinnacle-eidos.cache.store', 'eidos');
-    $factory = app(SchemaFactory::class);
+    $model = new EidosFactoryModel;
+    $model->setTable('eidos_alternative_models');
 
-    expect($factory->warmup([EidosFactoryModel::class, EidosFactoryModel::class], []))->toBe(1);
-    DatabaseSchema::drop('eidos_factory_models');
+    $properties = app(SchemaFactory::class)->create($model)->toArray()['properties'];
 
-    expect(app(SchemaFactory::class)->create(EidosFactoryModel::class)->toArray()['properties'])
-        ->toHaveKey('description')
-        ->and($defaultFactory->create(EidosFactoryModel::class)->toArray())
-        ->toBe($original);
+    expect($properties)->toHaveKey('description')->not->toHaveKey('name');
 });

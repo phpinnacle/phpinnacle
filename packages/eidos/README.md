@@ -10,7 +10,6 @@ Requires PHP 8.4 or later, Laravel 13, and Filament 4 or 5.
 
 ```bash
 composer require phpinnacle/eidos
-php artisan vendor:publish --tag=phpinnacle-eidos-config
 php artisan filament:assets
 ```
 
@@ -28,10 +27,10 @@ $schemaFromInstance = $factory->create(new Product);
 $definition = $schema->toArray();
 ```
 
-`create()` accepts an Eloquent model class or instance. It generates a schema on
-the first request and reuses the cached schema on subsequent requests. Instances
-of the same model class share the cached schema. Changing a returned schema does
-not change later results. Models do not need to be registered to use `create()`.
+`create()` accepts an Eloquent model class or instance and generates a fresh
+schema on every call. For an instance, it uses that model's table, connection,
+and casts. Model discovery, caching, and cache refresh belong to the application
+consuming Eidos.
 
 Schemas describe column types, casts, backed enum values, dates, and nullability.
 Stored and virtual generated columns are included with `readOnly: true`.
@@ -39,53 +38,39 @@ Relationships with concrete return types include the related model's columns,
 but do not expand its relationships. `MorphTo` relationships are omitted.
 Schema generation uses the model's database connection and table.
 
-For an uncached schema, use `SchemaIntrospector::introspect($model)` with a model
-instance.
+Use `SchemaIntrospector::introspect($model)` to generate a schema directly from a
+model instance.
 
-### Cache and warmup
+### Custom casts
 
-Configure `config/phpinnacle-eidos.php`:
-
-```php
-return [
-    'cache' => [
-        'store' => null,
-    ],
-    'models' => [
-        App\Models\Product::class,
-    ],
-    'discovery' => [
-        'include' => ['App\\Models\\*'],
-        'except' => ['App\\Models\\Order\\*'],
-    ],
-];
-```
-
-`cache.store` selects a Laravel cache store for both runtime lookups and warmup.
-The default `null` uses the application's default store. Cached schemas have no
-automatic expiry; refresh them after changes to database columns, casts, or
-relationships.
-
-```bash
-php artisan eidos:cache-eloquent-schemas
-```
-
-Only warmup uses `models` and `discovery`. Explicit model classes are always
-included. Discovery finds concrete Eloquent models in Composer PSR-4 files and
-class maps matching `include`, then excludes matches for `except`. An empty
-`include` disables discovery. Duplicates are warmed once.
-
-Warmup refreshes selected schemas and leaves other cached schemas available.
-After changing `cache.store`, run warmup to populate the new store. Applications
-can also call warmup directly:
+Register a schema handler for a cast name with `SchemaIntrospector::registerCast()`.
+To use it through `SchemaFactory`, bind the configured introspector in your
+application's service provider:
 
 ```php
-$count = $factory->warmup(['App\\Models\\*'], ['App\\Models\\Order\\*']);
+use App\Casts\MoneyCast;
+use Illuminate\JsonSchema\JsonSchema;
+use PHPinnacle\Eidos\Services\SchemaIntrospector;
+
+public function register(): void
+{
+    $this->app->bind(SchemaIntrospector::class, fn () => (new SchemaIntrospector)
+        ->registerCast(MoneyCast::class, fn () => JsonSchema::object([
+            'amount' => JsonSchema::number(),
+            'currency' => JsonSchema::string(),
+        ])));
+}
 ```
 
-The method accepts exact model class names or wildcard patterns in its first
-argument and returns the number of warmed models. Exclusions apply only to
-models found through wildcard patterns. An empty include list is a no-op.
+Handlers receive the model, attribute name, and a list of cast arguments. For
+`MoneyCast::class . ':USD,2'`, register `MoneyCast::class`; the arguments are
+`['USD', '2']`. A callback that does not need this context may omit its parameters.
+Return a fresh `Illuminate\JsonSchema\Types\Type` or Eidos `Schema` for each field.
+
+Registered handlers take precedence over built-in cast mappings and apply to
+related models too. Column nullability and generated-column `readOnly` still
+apply. Without a handler, Eidos uses its built-in cast mapping or database type.
+Registrations belong to the configured introspector instance.
 
 ## Laravel validation
 

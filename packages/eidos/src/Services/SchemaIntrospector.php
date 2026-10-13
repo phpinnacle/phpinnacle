@@ -3,6 +3,7 @@
 namespace PHPinnacle\Eidos\Services;
 
 use BackedEnum;
+use Closure;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Model;
@@ -24,6 +25,17 @@ use ReflectionNamedType;
  */
 class SchemaIntrospector
 {
+    /** @var array<string, Closure(Model, string, list<string>): Type> */
+    private array $castHandlers = [];
+
+    /** @param Closure(Model, string, list<string>): Type $handler */
+    public function registerCast(string $name, Closure $handler): static
+    {
+        $this->castHandlers[$name] = $handler;
+
+        return $this;
+    }
+
     public function introspect(Model $model): Schema
     {
         return Schema::fromArray([
@@ -86,7 +98,7 @@ class SchemaIntrospector
             $cast = $casts[$name] ?? null;
             $type = in_array($name, $dates, true) && $cast === null
                 ? JsonSchema::string()->format('date-time')
-                : $this->columnType($column['type_name'], $cast);
+                : $this->columnType($column['type_name'], $cast, $model, $name);
 
             $definition = ($column['nullable'] ? $type->nullable() : $type)->toArray();
 
@@ -100,14 +112,24 @@ class SchemaIntrospector
         return $properties;
     }
 
-    private function columnType(string $databaseType, ?string $cast): Type
+    private function columnType(string $databaseType, ?string $cast, Model $model, string $attribute): Type
     {
-        return ($cast === null ? null : $this->castType($cast)) ?? $this->databaseType($databaseType);
+        return (
+            ($cast === null ? null : $this->castType($cast, $model, $attribute)) ?? $this->databaseType($databaseType)
+        );
     }
 
-    private function castType(string $cast): ?Type
+    private function castType(string $cast, Model $model, string $attribute): ?Type
     {
-        $castName = explode(':', $cast, 2)[0];
+        $segments = explode(':', $cast, 2);
+        $castName = $segments[0];
+        $handler = $this->castHandlers[$castName] ?? null;
+
+        if ($handler !== null) {
+            $arguments = count($segments) === 2 ? explode(',', $segments[1]) : [];
+
+            return $handler($model, $attribute, $arguments);
+        }
 
         if (is_subclass_of($castName, BackedEnum::class)) {
             $values = array_column($castName::cases(), 'value');
