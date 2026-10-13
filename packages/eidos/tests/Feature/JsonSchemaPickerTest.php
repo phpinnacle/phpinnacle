@@ -373,16 +373,46 @@ it('validates exact union paths against the current schema closure', function ()
     expect($form->getState(...))->toThrow(ValidationException::class);
 });
 
-it('keeps nested union paths within one complete branch', function (array $selection, bool $valid) {
+it('keeps nested composition paths within one complete branch', function (
+    array $selection,
+    bool $valid,
+    string $keyword,
+) {
     [$form] = eidos_json_schema_form($selection);
-    $form->getComponents()[0]->jsonSchema(JsonSchema::anyOf([
-        JsonSchema::object([
-            'payload' => JsonSchema::anyOf([
-                JsonSchema::object(['metadata' => JsonSchema::object(['version' => JsonSchema::integer()])]),
-                JsonSchema::object(['contact' => JsonSchema::object(['email' => JsonSchema::string()])]),
-            ]),
-        ]),
-        JsonSchema::object(['payload' => JsonSchema::object(['tags' => JsonSchema::array()])]),
+    $form->getComponents()[0]->jsonSchema(\PHPinnacle\Eidos\JsonSchema\Schema::fromArray([
+        $keyword => [
+            [
+                'type' => 'object',
+                'properties' => [
+                    'payload' => [
+                        $keyword => [
+                            [
+                                'type' => 'object',
+                                'properties' => [
+                                    'metadata' => [
+                                        'type' => 'object',
+                                        'properties' => ['version' => ['type' => 'integer']],
+                                    ],
+                                ],
+                            ],
+                            [
+                                'type' => 'object',
+                                'properties' => [
+                                    'contact' => [
+                                        'type' => 'object',
+                                        'properties' => ['email' => ['type' => 'string']],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            [
+                'type' => 'object',
+                'properties' => ['payload' => ['type' => 'object', 'properties' => ['tags' => ['type' => 'array']]]],
+            ],
+        ],
     ]));
 
     if ($valid) {
@@ -396,7 +426,7 @@ it('keeps nested union paths within one complete branch', function (array $selec
     'other root variant' => [['payload', 'tags'], true],
     'crossed variants' => [['payload', 'metadata', 'email'], false],
     'array item' => [['payload', 'tags', 'name'], false],
-]);
+])->with(['anyOf', 'oneOf', 'allOf']);
 
 it('accepts exact schema path segments', function (array $selection) {
     [$form] = eidos_json_schema_form($selection);

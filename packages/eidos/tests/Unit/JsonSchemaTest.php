@@ -174,6 +174,62 @@ it('retains the native Type modifiers and serialization for unannotated schemas'
     expect($schema->nullable(false)->toArray())->toBe($native->nullable(false)->toArray());
 });
 
+it('preserves nested oneOf and allOf compositions with sibling properties and local references', function () {
+    $schema = Schema::fromArray([
+        'type' => 'object',
+        '$defs' => ['token' => ['type' => 'string', 'format' => 'uuid', 'x-display' => 'Saved card']],
+        'properties' => [
+            'payment' => [
+                'type' => 'object',
+                'title' => 'Payment',
+                'properties' => ['card' => ['type' => 'object'], 'token' => ['$ref' => '#/$defs/token']],
+                'oneOf' => [['required' => ['card']], ['required' => ['token']]],
+            ],
+            'quantity' => ['allOf' => [['type' => 'integer', 'minimum' => 1], ['type' => 'integer', 'maximum' => 10]]],
+        ],
+        'required' => ['payment', 'external'],
+    ]);
+    $definition = $schema->toArray();
+
+    expect($definition['properties']['payment']['oneOf'])->toBe([
+        ['type' => 'object', 'required' => ['card']],
+        ['type' => 'object', 'required' => ['token']],
+    ]);
+    expect($definition['properties']['payment']['properties']['token']['x-display'])->toBe('Saved card');
+    expect($definition['properties']['quantity']['allOf'])->toBe([
+        ['minimum' => 1, 'type' => 'integer'],
+        ['maximum' => 10, 'type' => 'integer'],
+    ]);
+    expect($definition['required'])->toBe(['payment', 'external']);
+    expect(Schema::fromArray($definition)->toArray())->toBe($definition);
+
+    $payment = Schema::fromArray($definition['properties']['payment'])->title('Checkout');
+    expect($payment->toArray()['title'])->toBe('Checkout');
+});
+
+it('composes annotated schemas directly and makes the complete composition nullable', function (string $keyword) {
+    $branch = Schema::fromArray(['type' => 'string', 'x-display' => ['compact' => true]]);
+    $schema = Schema::{$keyword}([$branch, JsonSchema::string()->min(3)]);
+    $definition = $schema->toArray();
+
+    expect($definition[$keyword][0]['x-display'])->toBe(['compact' => true]);
+    expect(Schema::fromArray($definition)->toArray())->toBe($definition);
+    expect($schema->nullable()->toArray())->toBe(['anyOf' => [$definition, ['type' => 'null']]]);
+    expect(Schema::fromArray($schema->toArray())->toArray())->toBe($schema->toArray());
+    expect($schema->nullable(false)->toArray())->toBe($definition);
+})->with(['oneOf', 'allOf']);
+
+it('retains annotations on referenced null branches within compositions', function () {
+    $schema = Schema::fromArray([
+        '$defs' => ['empty' => ['type' => 'null', 'x-display' => 'Empty value']],
+        'oneOf' => [['type' => 'string'], ['$ref' => '#/$defs/empty']],
+    ]);
+    $definition = $schema->toArray();
+
+    expect($definition['oneOf'][1])->toBe(['type' => ['null'], 'x-display' => 'Empty value']);
+    expect(Schema::fromArray($definition)->toArray())->toBe($definition);
+});
+
 it('rejects invalid x-icon values at the schema parsing boundary', function (mixed $icon) {
     expect(fn () => Schema::fromArray(['type' => 'string', 'x-icon' => $icon]))
         ->toThrow(InvalidArgumentException::class, 'x-icon');

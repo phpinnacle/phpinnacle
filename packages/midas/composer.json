@@ -1,0 +1,65 @@
+{
+    "name": "phpinnacle/midas",
+    "description": "Payment orchestration and operational configuration for Laravel Filament applications.",
+    "keywords": [
+        "phpinnacle",
+        "laravel",
+        "filament"
+    ],
+    "homepage": "https://github.com/phpinnacle/midas",
+    "support": {
+        "issues": "https://github.com/phpinnacle/midas/issues",
+        "source": "https://github.com/phpinnacle/midas"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "PHPinnacle Devs",
+            "email": "dev@phpinnacle.edu.pl",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "laravel/cashier": "^16.5",
+        "php": "^8.4",
+        "phpinnacle/common": "^1.0",
+        "phpinnacle/eidos": "^1.0",
+        "phpinnacle/money": "^1.0",
+        "phpinnacle/tempo": "^1.0",
+        "spatie/laravel-package-tools": "^1.92"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^11.0",
+        "pestphp/pest": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PHPinnacle\\Midas\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        },
+        "sort-packages": true
+    },
+    "scripts": {
+        "test": "pest --no-coverage"
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "1.x-dev"
+        },
+        "laravel": {
+            "providers": [
+                "PHPinnacle\\Midas\\MidasServiceProvider"
+            ]
+        }
+    },
+    "prefer-stable": true
+}

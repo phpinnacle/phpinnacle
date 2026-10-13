@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "74bb01e8192d5a7ff232166b61dccabe",
+    "content-hash": "67e3a36bbc24983c678e61a38dcc6131",
     "packages": [],
     "packages-dev": [
         {
@@ -1694,86 +1694,6 @@
                 }
             ],
             "time": "2026-09-18T07:38:01+00:00"
-        },
-        {
-            "name": "darkaonline/l5-swagger",
-            "version": "11.1.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/DarkaOnLine/L5-Swagger.git",
-                "reference": "110b59478c9417c13794cef62a82b019433d642a"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/DarkaOnLine/L5-Swagger/zipball/110b59478c9417c13794cef62a82b019433d642a",
-                "reference": "110b59478c9417c13794cef62a82b019433d642a",
-                "shasum": ""
-            },
-            "require": {
-                "ext-json": "*",
-                "laravel/framework": "^13.0 || ^12.1 || ^11.44",
-                "php": "^8.2",
-                "swagger-api/swagger-ui": ">=5.18.3",
-                "symfony/yaml": "^5.0 || ^6.0 || ^7.0 || ^8.0",
-                "zircote/swagger-php": "^6.0"
-            },
-            "require-dev": {
-                "mockery/mockery": "1.*",
-                "orchestra/testbench": "^11.0 || ^10.0 || ^9.0 || ^8.0 || 7.* || ^6.15 || 5.*",
-                "php-coveralls/php-coveralls": "^2.0",
-                "phpstan/phpstan": "^2.1",
-                "phpunit/phpunit": "^11.0"
-            },
-            "type": "library",
-            "extra": {
-                "laravel": {
-                    "aliases": {
-                        "L5Swagger": "L5Swagger\\L5SwaggerFacade"
-                    },
-                    "providers": [
-                        "L5Swagger\\L5SwaggerServiceProvider"
-                    ]
-                }
-            },
-            "autoload": {
-                "files": [
-                    "src/helpers.php"
-                ],
-                "psr-4": {
-                    "L5Swagger\\": "src"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Darius Matulionis",
-                    "email": "darius@matulionis.lt"
-                }
-            ],
-            "description": "OpenApi or Swagger integration to Laravel",
-            "keywords": [
-                "api",
-                "documentation",
-                "laravel",
-                "openapi",
-                "specification",
-                "swagger",
-                "ui"
-            ],
-            "support": {
-                "issues": "https://github.com/DarkaOnLine/L5-Swagger/issues",
-                "source": "https://github.com/DarkaOnLine/L5-Swagger/tree/11.1.0"
-            },
-            "funding": [
-                {
-                    "url": "https://github.com/DarkaOnLine",
-                    "type": "github"
-                }
-            ],
-            "time": "2026-06-12T10:04:41+00:00"
         },
         {
             "name": "dflydev/dot-access-data",
@@ -8816,7 +8736,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/eidos",
-                "reference": "83321dfe9f678f5af4b3860c57810fbe633c6112"
+                "reference": "1bddb6a2b56287414ebb867b7644523703c559e8"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -8827,6 +8747,7 @@
                 "illuminate/database": "^13.0",
                 "illuminate/json-schema": "^13.0",
                 "illuminate/support": "^13.0",
+                "illuminate/validation": "^13.0",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92"
             },
@@ -9350,19 +9271,19 @@
             }
         },
         {
-            "name": "phpinnacle/minos",
+            "name": "phpinnacle/midas",
             "version": "dev-master",
             "dist": {
                 "type": "path",
-                "url": "packages/minos",
-                "reference": "4e82b45ba4cbe8fefbd5142efb9f907735dd16f9"
+                "url": "packages/midas",
+                "reference": "8d1b9875516203424ddef7deda69ec1c3fe9b30e"
             },
             "require": {
                 "laravel/cashier": "^16.5",
                 "php": "^8.4",
                 "phpinnacle/common": "^1.0",
+                "phpinnacle/eidos": "^1.0",
                 "phpinnacle/money": "^1.0",
-                "phpinnacle/palette": "^1.0",
                 "phpinnacle/tempo": "^1.0",
                 "spatie/laravel-package-tools": "^1.92"
             },
@@ -9377,13 +9298,13 @@
                 },
                 "laravel": {
                     "providers": [
-                        "PHPinnacle\\Minos\\MinosServiceProvider"
+                        "PHPinnacle\\Midas\\MidasServiceProvider"
                     ]
                 }
             },
             "autoload": {
                 "psr-4": {
-                    "PHPinnacle\\Minos\\": "src/"
+                    "PHPinnacle\\Midas\\": "src/"
                 }
             },
             "autoload-dev": {
@@ -9407,15 +9328,15 @@
                 }
             ],
             "description": "Payment orchestration and operational configuration for Laravel Filament applications.",
-            "homepage": "https://github.com/phpinnacle/minos",
+            "homepage": "https://github.com/phpinnacle/midas",
             "keywords": [
                 "filament",
                 "laravel",
                 "phpinnacle"
             ],
             "support": {
-                "issues": "https://github.com/phpinnacle/minos/issues",
-                "source": "https://github.com/phpinnacle/minos"
+                "issues": "https://github.com/phpinnacle/midas/issues",
+                "source": "https://github.com/phpinnacle/midas"
             },
             "transport-options": {
                 "symlink": true,
@@ -9492,69 +9413,6 @@
             "support": {
                 "issues": "https://github.com/phpinnacle/money/issues",
                 "source": "https://github.com/phpinnacle/money"
-            },
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
-        },
-        {
-            "name": "phpinnacle/openapi",
-            "version": "dev-master",
-            "dist": {
-                "type": "path",
-                "url": "packages/openapi",
-                "reference": "01d72e81ffdb6c32a57df78becfd254d5b993113"
-            },
-            "require": {
-                "darkaonline/l5-swagger": "^11.0",
-                "php": "^8.4",
-                "spatie/laravel-package-tools": "^1.92"
-            },
-            "require-dev": {
-                "pestphp/pest": "^4.0"
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "1.x-dev"
-                },
-                "laravel": {
-                    "providers": [
-                        "PHPinnacle\\OpenApi\\OpenApiServiceProvider"
-                    ]
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "PHPinnacle\\OpenApi\\": "src/"
-                }
-            },
-            "scripts": {
-                "test": [
-                    "pest --no-coverage"
-                ]
-            },
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "PHPinnacle Devs",
-                    "email": "dev@phpinnacle.edu.pl",
-                    "role": "Developer"
-                }
-            ],
-            "description": "OpenAPI schema conversion to Laravel validation rules.",
-            "homepage": "https://github.com/phpinnacle/openapi",
-            "keywords": [
-                "filament",
-                "laravel",
-                "phpinnacle"
-            ],
-            "support": {
-                "issues": "https://github.com/phpinnacle/openapi/issues",
-                "source": "https://github.com/phpinnacle/openapi"
             },
             "transport-options": {
                 "symlink": true,
@@ -11792,68 +11650,6 @@
             "time": "2026-06-29T15:41:09+00:00"
         },
         {
-            "name": "radebatz/type-info-extras",
-            "version": "1.0.8",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/DerManoMann/type-info-extras.git",
-                "reference": "519056728bcd4b4bd883c3ee5d78774d0384e757"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/DerManoMann/type-info-extras/zipball/519056728bcd4b4bd883c3ee5d78774d0384e757",
-                "reference": "519056728bcd4b4bd883c3ee5d78774d0384e757",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=8.2",
-                "phpstan/phpdoc-parser": "^2.0",
-                "symfony/type-info": "^7.3.8 || ^7.4.1 || ^8.0 || ^8.1-@dev"
-            },
-            "require-dev": {
-                "friendsofphp/php-cs-fixer": "^3.70",
-                "phpstan/phpstan": "^2.1",
-                "phpunit/phpunit": "^11.0"
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "1.x-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Radebatz\\TypeInfoExtras\\": "src"
-                },
-                "exclude-from-classmap": [
-                    "/tests/"
-                ]
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Martin Rademacher",
-                    "email": "mano@radebatz.org"
-                }
-            ],
-            "description": "Extras for symfony/type-info",
-            "homepage": "http://radebatz.net/mano/",
-            "keywords": [
-                "component",
-                "symfony",
-                "type-info",
-                "types"
-            ],
-            "support": {
-                "issues": "https://github.com/DerManoMann/type-info-extras/issues",
-                "source": "https://github.com/DerManoMann/type-info-extras/tree/1.0.8"
-            },
-            "time": "2026-09-08T08:46:24+00:00"
-        },
-        {
             "name": "ramsey/collection",
             "version": "2.1.1",
             "source": {
@@ -14024,67 +13820,6 @@
                 "source": "https://github.com/stripe/stripe-php/tree/v21.3.2"
             },
             "time": "2026-09-09T20:40:43+00:00"
-        },
-        {
-            "name": "swagger-api/swagger-ui",
-            "version": "v5.33.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/swagger-api/swagger-ui.git",
-                "reference": "cfd4a6c3cbaeeb7c13a8bada7c754de42d78cd5b"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/swagger-api/swagger-ui/zipball/cfd4a6c3cbaeeb7c13a8bada7c754de42d78cd5b",
-                "reference": "cfd4a6c3cbaeeb7c13a8bada7c754de42d78cd5b",
-                "shasum": ""
-            },
-            "type": "library",
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "Apache-2.0"
-            ],
-            "authors": [
-                {
-                    "name": "Anna Bodnia",
-                    "email": "anna.bodnia@gmail.com"
-                },
-                {
-                    "name": "Buu Nguyen",
-                    "email": "buunguyen@gmail.com"
-                },
-                {
-                    "name": "Josh Ponelat",
-                    "email": "jponelat@gmail.com"
-                },
-                {
-                    "name": "Kyle Shockey",
-                    "email": "kyleshockey1@gmail.com"
-                },
-                {
-                    "name": "Robert Barnwell",
-                    "email": "robert@robertismy.name"
-                },
-                {
-                    "name": "Sahar Jafari",
-                    "email": "shr.jafari@gmail.com"
-                }
-            ],
-            "description": " Swagger UI is a collection of HTML, Javascript, and CSS assets that dynamically generate beautiful documentation from a Swagger-compliant API.",
-            "homepage": "http://swagger.io",
-            "keywords": [
-                "api",
-                "documentation",
-                "openapi",
-                "specification",
-                "swagger",
-                "ui"
-            ],
-            "support": {
-                "issues": "https://github.com/swagger-api/swagger-ui/issues",
-                "source": "https://github.com/swagger-api/swagger-ui/tree/v5.33.0"
-            },
-            "time": "2026-09-16T09:18:16+00:00"
         },
         {
             "name": "symfony/clock",
@@ -17040,88 +16775,6 @@
             "time": "2026-06-05T06:23:12+00:00"
         },
         {
-            "name": "symfony/type-info",
-            "version": "v8.1.5",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/symfony/type-info.git",
-                "reference": "ceb48db5b38d6a48640c414be0c69d53980ae5c5"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/symfony/type-info/zipball/ceb48db5b38d6a48640c414be0c69d53980ae5c5",
-                "reference": "ceb48db5b38d6a48640c414be0c69d53980ae5c5",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=8.4.1",
-                "psr/container": "^1.1|^2.0"
-            },
-            "conflict": {
-                "phpstan/phpdoc-parser": "<1.30"
-            },
-            "require-dev": {
-                "phpstan/phpdoc-parser": "^1.30|^2.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Symfony\\Component\\TypeInfo\\": ""
-                },
-                "exclude-from-classmap": [
-                    "/Tests/"
-                ]
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Mathias Arlaud",
-                    "email": "mathias.arlaud@gmail.com"
-                },
-                {
-                    "name": "Baptiste LEDUC",
-                    "email": "baptiste.leduc@gmail.com"
-                },
-                {
-                    "name": "Symfony Community",
-                    "homepage": "https://symfony.com/contributors"
-                }
-            ],
-            "description": "Extracts PHP types information.",
-            "homepage": "https://symfony.com",
-            "keywords": [
-                "PHPStan",
-                "phpdoc",
-                "symfony",
-                "type"
-            ],
-            "support": {
-                "source": "https://github.com/symfony/type-info/tree/v8.1.5"
-            },
-            "funding": [
-                {
-                    "url": "https://symfony.com/sponsor",
-                    "type": "custom"
-                },
-                {
-                    "url": "https://github.com/fabpot",
-                    "type": "github"
-                },
-                {
-                    "url": "https://github.com/nicolas-grekas",
-                    "type": "github"
-                },
-                {
-                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
-                    "type": "tidelift"
-                }
-            ],
-            "time": "2026-08-21T17:47:34+00:00"
-        },
-        {
             "name": "symfony/uid",
             "version": "v8.1.5",
             "source": {
@@ -18030,95 +17683,6 @@
                 "source": "https://github.com/webmozarts/assert/tree/2.4.1"
             },
             "time": "2026-06-15T15:31:57+00:00"
-        },
-        {
-            "name": "zircote/swagger-php",
-            "version": "6.9.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/zircote/swagger-php.git",
-                "reference": "839d6b65c06737e4243635d6f81cbbe13022aa5a"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/zircote/swagger-php/zipball/839d6b65c06737e4243635d6f81cbbe13022aa5a",
-                "reference": "839d6b65c06737e4243635d6f81cbbe13022aa5a",
-                "shasum": ""
-            },
-            "require": {
-                "nikic/php-parser": "^4.19 || ^5.0",
-                "php": ">=8.2",
-                "phpstan/phpdoc-parser": "^2.0",
-                "psr/log": "^1.1 || ^2.0 || ^3.0",
-                "radebatz/type-info-extras": "^1.0.2",
-                "symfony/console": "^7.4 || ^8.0",
-                "symfony/deprecation-contracts": "^2 || ^3",
-                "symfony/finder": "^5.0 || ^6.0 || ^7.0 || ^8.0",
-                "symfony/yaml": "^5.4 || ^6.0 || ^7.0 || ^8.0"
-            },
-            "conflict": {
-                "symfony/process": ">=6, <6.4.14"
-            },
-            "require-dev": {
-                "doctrine/annotations": "^2.0",
-                "friendsofphp/php-cs-fixer": "3.95.23",
-                "phpstan/phpstan": "2.2.12",
-                "phpunit/phpunit": "^11.5 || >=12.5.22",
-                "rector/rector": "2.6.5"
-            },
-            "bin": [
-                "bin/openapi"
-            ],
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "6.x-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "OpenApi\\": "src"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "Apache-2.0"
-            ],
-            "authors": [
-                {
-                    "name": "Robert Allen",
-                    "email": "zircote@gmail.com"
-                },
-                {
-                    "name": "Bob Fanger",
-                    "email": "bfanger@gmail.com",
-                    "homepage": "https://bfanger.nl"
-                },
-                {
-                    "name": "Martin Rademacher",
-                    "email": "mano@radebatz.net",
-                    "homepage": "https://radebatz.net"
-                }
-            ],
-            "description": "Generate interactive documentation for your RESTful API using PHP attributes (preferred) or PHPDoc annotations",
-            "homepage": "https://github.com/zircote/swagger-php",
-            "keywords": [
-                "api",
-                "json",
-                "rest",
-                "service discovery"
-            ],
-            "support": {
-                "issues": "https://github.com/zircote/swagger-php/issues",
-                "source": "https://github.com/zircote/swagger-php/tree/6.9.0"
-            },
-            "funding": [
-                {
-                    "url": "https://github.com/zircote",
-                    "type": "github"
-                }
-            ],
-            "time": "2026-09-13T22:58:11+00:00"
         },
         {
             "name": "zordius/lightncandy",

@@ -2,28 +2,15 @@
 
 namespace PHPinnacle\Eidos\Services;
 
-use Illuminate\Container\Attributes\Config;
-use Illuminate\Container\Attributes\Singleton;
-use Illuminate\Contracts\Container\Container;
 use Illuminate\Database\Eloquent\Model;
 use PHPinnacle\Eidos\Contracts\ProvidesEloquentModels;
 
-#[Singleton]
 class ModelRegistry
 {
-    /** @var array<string, ProvidesEloquentModels> */
-    private array $sources = [];
-
-    /** @param list<class-string<ProvidesEloquentModels>> $sourceClasses */
+    /** @param array<string, ProvidesEloquentModels> $sources */
     public function __construct(
-        Container $container,
-        #[Config('phpinnacle-eidos.model_sources', [])]
-        array $sourceClasses,
-    ) {
-        foreach ($sourceClasses as $sourceClass) {
-            $this->sources[$sourceClass] = $container->make($sourceClass);
-        }
-    }
+        private readonly array $sources,
+    ) {}
 
     /** @return array<string, ProvidesEloquentModels> */
     public function all(): array

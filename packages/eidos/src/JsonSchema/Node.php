@@ -30,8 +30,8 @@ final class Node
             yield from new self($property, (string) $name)->nodes();
         }
 
-        foreach ($this->definition['anyOf'] ?? [] as $variant) {
-            yield from new self($variant)->nodes();
+        foreach ($this->variants() as $variant) {
+            yield from $variant->nodes();
         }
 
         if (array_key_exists('items', $this->definition)) {
@@ -52,8 +52,8 @@ final class Node
             return true;
         }
 
-        foreach ($this->definition['anyOf'] ?? [] as $variant) {
-            if (new self($variant)->hasPathAt($path, $offset)) {
+        foreach ($this->variants() as $variant) {
+            if ($variant->hasPathAt($path, $offset)) {
                 return true;
             }
         }
@@ -62,5 +62,15 @@ final class Node
         $name = $path[$offset];
 
         return array_key_exists($name, $properties) && new self($properties[$name])->hasPathAt($path, $offset + 1);
+    }
+
+    /** @return iterable<self> */
+    private function variants(): iterable
+    {
+        foreach (['anyOf', 'oneOf', 'allOf'] as $keyword) {
+            foreach ($this->definition[$keyword] ?? [] as $variant) {
+                yield new self($variant);
+            }
+        }
     }
 }

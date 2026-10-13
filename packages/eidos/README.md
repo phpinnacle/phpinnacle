@@ -1,7 +1,8 @@
 # PHPinnacle Eidos
 
 Eidos generates JSON Schema from Eloquent models and describes writable model
-attributes. It also provides Filament JSON Schema pickers and readonly entries.
+attributes, converts schemas into Laravel validation rules, and provides Filament
+JSON Schema pickers and readonly entries.
 It supports Laravel 13, Filament 4 or 5, and PHP 8.4 or later.
 
 ## Installation
@@ -60,7 +61,9 @@ return [
 Each source implements
 `PHPinnacle\Eidos\Contracts\ProvidesEloquentModels::modelClasses(): array`,
 returning a list of Eloquent model class names. Sources resolve through Laravel's
-container and must work independently of a panel or request.
+container in `EidosServiceProvider` and must work independently of a panel or
+request. `ModelRegistry` receives resolved sources keyed by their class names;
+Laravel shares one registry instance across consumers.
 
 `DeclaredModels` discovers already declared, instantiable Eloquent classes,
 excluding base classes named `Model` and configured namespace prefixes. It does
@@ -73,6 +76,77 @@ php artisan eidos:cache-eloquent-schemas
 
 The command refreshes each configured model once. An empty catalog is a
 successful no-op. Writable attributes are invalidated and rebuilt on demand.
+
+## Laravel validation rules
+
+```php
+use Illuminate\JsonSchema\JsonSchema;
+use PHPinnacle\Eidos\Validation\RuleFactory;
+
+$schema = JsonSchema::object([
+    'email' => JsonSchema::string()->format('email')->required(),
+    'quantity' => JsonSchema::integer()->min(1)->max(10),
+]);
+
+$rules = app(RuleFactory::class)->make($schema, [
+    'email' => ['unique:users,email'],
+]);
+```
+
+Return the result from a Form Request or pass it to Laravel's validator. The
+factory accepts any Laravel `Type`, including Eidos's `Schema` adapter. The
+optional second argument adds application rules; they precede inferred rules,
+including on nested properties and across `allOf` branches. The optional third
+argument prefixes attribute names, for example `make($schema, [], 'payload')`.
+Application rules must use the complete prefixed names.
+
+Supported rules cover scalar types, nullable types, UUID/email/date formats,
+scalar enums, string/numeric/item bounds, required object properties and array
+item wildcards. Optional parent objects remain optional; their required keys
+are checked when the object is supplied. A prefixed schema itself remains
+optional unless application rules require it. This is a Laravel rule converter,
+not a complete JSON Schema validator. Other constraints, such as patterns,
+multiples and item uniqueness, need explicit Laravel rules.
+
+`x-validation` annotations add Laravel rules after inferred rules. Use the
+Eidos adapter to preserve these annotations. `anyOf` accepts at least one
+matching branch and `oneOf` requires exactly one; branches use their complete
+inferred Laravel rules. Alternative validation requires an attribute prefix,
+including for a root composition. `allOf` combines branch rules and can be used
+at the request root. Failure messages are translated in English and Russian.
+
+## Schema compositions
+
+`PHPinnacle\Eidos\JsonSchema\Schema::fromArray()` supports nested `oneOf` and
+`allOf`, local references, sibling properties and required-only object branches:
+
+```php
+use PHPinnacle\Eidos\JsonSchema\Schema;
+
+$payment = Schema::fromArray([
+    'type' => 'object',
+    'properties' => [
+        'card' => ['type' => 'object'],
+        'token' => ['type' => 'string'],
+    ],
+    'oneOf' => [['required' => ['card']], ['required' => ['token']]],
+]);
+
+$rules = app(RuleFactory::class)->make($payment, [], 'payment');
+
+$quantity = Schema::allOf([
+    JsonSchema::integer()->min(1),
+    JsonSchema::integer()->max(10),
+]);
+```
+
+`Schema::oneOf()` and `Schema::allOf()` accept lists of Laravel types and Eidos
+adapters. They retain nested annotations without serializing and reparsing the
+supplied types. `nullable()` permits null for the complete composition. Use
+`Schema::fromArray()` to place compositions inside object properties or array
+items; Eidos adapters remain root schemas rather than children of Laravel's
+native builders. Picker and entry traversal include all three composition
+keywords, with scoped limits and annotations.
 
 ## JSON Schema picker and entry
 

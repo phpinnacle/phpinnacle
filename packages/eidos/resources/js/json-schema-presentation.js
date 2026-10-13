@@ -47,7 +47,7 @@ function restrictionPopover(title, restrictions, content, labels) {
     return '<div class="eidos-json-schema-popover"><div class="eidos-json-schema-popover__title">' + escapeHtml(title) + '</div>'
         + restrictions.map(restriction => '<div class="eidos-json-schema-popover__group">'
             + (restriction.scope.length ? '<div class="eidos-json-schema-popover__scope"><span>'
-                + escapeHtml(restriction.scope.map(part => typeof part === 'number' ? labels.alternative + ' ' + part : labels.items).join(' → '))
+                + escapeHtml(restriction.scope.map(part => typeof part === 'number' ? labels.alternative + ' ' + part : part === 'items' ? labels.items : part).join(' → '))
                 + '</span><span class="eidos-json-schema-popover__type">' + escapeHtml(restriction.type) + '</span></div>' : '')
             + content(restriction) + '</div>').join('') + '</div>'
 }
@@ -62,6 +62,6 @@ function constraintDescription(value, labels) {
 
 function restrictionScope(restriction, labels) {
     return restriction.scope.length
-        ? restriction.scope.map(part => typeof part === 'number' ? labels.alternative + ' ' + part : labels.items).join(' → ') + ' (' + restriction.type + ')\n'
+        ? restriction.scope.map(part => typeof part === 'number' ? labels.alternative + ' ' + part : part === 'items' ? labels.items : part).join(' → ') + ' (' + restriction.type + ')\n'
         : ''
 }

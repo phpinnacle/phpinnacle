@@ -25,7 +25,7 @@
                 <template x-for="(constraint, constraintIndex) in source.constraints" :key="constraintIndex">
                     <span class="eidos-json-schema-tree__constraints">
                         <span x-show="constraint.scope.length" class="eidos-json-schema-tree__scope">
-                            <span x-text="constraint.scope.map(part => typeof part === 'number' ? @js(__('phpinnacle-eidos::json-schema.alternative')) + ' ' + part : @js(__('phpinnacle-eidos::json-schema.items'))).join(' → ')"></span>
+                            <span x-text="constraint.scope.map(part => typeof part === 'number' ? @js(__('phpinnacle-eidos::json-schema.alternative')) + ' ' + part : part === 'items' ? @js(__('phpinnacle-eidos::json-schema.items')) : part).join(' → ')"></span>
                             <span class="eidos-json-schema-tree__scope-type" x-text="constraint.type"></span>
                         </span>
                         <span class="eidos-json-schema-tree__constraint-values">

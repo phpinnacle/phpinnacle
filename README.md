@@ -16,16 +16,15 @@ This repository is the source of truth for the PHPinnacle package collection. Ea
 | [`phpinnacle/comments`](packages/comments/) | Polymorphic discussion threads with Livewire and Filament integrations, policies, and pruning. |
 | [`phpinnacle/common`](packages/common/) | Shared Laravel and Filament utilities, including ranges, filters, columns, and reusable concerns. |
 | [`phpinnacle/dendros`](packages/dendros/) | Hierarchical Eloquent and Filament building blocks using materialized paths and tree-aware interfaces. |
-| [`phpinnacle/eidos`](packages/eidos/) | JSON Schema generation, Eloquent attribute introspection, and Filament schema pickers and entries. |
+| [`phpinnacle/eidos`](packages/eidos/) | JSON Schema generation, Laravel validation rules, Eloquent introspection, and Filament schema components. |
 | [`phpinnacle/franz`](packages/franz/) | Framework-agnostic PHP client for the Kafka Connect REST API with typed connector management. |
 | [`phpinnacle/grimoire`](packages/grimoire/) | Project-specific linter rules and analyzer extensions for Mago. |
 | [`phpinnacle/iconic`](packages/iconic/) | Searchable Filament icon picker backed by Phosphor icons. |
 | [`phpinnacle/intl`](packages/intl/) | Symfony Intl-backed country, language, locale, and timezone dictionaries with Laravel and Filament integration. |
 | [`phpinnacle/langcat`](packages/langcat/) | Framework-agnostic PHP client for the LangLion API with typed requests and responses. |
 | [`phpinnacle/manuscript`](packages/manuscript/) | Browser-based DOCX editor with a framework-neutral engine and a thin Filament field adapter. |
-| [`phpinnacle/minos`](packages/minos/) | Laravel and Filament payment orchestration for methods, plans, cards, intents, adjustments, and providers. |
+| [`phpinnacle/midas`](packages/midas/) | Laravel and Filament payment orchestration for methods, plans, cards, intents, adjustments, and providers. |
 | [`phpinnacle/money`](packages/money/) | Integer-based money value object with currency metadata, formatting, Eloquent, Livewire, and Filament support. |
-| [`phpinnacle/openapi`](packages/openapi/) | Converts OpenAPI schema objects into Laravel validation rules. |
 | [`phpinnacle/palette`](packages/palette/) | Color palette utilities and a Filament color picker supporting Tailwind, Filament, and custom sources. |
 | [`phpinnacle/pinax`](packages/pinax/) | Polymorphic Filament media library with uploads, galleries, folders, ordering, and marks. |
 | [`phpinnacle/porta`](packages/porta/) | Webhook integration management for Filament with transforms, queued processing, retries, and handler registration. |
@@ -71,7 +70,7 @@ Run `composer phpstan` to run PHPStan level 6 static analysis across all package
 | Command | Level | Packages |
 | --- | --- | --- |
 | `composer phpstan:level8` | 8 | cabeiro, vulcan |
-| `composer phpstan:level10` | 10 | babylon, canvio, casus, comments, ferry, franz, intl, langcat, openapi, rosetta, sequentia, tags |
+| `composer phpstan:level10` | 10 | babylon, canvio, casus, comments, ferry, franz, intl, langcat, rosetta, sequentia, tags |
 
 ## Composer Repository
 

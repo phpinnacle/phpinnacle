@@ -22,8 +22,8 @@ trait HasJsonSchemaPresentation
         return [
             ...$data,
             'definition' => $definition,
-            'propertyTitles' => app(PropertyTitles::class)->render($definition),
-            'icons' => $this->areIconsVisible() ? app(Icons::class)->render($definition) : [],
+            'propertyTitles' => new PropertyTitles()->render($definition),
+            'icons' => $this->areIconsVisible() ? new Icons()->render($definition) : [],
         ];
     }
 }

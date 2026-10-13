@@ -1,8 +1,8 @@
 export function schemaType(schema, format = false) {
     if (format && schema?.enum) return 'enum'
     if (format && schema?.format) return schema.format
-    if (schema?.anyOf) {
-        return [...new Set(schema.anyOf.map(value => schemaType(value, format)).filter(type => type !== 'null'))].join(' | ') || 'null'
+    for (const keyword of ['anyOf', 'oneOf', 'allOf']) {
+        if (schema?.[keyword]) return [...new Set(schema[keyword].map(value => schemaType(value, format)).filter(type => type !== 'null'))].join(keyword === 'allOf' ? ' & ' : ' | ') || 'null'
     }
     const types = (Array.isArray(schema?.type) ? schema.type : [schema?.type]).filter(type => type && type !== 'null')
     if (['object', 'array', 'string', 'number', 'boolean'].every(type => types.includes(type))) return 'any'
@@ -14,6 +14,8 @@ export function schemaNullable(schema) {
     return schema?.type === 'null'
         || Array.isArray(schema?.type) && schema.type.includes('null')
         || (schema?.anyOf ?? []).some(schemaNullable)
+        || (schema?.oneOf ?? []).filter(schemaNullable).length === 1
+        || Boolean(schema?.allOf?.length && schema.allOf.every(schemaNullable))
 }
 
 export function schemaIcon(schema) {
@@ -25,16 +27,18 @@ export function schemaColor(schema) {
 }
 
 function schemaAnnotation(schema, name) {
-    return schema[name] ?? schema.anyOf?.map(variant => schemaAnnotation(variant, name)).find(value => value !== undefined)
+    return schema[name] ?? schemaBranches(schema).map(variant => schemaAnnotation(variant, name)).find(value => value !== undefined)
 }
 
 function* schemaVariants(schema, scope = []) {
     yield { schema, scope }
-    for (const [index, variant] of (schema.anyOf ?? []).entries()) yield* schemaVariants(variant, [...scope, index + 1])
+    for (const keyword of ['anyOf', 'oneOf', 'allOf']) {
+        for (const [index, variant] of (schema[keyword] ?? []).entries()) yield* schemaVariants(variant, [...scope, keyword === 'anyOf' ? index + 1 : `${keyword} ${index + 1}`])
+    }
 }
 
 function schemaTitles(schema) {
-    return [schema.title, ...(schema.anyOf ?? []).flatMap(schemaTitles)].filter(title => title !== undefined)
+    return [schema.title, ...schemaBranches(schema).flatMap(schemaTitles)].filter(title => title !== undefined)
 }
 
 export function schemaRequired(schema, path) {
@@ -43,7 +47,9 @@ export function schemaRequired(schema, path) {
     const property = name === null ? schema.items : schema.properties?.[name]
     const required = nested.length ? schemaRequired(property, nested) : schema.required?.includes(name)
     return Boolean(required
-        || schema.anyOf?.length && schema.anyOf.every(variant => schemaRequired(variant, path)))
+        || schema.anyOf?.length && schema.anyOf.every(variant => schemaRequired(variant, path))
+        || schema.oneOf?.length && schema.oneOf.every(variant => schemaRequired(variant, path))
+        || schema.allOf?.some(variant => schemaRequired(variant, path)))
 }
 
 export function schemaConstraints(schema, format = false) {
@@ -96,7 +102,7 @@ export function schemaSources(schema, { whole = 'All data', includeRoot = true, 
         })
     }
     const properties = (value, path = []) => {
-        for (const variant of value?.anyOf ?? []) properties(variant, path)
+        for (const variant of schemaBranches(value)) properties(variant, path)
         for (const [name, field] of Object.entries(value?.properties ?? {})) {
             const child = [...path, name]
             append(field, child)
@@ -135,4 +141,8 @@ export function schemaGroups(schema, label, options = {}) {
 
 export function schemaSelectionLabel(value, placeholder) {
     return value?.join(' → ') ?? placeholder
+}
+
+function schemaBranches(schema) {
+    return ['anyOf', 'oneOf', 'allOf'].flatMap(keyword => schema?.[keyword] ?? [])
 }

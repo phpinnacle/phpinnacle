@@ -705,3 +705,23 @@ function createPicker(options) {
     picker.jsonSchemaSyncSearch()
     return picker
 }
+
+
+test('traverses oneOf and allOf properties with scoped limits and required markers', () => {
+    const definition = { type: 'object', properties: {
+        payment: { type: 'object', properties: { token: { type: 'string' } }, oneOf: [
+            { type: 'object', properties: { card: { type: 'object', properties: { number: { type: 'string' } } } }, required: ['card'] },
+            { type: 'object', required: ['token'] },
+        ] },
+        quantity: { allOf: [{ type: 'integer', minimum: 1 }, { type: 'integer', maximum: 10 }] },
+    }, allOf: [{ type: 'object', required: ['quantity'] }] }
+    const sources = schemaSources(definition, { includeRoot: false, required: true, constraints: true })
+    const number = sources.find(source => source.key === '["payment","card","number"]')
+    assert.deepEqual(number.value, ['payment', 'card', 'number'])
+    const quantity = sources.find(source => source.key === '["quantity"]')
+    assert.equal(quantity.type, 'integer')
+    assert.equal(quantity.required, true)
+    assert.deepEqual(quantity.constraints.map(constraint => constraint.scope), [['allOf 1'], ['allOf 2']])
+    assert.equal(schemaNullable({ allOf: [{ type: ['string', 'null'] }, { type: 'string' }] }), false)
+    assert.equal(schemaNullable({ oneOf: [{ type: ['string', 'null'] }, { type: ['number', 'null'] }] }), false)
+})
