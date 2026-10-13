@@ -5,6 +5,7 @@ use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
 use Illuminate\JsonSchema\JsonSchema;
+use Illuminate\JsonSchema\Types\Type;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
@@ -13,6 +14,38 @@ use PHPinnacle\Eidos\Infolists\JsonSchemaEntry;
 use Tests\TestCase;
 
 uses(TestCase::class);
+
+it('validates and presents exact paths in schema types that preserve local references', function () {
+    [$form] = eidos_json_schema_form(['home_address', 'postal_code']);
+    $schema = new class extends Type {
+        public function toArray(): array
+        {
+            return [
+                'type' => 'object',
+                '$defs' => [
+                    'address' => [
+                        'type' => 'object',
+                        'properties' => ['postal_code' => ['type' => 'string', 'x-icon' => 'heroicon-o-map-pin']],
+                    ],
+                ],
+                'properties' => ['home_address' => ['$ref' => '#/$defs/address']],
+            ];
+        }
+    };
+    $picker = $form->getComponents()[0]->jsonSchema($schema);
+    $entry = $form->getComponents()[1]->jsonSchema($schema);
+
+    expect($form->getState()['selection'])
+        ->toBe(['home_address', 'postal_code'])
+        ->and($picker->getExtraViewData()['icons'])
+        ->toHaveKey('heroicon-o-map-pin')
+        ->and($entry->getExtraViewData()['propertyTitles'])
+        ->toHaveKey('postal_code');
+
+    $form->fill(['selection' => ['home_address', 'missing']]);
+
+    expect($form->getState(...))->toThrow(ValidationException::class);
+});
 
 it('offers clearing only for optional enabled pickers independently of schema required markers', function () {
     [$form] = eidos_json_schema_form(['totals', 'subtotal']);

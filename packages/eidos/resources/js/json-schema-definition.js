@@ -82,6 +82,7 @@ export function schemaEnums(schema, format = false) {
 
 export function schemaSources(schema, { whole = 'All data', includeRoot = true, descendArrays = false, format = false, required = false, constraints = false, icons = {}, colors = true, propertyTitles = {} } = {}) {
     if (schema === null || schema === undefined) return []
+    schema = resolveSchemaReferences(schema)
     const sources = new Map()
     const append = (value, path) => {
         const key = JSON.stringify(path)
@@ -145,4 +146,32 @@ export function schemaSelectionLabel(value, placeholder) {
 
 function schemaBranches(schema) {
     return ['anyOf', 'oneOf', 'allOf'].flatMap(keyword => schema?.[keyword] ?? [])
+}
+
+function resolveSchemaReferences(root) {
+    const resolve = (schema, refs = []) => {
+        if (schema === null || typeof schema !== 'object') return schema
+        let definition = { ...schema }
+        while (typeof definition.$ref === 'string') {
+            const { $ref: ref, ...siblings } = definition
+            if (refs.includes(ref)) throw new Error(`Circular JSON Schema $ref [${ref}] detected.`)
+            refs = [...refs, ref]
+            if (ref !== '#' && !ref.startsWith('#/')) throw new Error(`Unable to resolve non-local JSON Schema $ref [${ref}].`)
+            let target = root
+            for (const part of ref === '#' ? [] : ref.slice(2).split('/')) {
+                const name = decodeURIComponent(part).replaceAll('~1', '/').replaceAll('~0', '~')
+                if (target === null || typeof target !== 'object' || !Object.hasOwn(target, name)) throw new Error(`Unable to resolve JSON Schema $ref [${ref}].`)
+                target = target[name]
+            }
+            if (target === null || typeof target !== 'object' || Array.isArray(target)) throw new Error(`The JSON Schema $ref [${ref}] does not point to a schema.`)
+            definition = { ...target, ...siblings }
+        }
+        if (definition.properties) definition.properties = Object.fromEntries(Object.entries(definition.properties).map(([name, property]) => [name, resolve(property, refs)]))
+        for (const keyword of ['anyOf', 'oneOf', 'allOf']) {
+            if (definition[keyword]) definition[keyword] = definition[keyword].map(variant => resolve(variant, refs))
+        }
+        if (definition.items) definition.items = resolve(definition.items, refs)
+        return definition
+    }
+    return resolve(root)
 }

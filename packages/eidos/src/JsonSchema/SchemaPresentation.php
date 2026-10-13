@@ -20,7 +20,7 @@ final class SchemaPresentation
         $titles = [];
         $icons = [];
 
-        foreach (new Node($definition)->nodes() as $node) {
+        foreach (new Node(Deserializer::resolveReferences($definition))->nodes() as $node) {
             $propertyName = $node->propertyName();
 
             if ($propertyName !== null) {

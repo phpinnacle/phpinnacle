@@ -39,6 +39,41 @@ final class Deserializer extends LaravelDeserializer
 
     /**
      * @param array<string, mixed> $schema
+     * @return array<string, mixed>
+     */
+    public static function resolveReferences(array $schema): array
+    {
+        return new self($schema)->expandReferences($schema);
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     * @param list<string> $refs
+     * @return array<string, mixed>
+     */
+    private function expandReferences(array $schema, array $refs = []): array
+    {
+        [$schema, $refs] = $this->resolveRef($schema, $refs);
+
+        foreach ($schema['properties'] ?? [] as $name => $property) {
+            $schema['properties'][$name] = $this->expandReferences($property, $refs);
+        }
+
+        foreach (['anyOf', 'oneOf', 'allOf'] as $keyword) {
+            foreach ($schema[$keyword] ?? [] as $index => $variant) {
+                $schema[$keyword][$index] = $this->expandReferences($variant, $refs);
+            }
+        }
+
+        if (array_key_exists('items', $schema)) {
+            $schema['items'] = $this->expandReferences($schema['items'], $refs);
+        }
+
+        return $schema;
+    }
+
+    /**
+     * @param array<string, mixed> $schema
      * @param list<string> $refs
      */
     protected function buildAnyOfComposition(array $schema, array $refs = []): ?AnyOfType

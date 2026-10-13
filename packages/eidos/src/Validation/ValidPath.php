@@ -5,6 +5,7 @@ namespace PHPinnacle\Eidos\Validation;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\JsonSchema\Types\Type;
+use PHPinnacle\Eidos\JsonSchema\Deserializer;
 use PHPinnacle\Eidos\JsonSchema\Node;
 
 /** @internal */
@@ -49,7 +50,7 @@ final class ValidPath implements ValidationRule
             return;
         }
 
-        if (!new Node(($this->schema)()->toArray())->hasPath($value)) {
+        if (!new Node(Deserializer::resolveReferences(($this->schema)()->toArray()))->hasPath($value)) {
             $fail('validation.in')->translate();
         }
     }

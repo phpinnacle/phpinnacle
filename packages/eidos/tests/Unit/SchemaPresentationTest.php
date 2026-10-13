@@ -6,6 +6,28 @@ use Tests\TestCase;
 
 uses(TestCase::class);
 
+it('renders metadata from referenced definitions without replacing the original schema', function () {
+    $definition = [
+        'type' => 'object',
+        '$defs' => [
+            'contact/address~' => [
+                'type' => 'object',
+                'properties' => ['postal_code' => ['type' => 'string', 'x-icon' => 'heroicon-o-map-pin']],
+            ],
+            'alias' => ['$ref' => '#/$defs/contact~1address~0'],
+        ],
+        'properties' => ['home_address' => ['$ref' => '#/$defs/alias']],
+    ];
+    $presentation = SchemaPresentation::render($definition);
+
+    expect($presentation['definition'])
+        ->toBe($definition)
+        ->and($presentation['propertyTitles'])
+        ->toBe(['home_address' => 'Home Address', 'postal_code' => 'Postal Code'])
+        ->and($presentation['icons']['heroicon-o-map-pin'])
+        ->toContain('<svg');
+});
+
 it('prepares readable property titles across nested objects, arrays and union branches without changing the schema', function () {
     $definition = [
         'properties' => [

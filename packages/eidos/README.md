@@ -180,6 +180,12 @@ Properties in `anyOf`, `oneOf`, and `allOf` branches are available, but a comple
 path must exist within one branch. Arrays are selectable as whole fields. Their
 items appear below a readonly `*` row and cannot be selected.
 
+Picker and entry trees resolve local JSON Pointer `$ref` values, including
+references in compositions and array items, without changing the supplied
+definition. Referenced titles, icons, colors, required markers, and constraints
+are available too. Sibling annotations override those on the referenced schema.
+External references and circular references are unsupported and raise errors.
+
 Keep paths as arrays when storing them. If an application needs a string, it can
 format the submitted value through Filament:
 

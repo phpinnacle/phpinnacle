@@ -11,6 +11,44 @@ const schema = { type: 'object', properties: {
     tags: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' } } } },
 } }
 
+test('selects referenced paths with resolved metadata while leaving the original schema intact', () => {
+    const document = { type: 'object', $defs: {
+        'email/address~': { type: ['string', 'null'], title: 'Email', format: 'email', minLength: 3, 'x-icon': 'mail', 'x-color': 'info' },
+        contact: { type: 'object', properties: { 'contact.email': { $ref: '#/$defs/email~1address~0' } }, required: ['contact.email'] },
+        alias: { $ref: '#/$defs/contact' },
+    }, properties: {
+        primary: { $ref: '#/$defs/alias', title: 'Primary contact' },
+        secondary: { $ref: '#/$defs/contact' },
+        contacts: { type: 'array', items: { $ref: '#/$defs/contact' } },
+        alternative: { anyOf: [{ $ref: '#/$defs/contact' }, { type: 'null' }] },
+    } }
+    const original = structuredClone(document)
+    const sources = schemaSources(document, { includeRoot: false, descendArrays: true, format: true, constraints: true, required: true, icons: { mail: '<svg></svg>' } })
+    const email = sources.find(source => source.key === '["primary","contact.email"]')
+    assert.ok(email)
+    assert.equal(email.type, 'email')
+    assert.equal(email.nullable, true)
+    assert.equal(email.required, true)
+    assert.equal(email.title, 'Email')
+    assert.equal(email.iconHtml, '<svg></svg>')
+    assert.equal(email.color, 'info')
+    assert.deepEqual(email.constraints[0].values, [{ kind: 'length', value: '≥ 3' }])
+    assert.equal(sources.find(source => source.key === '["primary"]').title, 'Primary contact')
+    assert.ok(sources.find(source => source.key === '["secondary","contact.email"]'))
+    assert.ok(sources.find(source => source.key === '["alternative","contact.email"]'))
+    assert.equal(sources.find(source => source.key === '["contacts",null,"contact.email"]').compatible, false)
+    const picker = createPicker({ groups: () => [{ key: 'Schema', label: 'Schema', sources }], choose: source => source.value })
+    assert.deepEqual(picker.jsonSchemaChoose(email), ['primary', 'contact.email'])
+    assert.deepEqual(document, original)
+})
+
+test('reports unresolved, external and circular references instead of building incomplete paths', () => {
+    for (const reference of ['#/$defs/missing', 'https://example.com/schema.json', '#']) {
+        const document = { type: 'object', properties: { child: { $ref: reference } } }
+        assert.throws(() => schemaSources(document), /\$ref/)
+    }
+})
+
 test('rebuilds adapter groups from current display options while preserving exact selection and readonly items', () => {
     const tools = jsonSchemaTools()
     const document = { properties: {
