@@ -34,6 +34,18 @@ consuming Eidos.
 
 Schemas describe column types, casts, backed enum values, dates, and nullability.
 Stored and virtual generated columns are included with `readOnly: true`.
+Columns that the model's `isFillable()` excludes from mass assignment are also
+marked `readOnly: true`, following `$fillable` and `$guarded`. These columns
+remain in the schema with their defaults. Related model columns follow their
+own model's mass-assignment settings. Generated columns remain readonly even
+when fillable.
+Column literals are included as JSON Schema `default` values, with declared
+model `$attributes` taking precedence, including explicit `null`, `false`, zero,
+and empty strings. Defaults are converted to the schema's scalar or JSON type.
+Current values on a supplied model instance are not defaults. SQL expressions
+such as `CURRENT_TIMESTAMP` and sequences, and defaults on generated columns,
+are omitted. A database metadata `null` means no reported default; Eidos does
+not infer a default from nullability.
 Relationships with concrete return types include the related model's columns,
 but do not expand its relationships. `MorphTo` relationships are omitted.
 Schema generation uses the model's database connection and table.
@@ -68,7 +80,7 @@ Handlers receive the model, attribute name, and a list of cast arguments. For
 Return a fresh `Illuminate\JsonSchema\Types\Type` or Eidos `Schema` for each field.
 
 Registered handlers take precedence over built-in cast mappings and apply to
-related models too. Column nullability and generated-column `readOnly` still
+related models too. Column nullability and inferred `readOnly` still
 apply. Without a handler, Eidos uses its built-in cast mapping or database type.
 Registrations belong to the configured introspector instance.
 

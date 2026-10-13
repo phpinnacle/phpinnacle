@@ -109,9 +109,14 @@ final class Deserializer extends LaravelDeserializer
     /** @param array<string, mixed> $schema */
     protected function applyCommon(Type $type, array $schema): void
     {
-        parent::applyCommon($type, $schema);
-
         $extraAttributes = [];
+
+        if (array_key_exists('default', $schema) && $schema['default'] === null) {
+            $extraAttributes['default'] = null;
+            unset($schema['default']);
+        }
+
+        parent::applyCommon($type, $schema);
 
         foreach ($schema as $name => $value) {
             if (str_starts_with($name, 'x-') || $name === 'readOnly') {

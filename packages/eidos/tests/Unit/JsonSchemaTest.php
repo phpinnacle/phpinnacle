@@ -5,6 +5,15 @@ use PHPinnacle\Eidos\JsonSchema\Schema;
 use PHPinnacle\Eidos\JsonSchema\Types\AllOfType;
 use PHPinnacle\Eidos\JsonSchema\Types\OneOfType;
 
+it('preserves explicit null defaults through nested schema round trips', function () {
+    $definition = [
+        'type' => 'object',
+        'properties' => ['label' => ['type' => ['string', 'null'], 'default' => null]],
+    ];
+
+    expect(Schema::fromArray($definition)->toArray())->toEqual($definition);
+});
+
 it('preserves arbitrary x-attribute values without interpreting their contents', function () {
     $definition = [
         'type' => 'string',

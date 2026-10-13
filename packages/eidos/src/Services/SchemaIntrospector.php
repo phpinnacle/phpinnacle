@@ -21,7 +21,7 @@ use ReflectionMethod;
 use ReflectionNamedType;
 
 /**
- * @phpstan-type Column array{name: string, type_name: string, nullable: bool, generation: array{type: string|null, expression: string|null}|null}
+ * @phpstan-type Column array{name: string, type_name: string, nullable: bool, default: string|null, generation: array{type: string|null, expression: string|null}|null}
  */
 class SchemaIntrospector
 {
@@ -87,11 +87,13 @@ class SchemaIntrospector
     /** @return array<string, array<string, mixed>> */
     private function columnSchemas(Model $model): array
     {
-        /** @var list<Column> $columns */
-        $columns = $model->getConnection()->getSchemaBuilder()->getColumns($model->getTable());
+        $columns = $this->columns($model);
         $properties = [];
         $casts = $model->getCasts();
         $dates = $model->getDates();
+        /** @var array<string, mixed> $defaults */
+        $defaults = new ReflectionClass($model)->getDefaultProperties()['attributes'];
+        $driver = $model->getConnection()->getDriverName();
 
         foreach ($columns as $column) {
             $name = $column['name'];
@@ -102,14 +104,119 @@ class SchemaIntrospector
 
             $definition = ($column['nullable'] ? $type->nullable() : $type)->toArray();
 
-            if ($column['generation'] !== null) {
+            if ($column['generation'] !== null || !$model->isFillable($name)) {
                 $definition['readOnly'] = true;
+            }
+
+            if ($column['generation'] === null) {
+                $default = array_key_exists($name, $defaults)
+                    ? ['default' => $defaults[$name]]
+                    : $this->databaseDefault($column['default'], $driver, $column['type_name']);
+
+                if (array_key_exists('default', $default)) {
+                    $definition['default'] = $this->defaultValue($default['default'], $definition);
+                }
             }
 
             $properties[$name] = $definition;
         }
 
         return $properties;
+    }
+
+    /** @return list<Column> */
+    private function columns(Model $model): array
+    {
+        $connection = $model->getConnection();
+        $builder = $connection->getSchemaBuilder();
+
+        if ($connection->getDriverName() !== 'mysql') {
+            /** @var list<Column> */
+            return $builder->getColumns($model->getTable());
+        }
+
+        // Laravel's MySQL processor discards EXTRA, which distinguishes expressions from literals.
+        [$schema, $table] = $builder->parseSchemaAndTable($model->getTable());
+        $results = $connection->selectFromWriteConnection(
+            $connection->getSchemaGrammar()->compileColumns($schema, $connection->getTablePrefix() . $table),
+        );
+
+        foreach ($results as $result) {
+            if (str_contains($result->extra, 'DEFAULT_GENERATED')) {
+                $result->default = null;
+            }
+        }
+
+        /** @var list<Column> */
+        return $connection->getPostProcessor()->processColumns($results);
+    }
+
+    /** @return array{default?: mixed} */
+    private function databaseDefault(?string $value, string $driver, string $databaseType): array
+    {
+        if ($value === null) {
+            return [];
+        }
+
+        if ($driver === 'mysql') {
+            if (
+                in_array($databaseType, ['timestamp', 'datetime'], true)
+                && preg_match('/^current_timestamp(?:\(\d*\))?$/iD', $value)
+            ) {
+                return [];
+            }
+
+            return ['default' => $value];
+        }
+
+        $value = trim($value);
+
+        while (str_starts_with($value, '(') && str_ends_with($value, ')')) {
+            $value = trim(substr($value, 1, -1));
+        }
+
+        if ($driver === 'pgsql') {
+            $value = preg_replace('/::[a-zA-Z_][a-zA-Z0-9_ ."\[\]]*(?:\(\d+(?:,\s*\d+)?\))?$/D', '', $value);
+        }
+
+        if (preg_match("/^(?:N)?'((?:[^']|'')*)'$/isD", $value, $matches)) {
+            return ['default' => str_replace("''", "'", $matches[1])];
+        }
+
+        return match (true) {
+            strcasecmp($value, 'null') === 0 => ['default' => null],
+            strcasecmp($value, 'true') === 0 => ['default' => true],
+            strcasecmp($value, 'false') === 0 => ['default' => false],
+            is_numeric($value) => ['default' => $value],
+            default => [],
+        };
+    }
+
+    /** @param array<string, mixed> $definition */
+    private function defaultValue(mixed $value, array $definition): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value instanceof BackedEnum) {
+            $value = $value->value;
+        }
+
+        $types = (array) ($definition['type'] ?? []);
+
+        return match (true) {
+            in_array('integer', $types, true) => (int) $value,
+            in_array('number', $types, true) => (float) $value,
+            in_array('boolean', $types, true) => in_array($value, [true, 1, '1', 'true', 't'], true),
+            in_array('string', $types, true) => (string) $value,
+            is_string($value) && array_intersect($types, ['object', 'array']) !== [] => json_decode(
+                $value,
+                associative: false,
+                flags: JSON_THROW_ON_ERROR,
+            ),
+            default => $value,
+        };
     }
 
     private function columnType(string $databaseType, ?string $cast, Model $model, string $attribute): Type
