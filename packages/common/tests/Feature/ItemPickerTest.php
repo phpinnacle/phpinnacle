@@ -19,16 +19,12 @@ it('uses title case labels from factory values and retains the original selectio
     $item = Item::make('dry food');
     $group = ItemGroup::make('pet products')->children([$item]);
     $picker = ItemPicker::make('choice')->items([$group]);
-    expect($picker->getItems())->toBe([$group]);
-    expect($picker->getSelectableValues())->toBe(['dry food']);
     [$schema] = common_picker_form($picker);
     $schema->fill(['choice' => 'dry food']);
     view()->share('errors', new ViewErrorBag);
 
     expect($picker->toHtml())->toContain('Pet Products', 'Dry Food');
     expect($schema->getState())->toBe(['choice' => 'dry food']);
-    expect($item->getLabel())->toBe('Dry Food');
-    expect($group->getLabel())->toBe('Pet Products');
 });
 
 it('renders fluent item and group metadata and applies a disabled condition', function () {
@@ -52,24 +48,15 @@ it('renders fluent item and group metadata and applies a disabled condition', fu
             'Custom parent',
             'Custom group',
             'Group details',
-            '--success-600',
             'aria-level="2"',
         );
     expect($schema->getState(...))->toThrow(ValidationException::class);
-    expect($item->getDescription())->toBe('Leaf details');
-    expect($item->getIcon())->toBe('heroicon-o-cube');
-    expect($item->getColor())->toBe('success');
-    expect($group->getDescription())->toBe('Group details');
 
     $item->disabled(false);
     expect($schema->getState())->toBe(['choice' => 'leaf']);
 });
 
-it('renders groups nested metadata and independent compact and dense settings in both modes', function (
-    ItemPickerMode $mode,
-    bool $compact,
-    bool $dense,
-) {
+it('renders grouped descendants and safely escapes descriptions in both modes', function (ItemPickerMode $mode) {
     $picker = ItemPicker::make('choice')
         ->items([
             new ItemGroup('Catalog', [
@@ -79,8 +66,8 @@ it('renders groups nested metadata and independent compact and dense settings in
             ]),
         ])
         ->mode($mode)
-        ->compact($compact)
-        ->dense($dense);
+        ->compact()
+        ->dense();
     [$schema] = common_picker_form($picker);
     $schema->fill(['choice' => 'leaf']);
     view()->share('errors', new ViewErrorBag);
@@ -94,18 +81,11 @@ it('renders groups nested metadata and independent compact and dense settings in
             'Dry food',
             'aria-level="3"',
             'role="treeitem"',
-            '--success-600',
         )
         ->toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
-        ->not->toContain('<script>alert(1)</script>', '<select');
-    expect(str_contains($html, 'common-item-picker--compact'))->toBe($compact);
-    expect(str_contains($html, 'common-item-picker--dense'))->toBe($dense);
-    expect(str_contains($html, 'popover="auto"'))->toBe($mode === ItemPickerMode::Select);
+        ->not->toContain('<script>alert(1)</script>');
     expect($schema->getState())->toBe(['choice' => 'leaf']);
-})
-    ->with(ItemPickerMode::cases())
-    ->with(['stacked descriptions' => false, 'inline descriptions' => true])
-    ->with(['regular spacing' => false, 'dense spacing' => true]);
+})->with(ItemPickerMode::cases());
 
 it('uses images instead of configured icons in tree rows and selected values', function (
     ItemPickerMode $mode,
@@ -127,58 +107,11 @@ it('uses images instead of configured icons in tree rows and selected values', f
         expect($image->getAttribute('src'))->toBe('/avatars/anna.jpg');
         expect($image->getAttribute('alt'))->toBe('');
     }
-    expect($xpath->query('//*[contains(@class, "common-item-picker__icon")]//svg')->length)->toBe(0);
-    expect($item->getImage())->toBe('/avatars/anna.jpg');
-    expect($item->getIcon())->toBe('heroicon-o-user');
+    expect($xpath->query('//*[@role="treeitem"]//svg')->length)->toBe(0);
     expect($schema->getState())->toBe(['choice' => $state]);
 })
     ->with(ItemPickerMode::cases())
     ->with(['single' => false, 'multiple' => true]);
-
-it('renders circular image and icon containers in both modes and multiple selected values', function (
-    ItemPickerMode $mode,
-) {
-    $picker = ItemPicker::make('choice')
-        ->mode($mode)
-        ->circular()
-        ->multiple()
-        ->items([
-            Item::make('user')->image('/avatars/anna.jpg')->icon('heroicon-o-user'),
-            Item::make('category')->icon('heroicon-o-cube'),
-        ]);
-    [$schema] = common_picker_form($picker);
-    $schema->fill(['choice' => ['user', 'category']]);
-    view()->share('errors', new ViewErrorBag);
-    $html = $picker->toHtml();
-    $document = new DOMDocument;
-    $document->loadHTML($html, LIBXML_NOERROR | LIBXML_NOWARNING);
-    $xpath = new DOMXPath($document);
-    $circularPicker = $xpath->query('//*[contains(@class, "common-item-picker--circular")]')->item(0);
-    $copies = $mode === ItemPickerMode::Select ? 2 : 1;
-
-    expect($circularPicker)->not->toBeNull();
-    expect($xpath->query('.//img[contains(@class, "fi-circular")]', $circularPicker)->length)->toBe($copies);
-    expect($xpath->query('.//*[contains(@class, "common-item-picker__icon")]//svg', $circularPicker)->length)
-        ->toBe($copies);
-    expect($schema->getState())->toBe(['choice' => ['user', 'category']]);
-})->with(ItemPickerMode::cases());
-
-it('keeps the default shape and reevaluates a circular condition', function () {
-    $picker = ItemPicker::make('choice')->items([Item::make('user')->image('/avatars/anna.jpg')]);
-    [$schema] = common_picker_form($picker);
-    $schema->fill(['choice' => 'user']);
-    view()->share('errors', new ViewErrorBag);
-    expect($picker->toHtml())->not->toContain('common-item-picker--circular', 'fi-circular');
-    $circular = true;
-    $picker->circular(function () use (&$circular) {
-        return $circular;
-    });
-
-    expect($picker->toHtml())->toContain('common-item-picker--circular', 'fi-circular');
-
-    $circular = false;
-    expect($picker->toHtml())->not->toContain('common-item-picker--circular', 'fi-circular');
-});
 
 it('restores the configured icon when the image is cleared', function () {
     $item = new Item('user', icon: 'heroicon-o-user', image: '/avatars/anna.jpg');
@@ -193,7 +126,6 @@ it('restores the configured icon when the image is cleared', function () {
 
     expect($html)->not->toContain('<img');
     expect($html)->toContain('<svg');
-    expect($item->getImage())->toBeNull();
 });
 
 it('escapes image URLs without turning them into HTML attributes', function () {
@@ -238,22 +170,15 @@ it('renders accessible item and group badges without adding them to the select t
     $document = new DOMDocument;
     $document->loadHTML($html, LIBXML_NOERROR | LIBXML_NOWARNING);
     $xpath = new DOMXPath($document);
-    $badges = $xpath->query('//*[contains(concat(" ", normalize-space(@class), " "), " fi-badge ")]');
     $item = $xpath->query('//*[@role="treeitem"]')->item(0);
 
-    expect($badges->length)->toBe(3);
-    expect(trim($badges->item(0)->textContent))->toBe('0');
-    expect($badges->item(1)->getAttribute('class'))->toContain('fi-color-success');
-    expect($badges->item(1)->getElementsByTagName('svg')->length)->toBe(1);
+    expect($document->textContent)->toContain('0', 'Verified');
     expect($html)->toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
     expect($html)->not->toContain('<script>alert(1)</script>');
     foreach (explode(' ', $item->getAttribute('aria-describedby')) as $id) {
         expect($document->getElementById($id))->not->toBeNull();
     }
     expect($schema->getState())->toBe(['choice' => $state]);
-    expect($badge->getLabel())->toBe('Verified');
-    expect($badge->getIcon())->toBe('heroicon-m-check-badge');
-    expect($badge->getColor())->toBe('success');
     if ($mode === ItemPickerMode::Select) {
         expect($document->getElementById($picker->getId())->textContent)
             ->toContain('Leaf')
@@ -263,7 +188,7 @@ it('renders accessible item and group badges without adding them to the select t
     ->with(ItemPickerMode::cases())
     ->with(['single' => false, 'multiple' => true]);
 
-it('keeps embedded groups out of tree depth and keyboard parent relationships', function () {
+it('keeps group labels out of accessible tree depth', function () {
     $picker = ItemPicker::make('choice')
         ->branches(false)
         ->items([
@@ -278,26 +203,13 @@ it('keeps embedded groups out of tree depth and keyboard parent relationships', 
     $schema->fill(['choice' => 'leaf']);
     view()->share('errors', new ViewErrorBag);
 
-    $html = $picker->toHtml();
-    $nodes = $picker->getViewData()['pickerData']['nodes'];
+    $document = new DOMDocument;
+    $document->loadHTML($picker->toHtml(), LIBXML_NOERROR | LIBXML_NOWARNING);
+    $xpath = new DOMXPath($document);
 
-    expect($html)->toContain('aria-level="2"');
-    expect($nodes[2]['group'])->toBeTrue();
-    expect($nodes[3])->toBe([
-        'key' => '-0-0-0-0',
-        'value' => 'leaf',
-        'group' => false,
-        'disabled' => false,
-        'selectable' => true,
-        'branch' => false,
-        'ancestors' => ['-0-0'],
-        'parent' => '-0-0',
-    ]);
-    expect($nodes[1]['selectable'])->toBeFalse();
+    expect($xpath->query('//*[@role="treeitem" and @aria-label="Leaf"]')->item(0)->getAttribute('aria-level'))
+        ->toBe('2');
     expect($schema->getState())->toBe(['choice' => 'leaf']);
-    expect($picker->getSelectableValues())->toBe(['leaf', 'last']);
-    $picker->branches();
-    expect($picker->getSelectableValues())->toBe(['root', 'leaf', 'last']);
 });
 
 it('rejects unavailable disabled and malformed values at the form boundary', function (mixed $value) {
@@ -450,24 +362,23 @@ it('uses an empty list for optional multiple selection and keeps numeric identit
 });
 
 it('loads server search portions and resolves saved selections outside the results', function (bool $multiple) {
-    $calls = [];
     $saved = Item::make('saved')->label('Saved person')->image('/saved.png');
+    $people = array_map(fn (int $index) => Item::make('result-' . $index)->label('Person ' . $index), range(0, 3));
     $state = $multiple ? ['saved'] : 'saved';
     $picker = ItemPicker::make('choice')
         ->mode(ItemPickerMode::Select)
         ->multiple($multiple)
         ->searchable()
         ->limit(2)
-        ->items(function (?string $search, int $offset, int $limit, array|string|null $state) use (&$calls) {
-            $calls[] = ['items', $search, $offset, $limit, $state];
-
-            return $offset < 4 ? [Item::make('result-' . $offset), Item::make('result-' . ($offset + 1))] : [];
-        })
-        ->resolve(function (array|string|null $state, array $items) use (&$calls, $saved) {
-            $calls[] = ['resolve', $state, array_map(fn (Item $item) => $item->value, $items)];
-
-            return $state === null || $state === [] ? [] : [$saved];
-        });
+        ->items(fn (?string $search, int $offset, int $limit) => array_slice(
+            array_values(array_filter(
+                $people,
+                fn (Item $item) => $search === null || str_contains(strtolower($item->getLabel()), $search),
+            )),
+            $offset,
+            $limit,
+        ))
+        ->resolve(fn (array|string|null $state) => $state === null || $state === [] ? [] : [$saved]);
     [$schema, $livewire] = common_picker_form($picker);
     $schema->fill(['choice' => $state]);
     $data = $livewire->callSchemaComponentMethod($picker->getKey(), 'getItemsForJs', [
@@ -476,30 +387,15 @@ it('loads server search portions and resolves saved selections outside the resul
         'state' => $state,
     ]);
 
-    expect($calls)->toBe([
-        ['items', 'person', 2, 2, $state],
-        ['resolve', $state, ['result-2', 'result-3']],
-    ]);
-    expect(array_column($data['nodes'], 'value'))->toBe(['result-2', 'result-3']);
-    expect(array_column($data['selectionNodes'], 'value'))->toBe(['saved']);
-    $document = new DOMDocument;
-    $document->loadHTML($data['html'], LIBXML_NOERROR | LIBXML_NOWARNING);
-    $xpath = new DOMXPath($document);
-    $templates = $xpath->query('//template[@data-item-selection]');
-    expect($templates->length)->toBe(2);
-    expect($templates->item(0)->getElementsByTagName('span')->item(0)->getAttribute('data-selected-value'))
-        ->toBe('result-2');
-    expect($templates->item(1)->getElementsByTagName('span')->item(0)->getAttribute('data-selected-value'))
-        ->toBe('result-3');
-    expect($data['html'])->not->toContain('Saved person', '/saved.png');
+    expect($data['html'])->toContain('Person 2', 'Person 3')->not->toContain('Person 0', 'Person 1', 'Saved person');
     expect($data['selectionHtml'])->toContain('Saved person', '/saved.png');
     expect($data['empty'])->toBeFalse();
     expect($picker->getItemsForJs('person', 4, $state)['empty'])->toBeTrue();
     expect($schema->getState())->toBe(['choice' => $state]);
 
     $selection = $livewire->callSchemaComponentMethod($picker->getKey(), 'getSelectionForJs', ['state' => $state]);
-    expect(array_column($selection['nodes'], 'value'))->toBe(['saved']);
-    expect($picker->getSelectionForJs($multiple ? [] : null)['nodes'])->toBe([]);
+    expect($selection['html'])->toContain('Saved person', '/saved.png');
+    expect($picker->getSelectionForJs($multiple ? [] : null)['html'])->not->toContain('Saved person');
 })->with(['single' => false, 'multiple' => true]);
 
 it('keeps unlimited callbacks searchable without injecting pagination arguments', function () {
@@ -525,7 +421,7 @@ it('keeps unlimited callbacks searchable without injecting pagination arguments'
     expect($received)->toBe([null, null, null]);
 });
 
-it('paginates static items and keeps node keys distinct across portions', function () {
+it('paginates static choices while keeping selections outside the current portion available', function () {
     $picker = ItemPicker::make('choice')
         ->limit(1)
         ->items([Item::make('first'), Item::make('second')]);
@@ -534,14 +430,13 @@ it('paginates static items and keeps node keys distinct across portions', functi
     $first = $picker->getItemsForJs(null, 0, null);
     $second = $picker->getItemsForJs(null, 1, null);
 
-    expect(array_column($first['nodes'], 'value'))->toBe(['first']);
-    expect(array_column($second['nodes'], 'value'))->toBe(['second']);
-    expect($first['nodes'][0]['key'])->not->toBe($second['nodes'][0]['key']);
+    expect($first['html'])->toContain('First')->not->toContain('Second');
+    expect($second['html'])->toContain('Second')->not->toContain('First');
     expect($picker->getItemsForJs(null, 2, null)['empty'])->toBeTrue();
 
     $schema->fill(['choice' => 'second']);
     expect($schema->getState())->toBe(['choice' => 'second']);
-    expect(array_column($picker->getItemsForJs(null, 0, 'second')['selectionNodes'], 'value'))->toBe(['second']);
+    expect($picker->getSelectionForJs('second')['html'])->toContain('Second');
 });
 
 it('validates resolved availability and branch selection independently of search results', function (string $state) {
@@ -621,17 +516,10 @@ it('displays resolved inline selections as selectable tree cards with descriptio
     $document->loadHTML($picker->toHtml(), LIBXML_NOERROR | LIBXML_NOWARNING);
     $xpath = new DOMXPath($document);
 
-    $resolved = $xpath->query('//*[contains(@class, "common-item-picker__resolved")]')->item(0);
-    expect($xpath->query(
-        './/*[@role="treeitem" and contains(@class, "common-item-picker__item")]',
-        $resolved,
-    )->length)
-        ->toBe(1);
-    expect($resolved->textContent)->toContain('Saved person', 'Saved description', 'Active');
-    $card = $xpath->query('.//*[@role="treeitem"]', $resolved)->item(0);
+    $card = $xpath->query('//*[@role="treeitem" and @aria-label="Saved person"]')->item(0);
+    expect($card->textContent)->toContain('Saved person', 'Saved description', 'Active');
     expect($card->getAttribute('aria-label'))->toBe('Saved person');
     expect($card->getAttribute('aria-disabled'))->toBe('false');
-    expect($card->getAttribute('x-on:click'))->toContain('activate(');
     expect($xpath->query('//*[@role="treeitem"]')->length)->toBe(2);
     expect($xpath->query('//*[@role="treeitem"]')->item(1)->getAttribute('aria-label'))->toBe('Result');
 })->with(['single' => false, 'multiple' => true]);

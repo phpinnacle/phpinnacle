@@ -7,12 +7,12 @@ Midas is a payment orchestration package for Laravel and Filament. It models pay
 ## Features
 
 - Transaction, payment method and payment plan Filament resources.
-- Provider registry with built-in cash, bank, card, ERIP, Stripe, BePaid and WebPay implementations.
+- Built-in cash, bank, card, ERIP, Stripe, BePaid and WebPay providers.
 - `PaymentGateway` and `PaymentProvider` contracts for custom integrations.
 - Payment intents, line items, payers, sources and continuation statuses.
 - Persisted payment transactions with authorization, capture, void and refund operations.
-- Atomic payment and Laravel database job creation, with encrypted requests and provider idempotency.
-- Discounts, shipping, tax, fees and rounding adjustments.
+- Queued execution with atomic scheduling, encrypted requests and provider idempotency.
+- Discounts, shipping, tax and fee adjustments.
 - Single and multipart payment schemes with validation.
 - Tokenized and encrypted card instruments.
 - Configurable connection, navigation and tenancy.
@@ -20,12 +20,13 @@ Midas is a payment orchestration package for Laravel and Filament. It models pay
 ## Requirements and installation
 
 - PHP 8.4 or later
-- Laravel 13 and Filament 5
+- Laravel 13 and Filament 4 or 5
 - Laravel Cashier 16
 - `phpinnacle/common`
 
 ```bash
 composer require phpinnacle/midas
+php artisan vendor:publish --tag="phpinnacle-midas-config"
 php artisan vendor:publish --tag="phpinnacle-midas-migrations"
 php artisan migrate
 ```
@@ -38,11 +39,18 @@ use PHPinnacle\Midas\MidasPlugin;
 $panel->plugin(MidasPlugin::make());
 ```
 
-Register provider class names in `phpinnacle-midas.providers`. The service provider resolves them through the container in both HTTP requests and queue workers, without requiring a current Filament panel. Provider instances must be stateless; merchant credentials come from each transaction's payment method. The built-in providers are registered by default. Replace the list to restrict availability or add custom providers.
+Register provider class names in `phpinnacle-midas.providers`. The built-in providers are enabled by default; replace the list to restrict availability or add custom providers. The same configuration applies to checkout and queue workers. Keep provider implementations stateless, with merchant credentials in payment method settings.
 
-Providers are loaded into `ProviderRegistry` and become available when defining payment methods. Each provider supplies its label, availability, configuration form, validation and gateway behavior. Stripe supports hosted Checkout payments and refunds, plus direct PaymentIntent authorizations, captures and voids through the queued transaction flow.
-`PHPinnacle\Midas\Resources\Methods\Tables\MethodsTable::configure($table)` resolves `ProviderRegistry` through Laravel's container to build the provider actions.
-The `PaymentGateway::schema()` contract returns an `Illuminate\JsonSchema\Types\Type` or `null` when no checkout input is required. BePaid uses Eidos's `JsonSchema\Schema` adapter to preserve card annotations and its `oneOf` card-or-token choice. Generate checkout validation with `PHPinnacle\Eidos\Validation\RuleFactory::make($schema, $extraRules, 'payment')`. OpenAPI schema objects are no longer used.
+Registered providers are available when creating payment methods in the panel. Each supplies its label, configuration form, validation and supported payment operations. Stripe supports hosted Checkout payments and refunds, as well as direct PaymentIntent authorizations, captures and voids.
+
+`PaymentGateway::schema($method, $payer)` returns an `Illuminate\JsonSchema\Types\Type`, or `null` when no checkout input is needed. BePaid accepts either new card details or an available saved card. Use Eidos's `RuleFactory` to validate checkout input:
+
+```php
+use PHPinnacle\Eidos\Validation\RuleFactory;
+
+$schema = $gateway->schema($method, $payer);
+$rules = $schema === null ? [] : app(RuleFactory::class)->make($schema, [], 'payment');
+```
 
 ## Payment plans and calculations
 
@@ -59,17 +67,15 @@ Gateway results use `Continuation` and `TransactionStatus` to represent success,
 
 The `PaymentParts` validation rule accepts installment percentages from 1 to 100 that total exactly 100, and integer delays from 0 to 365 days. The `PaymentScheme` rule validates dates and amounts, requires a common currency, and optionally checks the total against an expected amount. These rules validate form input before constructing domain objects.
 
-`PaymentMethod::get($provider)` looks up an active method using the provider's registered key. `PaymentMethod::default($online)` and `list($online)` share the same optional online/offline filter, including the default selected by `MethodSelect`.
+`PaymentMethod::get($id)` retrieves an active method by ID; passing a provider object instead retrieves the single active method for its key. `PaymentMethod::default($online)` and `list($online)` optionally filter online or offline methods. `MethodSelect::make()->online(false)->withDefault()` offers active offline methods and preselects their default.
 
 ## Provider responses and stored cards
 
-BePaid and ERIP share a transaction response adapter for both HTTP responses and notifications. It requires a transaction reference and status, preserves raw responses in `Continuation`, and maps provider statuses consistently. HTTP failures and malformed responses raise exceptions rather than becoming pending payments. WebPay also propagates HTTP failures, rejects empty or non-array JSON responses, and rejects incomplete or incorrectly signed notifications before handling them. Signed values retain their original representation.
+Online providers report payment status, provider references and checkout details through `Continuation`. Transport failures and malformed responses raise exceptions; they do not mean that a payment was declined. WebPay rejects incomplete or incorrectly signed notifications.
 
-`TransactionResponse::cardContinuation()` maps card API checkout metadata, `notificationContinuation()` maps BePaid notification metadata, and `eripContinuation()` maps ERIP checkout instructions. These methods preserve the metadata conventions of each response path.
+Configure ERIP checkout instructions in the payment method's `settings['instructions']`, with one instruction per line. Nonempty lines appear in the provider's payment instructions.
 
-ERIP reads checkout instructions from `settings['instructions']`, matching its configuration form. Non-empty, trimmed lines are sent in the provider's `payment_method.instruction` array.
-
-BePaid maps saved-card responses into `CardDetails`; `CreditCard::store()` owns persistence by payment method, payer and token. Immediate results and callbacks reuse that identity and preserve model events and default/sort behavior. Missing tokens mean that no card is saved. Supplied expiry values are validated, and the card remains valid through the last day of its expiry month. `CreditCard::usable()` scopes token use to an active, unexpired card belonging to the requested method and payer. Concurrent card insertion is not protected by a unique database constraint.
+BePaid can save a returned card token for its payment method and payer. Repeated responses reuse the saved card. A response without a token does not save a card. Saved cards must be active, belong to the selected method and payer, and remain valid through the end of their expiry month. Invalid provider expiry data is rejected. Concurrent saves of the same new token are not guaranteed to be deduplicated.
 
 ## Transactions
 
@@ -77,7 +83,7 @@ BePaid maps saved-card responses into `CardDetails`; `CreditCard::store()` owns 
 
 `MidasPlugin` registers `TransactionResource` at `transactions`. Its journal lists payments and child operations with amounts, payment methods, operation types and statuses. Search by number or provider reference, and filter by method (including inactive methods), type, status and dates. Configure the navigation icon and order with `phpinnacle-midas.navigation.transaction`.
 
-`TransactionStatus` and `TransactionType` implement Filament's `HasLabel`, `HasColor` and `HasIcon` contracts, so their badges display labels, colors and icons automatically.
+Transaction badges show the operation type and status, with their labels, colors and icons.
 
 The view page shows operation details, source/payer references, confirmed captured/refunded/net totals and dates. Its child-operations table links to each operation's own page, including refunds below captures, and children link back to their parent. Unregistered source and payer types show their stored identifier and type. Applications can register supported model types with a renderer that receives the full transaction and returns a Filament schema:
 
@@ -120,9 +126,9 @@ final class OrderTransactionSource implements TransactionSource
 $panel->plugin(MidasPlugin::make()->sources(new OrderTransactionSource));
 ```
 
-Sources implement `PHPinnacle\Midas\Contracts\TransactionSource`; payers implement `PHPinnacle\Midas\Contracts\PaymentPayer`. These interfaces replace the concrete `SourceType` and `PayerType` definitions. Register payer implementations with `->payers(new CustomerPaymentPayer)`, using `$transaction->payer_id` to look up the payer. `type()` returns the stored `source_type` or `payer_type`; return the model's `getMorphClass()` to support Laravel morph-map aliases. Their `render(Transaction $transaction): array` methods return components directly, including schema primitives such as `Text`, `Icon` and `Image`. Actions, strings and `Htmlable` values follow Filament's native schema contract. The returned components are inserted into the operation section with their names and layout unchanged. `ReferenceDisplay` and the identifier-based resolver are removed.
+Sources implement `PHPinnacle\Midas\Contracts\TransactionSource`; payers implement `PHPinnacle\Midas\Contracts\PaymentPayer`. Register payers with `->payers(new CustomerPaymentPayer)`. Each implementation returns the stored reference type from `type()` and Filament components from `render(Transaction $transaction): array`. Use the model's `getMorphClass()` for morph-map aliases. A payer renderer can look up its record with `$transaction->payer_id`. Return `[]` when a reference should not be displayed.
 
-The plugin delegates registration to the separate `SourceRegistry` and `PayerRegistry` services; definitions are shared across panels, and consumers resolve them directly from the registries. Registries retain developer-authored definitions only: renderers create components on each call and resolve the current user and tenant rather than capture request-specific state. Render only records the current user may access, including the application's tenant boundary; returning `[]` renders no reference components. The resource offers no direct creation, editing or deletion of ledger rows; payments continue through the domain API and `PaymentManager`.
+Reference renderers must enforce the current user's access and tenant restrictions. Keep them stateless and create components for the current transaction. Payments and their operations are created through `PaymentManager`; the transaction resource offers no direct creation, editing or deletion of ledger rows.
 
 Standard Filament `viewAny` and `view` policies apply. The resource retains Eloquent global scopes and Filament's default tenant scoping. Applications must supply their access policy and row scope; a `viewAny` policy alone does not filter rows. In a tenant panel, configure the transaction's tenant relationship or an application-owned scope through the usual Filament integration. Midas does not infer tenant ownership from arbitrary source or payer references.
 
@@ -175,13 +181,13 @@ Register `'transactions' => ManagePayerTransactions::route('/{record}/transactio
 
 ### Transaction model
 
-`PHPinnacle\Midas\Models\Transaction` stores a payment and its child operations in one `payment_transactions` table. The root represents the payment throughout its lifecycle; captures and voids are its children, and a refund belongs to the payment or capture being refunded. `root()` follows these links back to the payment. `Intent` remains the input DTO for creating the root.
+`PHPinnacle\Midas\Models\Transaction` represents a payment or one of its operations. Captures and voids belong to an authorization; refunds belong to the payment or capture being refunded. `root()` returns the initial payment or authorization. Use `Intent` to describe a new payment.
 
-Each record owns its amount, currency, type, operation status, external identifier and metadata. Its polymorphic `source` and `payer` references can point to application models or morph-map aliases; Midas does not depend on an order or sales package. Source and payer identifiers use UUID model keys through `uuidMorphs`.
+Each operation has an amount, currency, type, status, provider reference and metadata. Its source and payer can reference application models or morph-map aliases. Source and payer model keys must be UUIDs.
 
 `status` uses `TransactionStatus` and records the state of that record's operation: `pending`, `success`, `failure` or `cancel`. `type` identifies the operation: payment, authorization, capture, void or refund. Child operations do not change their parent's status: a successful authorization stays successful after capture or void, and a successful payment or capture stays successful after a refund. A successful refund also has `status = success`. Read `captured()`, `refunded()`, `received()` and `capturable()` for amounts; pending reservations do not mean that funds have been captured.
 
-The transaction table uses `phpinnacle-midas.connection` and retains foreign keys to payment methods and parent operations. A referenced method or parent cannot be deleted while transactions depend on it.
+Payment methods and parent operations cannot be deleted while transactions refer to them.
 
 Use `PaymentManager` to persist an operation and schedule its execution atomically:
 
@@ -220,21 +226,21 @@ if (!$remaining->isZero()) {
 }
 ```
 
-The manager's `capture()`, `void()` and `refund()` create pending children and enqueue online operations. Reservations and results lock the root first, serializing balance changes throughout that payment's tree. Pending and successful children consume the available balance; failed or canceled children release their reservation. Amounts must be positive and use the parent's currency. `capturable()` and `refundable()` report the locally available amount for an eligible parent; provider-specific capabilities and limits still apply. A provider may have released an unused hold after capture without a separate void, so check its current state before voiding the remainder. Refresh a previously loaded parent after handling a child result. The model's corresponding factory methods remain persistence-only primitives for manual operations and custom integrations; they do not enqueue jobs.
+The manager's `capture()`, `void()` and `refund()` create pending operations and queue online execution. Pending and successful operations consume the available amount; failure or cancellation releases reservations. Amounts must be positive and use the parent's currency. `capturable()` and `refundable()` report available amounts, while provider capabilities and limits still apply. Check the provider's current hold before voiding a remainder. Refresh a loaded parent after a child result. The corresponding `Transaction` methods persist an operation without scheduling provider execution.
 
 A connection failure leaves the saved operation pending because its remote outcome is unknown. Reconcile with the provider or retry the same operation, using its existing ID; do not create a replacement operation merely because an HTTP response was lost. BePaid uses the operation ID as `RequestID`. Gateway requests should run after the transaction record has committed, outside a surrounding database transaction that could roll back after money has moved.
 
-Midas registers `POST /api/midas/transactions/{id}/notify` as `midas.transaction.notify`. Use `route('midas.transaction.notify', ['id' => $intent->id])` for BePaid, ERIP and WebPay notification URLs. BePaid and ERIP notifications must pass merchant HTTP Basic credentials and match the operation's tracking ID, provider ID, amount and currency. WebPay notifications must have a valid provider signature and match the operation number and provider ID. Midas queues `PaymentManager::synchronize()` for BePaid after verification; the job retrieves the current provider state, so delayed webhook snapshots cannot overwrite a newer result. ERIP and WebPay apply their verified notifications directly. An expiry timestamp alone is not evidence that a delayed success should be discarded. Other providers can implement `WebhookGateway` to use this route; Stripe webhook authentication and correlation remain application-owned until its adapter implements that contract.
+Midas registers `POST /api/midas/transactions/{id}/notify` as `midas.transaction.notify`. Use `route('midas.transaction.notify', ['id' => $intent->id])` for BePaid, ERIP and WebPay notification URLs. BePaid and ERIP notifications must pass merchant HTTP Basic credentials and match the operation's tracking ID, provider ID, amount and currency. WebPay notifications must have a valid provider signature and match the operation number and provider ID. Midas queues `PaymentManager::synchronize()` for BePaid after verification; the job retrieves the current provider state, so delayed webhook snapshots cannot overwrite a newer result. ERIP and WebPay apply their verified notifications directly. An expiry timestamp alone is not evidence that a delayed success should be discarded. Custom providers can implement `WebhookGateway` to use this route. Stripe webhook authentication and correlation are the application's responsibility.
 
-`handle()` locks and reloads the operation before applying a result. It merges metadata, preserves existing external IDs and expiry values when omitted, and records the operation's completion time in `processed_at`. Once a terminal operation status has been recorded, duplicate or late results do not change it. Child results advance the root version atomically without changing parent statuses; balance totals reflect the child results. The root's `processed_at` describes its initial payment or authorization operation, not the completion of subsequent refunds. Sensitive card input and raw gateway responses are not persisted by the transaction model.
+`Transaction::handle($continuation)` applies an operation result, merges metadata, retains omitted provider references and expiry dates, and records completion in `processed_at`. Duplicate or late results do not change a terminal operation. The root completion date belongs to the initial payment or authorization, not later refunds. Sensitive card input and raw provider responses are not stored in transaction metadata.
 
-The low-level `Transaction::synchronize($continuation, $expectedVersion)` can correct a terminal status, for example when a completed refund returns to pending or fails. Read `$transaction->root()->refresh()->version` **before** retrieving provider state and pass it when applying that result. A concurrent change raises `StaleTransaction`; fetch provider state again instead of applying the old response with a newer version. The queue job handles this through Laravel retries. A return to pending clears `processed_at` and reserves the amount again. An unchanged result does not emit repeated model updates. Synchronize capture and refund outcomes on their corresponding child records, rather than applying a provider's aggregate payment status as an authorization result.
+For custom provider reconciliation, `Transaction::synchronize($continuation, $expectedVersion)` can correct a terminal status. Read `$transaction->root()->refresh()->version` before retrieving provider state and pass it with the result. A concurrent change raises `StaleTransaction`; retrieve fresh provider state before trying again. A return to pending clears `processed_at` and reserves the amount again. Synchronize capture and refund outcomes on their corresponding child records. Applications using `PaymentManager::synchronize()` do not need to manage versions themselves.
 
 `captured()`, `refunded()` and `received()` return confirmed totals, including refunds below capture children. These totals are calculated from the records, so reservations and duplicate responses cannot increase them. `received()` is captured funds less successful refunds. Query `Transaction::forSource($source)->whereNull('parent_id')` for payment roots and their totals.
 
 `balanceImpact()` instead returns one operation's effect on funds received: a successful payment or capture is positive, a successful refund is negative, and authorizations, voids and unfinished or failed operations contribute zero. It uses the operation's `type` and `status`: refunding a capture does not erase the original capture's positive effect. Summing operation effects through `Transaction::forSource($source)` counts each effect once; do not also add root aggregate totals. The application owns payment allocation, installments, order status changes and business events.
 
-Midas dispatches `PHPinnacle\Midas\Events\TransactionCreated` when a payment or child operation is saved, `PHPinnacle\Midas\Events\TransactionUpdated` when an operation's persisted data changes, and `PHPinnacle\Midas\Events\TransactionStatusChanged` when its status changes. All three events implement Laravel's `ShouldDispatchAfterCommit`: listeners run after the owning database transaction commits, and a rollback discards the events. `TransactionCreated` and `TransactionUpdated` carry `$transaction`; `TransactionStatusChanged` carries `$transaction`, `$previousStatus`, and `$status` as `TransactionStatus` values. A pending provider response that changes metadata or the external ID emits `TransactionUpdated` without a status event. Root version and timestamp-only updates, and repeated results with no changes, emit neither update nor status events. Register ordinary Laravel listeners, for example:
+Midas emits `TransactionCreated`, `TransactionUpdated` and `TransactionStatusChanged` after the database transaction commits. A rollback emits no events. Creation and update events carry `$transaction`; status changes also carry `$previousStatus` and `$status`. Changed checkout details can emit an update while the status remains pending. Repeating an unchanged result emits no new update or status event. Register ordinary Laravel listeners, for example:
 
 ```php
 use Illuminate\Support\Facades\Event;
@@ -258,7 +264,7 @@ use PHPinnacle\Midas\Listeners\BroadcastTransaction;
 Event::listen([TransactionCreated::class, TransactionUpdated::class], BroadcastTransaction::class);
 ```
 
-Each message goes to the private `midas.transactions.{rootId}` channel as `midas.transaction.changed`. It contains `root` (ID, number, amount, currency, type, status, version, confirmed and available amounts) and `operation` (identity, type, status, amount, currency, payment method name, dates, available amounts, checkout redirect, receipt and message, and ERIP QR code, account, instruction and service). Amounts are integer minor units. The payload is assembled from a consistent payment state after commit, so the client can update its local payment state directly. `operation` contains only explicitly selected metadata fields; raw provider responses, card details, payer and source references, and arbitrary metadata are excluded. `TransactionStatusChanged` remains a separate event for business listeners and does not need a second broadcast listener.
+Messages use the private `midas.transactions.{rootId}` channel and the `midas.transaction.changed` event. The payload contains `root` with identity, status, version and confirmed/available amounts, and `operation` with its details and checkout information. Amounts are integer minor units. Card data, raw provider responses and arbitrary metadata are excluded.
 
 Authorize subscriptions in the application's `routes/channels.php` using the same tenant and transaction access rules as its HTTP interface. For example, an application policy that grants `view` to both permitted operators and authenticated payers can be used for the channel:
 
@@ -277,11 +283,11 @@ Broadcast::channel('midas.transactions.{rootId}', function (Authenticatable $use
 
 Subscribe with `Echo.private('midas.transactions.' + rootId).listen('.midas.transaction.changed', handler)`. The initial page state still comes from the application's authorized read path; subsequent messages supply the updated operation and root balance without a request per message. Compare `root.version` when applying messages that may arrive out of order. Refresh once after reconnecting to recover any missed messages. Broadcasting runs through Laravel's queue and failures are reported without changing the payment outcome.
 
-### Laravel database queue as the transactional outbox
+### Queue setup and recovery
 
-Midas uses Laravel's standard `jobs` table as its outbox. `PaymentManager` writes the payment and an encrypted `ProcessPayment` job in one database transaction, using `beforeCommit()` to insert the job immediately. Other workers can see it only after commit; rollback removes both records. There is no separate outbox table, relay or scheduler. This guarantee requires the queue to use the **same Laravel database connection instance** as Midas. The manager rejects other queue drivers or connections.
+Queued execution requires Laravel's database queue on the **same database connection** as Midas. Payment creation and scheduling succeed or roll back together; workers execute only committed operations. Other queue drivers and database connections are rejected for this flow.
 
-All Midas models, their relationships and queued payment jobs use `phpinnacle-midas.connection`, or the application's default database connection when it is `null`. Jobs resolve the package connection when they execute. Keep this configuration consistent between HTTP requests and queue workers, including while jobs are pending. Package migrations create and remove their tables on the configured Midas connection.
+`phpinnacle-midas.connection` selects the database for Midas records and migrations; `null` uses the application default. Keep that connection consistent between HTTP requests and workers, including while payments are queued.
 
 For example, configure a queue connection in `config/queue.php`:
 
@@ -313,35 +319,25 @@ php artisan queue:failed
 php artisan queue:retry <failed-job-uuid>
 ```
 
-The package defaults to the `database` queue connection and `payments` queue. Keep `retry_after` greater than the job's 60-second timeout and 120-second overlap lock lifetime; 150 seconds is suitable. Use a shared Laravel cache with atomic locks across workers. Requests for the same payment root share `WithoutOverlapping` middleware, including captures, refunds and synchronization. The root version also rejects responses from requests that outlived their lock or raced with a direct model update.
+The default queue connection is `database`, with queue name `payments`. Use a shared Laravel cache with atomic locks across workers. Set `retry_after` above the execution timeout and overlap protection interval; 150 seconds is suitable for the current defaults. Operations on the same payment are coordinated to prevent overlapping balance changes and stale provider results.
 
 Laravel owns job reservation, retries, failure storage and redelivery after a worker crash. A failed job does **not** mean a declined payment: its remote outcome may be unknown, so the transaction stays pending and its amount remains reserved. Jobs make up to five attempts with backoff. Inspect failed jobs and reconcile or retry the existing operation; do not create a new payment ID because of a timeout. A pending provider response completes the execution job, but leaves the payment pending. Authenticated webhooks or an application reconciliation task must request subsequent synchronization.
 
-`QueuedGateway` is the provider contract for this flow. `prepare(Intent $intent)` prepares payment and authorization requests; `derive(Transaction $transaction)` prepares capture, void and refund requests. Both return a `GatewayRequest` containing the request, its replay deadline and optional non-sensitive transaction metadata, without external effects. The request stays in the encrypted queue job; only its metadata is copied to the transaction. These methods replace `prepare(Transaction $transaction, ?Intent $intent = null)`. `execute()` must reuse the operation ID as its idempotency key; `synchronize()` retrieves the operation's current provider state. BePaid and Stripe implement this contract. ERIP and WebPay retain their synchronous gateway APIs. Unsupported online operations are rejected before the transaction commits.
+Custom queued providers implement `QueuedGateway`. `prepare(Intent $intent)` and `derive(Transaction $transaction)` return a `GatewayRequest` without contacting the provider. `execute()` performs that request using the operation ID as its idempotency key. `synchronize()` retrieves the current state of that operation. Return the request's replay deadline and any checkout metadata with `GatewayRequest` so retries can preserve the original payment terms. Both BePaid and Stripe support this contract; ERIP and WebPay use synchronous execution.
 
 Stripe requires an `Intent` with a `returnUrl`, no instrument and `recurring: false`. For a payment, the worker creates a [Checkout Session](https://docs.stripe.com/api/checkout/sessions/create). Its URL appears in transaction metadata as `redirect` and in the optional WebSocket update as `redirect_url`; the application redirects the payer there. A completed Checkout Session can still be unpaid, so only Stripe's `paid` payment status confirms a payment. A failed delayed PaymentIntent fails the operation.
 
 For an authorization, the worker creates a direct card [PaymentIntent](https://docs.stripe.com/api/payment_intents/create) with `capture_method=manual`. Its identifier is the transaction's `external_id`, and its `client_secret` appears in transaction metadata. The application must show Stripe's [Payment Element](https://docs.stripe.com/payments/payment-element/migration) to the authorized payer using the payment method's `public_key`, then confirm that PaymentIntent with Stripe.js and the intent's return URL. Treat the client secret as payer-specific data. Synchronization confirms the hold when the PaymentIntent reaches `requires_capture`. Captures and voids must use the full authorized amount; [ordinary partial capture releases the remainder](https://docs.stripe.com/api/payment_intents/capture), which cannot be represented as a remaining Midas hold. A capture can then be refunded. Stripe controls the authorization window; Midas does not record a hold expiry from the PaymentIntent.
 
-Authenticate Stripe webhook notifications in the application and call `$payments->synchronize($transaction)` for the matching payment, authorization, capture, void or refund. Midas retrieves the current Stripe object instead of applying an untrusted webhook snapshot. Checkout Sessions that expire without payment fail the operation. Stripe does not offer subscriptions through this adapter. Keep a payment method bound to the same Stripe account while operations are pending. Stripe requests use the transaction UUID as an [idempotency key](https://docs.stripe.com/api/idempotent_requests), with the same 23-hour replay deadline as BePaid. If a response is lost and no remote ID was saved, inspect Stripe's request logs using that UUID before replaying after the deadline.
+Authenticate Stripe webhook notifications in the application and call `$payments->synchronize($transaction)` for the matching payment, authorization, capture, void or refund. Midas retrieves the current Stripe object instead of applying an untrusted webhook snapshot. Checkout Sessions that expire without payment fail the operation. Midas does not support Stripe subscriptions. Keep a payment method bound to the same Stripe account while operations are pending. Stripe requests use the transaction UUID as an [idempotency key](https://docs.stripe.com/api/idempotent_requests), with the same 23-hour replay deadline as BePaid. If a response is lost and no remote ID was saved, inspect Stripe's request logs using that UUID before replaying after the deadline.
 
 BePaid freezes the request, including expiry and the saved-card token or encrypted card details, before enqueueing. It sends the transaction UUID as `RequestID` and stops replaying after 23 hours, within the provider's [24-hour idempotency retention](https://docs.bepaid.by/en/using_api/idempotent_requests/). Retrying an expired job does not extend this deadline. If the external identifier was lost, reconcile the provider operation by its tracking ID before applying an authoritative result; never blindly resend after retention expires. The [status query API](https://docs.bepaid.by/en/integration/card_api/transactions/status_query/) is used for synchronization by external ID. Keep a payment method tied to the same merchant account while its operations are pending.
 
-Queued BePaid payment and authorization accept a new `EncryptedCard` or a saved `CardToken` without CVC. The adapter checks that a saved token belongs to the payer and payment method and is active and unexpired; token-plus-CVC inputs remain unsupported. When `EncryptedCard::persist` is true, Midas saves the returned card token after an immediate success or a later successful synchronization. Job payloads are encrypted with Laravel's `ShouldBeEncrypted`, contain no merchant credentials or Eloquent models, and are removed by the normal worker after completion. Failed jobs retain their encrypted payload until retried or pruned. The transaction persists only non-sensitive intent metadata and normalized results, never the encrypted card fields or raw provider response. HTTP failures and malformed responses throw without recording a false payment decline.
-
-### Changes from the follow-up API
-
-`Decision` is replaced by `TransactionStatus`; rename `Transaction::decision` and `Continuation::decision` to `status`, and `TransactionResponse::decision()` to `status()`. The former aggregate lifecycle statuses are removed. The base migration now defines a single operation `status` column and its balance-query index. This change requires recreating existing transaction tables from that migration or migrating existing data separately; changing an already applied base migration does not update its tables.
-
-`FollowUp` and `PaymentGateway::followUp()` are replaced by persisted transactions and optional gateway interfaces. BePaid authorization is now explicit: replace the `settings['authorize']` switch with `Transaction::authorize($intent)` and `$gateway->authorize($intent)`. `BePaid::intent()` always creates a payment. Read the operation type from `Transaction::type`, rather than `Continuation::metadata['type']`.
-
-For queued execution, use `PaymentManager` instead of calling the model factory and gateway separately. Move `MidasPlugin::providers()` registrations to the `phpinnacle-midas.providers` class list so workers and panels use the same registry. Direct transaction synchronization now requires the root version captured before the provider request.
-
-Payment configuration and credentials are sensitive. Keep production secrets outside source control and validate webhook authenticity with the selected provider implementation.
+Queued BePaid payment and authorization accept `EncryptedCard` or an active saved `CardToken` for the same payer and payment method. Saved tokens with CVC are unsupported. With `EncryptedCard::persist`, a successful payment or later reconciliation saves the returned card token. Queued card input is encrypted, including failed jobs retained for retry. Keep the application encryption key available to workers; do not change merchant credentials while related operations are pending.
 
 ## Testing
 
-Tests focus on payment rules and observable outcomes: amounts, reservations, status transitions, installment dates, saved-card ownership, authorization, and provider failures. Integration tests cover public checkout, webhook, queue, and broadcast contracts without fixing internal object identities, schema metadata, lock keys, or framework mechanics.
+Tests cover amounts, reservations, status transitions, installment schedules, saved-card ownership, access policies, provider failures, and checkout, webhook, queue and broadcast outcomes.
 
 ```bash
 composer test

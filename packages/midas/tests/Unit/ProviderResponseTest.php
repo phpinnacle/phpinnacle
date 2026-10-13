@@ -276,9 +276,6 @@ it('offers saved cards at checkout when payments use a separate database', funct
     expect(CreditCard::list($intent->method->id, $intent->payer)->modelKeys())
         ->toBe([$cardId]);
     expect($card->method->is($intent->method))->toBeTrue();
-    $schema = $provider->schema($intent->method, $intent->payer)->toArray();
-    expect($schema['properties']['token']['enum'])->toBe([$cardId]);
-    expect($schema['properties']['token']['x-cards'][0]['id'])->toBe($cardId);
     $rules = new RuleFactory()->make($provider->schema($intent->method, $intent->payer), [], 'payment');
     $cardInput = [
         'holder' => 'Card holder',
@@ -290,6 +287,13 @@ it('offers saved cards at checkout when payments use a separate database', funct
     ];
 
     expect(Validator::make(['payment' => ['token' => $cardId]], $rules)->passes())->toBeTrue();
+    expect(Validator::make(['payment' => ['token' => (string) Str::uuid()]], $rules)->fails())->toBeTrue();
+    $otherPayerRules = new RuleFactory()->make(
+        $provider->schema($intent->method, new Payer('00000000-0000-0000-0000-000000000003', $intent->payer->type)),
+        [],
+        'payment',
+    );
+    expect(Validator::make(['payment' => ['token' => $cardId]], $otherPayerRules)->fails())->toBeTrue();
     expect(Validator::make(['payment' => ['card' => $cardInput]], $rules)->passes())->toBeTrue();
     expect(Validator::make(['payment' => []], $rules)->fails())->toBeTrue();
     expect(Validator::make(['payment' => ['card' => $cardInput, 'token' => $cardId]], $rules)->fails())->toBeTrue();

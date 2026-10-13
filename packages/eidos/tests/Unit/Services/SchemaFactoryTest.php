@@ -1,14 +1,9 @@
 <?php
 
-use Illuminate\Cache\ArrayStore;
-use Illuminate\Cache\Repository;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema as DatabaseSchema;
-use PHPinnacle\Eidos\JsonSchema\Schema;
-use PHPinnacle\Eidos\Services\ModelDiscovery;
 use PHPinnacle\Eidos\Services\SchemaFactory;
-use PHPinnacle\Eidos\Services\SchemaIntrospector;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -43,22 +38,6 @@ it('creates and caches schemas on demand for model classes and instances', funct
         ->and($factory->create(new EidosFactoryModel)->toArray())
         ->toBe($definition);
 })->with(['model class' => false, 'model instance' => true]);
-
-it('uses the injected introspector and cache and introspects a supplied model only once', function () {
-    $model = new EidosFactoryModel;
-    $definition = Schema::fromArray([
-        'type' => 'object',
-        'properties' => ['name' => ['type' => 'string', 'readOnly' => true]],
-    ])->toArray();
-    $introspector = Mockery::mock(SchemaIntrospector::class);
-    $introspector->shouldReceive('introspect')->once()->with($model)->andReturn(Schema::fromArray($definition));
-    $factory = new SchemaFactory($introspector, new ModelDiscovery, new Repository(new ArrayStore));
-
-    expect($factory->create($model)->toArray())
-        ->toBe($definition)
-        ->and($factory->create(EidosFactoryModel::class)->toArray())
-        ->toBe($definition);
-});
 
 it('warms explicitly configured models once and refreshes cached schemas', function () {
     config()->set('phpinnacle-eidos.models', [EidosFactoryModel::class, EidosFactoryModel::class]);

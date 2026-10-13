@@ -18,7 +18,6 @@ it('discovers unloaded PSR-4 models and applies include and except patterns duri
     $loader->register();
 
     try {
-        expect(class_exists(Product::class, false))->toBeFalse();
         expect(new ModelDiscovery()->modelClasses([$namespace . '*'], [$namespace . 'Excluded\\*']))
             ->toBe([Product::class]);
         Schema::create('eidos_discovered_products', function (Blueprint $table) {

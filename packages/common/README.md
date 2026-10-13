@@ -3,24 +3,27 @@
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/phpinnacle/common.svg?style=flat-square)](https://packagist.org/packages/phpinnacle/common)
 [![Total Downloads](https://img.shields.io/packagist/dt/phpinnacle/common.svg?style=flat-square)](https://packagist.org/packages/phpinnacle/common)
 
-Common provides shared Laravel and Filament utilities that have not yet moved into focused PHPinnacle packages.
+Common provides reusable Filament fields, table filters and columns, range matching, and Laravel model and page utilities.
 
 ## Features
 
 - ItemPicker form fields with inline or custom dropdown layouts, grouped trees, server search, scroll loading, multiple selection, badges and images.
-- Immutable-style `Range` utilities.
+- Inclusive, strict and open-ended range matching.
 - Range, active and combined table filters.
 - Standard active, creator, created, updated and default table columns.
-- Reusable creator, slug, page badge and refresh concerns.
+- Record creators, form slugs, relationship badges and page refresh actions.
 
 ## Requirements and installation
 
-- PHP 8.4
-- Laravel 13, Livewire 4 and Filament 5
+- PHP 8.4 or later
+- Filament 4 or 5
 
 ```bash
 composer require phpinnacle/common
+php artisan filament:assets
 ```
+
+Publish Filament assets again after package updates. No panel plugin or application frontend build is required.
 
 ## Filament components
 
@@ -57,9 +60,9 @@ ItemPicker::make('assignees')
     ]);
 ```
 
-`compact()` puts item and group descriptions on the label line. `dense()` independently reduces spacing and visual sizes. `circular()` rounds images and icon backgrounds. Images take precedence over icons. These options, `multiple()` and `branches()` accept boolean conditions or closures. Multiple dropdowns show complete selected chips and summarize overflow as `+N`. `Item::isSelectable($branchesSelectable)` checks disabled state and branch selection; the field supplies its current branch setting.
+`compact()` puts item and group descriptions on the label line. `dense()` independently reduces spacing and visual sizes. `circular()` rounds images and icon backgrounds. Images take precedence over icons. These options, `multiple()` and `branches()` accept boolean conditions or closures. Multiple dropdowns show complete selected chips and summarize overflow as `+N`. `branches(false)` allows leaf choices while keeping parent branches expandable. Disabled choices cannot be selected.
 
-Item and group factories derive labels with `Str::title()`. Single selection stores a string or `null`; multiple selection stores a list of strings. The field validates availability, disabled items and branch selection. Its Blade views, styles, translations and lazy Alpine component are registered by Common without requiring a panel plugin or frontend build.
+Item and group names get title-case labels unless an explicit label is supplied. Single selection stores a string or `null`; multiple selection stores a list of strings. The field validates availability, disabled items and branch selection. Both inline and dropdown modes support keyboard navigation. Groups are labels rather than selectable values.
 
 Enable server search with `searchable()`. Its boolean or closure controls whether the search input is available. The `items()` callback receives a nullable `$search` and the current `$state`, alongside the usual Filament utility injections. Initial loading and clearing the search pass `null`. The callback owns filtering, ordering and access restrictions; the field does not filter search results automatically.
 
@@ -81,13 +84,85 @@ The resolver runs after `items()` and receives the current `$state` and the retu
 
 Callbacks returning trees must retain the parent context needed to display matches and identify branches. Search results expand their branches to reveal matching descendants.
 
-Publish package assets after installation or changes:
+## Filters and columns
 
-```bash
-php artisan filament:assets
+`ActiveFilter` filters the `is_active` column. `HasFilter` filters whether an
+Eloquent relationship has records. `RangeFilter` selects an inclusive numeric
+interval:
+
+```php
+use PHPinnacle\Common\Filters\ActiveFilter;
+use PHPinnacle\Common\Filters\HasFilter;
+use PHPinnacle\Common\Filters\RangeFilter;
+
+ActiveFilter::make();
+HasFilter::make('orders');
+RangeFilter::make('quantity')->minValue(0)->maxValue(100)->step(5);
 ```
 
+`CombinedFilter` groups select filters. Each selection filters its named column
+unless an `applyUsing()` callback supplies a custom query. `depends()` disables
+a selection until its prerequisites have values, and clears dependent choices
+when a prerequisite changes:
+
+```php
+use PHPinnacle\Common\Filters\CombinedFilter;
+use PHPinnacle\Common\Filters\CombinedFilter\Filter;
+
+CombinedFilter::make()->filters(
+    Filter::make('status')->label('Status')->options([
+        'draft' => 'Draft',
+        'published' => 'Published',
+    ]),
+);
+```
+
+`CreatedColumn`, `UpdatedColumn`, `CreatorColumn`, `ActiveColumn` and
+`DefaultColumn` provide standard labels and display for their corresponding
+record fields. Applications supply actions when a column should change a record.
+
+## Range matching
+
+```php
+use PHPinnacle\Common\Models\Range;
+
+$range = Range::make(10, 20);
+$range->match(10);               // true: boundaries are included
+$range->match(10, strict: true); // false: boundaries are excluded
+Range::make(null, 20)->match(5); // true: no lower boundary
+```
+
+`match()` also accepts arrays and `Countable` values, comparing their item count.
+A `null` boundary leaves that side of the range open.
+
+## Model and page utilities
+
+Use `HasCreator` on an Eloquent model with a nullable `created_by` column. New
+records use the authenticated user's ID unless a creator was explicitly assigned.
+The `creator` relationship uses the configured authentication user model.
+
+`FormSlug::make()` can be passed to a name field's `afterStateUpdated()` callback.
+It updates the `slug` field while its value still matches the previous name's
+slug, preserving manual edits. By default it runs only during creation.
+
+```php
+use Filament\Forms\Components\TextInput;
+use PHPinnacle\Common\Concerns\FormSlug;
+
+TextInput::make('name')->live(onBlur: true)->afterStateUpdated(FormSlug::make());
+TextInput::make('slug');
+```
+
+`PageBadge` shows the count of a configured relationship beside a resource page's
+navigation item. `CanBeRefreshed` refreshes a Livewire page on `refresh-page`.
+Use `Refresh::page($livewire)` to request that update, or `Refresh::nav($livewire)`
+to refresh sidebar and topbar navigation.
+
 ## Testing
+
+Tests cover valid and invalid selections, unavailable choices, search and loading,
+keyboard navigation, safe rendering, range matching, record creators and page
+refreshes.
 
 ```bash
 composer test

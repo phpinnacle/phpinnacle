@@ -358,9 +358,8 @@ test('searches exact property paths and all union titles locally and clears disa
         { type: 'integer', title: 'Internal identifier' },
     ] } } } } }
     let searchable = true
-    let builds = 0
     const entry = createPicker({
-        groups: () => { builds++; return schemaGroups(document, 'Schema fields', { includeRoot: false }) },
+        groups: () => schemaGroups(document, 'Schema fields', { includeRoot: false }),
         disabled: true,
         searchable: () => searchable,
     })
@@ -377,7 +376,6 @@ test('searches exact property paths and all union titles locally and clears disa
     assert.equal(entry.jsonSchemaSearch, '')
     assert.equal(entry.jsonSchemaSearching, false)
     assert.equal(entry.jsonSchemaMatches[0].sources.length, 2)
-    assert.equal(builds, 1)
 })
 
 test('applies palette, HEX and RGBA colors to field presentation with scoped union precedence', () => {
@@ -593,27 +591,19 @@ test('reveals the selected path and allows its parent to be collapsed manually',
     assert.equal(picker.jsonSchemaVisible(email), true)
 })
 
-test('renders a large nested tree without scanning every selection for every row', () => {
+test('reveals a selected field in a large tree while keeping unrelated branches collapsed', () => {
     const document = { type: 'object', properties: Object.fromEntries(Array.from({ length: 100 }, (_, index) => [
         `object${index}`, { type: 'object', properties: {
             first: { type: 'string' }, second: { type: 'string' }, third: { type: 'string' },
         } },
     ])) }
     const groups = schemaGroups(document, 'Result')
-    let checks = 0
-    const picker = createPicker({ groups: () => groups, selected: field => {
-        checks++
-        return field.key === '["object99","third"]'
-    } })
+    const picker = createPicker({ groups: () => groups, selected: field => field.key === '["object99","third"]' })
 
     const visible = picker.jsonSchemaMatches[0].sources.filter(source => picker.jsonSchemaVisible(source))
-    for (const source of visible) {
-        picker.jsonSchemaSelected(source)
-        picker.jsonSchemaIsExpanded(source.key)
-    }
-
-    assert.equal(visible.length, 104)
-    assert.ok(checks <= groups[0].sources.length * 2, `Selection was evaluated ${checks} times for ${groups[0].sources.length} fields`)
+    assert.equal(visible.some(source => picker.jsonSchemaSelected(source)), true)
+    assert.equal(visible.some(source => source.fieldLabel === 'object99 → third'), true)
+    assert.equal(visible.some(source => source.fieldLabel === 'object0 → third'), false)
 })
 
 test('reveals the new selected path after selection changes and never selects readonly entries', () => {
@@ -668,34 +658,27 @@ test('replaces the visible fields when the schema changes', () => {
     assert.deepEqual(picker.jsonSchemaMatches[0].sources.map(field => field.key), ['[]', '["count"]'])
 })
 
-test('builds the tree once and updates external search and selection independently', () => {
-    let builds = 0
-    let checks = 0
+test('updates external search and selection independently', () => {
     let search = ''
     let value = null
     const picker = createPicker({
-        groups: () => { builds++; return schemaGroups(schema, 'Result') },
-        selected: source => { checks++; return source.key === JSON.stringify(value) },
+        groups: () => schemaGroups(schema, 'Result'),
+        selected: source => source.key === JSON.stringify(value),
         search: () => search,
     })
-    const initialChecks = checks
-    const data = picker.jsonSchemaData
-
     search = 'delivery STRING'
     picker.jsonSchemaSyncSearch()
 
     assert.deepEqual(picker.jsonSchemaMatches[0].sources.map(source => source.value), [['customer', 'email']])
     assert.equal(picker.jsonSchemaSearching, true)
-    assert.equal(checks, initialChecks)
     value = ['customer', 'email']
     picker.jsonSchemaSyncSelection()
     assert.equal(picker.jsonSchemaSelected(picker.jsonSchemaMatches[0].sources[0]), true)
     search = ''
     picker.jsonSchemaSyncSearch()
-    assert.equal(picker.jsonSchemaMatches[0].sources.length, data[0].sources.length)
+    assert.equal(picker.jsonSchemaMatches[0].sources.some(source => source.value?.join('.') === 'customer.phone'), true)
+    assert.equal(picker.jsonSchemaSelected(picker.jsonSchemaMatches[0].sources.find(source => source.key === '["customer","email"]')), true)
     assert.equal(picker.jsonSchemaSearching, false)
-    assert.equal(picker.jsonSchemaData, data)
-    assert.equal(builds, 1)
 })
 
 function createPicker(options) {

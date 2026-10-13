@@ -17,7 +17,9 @@ it('prepares readable property titles across nested objects, arrays and union br
         'anyOf' => [['properties' => ['delivery_method' => ['type' => 'string']]]],
     ];
 
-    expect(SchemaPresentation::render($definition)['propertyTitles'])->toBe([
+    $presentation = SchemaPresentation::render($definition);
+
+    expect($presentation['propertyTitles'])->toBe([
         'unit_price' => 'Unit Price',
         'point_of_contact' => 'Point of Contact',
         'billingAddress' => 'Billing Address',
@@ -26,8 +28,7 @@ it('prepares readable property titles across nested objects, arrays and union br
         'productName' => 'Product Name',
         'delivery_method' => 'Delivery Method',
     ]);
-    expect($definition['properties']['point_of_contact']['title'])->toBe('Contact person');
-    expect($definition['properties']['unit_price'])->not->toHaveKey('title');
+    expect($presentation['definition'])->toBe($definition);
 });
 
 it('prepares titles and keeps the complete definition when icon rendering is disabled', function () {

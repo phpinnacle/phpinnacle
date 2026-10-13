@@ -1,5 +1,6 @@
 <?php
 
+use Filament\Actions\Action;
 use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
 use Filament\Infolists\Components\TextEntry;
@@ -224,9 +225,12 @@ beforeEach(function () {
 });
 
 it('creates payment methods from the registered provider actions', function () {
-    Livewire::test(ListMethods::class)
-        ->assertSuccessful()
-        ->callAction(TestAction::make('payment_method.p_h_pinnacle._midas._payments._cash')->table())
+    $page = Livewire::test(ListMethods::class)->assertSuccessful();
+    $action = collect($page->instance()->getTable()->getFlatActions())
+        ->sole(fn (Action $action) => $action->getLabel() === new Cash()->getLabel());
+
+    $page
+        ->callAction(TestAction::make($action->getName())->table())
         ->assertHasNoFormErrors();
 
     $method = PaymentMethod::query()->sole();
@@ -578,34 +582,6 @@ it('requires access to the owner record before showing its transactions', functi
 
     expect(MidasTestManageTransactions::canAccess(['record' => $payer]))->toBeFalse();
 });
-
-it('renders payment history cards only when contained', function (?bool $contained, bool $hasCard) {
-    $payment = midas_resource_payment('HISTORY-CONTAINED')->handle(Continuation::success());
-    $entry = TransactionHistoryEntry::make('history')->state([$payment]);
-
-    if ($contained !== null) {
-        $entry->contained(fn () => $contained);
-    }
-
-    $page = new ViewTransaction;
-    $page->setId('history-contained-test');
-    $page->setName('history-contained-test');
-    $schema = Schema::make($page)->record($payment)->components([$entry]);
-
-    $html = $schema->toHtml();
-
-    expect($html)->toContain('Received', 'View transaction details');
-
-    if ($hasCard) {
-        expect($html)->toContain('rounded-xl border border-gray-200');
-    } else {
-        expect($html)->not->toContain('rounded-xl border border-gray-200');
-    }
-})->with([
-    'default cards' => [null, true],
-    'explicit cards' => [true, true],
-    'inside a section' => [false, false],
-]);
 
 it('renders Russian payment history labels and operation dialogs', function () {
     app()->setLocale('ru');

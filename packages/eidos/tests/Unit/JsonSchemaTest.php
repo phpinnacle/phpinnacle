@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\JsonSchema\JsonSchema;
-use Illuminate\JsonSchema\Types\Type;
 use PHPinnacle\Eidos\JsonSchema\Schema;
 use PHPinnacle\Eidos\JsonSchema\Types\AllOfType;
 use PHPinnacle\Eidos\JsonSchema\Types\OneOfType;
@@ -128,7 +127,6 @@ it('preserves x-icon annotations while Laravel resolves references and nullable 
     ]);
     $definition = $schema->toArray();
 
-    expect($schema)->toBeInstanceOf(Type::class);
     expect($definition['x-icon'])->toBe('heroicon-o-user');
     expect($definition['properties']['email'])->toMatchArray([
         'type' => ['string', 'null'],

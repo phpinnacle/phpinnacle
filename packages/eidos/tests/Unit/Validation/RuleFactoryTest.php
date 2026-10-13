@@ -2,29 +2,37 @@
 
 use Illuminate\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use PHPinnacle\Eidos\JsonSchema\Schema;
 use PHPinnacle\Eidos\Validation\RuleFactory;
 use Tests\TestCase;
 
 uses(TestCase::class);
 
-it('creates Laravel rules from native JSON Schema types', function () {
+it('validates nullable email, bounded quantities and boolean fields from native schemas', function (
+    array $payload,
+    bool $passes,
+) {
     $schema = JsonSchema::object([
         'email' => JsonSchema::string()->format('email')->nullable(),
         'quantity' => JsonSchema::integer()->min(1)->max(10),
         'active' => JsonSchema::boolean(),
     ]);
 
-    expect(new RuleFactory()->make($schema, [], 'payload'))->toBe([
-        'payload' => ['array'],
-        'payload.email' => ['nullable', 'email'],
-        'payload.quantity' => ['integer', 'min:1', 'max:10'],
-        'payload.active' => ['boolean'],
-    ]);
-});
+    $rules = new RuleFactory()->make($schema, [], 'payload');
 
-it('preserves application rules and their ordering across nested properties and allOf', function () {
+    expect(Validator::make(['payload' => $payload], $rules)->passes())->toBe($passes);
+})->with([
+    'valid' => [['email' => 'user@example.com', 'quantity' => 5, 'active' => true], true],
+    'optional fields' => [[], true],
+    'null email' => [['email' => null], true],
+    'invalid email' => [['email' => 'invalid'], false],
+    'below minimum' => [['quantity' => 0], false],
+    'above maximum' => [['quantity' => 11], false],
+    'fractional quantity' => [['quantity' => 1.5], false],
+    'invalid boolean' => [['active' => 'enabled'], false],
+]);
+
+it('combines application validation with nested schema and allOf constraints', function () {
     $schema = Schema::fromArray([
         'type' => 'object',
         'properties' => [
@@ -36,34 +44,51 @@ it('preserves application rules and their ordering across nested properties and 
             ['type' => 'object', 'properties' => ['token' => ['type' => 'string']]],
         ],
     ]);
-    $unique = Rule::unique('users', 'email');
-    $callback = function (string $attribute, mixed $value, Closure $fail) {
-        $fail('Rejected by the application.');
-    };
     $rules = new RuleFactory()->make(
         $schema,
         [
             'payload' => ['required'],
-            'payload.customer.email' => [$unique, $callback, 'email'],
+            'payload.customer.email' => ['ends_with:@example.com'],
             'payload.quantity' => ['required', 'integer'],
             'unrelated' => ['boolean'],
         ],
         'payload',
     );
 
-    expect($rules['payload.customer.email'])->toBe([$unique, $callback, 'email']);
-    expect($rules['payload.quantity'])->toBe(['required', 'integer', 'min:1', 'max:10']);
-    expect($rules['payload.token'])->toBe(['string']);
-    expect($rules['unrelated'])->toBe(['boolean']);
     expect(Validator::make([], $rules)->fails())->toBeTrue();
-
-    $rules['payload.customer.email'] = array_slice($rules['payload.customer.email'], 1);
     expect(
         Validator::make(['payload' => ['customer' => ['email' => 'user@example.com'], 'quantity' => 5]], $rules)
+            ->passes(),
+    )->toBeTrue();
+    expect(
+        Validator::make([
+            'payload' => [
+                'customer' => ['email' => 'user@other.com'],
+                'quantity' => 11,
+                'token' => [],
+            ],
+            'unrelated' => 'invalid',
+        ], $rules)
             ->errors()
-            ->first('payload.customer.email'),
+            ->keys(),
     )
-        ->toBe('Rejected by the application.');
+        ->toEqualCanonicalizing(['payload.customer.email', 'payload.quantity', 'payload.token', 'unrelated']);
+    expect(Validator::make(['payload' => ['quantity' => 0]], $rules)->fails())->toBeTrue();
+    expect(Validator::make(['payload' => ['token' => 'saved-card']], $rules)->fails())->toBeTrue();
+});
+
+it('runs application validation before inferred rules when bail is requested', function () {
+    $rules = new RuleFactory()->make(JsonSchema::object(['email' => JsonSchema::string()->format('email')]), [
+        'email' => [
+            'bail',
+            function (string $attribute, mixed $value, Closure $fail) {
+                $fail('Rejected by the application.');
+            },
+        ],
+    ]);
+
+    expect(Validator::make(['email' => 'invalid'], $rules)->errors()->get('email'))
+        ->toBe(['Rejected by the application.']);
 });
 
 it('validates required fields only within present optional objects and checks array items', function () {
@@ -87,7 +112,7 @@ it('validates required fields only within present optional objects and checks ar
     expect(Validator::make(['items' => [[]]], $rules)->fails())->toBeTrue();
 });
 
-it('appends x-validation rules to inferred rules', function () {
+it('applies conditional x-validation rules alongside schema types', function (array $payment, bool $passes) {
     $schema = Schema::fromArray([
         'type' => 'object',
         'properties' => [
@@ -95,16 +120,20 @@ it('appends x-validation rules to inferred rules', function () {
                 'type' => ['object', 'null'],
                 'x-validation' => ['required_without:payload.token', 'prohibits:payload.token'],
             ],
+            'token' => ['type' => 'string'],
         ],
     ]);
 
-    expect(new RuleFactory()->make($schema, [], 'payload')['payload.card'])->toBe([
-        'nullable',
-        'array',
-        'required_without:payload.token',
-        'prohibits:payload.token',
-    ]);
-});
+    $rules = new RuleFactory()->make($schema, [], 'payload');
+
+    expect(Validator::make(['payload' => $payment], $rules)->passes())->toBe($passes);
+})->with([
+    'card' => [['card' => ['number' => 'encrypted']], true],
+    'token' => [['token' => 'saved-card'], true],
+    'neither' => [[], false],
+    'both' => [['card' => ['number' => 'encrypted'], 'token' => 'saved-card'], false],
+    'invalid card type' => [['card' => 'encrypted'], false],
+]);
 
 it('validates exactly one required-property branch while keeping the prefixed object optional', function (
     array $payment,
