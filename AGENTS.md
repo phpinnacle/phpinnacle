@@ -86,6 +86,7 @@
 - Define observable success before implementation. Reproduce bugs with the narrowest practical test, cover invalid inputs for validation changes, and establish a passing baseline before refactors.
 - For PHP changes, run `composer format`, focused package tests, and repository-wide `composer lint`. Also run `composer lint` when changing Composer or PHP analysis configuration. Use the package's declared test runner.
 - For frontend behavior changes, run relevant JavaScript and integration checks and rebuild affected committed assets as required by the package.
+- For component changes demonstrated in `../playground`, update the affected demos, tests, and README in the same task, following that repository's `AGENTS.md`. Republish its package assets with `php artisan filament:assets` when package JavaScript or CSS changes.
 - For documentation or instruction-only changes, check consistency, referenced commands and links, and skill metadata where applicable; runtime suites are needed only when executable examples or behavior are affected.
 - Start with the narrowest relevant checks and complete required checks. Broaden or repeat them only for new changes, failures, or unresolved risks; finish once the requested outcome and verification are complete.
 - Finish by inspecting the diff for scope drift, hidden behavior changes, unnecessary complexity, and incomplete cleanup, and run `git diff --check`.
