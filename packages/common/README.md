@@ -57,7 +57,7 @@ ItemPicker::make('assignees')
     ]);
 ```
 
-`compact()` puts item and group descriptions on the label line. `dense()` independently reduces spacing and visual sizes. `circular()` rounds images and icon backgrounds. Images take precedence over icons. These options, `multiple()` and `branches()` accept boolean conditions or closures. Multiple dropdowns show complete selected chips and summarize overflow as `+N`.
+`compact()` puts item and group descriptions on the label line. `dense()` independently reduces spacing and visual sizes. `circular()` rounds images and icon backgrounds. Images take precedence over icons. These options, `multiple()` and `branches()` accept boolean conditions or closures. Multiple dropdowns show complete selected chips and summarize overflow as `+N`. `Item::isSelectable($branchesSelectable)` checks disabled state and branch selection; the field supplies its current branch setting.
 
 Item and group factories derive labels with `Str::title()`. Single selection stores a string or `null`; multiple selection stores a list of strings. The field validates availability, disabled items and branch selection. Its Blade views, styles, translations and lazy Alpine component are registered by Common without requiring a panel plugin or frontend build.
 

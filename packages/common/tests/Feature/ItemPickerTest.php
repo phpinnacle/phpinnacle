@@ -271,6 +271,7 @@ it('keeps embedded groups out of tree depth and keyboard parent relationships', 
                 Item::make('root')->children([
                     ItemGroup::make('category')->children([Item::make('leaf')]),
                 ]),
+                Item::make('last'),
             ]),
         ]);
     [$schema] = common_picker_form($picker);
@@ -294,6 +295,9 @@ it('keeps embedded groups out of tree depth and keyboard parent relationships', 
     ]);
     expect($nodes[1]['selectable'])->toBeFalse();
     expect($schema->getState())->toBe(['choice' => 'leaf']);
+    expect($picker->getSelectableValues())->toBe(['leaf', 'last']);
+    $picker->branches();
+    expect($picker->getSelectableValues())->toBe(['root', 'leaf', 'last']);
 });
 
 it('rejects unavailable disabled and malformed values at the form boundary', function (mixed $value) {

@@ -118,4 +118,9 @@ final class Item implements HasColor, HasDescription, HasIcon, HasLabel
     {
         return $this->color;
     }
+
+    public function isSelectable(bool $branchesSelectable = true): bool
+    {
+        return !$this->disabled && ($this->children === [] || $branchesSelectable);
+    }
 }

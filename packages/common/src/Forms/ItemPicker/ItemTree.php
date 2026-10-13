@@ -21,12 +21,12 @@ final class ItemTree
     {
         $items = [];
 
-        foreach ($this->nodes as $node) {
+        foreach ($this->walk() as $row) {
+            $node = $row['node'];
+
             if ($node instanceof Item) {
                 $items[] = $node;
             }
-
-            array_push($items, ...new self($node->children)->items());
         }
 
         return $items;
@@ -38,11 +38,18 @@ final class ItemTree
      */
     public function rows(string $path = '', array $ancestors = []): array
     {
-        $rows = [];
+        return iterator_to_array($this->walk($path, $ancestors), preserve_keys: false);
+    }
 
+    /**
+     * @param list<string> $ancestors
+     * @return iterable<PickerRow>
+     */
+    private function walk(string $path = '', array $ancestors = []): iterable
+    {
         foreach ($this->nodes as $index => $node) {
             $key = $path . '-' . $index;
-            $rows[] = [
+            yield [
                 'key' => $key,
                 'node' => $node,
                 'depth' => count($ancestors),
@@ -50,12 +57,10 @@ final class ItemTree
                 'parent' => $ancestors[array_key_last($ancestors)] ?? null,
             ];
 
-            array_push($rows, ...new self($node->children)->rows(
+            yield from new self($node->children)->walk(
                 $key,
                 $node instanceof Item ? [...$ancestors, $key] : $ancestors,
-            ));
+            );
         }
-
-        return $rows;
     }
 }

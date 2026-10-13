@@ -138,7 +138,7 @@ class ItemPicker extends Field implements HasNestedRecursiveValidationRulesContr
 
     public function isItemSelectable(Item $item): bool
     {
-        return !$item->disabled && ($item->children === [] || $this->canSelectBranches());
+        return $item->isSelectable($this->canSelectBranches());
     }
 
     public function getMode(): ItemPickerMode
