@@ -8814,17 +8814,22 @@
             "dist": {
                 "type": "path",
                 "url": "packages/ferry",
-                "reference": "9df9f5b383b31e466438d9a563198b808bfe927e"
+                "reference": "6c808843cb53f0e720ffe0ba00b84cc3ec388221"
             },
             "require": {
                 "ext-pdo": "*",
+                "ext-rdkafka": "*",
                 "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
                 "phpinnacle/common": "^1.0",
+                "phpinnacle/franz": "^1.0",
                 "phpinnacle/rosetta": "^1.0",
+                "psr/http-client": "^1.0",
+                "psr/http-factory": "^1.1",
                 "spatie/laravel-package-tools": "^1.92"
             },
             "require-dev": {
+                "guzzlehttp/psr7": "^2.7",
                 "orchestra/testbench": "^11.0",
                 "pestphp/pest": "^4.0"
             },
@@ -10213,11 +10218,11 @@
         },
         {
             "name": "phpinnacle/vulcan",
-            "version": "dev-master",
+            "version": "1.1.1",
             "dist": {
                 "type": "path",
                 "url": "packages/vulcan",
-                "reference": "2dbf9f10055be24885a691595547940cf185dffd"
+                "reference": "6bf0c4fe97c1f79962be0ce3cc19a81437589020"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
