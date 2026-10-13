@@ -2,10 +2,14 @@
 
 namespace PHPinnacle\Eidos\JsonSchema;
 
+use Illuminate\JsonSchema\Serializer;
 use Illuminate\JsonSchema\Types\AnyOfType;
 use Illuminate\JsonSchema\Types\ArrayType;
 use Illuminate\JsonSchema\Types\ObjectType;
 use Illuminate\JsonSchema\Types\Type;
+use PHPinnacle\Eidos\JsonSchema\Types\AllOfType;
+use PHPinnacle\Eidos\JsonSchema\Types\CompositionType;
+use PHPinnacle\Eidos\JsonSchema\Types\OneOfType;
 use WeakMap;
 
 final class Schema extends Type
@@ -13,26 +17,14 @@ final class Schema extends Type
     /** @var WeakMap<Type, array<string, mixed>> */
     private readonly WeakMap $extraAttributes;
 
-    /** @var WeakMap<AnyOfType, 'oneOf'|'allOf'> */
-    private readonly WeakMap $compositions;
-
-    /** @var WeakMap<AnyOfType, Type> */
-    private readonly WeakMap $siblings;
-
     /**
      * @param WeakMap<Type, array<string, mixed>>|null $extraAttributes
-     * @param WeakMap<AnyOfType, 'oneOf'|'allOf'>|null $compositions
-     * @param WeakMap<AnyOfType, Type>|null $siblings
      */
     public function __construct(
         private readonly Type $type,
         ?WeakMap $extraAttributes = null,
-        ?WeakMap $compositions = null,
-        ?WeakMap $siblings = null,
     ) {
         $this->extraAttributes = $extraAttributes ?? new WeakMap;
-        $this->compositions = $compositions ?? new WeakMap;
-        $this->siblings = $siblings ?? new WeakMap;
     }
 
     /** @param array<string, mixed> $schema */
@@ -44,13 +36,13 @@ final class Schema extends Type
     /** @param list<Type> $schemas */
     public static function oneOf(array $schemas): self
     {
-        return self::compose('oneOf', $schemas);
+        return self::compose(OneOfType::class, $schemas);
     }
 
     /** @param list<Type> $schemas */
     public static function allOf(array $schemas): self
     {
-        return self::compose('allOf', $schemas);
+        return self::compose(AllOfType::class, $schemas);
     }
 
     public function required(bool $required = true): static
@@ -92,20 +84,19 @@ final class Schema extends Type
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return $this->annotate($this->type, $this->type->toArray());
+        return $this->annotate($this->type, Serializer::serialize($this->type));
     }
 
     /**
-     * @param 'oneOf'|'allOf' $keyword
+     * @param class-string<CompositionType> $typeClass
      * @param list<Type> $schemas
      */
-    private static function compose(string $keyword, array $schemas): self
+    private static function compose(string $typeClass, array $schemas): self
     {
-        $type = new AnyOfType(array_map(fn (Type $schema) => $schema instanceof self
+        $type = new $typeClass(array_map(fn (Type $schema) => $schema instanceof self
             ? $schema->type
             : $schema, $schemas));
         $composition = new self($type);
-        $composition->compositions->offsetSet($type, $keyword);
 
         foreach ($schemas as $schema) {
             if (!$schema instanceof self) {
@@ -114,14 +105,6 @@ final class Schema extends Type
 
             foreach ($schema->extraAttributes as $node => $value) {
                 $composition->extraAttributes->offsetSet($node, $value);
-            }
-
-            foreach ($schema->compositions as $node => $value) {
-                $composition->compositions->offsetSet($node, $value);
-            }
-
-            foreach ($schema->siblings as $node => $value) {
-                $composition->siblings->offsetSet($node, $value);
             }
         }
 
@@ -161,27 +144,14 @@ final class Schema extends Type
                 $definition['anyOf'][$index] = $this->annotate($variant, $definition['anyOf'][$index]);
             }
 
-            $keyword = $this->compositions[$type] ?? null;
+            if ($type instanceof CompositionType) {
+                $sibling = $type->sibling();
 
-            if ($keyword !== null) {
-                $nullable = array_key_exists(count($type->schemas()), $definition['anyOf']);
-
-                if ($nullable) {
-                    array_pop($definition['anyOf']);
-                }
-
-                $definition[$keyword] = $definition['anyOf'];
-                unset($definition['anyOf']);
-
-                $sibling = $this->siblings[$type] ?? null;
-
-                if ($sibling !== null) {
-                    $definition = array_replace($definition, $this->annotate($sibling, $sibling->toArray()));
-                }
-
-                if ($nullable) {
-                    $definition = ['anyOf' => [$definition, ['type' => 'null']]];
-                }
+                return $type->compose(
+                    $definition,
+                    array_slice($definition['anyOf'], 0, count($type->schemas())),
+                    $sibling === null ? null : $this->annotate($sibling, Serializer::serialize($sibling)),
+                );
             }
         }
 

@@ -46,7 +46,7 @@ class MethodResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return app()->call(Tables\MethodsTable::configure(...), ['table' => $table]);
+        return Tables\MethodsTable::configure($table);
     }
 
     public static function getPages(): array

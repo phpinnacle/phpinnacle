@@ -41,7 +41,7 @@ $panel->plugin(MidasPlugin::make());
 Register provider class names in `phpinnacle-midas.providers`. The service provider resolves them through the container in both HTTP requests and queue workers, without requiring a current Filament panel. Provider instances must be stateless; merchant credentials come from each transaction's payment method. The built-in providers are registered by default. Replace the list to restrict availability or add custom providers.
 
 Providers are loaded into `ProviderRegistry` and become available when defining payment methods. Each provider supplies its label, availability, configuration form, validation and gateway behavior. Stripe supports hosted Checkout payments and refunds, plus direct PaymentIntent authorizations, captures and voids through the queued transaction flow.
-Custom integrations calling `PHPinnacle\Midas\Resources\Methods\Tables\MethodsTable::configure($table, $providers)` pass `ProviderRegistry` explicitly. The standard resource uses Laravel's callback injection at its table composition boundary.
+`PHPinnacle\Midas\Resources\Methods\Tables\MethodsTable::configure($table)` resolves `ProviderRegistry` through Laravel's container to build the provider actions.
 The `PaymentGateway::schema()` contract returns an `Illuminate\JsonSchema\Types\Type` or `null` when no checkout input is required. BePaid uses Eidos's `JsonSchema\Schema` adapter to preserve card annotations and its `oneOf` card-or-token choice. Generate checkout validation with `PHPinnacle\Eidos\Validation\RuleFactory::make($schema, $extraRules, 'payment')`. OpenAPI schema objects are no longer used.
 
 ## Payment plans and calculations

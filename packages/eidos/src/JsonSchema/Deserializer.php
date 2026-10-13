@@ -8,6 +8,8 @@ use Illuminate\JsonSchema\Types\ObjectType;
 use Illuminate\JsonSchema\Types\Type;
 use Illuminate\JsonSchema\Types\UnionType;
 use InvalidArgumentException;
+use PHPinnacle\Eidos\JsonSchema\Types\AllOfType;
+use PHPinnacle\Eidos\JsonSchema\Types\OneOfType;
 use WeakMap;
 
 /** @internal */
@@ -16,20 +18,12 @@ final class Deserializer extends LaravelDeserializer
     /** @var WeakMap<Type, array<string, mixed>> */
     private readonly WeakMap $extraAttributes;
 
-    /** @var WeakMap<AnyOfType, 'oneOf'|'allOf'> */
-    private readonly WeakMap $compositions;
-
-    /** @var WeakMap<AnyOfType, Type> */
-    private readonly WeakMap $siblings;
-
     /** @param array<string, mixed> $root */
     protected function __construct(array $root)
     {
         parent::__construct($root);
 
         $this->extraAttributes = new WeakMap;
-        $this->compositions = new WeakMap;
-        $this->siblings = new WeakMap;
     }
 
     /** @param array<string, mixed> $schema */
@@ -40,8 +34,6 @@ final class Deserializer extends LaravelDeserializer
         return new Schema(
             $deserializer->build($schema),
             $deserializer->extraAttributes,
-            $deserializer->compositions,
-            $deserializer->siblings,
         );
     }
 
@@ -56,12 +48,12 @@ final class Deserializer extends LaravelDeserializer
                 continue;
             }
 
-            $type = new AnyOfType(array_map(
+            $branches = array_map(
                 fn (array $branch) => $this->compositionBranch($branch, $refs),
                 $schema[$keyword],
-            ));
-            $this->compositions->offsetSet($type, $keyword);
+            );
             unset($schema[$keyword]);
+            $sibling = null;
 
             if (array_intersect(array_keys($schema), [
                 'type',
@@ -87,14 +79,14 @@ final class Deserializer extends LaravelDeserializer
                     $schema,
                     fn (string $name) => (
                         !str_starts_with($name, 'x-')
-                        && !in_array($name, ['title', 'description', 'default', 'enum'], true)
+                        && !in_array($name, ['title', 'description', 'default', 'enum', 'readOnly'], true)
                     ),
                     ARRAY_FILTER_USE_KEY,
                 );
-                $this->siblings->offsetSet($type, $this->build($siblings, $refs));
+                $sibling = $this->build($siblings, $refs);
             }
 
-            return $type;
+            return $keyword === 'oneOf' ? new OneOfType($branches, $sibling) : new AllOfType($branches, $sibling);
         }
 
         $type = parent::buildAnyOfComposition($schema, $refs);
@@ -122,7 +114,7 @@ final class Deserializer extends LaravelDeserializer
         $extraAttributes = [];
 
         foreach ($schema as $name => $value) {
-            if (str_starts_with($name, 'x-')) {
+            if (str_starts_with($name, 'x-') || $name === 'readOnly') {
                 $extraAttributes[$name] = $value;
             }
         }

@@ -1,8 +1,18 @@
 <?php
 
 return [
-    'model_sources' => [],
-    'model_discovery' => [
-        'except' => [],
+    'cache' => [
+        'store' => null,
+    ],
+    'models' => [
+        // 'App\Models\User',
+    ],
+    'discovery' => [
+        'include' => [
+            // 'App\Models\*',
+        ],
+        'except' => [
+            // 'App\Models\Order\*',
+        ],
     ],
 ];

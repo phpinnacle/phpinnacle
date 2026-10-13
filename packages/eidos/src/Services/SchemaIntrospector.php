@@ -14,26 +14,29 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
 use Illuminate\Support\Str;
+use PHPinnacle\Eidos\JsonSchema\Schema;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionNamedType;
 
 /**
- * @internal
- *
- * @phpstan-type Column array{name: string, type_name: string, nullable: bool, default: mixed, auto_increment: bool, generation: array{type: string|null, expression: string|null}|null}
- * @phpstan-type Attribute array{name: string, types: list<string>, nullable: bool, required: bool, default: mixed, enum: list<string|int>, format: string|null}
+ * @phpstan-type Column array{name: string, type_name: string, nullable: bool, generation: array{type: string|null, expression: string|null}|null}
  */
-final readonly class ModelSchema
+class SchemaIntrospector
 {
-    public function __construct(
-        private Model $model,
-    ) {}
-
-    public function schema(): Type
+    public function introspect(Model $model): Schema
     {
-        $model = $this->model;
-        $properties = $this->columnSchemas($this->columns());
+        return Schema::fromArray([
+            'type' => 'object',
+            'properties' => array_replace($this->columnSchemas($model), $this->relationSchemas($model)),
+            'title' => $model::class,
+        ]);
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    private function relationSchemas(Model $model): array
+    {
+        $properties = [];
 
         foreach (new ReflectionClass($model)->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
             $returnType = $method->getReturnType();
@@ -48,79 +51,35 @@ final readonly class ModelSchema
                 continue;
             }
 
-            $relation = $this->relation($method);
-            $related = new self($relation->getRelated());
-            $relatedSchema = JsonSchema::object($related->columnSchemas($related->columns()));
+            $relation = $this->relation($model, $method);
+            $relatedProperties = $this->columnSchemas($relation->getRelated());
             $name = $model::$snakeAttributes ? Str::snake($method->getName()) : $method->getName();
 
             $properties[$name] =
                 $relation instanceof HasMany
                 || $relation instanceof BelongsToMany
                 || $relation instanceof HasManyThrough
-                    ? JsonSchema::array()->items($relatedSchema)
-                    : $relatedSchema->nullable();
+                    ? ['type' => 'array', 'items' => ['type' => 'object', 'properties' => $relatedProperties]]
+                    : ['type' => ['object', 'null'], 'properties' => $relatedProperties];
         }
 
-        return JsonSchema::object($properties)->title($model::class);
-    }
-
-    /** @return list<Attribute> */
-    public function attributes(): array
-    {
-        $columns = $this->columns();
-        $properties = $this->columnSchemas($columns);
-        $defaults = $this->model->getAttributes();
-        $attributes = [];
-
-        foreach ($columns as $column) {
-            $name = $column['name'];
-
-            if (!$this->model->isFillable($name) || $column['generation'] !== null) {
-                continue;
-            }
-
-            $schema = $properties[$name]->toArray();
-            $types = array_values(array_diff((array) $schema['type'], ['null']));
-
-            $attributes[] = [
-                'name' => $name,
-                'types' => $types,
-                'nullable' => $column['nullable'],
-                'required' =>
-                    !$column['nullable']
-                        && $column['default'] === null
-                        && !array_key_exists($name, $defaults)
-                        && !$column['auto_increment'],
-                'default' => $this->defaultValue($defaults[$name] ?? null, $types),
-                'enum' => $schema['enum'] ?? [],
-                'format' => $schema['format'] ?? null,
-            ];
-        }
-
-        return $attributes;
+        return $properties;
     }
 
     /** @return Relation<Model, Model, mixed> */
-    private function relation(ReflectionMethod $method): Relation
+    private function relation(Model $model, ReflectionMethod $method): Relation
     {
-        return Relation::noConstraints(fn () => $method->invoke($this->model));
+        return Relation::noConstraints(fn () => $method->invoke($model));
     }
 
-    /** @return list<Column> */
-    private function columns(): array
+    /** @return array<string, array<string, mixed>> */
+    private function columnSchemas(Model $model): array
     {
-        return $this->model->getConnection()->getSchemaBuilder()->getColumns($this->model->getTable());
-    }
-
-    /**
-     * @param list<Column> $columns
-     * @return array<string, Type>
-     */
-    private function columnSchemas(array $columns): array
-    {
+        /** @var list<Column> $columns */
+        $columns = $model->getConnection()->getSchemaBuilder()->getColumns($model->getTable());
         $properties = [];
-        $casts = $this->model->getCasts();
-        $dates = $this->model->getDates();
+        $casts = $model->getCasts();
+        $dates = $model->getDates();
 
         foreach ($columns as $column) {
             $name = $column['name'];
@@ -129,7 +88,13 @@ final readonly class ModelSchema
                 ? JsonSchema::string()->format('date-time')
                 : $this->columnType($column['type_name'], $cast);
 
-            $properties[$name] = $column['nullable'] ? $type->nullable() : $type;
+            $definition = ($column['nullable'] ? $type->nullable() : $type)->toArray();
+
+            if ($column['generation'] !== null) {
+                $definition['readOnly'] = true;
+            }
+
+            $properties[$name] = $definition;
         }
 
         return $properties;
@@ -180,21 +145,6 @@ final readonly class ModelSchema
             str_contains($type, 'real'),
                 => JsonSchema::number(),
             default => JsonSchema::string(),
-        };
-    }
-
-    /** @param list<string> $types */
-    private function defaultValue(mixed $default, array $types): mixed
-    {
-        return match (true) {
-            $default === null => null,
-            $default instanceof BackedEnum => $default->value,
-            in_array('boolean', $types, true) => (bool) $default,
-            in_array('integer', $types, true) => (int) $default,
-            in_array('number', $types, true) => (float) $default,
-            in_array('string', $types, true) => (string) $default,
-            is_string($default) => json_decode($default, associative: true, flags: JSON_THROW_ON_ERROR),
-            default => $default,
         };
     }
 }

@@ -66,41 +66,60 @@ class RuleFactory
      */
     private function fieldRules(array $schema): array
     {
-        $types = (array) ($schema['type'] ?? []);
-        $rules = in_array('null', $types, true) ? ['nullable'] : [];
-        $types = array_values(array_diff($types, ['null']));
+        $allTypes = (array) ($schema['type'] ?? []);
+        $types = array_values(array_diff($allTypes, ['null']));
+        $rules = [
+            ...(in_array('null', $allTypes, true) ? ['nullable'] : []),
+            ...$this->typeRules($schema, $types),
+        ];
 
-        if (count($types) > 1) {
-            $rules[] = $this->alternatives(array_map(
-                fn (string $type) => array_replace($schema, ['type' => $type]),
-                $types,
-            ));
-        } else {
-            $rules = [
-                ...$rules,
-                ...match ($types[0] ?? null) {
-                    'string' => match ($schema['format'] ?? null) {
-                        'uuid' => ['uuid'],
-                        'email' => ['email'],
-                        'date', 'date-time' => ['date'],
-                        default => ['string'],
-                    },
-                    'integer' => ['integer'],
-                    'number' => ['numeric'],
-                    'boolean' => ['boolean'],
-                    'array', 'object' => ['array'],
-                    default => [],
-                },
-            ];
-        }
-
-        if ($types === [] && in_array('null', (array) ($schema['type'] ?? []), true)) {
+        if ($types === [] && in_array('null', $allTypes, true)) {
             $rules[] = function (string $attribute, mixed $value, Closure $fail) {
                 if ($value !== null) {
                     $fail('validation.in')->translate();
                 }
             };
         }
+
+        return [...$rules, ...$this->constraintRules($schema), ...Arr::wrap($schema['x-validation'] ?? [])];
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     * @param list<string> $types
+     * @return list<mixed>
+     */
+    private function typeRules(array $schema, array $types): array
+    {
+        if (count($types) > 1) {
+            return [$this->alternatives(array_map(
+                fn (string $type) => array_replace($schema, ['type' => $type]),
+                $types,
+            ))];
+        }
+
+        return match ($types[0] ?? null) {
+            'string' => match ($schema['format'] ?? null) {
+                'uuid' => ['uuid'],
+                'email' => ['email'],
+                'date', 'date-time' => ['date'],
+                default => ['string'],
+            },
+            'integer' => ['integer'],
+            'number' => ['numeric'],
+            'boolean' => ['boolean'],
+            'array', 'object' => ['array'],
+            default => [],
+        };
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     * @return list<mixed>
+     */
+    private function constraintRules(array $schema): array
+    {
+        $rules = [];
 
         foreach ([
             'minLength' => 'min',
@@ -123,7 +142,7 @@ class RuleFactory
             $rules[] = 'required_array_keys:' . implode(',', $schema['required']);
         }
 
-        return [...$rules, ...Arr::wrap($schema['x-validation'] ?? [])];
+        return $rules;
     }
 
     /** @param list<array<string, mixed>> $schemas */

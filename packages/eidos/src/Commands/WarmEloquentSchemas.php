@@ -3,24 +3,25 @@
 namespace PHPinnacle\Eidos\Commands;
 
 use Illuminate\Console\Command;
-use PHPinnacle\Eidos\Services\EloquentIntrospector;
-use PHPinnacle\Eidos\Services\ModelRegistry;
+use Illuminate\Database\Eloquent\Model;
+use PHPinnacle\Eidos\Services\SchemaFactory;
 
 class WarmEloquentSchemas extends Command
 {
     protected $signature = 'eidos:cache-eloquent-schemas';
 
-    protected $description = 'Inspect and cache the schemas of models from configured Eidos sources';
+    protected $description = 'Discover configured Eloquent models and cache their schemas';
 
-    public function handle(ModelRegistry $sources, EloquentIntrospector $introspector): int
+    public function handle(SchemaFactory $factory): int
     {
-        $models = $sources->modelClasses();
-
-        foreach ($models as $modelClass) {
-            $introspector->warm($modelClass);
-        }
-
-        $this->components->info(sprintf('Cached schemas for %d Eloquent model(s).', count($models)));
+        /** @var list<class-string<Model>> $models */
+        $models = config('phpinnacle-eidos.models');
+        /** @var list<string> $include */
+        $include = config('phpinnacle-eidos.discovery.include');
+        /** @var list<string> $except */
+        $except = config('phpinnacle-eidos.discovery.except');
+        $count = $factory->warmup([...$models, ...$include], $except);
+        $this->components->info(sprintf('Cached schemas for %d Eloquent model(s).', $count));
 
         return self::SUCCESS;
     }

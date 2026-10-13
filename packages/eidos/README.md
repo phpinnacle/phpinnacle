@@ -1,8 +1,7 @@
 # PHPinnacle Eidos
 
-Eidos generates JSON Schema from Eloquent models and describes writable model
-attributes, converts schemas into Laravel validation rules, and provides Filament
-JSON Schema pickers and readonly entries.
+Eidos generates JSON Schema from Eloquent models, converts schemas into Laravel
+validation rules, and provides Filament JSON Schema pickers and readonly entries.
 It supports Laravel 13, Filament 4 or 5, and PHP 8.4 or later.
 
 ## Installation
@@ -15,67 +14,89 @@ php artisan vendor:publish --tag=phpinnacle-eidos-config
 Laravel discovers `EidosServiceProvider` automatically. No panel registration
 is required.
 
-## Model introspection
+## Model registration and cache warmup
 
-```php
-use App\Models\Product;
-use PHPinnacle\Eidos\Services\EloquentIntrospector;
-
-$introspector = app(EloquentIntrospector::class);
-$schema = $introspector->schema(Product::class)->toArray();
-$attributes = $introspector->attributes(Product::class);
-```
-
-Schemas include database columns, model casts, backed enum values, date formats,
-nullability, and public relationships with concrete return types. Relationships
-extend one level to avoid cycles; `MorphTo` relationships are omitted because
-their related model depends on a record.
-
-Writable attributes include fillable, non-generated columns with their names,
-types, nullability, required status, model defaults, enum values, and formats.
-They describe data independently of any form implementation.
-
-Schemas and writable attributes are cached per model, connection, database, and
-table. To refresh one model after database or model changes:
-
-```php
-$introspector->warm(Product::class);
-```
-
-## Model sources and cache warming
-
-Configure sources in `config/phpinnacle-eidos.php`:
+Configure models to warm up in `config/phpinnacle-eidos.php`:
 
 ```php
 return [
-    'model_sources' => [
-        PHPinnacle\Eidos\Services\DeclaredModels::class,
-        App\Eidos\CatalogModels::class,
+    'cache' => [
+        'store' => null,
     ],
-    'model_discovery' => [
-        'except' => ['Illuminate', 'Filament'],
+    'models' => [
+        App\Models\User::class,
+    ],
+    'discovery' => [
+        'include' => ['App\\Models\\*'],
+        'except' => ['App\\Models\\Order\\*'],
     ],
 ];
 ```
 
-Each source implements
-`PHPinnacle\Eidos\Contracts\ProvidesEloquentModels::modelClasses(): array`,
-returning a list of Eloquent model class names. Sources resolve through Laravel's
-container in `EidosServiceProvider` and must work independently of a panel or
-request. `ModelRegistry` receives resolved sources keyed by their class names;
-Laravel shares one registry instance across consumers.
+`models` explicitly registers Eloquent model classes. Discovery searches
+Composer PSR-4 files and class maps, including classes that have not been loaded.
+It selects concrete Eloquent models matching `include` wildcard patterns and
+filters discovered models with `except`. An empty `include` disables discovery.
+Explicit registrations remain included even when they match `except`.
+Duplicate registrations and discovered classes are combined into one entry.
 
-`DeclaredModels` discovers already declared, instantiable Eloquent classes,
-excluding base classes named `Model` and configured namespace prefixes. It does
-not scan files or autoload models. `ModelRegistry` combines sources and removes
-duplicate model classes. The default source list is empty.
+`cache.store` selects a store name from Laravel's `cache.stores` configuration
+for both warmup and runtime lookups. The default `null` uses the application's
+default cache store. For example, set it to `'redis'` to use that store. Run
+warmup after switching stores to populate the new cache.
+
+Only the warmup command reads `models` and `discovery`:
 
 ```bash
 php artisan eidos:cache-eloquent-schemas
 ```
 
-The command refreshes each configured model once. An empty catalog is a
-successful no-op. Writable attributes are invalidated and rebuilt on demand.
+The command calls `SchemaFactory::warmup($include, $except)` with explicit model
+classes and discovery patterns combined in `$include`. Exact class names remain
+included even when they match `$except`; exclusions apply to discovered models.
+The method rebuilds schemas through the injected `SchemaIntrospector`, caches
+each one, and returns the number of warmed models. An empty include list is a
+successful no-op. Existing cache entries for other models remain available.
+Re-run warmup after changing database schema or model casts.
+
+## Cached model schemas
+
+`SchemaFactory::create(string|Model $model)` accepts an Eloquent model class or
+instance. On a cache miss, it builds the schema through `SchemaIntrospector` and
+caches its definition. A cache hit returns the schema without model construction
+or database introspection. Runtime creation does not read model registration or
+discovery configuration:
+
+```php
+use App\Models\Product;
+use PHPinnacle\Eidos\Services\SchemaFactory;
+
+$factory = app(SchemaFactory::class);
+$schema = $factory->create(Product::class);
+$schemaFromInstance = $factory->create(new Product);
+$definition = $schema->toArray();
+$count = $factory->warmup(['App\\Models\\*'], ['App\\Models\\Order\\*']);
+```
+
+Cache entries are keyed by model class; instances of the same class share an
+entry. Each call returns an Eidos `JsonSchema\Schema` rebuilt from the cached
+definition, so changing its root annotations does not change the cache.
+`SchemaFactory` receives the introspector, model discovery service, and cache
+repository through its constructor. The service provider selects the repository
+using `cache.store`. `ModelDiscovery` combines explicit classes with Composer
+discovery results and applies discovery exclusions.
+`SchemaIntrospector::introspect(Model $model)` builds a schema directly without
+caching and keeps no model in service state.
+
+Schemas include database columns, model casts, backed enum values, date formats,
+nullability, and public relationships with concrete return types. Relationships
+extend one level to avoid cycles; `MorphTo` relationships are omitted because
+their related model depends on a record. Introspection uses each model's
+connection and table whenever a schema is built.
+
+Stored and virtual generated columns remain in the schema with `readOnly: true`,
+including columns on related models. This annotation is preserved in the cached
+schema definition.
 
 ## Laravel validation rules
 
@@ -141,12 +162,20 @@ $quantity = Schema::allOf([
 ```
 
 `Schema::oneOf()` and `Schema::allOf()` accept lists of Laravel types and Eidos
-adapters. They retain nested annotations without serializing and reparsing the
-supplied types. `nullable()` permits null for the complete composition. Use
+adapters. They construct `JsonSchema\Types\OneOfType` and `AllOfType` nodes,
+which identify their composition keyword directly. They retain nested
+annotations without serializing and reparsing the supplied types.
+`CompositionType` owns sibling constraints and nullability; the adapter retains
+only the per-node annotations that Laravel does not preserve.
+`nullable()` permits null for the complete composition. Use
 `Schema::fromArray()` to place compositions inside object properties or array
 items; Eidos adapters remain root schemas rather than children of Laravel's
 native builders. Picker and entry traversal include all three composition
 keywords, with scoped limits and annotations.
+
+Laravel's `UnionType` represents an array of primitive type names, such as
+`type: ["string", "integer"]`. It does not represent schema branches with
+independent constraints or the matching semantics of `oneOf` and `allOf`.
 
 ## JSON Schema picker and entry
 
@@ -167,6 +196,10 @@ JsonSchemaEntry::make('schema')->state($schema);
 
 Both components require `Illuminate\JsonSchema\Types\Type` objects from the `illuminate/json-schema` dependency, either directly or returned by Filament closures.
 
+The picker uses `Validation\ValidPath` to validate selected paths. Both PHP
+components use `HasJsonSchemaConstraints` for display options and delegate
+view data preparation to the shared `JsonSchema\SchemaPresentation`.
+
 The picker stores a nonempty PHP list of exact technical property names: `['customer', 'email']` selects a nested field. The default is `null`, representing an absent selection. An optional picker accepts `null` and shows a clear button when a path is selected. Clearing resets the value to `null` and closes the dropdown. Required and disabled pickers omit the clear button. A required picker requires a nonempty path. The schema root is not selectable and `[]` is invalid. Dots and slashes remain literal within a property name, so `['metadata.version']` differs from `['metadata', 'version']`. Validation requires an available schema path with string segments. Object properties and `anyOf` variants are selectable. Arrays can be selected as whole fields; the picker does not map over array items. Array schemas expand to a readonly `*` row for their item schema, followed by its nested fields. These preview rows cannot be selected.
 
 Keep picker state as a path array. Consumers can format the submitted value with Filament's native `dehydrateStateUsing()` callback when their storage format requires a string:
@@ -185,7 +218,7 @@ The picker panel matches its trigger width and renders its tree only while open.
 
 Schema titles are always the main label with technical property names beside them in muted text. Missing titles are generated from property names with `Str::apa(Str::headline($name))`, such as `unit_price` → `Unit Price`; explicit schema titles take precedence. Technical field names are shown beside titles by default. Use `->properties(false)` to hide them or `->properties()` to show them; the option also accepts a Filament closure and applies to the tree and selected picker value. Hiding names does not change selection paths or local search. Enable `->requiredMarker()` to mark required properties with a red asterisk beside the main label, and `->constraints()` to display value restrictions. Both are hidden by default and accept a boolean or Filament closure; pass `false` to hide them again. Required markers describe the schema's parent-object `required` list and do not change picker validation (`->required()` still configures the picker itself). A path is marked required only when it is required in every `anyOf` variant. Constraints include `minLength`/`maxLength`, `pattern`, `minimum`/`maximum`, `multipleOf`, `minItems`/`maxItems` and `uniqueItems`, with scopes for union variants and separate rows for array items. Titles are always searchable; constraint values participate in search only when enabled. Selection paths contain exact technical property names as separate segments. Rows use a fixed disclosure slot with a consistent indentation step across objects and array item fields. Icon space is added only to fields with a rendered icon. Descriptions align with that field's label. Value limits and nullable badges precede the type badge, which is always last in the metadata area. Type badges and value limits share the same small monospace typography; uniqueness uses a warning-colored `unique` chip with the same border, background and padding as type badges. Other value limits form a muted group without individual badge borders or repeated label/value prefixes. Numeric bounds use inequalities, multiples use `×`, patterns use `/…/`, string length uses a ruler icon and item count uses a list icon. Inline limits have accessible labels and no popovers; long patterns are truncated visually. Limits popovers are available only in compact mode. Limits on `anyOf` branches retain their scope labels. Value limits wrap within the metadata area; enum values appear in the type badge tooltip. Rows have a single hover and selection background across their full width, with a 40 px minimum height and a fixed 24 px disclosure column. The picker search stays visible while scrolling. Enable `->compact()` for a 32 px minimum row height and descriptions in hover tooltips; field names retain the same font size. Enabled value limits are replaced by a small restrictions icon beside the type badge; hover or focus it to see a titled popover with aligned labels and values, including separate groups for union scopes. Enum values remain in their type badge tooltip in both modes. Compact mode is off by default and accepts a boolean or Filament closure.
 
-Use `PHPinnacle\Eidos\JsonSchema\Schema::fromArray()` for schemas containing extra `x-*` attributes. It returns a Laravel `Type` adapter and stores these attributes per schema node while Laravel handles the schema, including local references and nullable unions. `toArray()` restores them at their original level with their values unchanged, including arrays, objects, booleans and null. Sibling attributes on a local `$ref` override attributes from its target. Pass the resulting schema directly to the picker or entry:
+Use `PHPinnacle\Eidos\JsonSchema\Schema::fromArray()` for schemas containing extra `x-*` attributes or `readOnly` annotations. It returns a Laravel `Type` adapter and stores these attributes per schema node while Laravel handles the schema, including local references and nullable unions. `toArray()` restores them at their original level with their values unchanged, including arrays, objects, booleans and null. Sibling attributes on a local `$ref` override attributes from its target. Pass the resulting schema directly to the picker or entry:
 
 ```php
 use PHPinnacle\Eidos\JsonSchema\Schema;
@@ -210,7 +243,7 @@ Client-side consumers can use `<x-phpinnacle-eidos::json-schema-picker>`, `<x-ph
 
 Schema traversal and source preparation live in `json-schema-definition.js`; popover and color formatting live in `json-schema-presentation.js`. Existing named imports from `json-schema-tools.js` remain available. Publish assets with `php artisan filament:assets` after updating Eidos so the imported modules are available beside the Alpine components.
 
-At the Alpine boundary, `schema` is the serialized object from `$schema->toArray()` and `value` is a JavaScript array of exact path segments or `null`. Supply the optional `icons` prop as a trusted map of Blade icon names to server-rendered SVG strings to display `x-icon` annotations. PHP components prepare this map automatically. Supply the optional `propertyTitles` prop as a property-name-to-title map to generate fallback titles; `PropertyTitles::render($definition)` prepares it using Laravel string formatting. PHP components supply this map automatically. A choice callback receives that array as `source.value`; `source.key` is the internal tree identifier. Readonly array item previews have `source.value === null` and `source.compatible === false`; selection callbacks ignore them. Their wildcard labels are display text and do not become property path segments.
+At the Alpine boundary, `schema` is the serialized object from `$schema->toArray()` and `value` is a JavaScript array of exact path segments or `null`. Supply the optional `icons` prop as a trusted map of Blade icon names to server-rendered SVG strings to display `x-icon` annotations. PHP components prepare this map automatically. Supply the optional `propertyTitles` prop as a property-name-to-title map to generate fallback titles; the static `SchemaPresentation::render($definition)` method prepares `definition`, `propertyTitles`, and `icons` together in a single traversal, using Laravel string formatting for fallback titles and Filament for SVG icons. Pass `withIcons: false` to skip icon rendering. PHP components supply this map automatically. A choice callback receives that array as `source.value`; `source.key` is the internal tree identifier. Readonly array item previews have `source.value === null` and `source.compatible === false`; selection callbacks ignore them. Their wildcard labels are display text and do not become property path segments.
 
 Both client-side adapters accept a boolean `descriptions` prop, defaulting to `true`, for description text and row hover descriptions; the shared tree accepts an Alpine `descriptions` expression. Both client-side adapters accept a boolean `colors` prop, defaulting to `true`, to control `x-color` display; grouped sources accept the same `colors` option. Both client-side adapters also accept a boolean `properties` prop, defaulting to `true`, to control technical names beside titles. The shared tree accepts an Alpine `properties` expression. Both client-side adapters accept optional boolean `format`, `required`, `constraints` and `compact` props, all defaulting to `false`. The `required` prop controls schema markers only. Both adapters also accept a boolean `searchable` prop, defaulting to `true` for the picker and `false` for the entry.
 

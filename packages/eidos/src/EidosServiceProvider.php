@@ -6,9 +6,10 @@ use Filament\Support\Assets\AlpineComponent;
 use Filament\Support\Assets\Css;
 use Filament\Support\Assets\Js;
 use Filament\Support\Facades\FilamentAsset;
+use Illuminate\Contracts\Cache\Factory as CacheFactory;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Contracts\Container\Container;
-use PHPinnacle\Eidos\Contracts\ProvidesEloquentModels;
-use PHPinnacle\Eidos\Services\ModelRegistry;
+use PHPinnacle\Eidos\Services\SchemaFactory;
 use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -16,6 +17,16 @@ use Spatie\LaravelPackageTools\PackageServiceProvider;
 class EidosServiceProvider extends PackageServiceProvider
 {
     public static string $name = 'phpinnacle-eidos';
+
+    public function packageRegistered(): void
+    {
+        $this->app
+            ->when(SchemaFactory::class)
+            ->needs(Repository::class)
+            ->give(fn (Container $app) => $app->make(CacheFactory::class)->store(
+                $app->make('config')->get('phpinnacle-eidos.cache.store'),
+            ));
+    }
 
     public function configurePackage(Package $package): void
     {
@@ -30,21 +41,6 @@ class EidosServiceProvider extends PackageServiceProvider
                     ->publishConfigFile()
                     ->askToStarRepoOnGitHub('phpinnacle/eidos');
             });
-    }
-
-    public function packageRegistered(): void
-    {
-        $this->app->singleton(ModelRegistry::class, function (Container $container) {
-            /** @var list<class-string<ProvidesEloquentModels>> $sourceClasses */
-            $sourceClasses = config('phpinnacle-eidos.model_sources');
-            $sources = [];
-
-            foreach ($sourceClasses as $sourceClass) {
-                $sources[$sourceClass] = $container->make($sourceClass);
-            }
-
-            return new ModelRegistry($sources);
-        });
     }
 
     public function packageBooted(): void

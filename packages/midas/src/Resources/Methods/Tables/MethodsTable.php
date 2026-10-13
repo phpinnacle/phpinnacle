@@ -24,9 +24,9 @@ use PHPinnacle\Tempo\Filters\DateRangeFilter;
 
 class MethodsTable
 {
-    public static function configure(Table $table, ProviderRegistry $providers): Table
+    public static function configure(Table $table): Table
     {
-        $actions = $providers
+        $actions = app(ProviderRegistry::class)
             ->all()
             ->map(self::action(...))
             ->all();

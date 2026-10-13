@@ -1,6 +1,6 @@
 <?php
 
-namespace PHPinnacle\Eidos\Forms\JsonSchemaPicker;
+namespace PHPinnacle\Eidos\Validation;
 
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;

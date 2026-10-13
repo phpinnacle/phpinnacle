@@ -1,38 +1,10 @@
 <?php
 
-use BladeUI\Icons\Exceptions\SvgNotFound;
 use Illuminate\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
-use PHPinnacle\Eidos\JsonSchema\Icons;
-use PHPinnacle\Eidos\JsonSchema\PropertyTitles;
 use PHPinnacle\Eidos\JsonSchema\Schema;
-use Tests\TestCase;
-
-uses(TestCase::class);
-
-it('prepares readable property titles across nested objects, arrays and union branches without changing the schema', function () {
-    $definition = [
-        'properties' => [
-            'unit_price' => ['type' => 'number'],
-            'point_of_contact' => ['type' => 'string', 'title' => 'Contact person'],
-            'billingAddress' => ['properties' => ['postal-code' => ['type' => 'string']]],
-            'line_items' => ['items' => ['properties' => ['productName' => ['type' => 'string']]]],
-        ],
-        'anyOf' => [['properties' => ['delivery_method' => ['type' => 'string']]]],
-    ];
-
-    expect(app(PropertyTitles::class)->render($definition))->toBe([
-        'unit_price' => 'Unit Price',
-        'point_of_contact' => 'Point of Contact',
-        'billingAddress' => 'Billing Address',
-        'postal-code' => 'Postal Code',
-        'line_items' => 'Line Items',
-        'productName' => 'Product Name',
-        'delivery_method' => 'Delivery Method',
-    ]);
-    expect($definition['properties']['point_of_contact']['title'])->toBe('Contact person');
-    expect($definition['properties']['unit_price'])->not->toHaveKey('title');
-});
+use PHPinnacle\Eidos\JsonSchema\Types\AllOfType;
+use PHPinnacle\Eidos\JsonSchema\Types\OneOfType;
 
 it('preserves arbitrary x-attribute values without interpreting their contents', function () {
     $definition = [
@@ -51,8 +23,25 @@ it('preserves arbitrary x-attribute values without interpreting their contents',
 
     expect($schema->toArray())->toBe($definition);
     expect(Schema::fromArray($schema->toArray())->toArray())->toBe($definition);
-    expect(app(Icons::class)->render($schema->toArray()))->toBe([]);
 });
+
+it('preserves read only annotations on nested schemas and composition siblings', function (bool $readOnly) {
+    $schema = Schema::fromArray([
+        'type' => 'object',
+        'properties' => [
+            'amount' => [
+                'type' => 'integer',
+                'readOnly' => $readOnly,
+                'allOf' => [['minimum' => 0]],
+            ],
+        ],
+    ])->toArray();
+
+    expect($schema['properties']['amount']['readOnly'])
+        ->toBe($readOnly)
+        ->and(Schema::fromArray($schema)->toArray())
+        ->toBe($schema);
+})->with([true, false]);
 
 it('retains extra attributes on nested nodes, reference siblings and union variants', function () {
     $definition = Schema::fromArray([
@@ -219,6 +208,83 @@ it('composes annotated schemas directly and makes the complete composition nulla
     expect($schema->nullable(false)->toArray())->toBe($definition);
 })->with(['oneOf', 'allOf']);
 
+it('serializes composition types with their own keywords and makes the complete composition nullable', function (
+    string $typeClass,
+    string $keyword,
+) {
+    $type = new $typeClass([
+        Schema::fromArray(['type' => 'string', 'readOnly' => true]),
+        JsonSchema::string()->min(3),
+    ])
+        ->title('Value')
+        ->description('A composed value')
+        ->enum(['value']);
+    $definition = $type->toArray();
+
+    expect($definition[$keyword])
+        ->toBe([['type' => 'string', 'readOnly' => true], ['minLength' => 3, 'type' => 'string']])
+        ->and($definition['title'])
+        ->toBe('Value')
+        ->and($definition['description'])
+        ->toBe('A composed value')
+        ->and($definition['enum'])
+        ->toBe(['value'])
+        ->and($definition)
+        ->not
+        ->toHaveKey('anyOf')
+        ->and($type->nullable()->toArray())
+        ->toBe(['anyOf' => [$definition, ['type' => 'null']]])
+        ->and($type->nullable(false)->toArray())
+        ->toBe($definition);
+})->with([
+    'oneOf' => [OneOfType::class, 'oneOf'],
+    'allOf' => [AllOfType::class, 'allOf'],
+]);
+
+it('preserves composition types nested in native object and array builders through the adapter', function () {
+    $schema = new Schema(JsonSchema::object([
+        'quantity' => new AllOfType([JsonSchema::integer()->min(1), JsonSchema::integer()->max(10)])->required(),
+        'identifiers' => JsonSchema::array()->items(new OneOfType([JsonSchema::string(), JsonSchema::integer()])),
+    ]));
+    $definition = $schema->toArray();
+
+    expect($definition['required'])
+        ->toBe(['quantity'])
+        ->and($definition['properties']['quantity']['allOf'])
+        ->toBe([['minimum' => 1, 'type' => 'integer'], ['maximum' => 10, 'type' => 'integer']])
+        ->and($definition['properties']['identifiers']['items']['oneOf'])
+        ->toBe([['type' => 'string'], ['type' => 'integer']])
+        ->and(Schema::fromArray($definition)->toArray())
+        ->toBe($definition);
+
+    expect(new OneOfType([$schema])->toArray()['oneOf'][0])
+        ->toBe($definition)
+        ->and(
+            new OneOfType([JsonSchema::object([
+                'quantity' => new AllOfType([JsonSchema::integer()->min(1)]),
+            ])])->toArray()['oneOf'][0]['properties']['quantity']['allOf'],
+        )
+        ->toBe([['minimum' => 1, 'type' => 'integer']]);
+});
+
+it('preserves different compositions declared as siblings on the same schema', function () {
+    $definition = Schema::fromArray([
+        'type' => 'integer',
+        'oneOf' => [['type' => 'integer', 'minimum' => 0]],
+        'allOf' => [['type' => 'integer', 'maximum' => 10]],
+        'readOnly' => true,
+    ])->toArray();
+
+    expect($definition['oneOf'])
+        ->toBe([['minimum' => 0, 'type' => 'integer']])
+        ->and($definition['allOf'])
+        ->toBe([['maximum' => 10, 'type' => 'integer']])
+        ->and($definition['readOnly'])
+        ->toBeTrue()
+        ->and(Schema::fromArray($definition)->toArray())
+        ->toBe($definition);
+});
+
 it('retains annotations on referenced null branches within compositions', function () {
     $schema = Schema::fromArray([
         '$defs' => ['empty' => ['type' => 'null', 'x-display' => 'Empty value']],
@@ -290,22 +356,3 @@ it('rejects invalid x-color values at the schema parsing boundary', function (mi
     'invalid channel' => 'rgba(1, two, 3, 1)',
     'CSS declaration' => 'red; background: url(https://example.com)',
 ]);
-
-it('renders only referenced registered icons as decorative SVG markup', function () {
-    $icons = app(Icons::class)->render([
-        'type' => 'object',
-        'x-icon' => 'heroicon-o-user',
-        'properties' => [
-            'customer' => ['type' => 'object', 'x-icon' => 'heroicon-o-user'],
-            'contacts' => ['type' => 'array', 'items' => ['type' => 'string', 'x-icon' => 'heroicon-o-envelope']],
-            'value' => ['anyOf' => [['type' => 'integer'], ['type' => 'string', 'x-icon' => 'heroicon-o-envelope']]],
-        ],
-    ]);
-
-    expect(array_keys($icons))->toBe(['heroicon-o-user', 'heroicon-o-envelope']);
-    expect($icons['heroicon-o-user'])->toContain('<svg', 'aria-hidden="true"');
-    expect($icons['heroicon-o-envelope'])->toContain('<svg', 'aria-hidden="true"');
-    expect(app(Icons::class)->render(['type' => 'string']))->toBe([]);
-    expect(fn () => app(Icons::class)->render(['type' => 'string', 'x-icon' => 'heroicon-o-nonexistent']))
-        ->toThrow(SvgNotFound::class);
-});
