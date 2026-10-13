@@ -1,0 +1,69 @@
+{
+    "name": "phpinnacle/eidos",
+    "description": "JSON Schema generation, Eloquent introspection, and Filament schema pickers and entries.",
+    "keywords": [
+        "phpinnacle",
+        "laravel",
+        "eloquent",
+        "json-schema"
+    ],
+    "homepage": "https://github.com/phpinnacle/eidos",
+    "support": {
+        "issues": "https://github.com/phpinnacle/eidos/issues",
+        "source": "https://github.com/phpinnacle/eidos"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "PHPinnacle Devs",
+            "email": "dev@phpinnacle.edu.pl",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "filament/filament": "^4.0|^5.0",
+        "illuminate/cache": "^13.0",
+        "illuminate/console": "^13.0",
+        "illuminate/container": "^13.0",
+        "illuminate/contracts": "^13.0",
+        "illuminate/database": "^13.0",
+        "illuminate/json-schema": "^13.0",
+        "illuminate/support": "^13.0",
+        "spatie/laravel-package-tools": "^1.92"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^11.0",
+        "pestphp/pest": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PHPinnacle\\Eidos\\": "src/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        },
+        "sort-packages": true
+    },
+    "scripts": {
+        "test": "pest --no-coverage"
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "1.x-dev"
+        },
+        "laravel": {
+            "providers": [
+                "PHPinnacle\\Eidos\\EidosServiceProvider"
+            ]
+        }
+    },
+    "prefer-stable": true,
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    }
+}

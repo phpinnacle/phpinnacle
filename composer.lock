@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3961fd6b9c4f21079f218d55ecffcbc6",
+    "content-hash": "74bb01e8192d5a7ff232166b61dccabe",
     "packages": [],
     "packages-dev": [
         {
@@ -8680,11 +8680,10 @@
             "dist": {
                 "type": "path",
                 "url": "packages/common",
-                "reference": "679f077e77d745b6d45dfe807ac5067e669be9af"
+                "reference": "452698eb9276f3f8c9fcc2081123dad54d1d570f"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
-                "illuminate/json-schema": "^12.0|^13.0",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.92"
             },
@@ -8805,6 +8804,83 @@
             "support": {
                 "issues": "https://github.com/phpinnacle/dendros/issues",
                 "source": "https://github.com/phpinnacle/dendros"
+            },
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "phpinnacle/eidos",
+            "version": "dev-master",
+            "dist": {
+                "type": "path",
+                "url": "packages/eidos",
+                "reference": "83321dfe9f678f5af4b3860c57810fbe633c6112"
+            },
+            "require": {
+                "filament/filament": "^4.0|^5.0",
+                "illuminate/cache": "^13.0",
+                "illuminate/console": "^13.0",
+                "illuminate/container": "^13.0",
+                "illuminate/contracts": "^13.0",
+                "illuminate/database": "^13.0",
+                "illuminate/json-schema": "^13.0",
+                "illuminate/support": "^13.0",
+                "php": "^8.4",
+                "spatie/laravel-package-tools": "^1.92"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
+                "laravel": {
+                    "providers": [
+                        "PHPinnacle\\Eidos\\EidosServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "PHPinnacle\\Eidos\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest --no-coverage"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHPinnacle Devs",
+                    "email": "dev@phpinnacle.edu.pl",
+                    "role": "Developer"
+                }
+            ],
+            "description": "JSON Schema generation, Eloquent introspection, and Filament schema pickers and entries.",
+            "homepage": "https://github.com/phpinnacle/eidos",
+            "keywords": [
+                "eloquent",
+                "json-schema",
+                "laravel",
+                "phpinnacle"
+            ],
+            "support": {
+                "issues": "https://github.com/phpinnacle/eidos/issues",
+                "source": "https://github.com/phpinnacle/eidos"
             },
             "transport-options": {
                 "symlink": true,

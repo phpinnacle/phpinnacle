@@ -24,6 +24,7 @@
         "phpinnacle/comments": "*",
         "phpinnacle/common": "*",
         "phpinnacle/dendros": "*",
+        "phpinnacle/eidos": "*",
         "phpinnacle/ferry": "*",
         "phpinnacle/franz": "*",
         "phpinnacle/grimoire": "*",
