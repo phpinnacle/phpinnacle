@@ -22,7 +22,7 @@ use ReflectionMethod;
 use ReflectionNamedType;
 
 /**
- * @phpstan-type Column array{name: string, type_name: string, nullable: bool, default: string|null, generation: array{type: string|null, expression: string|null}|null}
+ * @phpstan-type Column array{name: string, type_name: string, nullable: bool, default: string|null, default_generated?: bool, auto_increment: bool, generation: array{type: string|null, expression: string|null}|null}
  */
 #[Singleton]
 class SchemaIntrospector
@@ -43,11 +43,11 @@ class SchemaIntrospector
     {
         $model = is_string($model) ? new $model : $model;
 
-        return Schema::fromArray([
-            'type' => 'object',
-            'properties' => array_replace($this->columnSchemas($model), $this->relationSchemas($model)),
-            'title' => $model::class,
-        ]);
+        $definition = $this->columnSchema($model);
+        $definition['properties'] = array_replace($definition['properties'], $this->relationSchemas($model));
+        $definition['title'] = $model::class;
+
+        return Schema::fromArray($definition);
     }
 
     /** @return array<string, array<string, mixed>> */
@@ -69,15 +69,15 @@ class SchemaIntrospector
             }
 
             $relation = $this->relation($model, $method);
-            $relatedProperties = $this->columnSchemas($relation->getRelated());
+            $relatedSchema = $this->columnSchema($relation->getRelated());
             $name = $model::$snakeAttributes ? Str::snake($method->getName()) : $method->getName();
 
             $properties[$name] =
                 $relation instanceof HasMany
                 || $relation instanceof BelongsToMany
                 || $relation instanceof HasManyThrough
-                    ? ['type' => 'array', 'items' => ['type' => 'object', 'properties' => $relatedProperties]]
-                    : ['type' => ['object', 'null'], 'properties' => $relatedProperties];
+                    ? ['type' => 'array', 'items' => $relatedSchema, 'readOnly' => true]
+                    : array_replace($relatedSchema, ['type' => ['object', 'null'], 'readOnly' => true]);
         }
 
         return $properties;
@@ -89,11 +89,12 @@ class SchemaIntrospector
         return Relation::noConstraints(fn () => $method->invoke($model));
     }
 
-    /** @return array<string, array<string, mixed>> */
-    private function columnSchemas(Model $model): array
+    /** @return array{type: string, properties: array<string, array<string, mixed>>, required: list<string>} */
+    private function columnSchema(Model $model): array
     {
         $columns = $this->columns($model);
         $properties = [];
+        $required = [];
         $casts = $model->getCasts();
         $dates = $model->getDates();
         /** @var array<string, mixed> $defaults */
@@ -113,10 +114,22 @@ class SchemaIntrospector
                 $definition['readOnly'] = true;
             }
 
+            if (
+                !($definition['readOnly'] ?? false)
+                && !$column['nullable']
+                && $column['default'] === null
+                && !array_key_exists($name, $defaults)
+                && !$column['auto_increment']
+            ) {
+                $required[] = $name;
+            }
+
             if ($column['generation'] === null) {
-                $default = array_key_exists($name, $defaults)
-                    ? ['default' => $defaults[$name]]
-                    : $this->databaseDefault($column['default'], $driver, $column['type_name']);
+                $default = match (true) {
+                    array_key_exists($name, $defaults) => ['default' => $defaults[$name]],
+                    $column['default_generated'] ?? false => [],
+                    default => $this->databaseDefault($column['default'], $driver, $column['type_name']),
+                };
 
                 if (array_key_exists('default', $default)) {
                     $definition['default'] = $this->defaultValue($default['default'], $definition);
@@ -126,7 +139,7 @@ class SchemaIntrospector
             $properties[$name] = $definition;
         }
 
-        return $properties;
+        return ['type' => 'object', 'properties' => $properties, 'required' => $required];
     }
 
     /** @return list<Column> */
@@ -146,14 +159,14 @@ class SchemaIntrospector
             $connection->getSchemaGrammar()->compileColumns($schema, $connection->getTablePrefix() . $table),
         );
 
-        foreach ($results as $result) {
-            if (str_contains($result->extra, 'DEFAULT_GENERATED')) {
-                $result->default = null;
-            }
+        /** @var list<Column> */
+        $columns = $connection->getPostProcessor()->processColumns($results);
+
+        foreach ($results as $index => $result) {
+            $columns[$index]['default_generated'] = str_contains($result->extra, 'DEFAULT_GENERATED');
         }
 
-        /** @var list<Column> */
-        return $connection->getPostProcessor()->processColumns($results);
+        return $columns;
     }
 
     /** @return array{default?: mixed} */

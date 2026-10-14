@@ -44,7 +44,7 @@ class GeneratedSchemaSupplier extends Model
 
     protected $attributes = ['name' => 'Model supplier'];
 
-    protected $fillable = ['name'];
+    protected $fillable = ['name', 'code'];
 
     public function products(): HasMany
     {
@@ -92,10 +92,59 @@ class MassAssignableSchemaRecord extends Model
     protected $fillable = ['name', 'computed_name'];
 }
 
+class RequiredSchemaRecord extends DefaultSchemaRecord
+{
+    protected $guarded = [];
+}
+
+it('requires writable nonnullable columns without database or declared model defaults', function (bool $useInstance) {
+    Schema::create('eidos_default_records', function (Blueprint $table) {
+        $table->id();
+        $table->string('name');
+        $table->string('description')->nullable();
+        $table->integer('quantity');
+        $table->boolean('enabled');
+        $table->string('label');
+        $table->string('optional_label');
+        $table->text('metadata');
+        $table->integer('database_default')->default(0);
+        $table->timestamp('created_at')->useCurrent();
+        $table->string('computed_name')->storedAs('upper(name)');
+    });
+    $model = new RequiredSchemaRecord;
+    $model->name = 'Current name';
+    $schema = app(SchemaIntrospector::class)->introspect($useInstance ? $model : RequiredSchemaRecord::class);
+    $definition = $schema->toArray();
+
+    expect($definition['required'])
+        ->toBe(['name'])
+        ->and($definition['properties']['id'])
+        ->not->toHaveKey('readOnly')
+        ->not->toHaveKey('default')->and($definition['properties']['created_at'])
+        ->not->toHaveKey('default')->and(JsonSchemaDefinition::fromArray($definition)->toArray())->toBe($definition);
+})->with(['model class' => false, 'model instance' => true]);
+
+it('does not require columns marked read only by registered cast schemas', function () {
+    Schema::create('eidos_mass_assignable_records', function (Blueprint $table) {
+        $table->string('name');
+        $table->string('editable');
+    });
+    $model = new MassAssignableSchemaRecord;
+    $model->fillable(['name', 'editable'])->mergeCasts(['name' => 'string']);
+    $introspector = new SchemaIntrospector()->registerCast('string', fn () => JsonSchemaDefinition::fromArray([
+        'type' => 'string',
+        'readOnly' => true,
+    ]));
+    $definition = $introspector->introspect($model)->toArray();
+
+    expect($definition['properties']['name']['readOnly'])->toBeTrue()->and($definition['required'])->toBe(['editable']);
+});
+
 it('marks columns excluded from mass assignment as read only while retaining defaults', function (
     array $fillable,
     array $guarded,
     array $readOnly,
+    array $required,
 ) {
     Schema::create('eidos_mass_assignable_records', function (Blueprint $table) {
         $table->id();
@@ -106,7 +155,10 @@ it('marks columns excluded from mass assignment as read only while retaining def
     });
     $model = new MassAssignableSchemaRecord;
     $model->fillable($fillable)->guard($guarded);
-    $properties = app(SchemaIntrospector::class)->introspect($model)->toArray()['properties'];
+    $schema = app(SchemaIntrospector::class)->introspect($model)->toArray();
+    $properties = $schema['properties'];
+
+    expect($schema['required'] ?? [])->toBe($required);
 
     foreach ($properties as $name => $definition) {
         if (in_array($name, $readOnly, true)) {
@@ -128,14 +180,21 @@ it('marks columns excluded from mass assignment as read only while retaining def
         ->and($declared['computed_name']['readOnly'])
         ->toBeTrue();
 })->with([
-    'fillable allowlist' => [['name', 'computed_name'], ['*'], ['id', 'is_admin', 'quantity', 'computed_name']],
-    'guarded denylist' => [[], ['is_admin'], ['is_admin', 'computed_name']],
-    'fully guarded' => [[], ['*'], ['id', 'name', 'is_admin', 'quantity', 'computed_name']],
-    'unguarded model' => [[], [], ['computed_name']],
+    'fillable allowlist' => [
+        ['name', 'computed_name'],
+        ['*'],
+        ['id', 'is_admin', 'quantity', 'computed_name'],
+        ['name'],
+    ],
+    'guarded denylist' => [[], ['is_admin'], ['is_admin', 'computed_name'], ['name']],
+    'fully guarded' => [[], ['*'], ['id', 'name', 'is_admin', 'quantity', 'computed_name'], []],
+    'unguarded model' => [[], [], ['computed_name'], ['name', 'is_admin']],
+    'fillable auto-increment' => [['id', 'name'], ['*'], ['is_admin', 'quantity', 'computed_name'], ['name']],
     'fillable takes precedence over guarded' => [
         ['name', 'is_admin'],
         ['is_admin'],
         ['id', 'quantity', 'computed_name'],
+        ['name', 'is_admin'],
     ],
 ]);
 
@@ -195,6 +254,7 @@ it('reads database defaults using the connection dialect', function (
     $connection = \Mockery::mock(Connection::class);
     $builder = \Mockery::mock(Builder::class);
     $model = \Mockery::mock(DefaultSchemaRecord::class)->makePartial();
+    $model->guard([]);
     $model->shouldReceive('getConnection')->andReturn($connection);
     $connection->shouldReceive('getSchemaBuilder')->andReturn($builder);
     $connection->shouldReceive('getDriverName')->andReturn($driver);
@@ -233,14 +293,18 @@ it('reads database defaults using the connection dialect', function (
                 'name' => 'value',
                 'type_name' => $type,
                 'nullable' => false,
+                'auto_increment' => false,
                 'generation' => null,
                 'default' => $default,
             ]]);
     }
 
-    $property = new SchemaIntrospector()
+    $definition = new SchemaIntrospector()
         ->introspect($model)
-        ->toArray()['properties']['value'];
+        ->toArray();
+    $property = $definition['properties']['value'];
+
+    expect($definition)->not->toHaveKey('required');
 
     if ($expected === null) {
         expect($property)->not->toHaveKey('default');
@@ -270,10 +334,12 @@ it('marks stored and virtual generated columns as read only across relations', f
     Schema::create('eidos_schema_suppliers', function (Blueprint $table) {
         $table->id();
         $table->string('name')->default('Database supplier');
+        $table->string('code');
         $table->string('display_name')->storedAs('upper(name)');
     });
     Schema::create('eidos_schema_products', function (Blueprint $table) {
         $table->id();
+        $table->string('sku');
         $table->unsignedBigInteger('supplier_id')->nullable();
         $table->integer('quantity')->default(2);
         $table->integer('stored_total')->storedAs('quantity * 2');
@@ -283,7 +349,13 @@ it('marks stored and virtual generated columns as read only across relations', f
     $introspector = app(SchemaIntrospector::class);
     $schema = $introspector->introspect(new GeneratedSchemaProduct)->toArray();
 
-    expect($schema['properties']['stored_total'])
+    expect($schema['required'])
+        ->toBe(['sku'])
+        ->and($schema['properties']['supplier']['required'])
+        ->toBe(['code'])
+        ->and($schema['properties']['supplier']['readOnly'])
+        ->toBeTrue()
+        ->and($schema['properties']['stored_total'])
         ->toBe(['type' => ['integer', 'null'], 'readOnly' => true])
         ->and($schema['properties']['virtual_label'])
         ->toBe(['type' => ['string', 'null'], 'readOnly' => true])
@@ -307,6 +379,10 @@ it('marks stored and virtual generated columns as read only across relations', f
 
     expect($supplierProperties['products']['type'])
         ->toBe('array')
+        ->and($supplierProperties['products']['readOnly'])
+        ->toBeTrue()
+        ->and($supplierProperties['products']['items']['required'])
+        ->toBe(['sku'])
         ->and($supplierProperties['products']['items']['properties']['stored_total']['readOnly'])
         ->toBeTrue()
         ->and($supplierProperties['products']['items']['properties']['quantity']['default'])

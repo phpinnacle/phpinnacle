@@ -38,6 +38,11 @@ Replace former `SchemaFactory::create()` calls with
 `SchemaIntrospector::introspect()`.
 
 Schemas describe column types, casts, backed enum values, dates, and nullability.
+The object-level JSON Schema `required` list contains writable, nonnullable
+columns without a database default, a declared model `$attributes` default, or
+auto-increment. SQL-expression defaults still make columns optional even when
+omitted from the schema's `default`. Current instance values do not affect
+requiredness. Readonly and generated columns are never required.
 Stored and virtual generated columns are included with `readOnly: true`.
 Columns that the model's `isFillable()` excludes from mass assignment are also
 marked `readOnly: true`, following `$fillable` and `$guarded`. These columns
@@ -52,7 +57,9 @@ such as `CURRENT_TIMESTAMP` and sequences, and defaults on generated columns,
 are omitted. A database metadata `null` means no reported default; Eidos does
 not infer a default from nullability.
 Relationships with concrete return types include the related model's columns,
-but do not expand its relationships. `MorphTo` relationships are omitted.
+including their own `required` list, but do not expand its relationships.
+Relationship properties are marked `readOnly: true` and are not required on the
+parent object. `MorphTo` relationships are omitted.
 Schema generation uses the model's database connection and table.
 
 ### Custom casts
