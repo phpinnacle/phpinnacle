@@ -4,6 +4,7 @@ namespace PHPinnacle\Eidos\Services;
 
 use BackedEnum;
 use Closure;
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Model;
@@ -23,6 +24,7 @@ use ReflectionNamedType;
 /**
  * @phpstan-type Column array{name: string, type_name: string, nullable: bool, default: string|null, generation: array{type: string|null, expression: string|null}|null}
  */
+#[Singleton]
 class SchemaIntrospector
 {
     /** @var array<string, Closure(Model, string, list<string>): Type> */
@@ -36,8 +38,11 @@ class SchemaIntrospector
         return $this;
     }
 
-    public function introspect(Model $model): Schema
+    /** @param class-string<Model>|Model $model */
+    public function introspect(string|Model $model): Schema
     {
+        $model = is_string($model) ? new $model : $model;
+
         return Schema::fromArray([
             'type' => 'object',
             'properties' => array_replace($this->columnSchemas($model), $this->relationSchemas($model)),

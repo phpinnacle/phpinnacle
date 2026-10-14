@@ -15,7 +15,6 @@ use Illuminate\Database\Schema\Grammars\MySqlGrammar;
 use Illuminate\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Schema;
 use PHPinnacle\Eidos\JsonSchema\Schema as JsonSchemaDefinition;
-use PHPinnacle\Eidos\Services\SchemaFactory;
 use PHPinnacle\Eidos\Services\SchemaIntrospector;
 use Tests\TestCase;
 
@@ -107,7 +106,7 @@ it('marks columns excluded from mass assignment as read only while retaining def
     });
     $model = new MassAssignableSchemaRecord;
     $model->fillable($fillable)->guard($guarded);
-    $properties = app(SchemaFactory::class)->create($model)->toArray()['properties'];
+    $properties = app(SchemaIntrospector::class)->introspect($model)->toArray()['properties'];
 
     foreach ($properties as $name => $definition) {
         if (in_array($name, $readOnly, true)) {
@@ -119,7 +118,7 @@ it('marks columns excluded from mass assignment as read only while retaining def
 
     expect($properties['quantity']['default'])->toBe(7);
 
-    $declared = app(SchemaFactory::class)->create(MassAssignableSchemaRecord::class)->toArray()['properties'];
+    $declared = app(SchemaIntrospector::class)->introspect(MassAssignableSchemaRecord::class)->toArray()['properties'];
 
     expect($declared['name'])
         ->not
@@ -158,8 +157,8 @@ it('uses model attribute defaults before database literals without reading insta
     $model->quantity = 99;
     $model->no_default = 'Current value';
     $attributes = $model->getAttributes();
-    $factory = app(SchemaFactory::class);
-    $definition = $factory->create($model)->toArray();
+    $introspector = app(SchemaIntrospector::class);
+    $definition = $introspector->introspect($model)->toArray();
     $properties = $definition['properties'];
 
     expect($properties['quantity']['default'])
@@ -182,7 +181,7 @@ it('uses model attribute defaults before database literals without reading insta
         ->not->toHaveKey('default')->and($properties['created_at'])
         ->not->toHaveKey('default')->and($properties['id'])
         ->not->toHaveKey('default')->and($model->getAttributes())->toBe($attributes)->and(
-            $factory->create(DefaultSchemaRecord::class)->toArray(),
+            $introspector->introspect(DefaultSchemaRecord::class)->toArray(),
         )->toEqual($definition)->and(JsonSchemaDefinition::fromArray($definition)->toArray())->toEqual($definition);
 });
 
@@ -281,7 +280,6 @@ it('marks stored and virtual generated columns as read only across relations', f
         $table->string('virtual_label')->nullable()->virtualAs("'item-' || quantity");
     });
 
-    $factory = app(SchemaFactory::class);
     $introspector = app(SchemaIntrospector::class);
     $schema = $introspector->introspect(new GeneratedSchemaProduct)->toArray();
 
@@ -298,7 +296,7 @@ it('marks stored and virtual generated columns as read only across relations', f
         ->toBe('Model supplier')
         ->and($schema['properties']['supplier']['properties']['id']['readOnly'])
         ->toBeTrue()
-        ->and($factory->create(GeneratedSchemaProduct::class)->toArray())
+        ->and($introspector->introspect(GeneratedSchemaProduct::class)->toArray())
         ->toBe($schema);
 
     $supplierProperties = $introspector->introspect(new GeneratedSchemaSupplier)->toArray()['properties'];
@@ -345,8 +343,8 @@ it('uses registered cast schemas and preserves annotations, nullability and gene
             : JsonSchema::object(['name' => JsonSchema::string()])
     ));
 
-    $properties = new SchemaFactory($introspector)
-        ->create($model)
+    $properties = $introspector
+        ->introspect($model)
         ->toArray()['properties'];
 
     expect($properties['metadata']['type'])

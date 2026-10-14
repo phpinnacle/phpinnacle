@@ -19,18 +19,23 @@ No panel plugin is required. Publish Filament assets again after package updates
 
 ```php
 use App\Models\Product;
-use PHPinnacle\Eidos\Services\SchemaFactory;
+use PHPinnacle\Eidos\Services\SchemaIntrospector;
 
-$factory = app(SchemaFactory::class);
-$schema = $factory->create(Product::class);
-$schemaFromInstance = $factory->create(new Product);
+$introspector = app(SchemaIntrospector::class);
+$schema = $introspector->introspect(Product::class);
+$schemaFromInstance = $introspector->introspect(new Product);
 $definition = $schema->toArray();
 ```
 
-`create()` accepts an Eloquent model class or instance and generates a fresh
-schema on every call. For an instance, it uses that model's table, connection,
-and casts. Model discovery, caching, and cache refresh belong to the application
-consuming Eidos.
+`introspect()` accepts an Eloquent model class or instance and generates a fresh
+schema on every call. Laravel resolves `SchemaIntrospector` as a singleton,
+sharing cast registrations across container resolutions without caching schemas.
+For an instance, it uses that model's table, connection, casts, and
+mass-assignment settings. Model discovery, caching, and cache refresh belong to
+the application consuming Eidos.
+
+Replace former `SchemaFactory::create()` calls with
+`SchemaIntrospector::introspect()`.
 
 Schemas describe column types, casts, backed enum values, dates, and nullability.
 Stored and virtual generated columns are included with `readOnly: true`.
@@ -50,27 +55,22 @@ Relationships with concrete return types include the related model's columns,
 but do not expand its relationships. `MorphTo` relationships are omitted.
 Schema generation uses the model's database connection and table.
 
-Use `SchemaIntrospector::introspect($model)` to generate a schema directly from a
-model instance.
-
 ### Custom casts
 
 Register a schema handler for a cast name with `SchemaIntrospector::registerCast()`.
-To use it through `SchemaFactory`, bind the configured introspector in your
-application's service provider:
+Configure the singleton introspector in your application's service provider:
 
 ```php
 use App\Casts\MoneyCast;
 use Illuminate\JsonSchema\JsonSchema;
 use PHPinnacle\Eidos\Services\SchemaIntrospector;
 
-public function register(): void
+public function boot(SchemaIntrospector $introspector): void
 {
-    $this->app->bind(SchemaIntrospector::class, fn () => (new SchemaIntrospector)
-        ->registerCast(MoneyCast::class, fn () => JsonSchema::object([
-            'amount' => JsonSchema::number(),
-            'currency' => JsonSchema::string(),
-        ])));
+    $introspector->registerCast(MoneyCast::class, fn () => JsonSchema::object([
+        'amount' => JsonSchema::number(),
+        'currency' => JsonSchema::string(),
+    ]));
 }
 ```
 
@@ -82,7 +82,8 @@ Return a fresh `Illuminate\JsonSchema\Types\Type` or Eidos `Schema` for each fie
 Registered handlers take precedence over built-in cast mappings and apply to
 related models too. Column nullability and inferred `readOnly` still
 apply. Without a handler, Eidos uses its built-in cast mapping or database type.
-Registrations belong to the configured introspector instance.
+Container resolutions share these registrations. Each generated schema remains
+independent.
 
 ## Laravel validation
 
@@ -291,9 +292,9 @@ composer test
 npm test
 ```
 
-Tests cover schema generation and caching, validation outcomes, exact property
-selection, search, accessible navigation, annotation preservation, and safe
-rendering.
+Tests cover schema generation, shared cast registrations, validation outcomes,
+exact property selection, search, accessible navigation, annotation preservation,
+and safe rendering.
 
 ## License
 
