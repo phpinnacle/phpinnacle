@@ -11,16 +11,30 @@ export function jsonSchemaPicker({ groups, selected = () => false, choose = null
         jsonSchemaSearching: false,
         jsonSchemaExpanded: {},
         jsonSchemaSync() {
-            this.jsonSchemaData = groups().map(group => ({
-                ...group,
-                sources: group.sources.map(source => ({
+            this.jsonSchemaData = groups().map(group => {
+                const hidden = new Set(group.sources.filter(source => source.arrayItem).map(source => source.key))
+                const sources = group.sources.filter(source => !source.arrayItem).map(source => ({
                     ...source,
-                    searchText: [group.label, group.detail ?? '', source.fieldLabel, ...source.titles, source.description ?? '', source.type,
-                        ...source.enums.flatMap(enumeration => enumeration.values),
-                        ...source.constraints.flatMap(constraint => constraint.values.map(value => value.value)),
-                    ].join(' ').toLocaleLowerCase(),
-                })),
-            }))
+                    ancestors: source.ancestors.filter(key => !hidden.has(key)),
+                    depth: source.depth - source.ancestors.filter(key => hidden.has(key)).length,
+                }))
+                const parents = new Set(sources.map(source => source.ancestors.at(-1)))
+                return {
+                    ...group,
+                    sources: sources.map(source => ({
+                        ...source,
+                        hasChildren: hidden.size ? parents.has(source.key) : source.hasChildren,
+                        searchText: [group.label, group.detail ?? '', source.fieldLabel, ...source.titles, source.description ?? '', source.type,
+                            ...source.enums.flatMap(enumeration => enumeration.values),
+                            ...source.constraints.flatMap(constraint => constraint.values.map(value => value.value)),
+                            ...source.arrayItems.flatMap(item => [item.type, ...item.titles, item.description ?? '',
+                                ...item.enums.flatMap(enumeration => enumeration.values),
+                                ...item.constraints.flatMap(constraint => constraint.values.map(value => value.value)),
+                            ]),
+                        ].join(' ').toLocaleLowerCase(),
+                    })),
+                }
+            })
         },
         jsonSchemaSyncSelection() {
             const keys = new Set()
@@ -53,7 +67,7 @@ export function jsonSchemaPicker({ groups, selected = () => false, choose = null
             return this.jsonSchemaExpanded[key] ?? this.jsonSchemaSelectedAncestors.has(key)
         },
         jsonSchemaVisible(source) {
-            return this.jsonSchemaSearching || source.ancestors.every(key => this.jsonSchemaIsExpanded(key))
+            return !source.arrayItem && (this.jsonSchemaSearching || source.ancestors.every(key => this.jsonSchemaIsExpanded(key)))
         },
         jsonSchemaToggle(source) { this.jsonSchemaExpanded[source.key] = !this.jsonSchemaIsExpanded(source.key) },
         jsonSchemaChoose(source) {

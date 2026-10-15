@@ -185,8 +185,9 @@ cleared. The root and an empty path are not selectable.
 Dots and slashes in property names remain literal: `['metadata.version']` differs
 from `['metadata', 'version']`. Validation rejects malformed or unavailable paths.
 Properties in `anyOf`, `oneOf`, and `allOf` branches are available, but a complete
-path must exist within one branch. Arrays are selectable as whole fields. Their
-items appear below a readonly `*` row and cannot be selected.
+path must exist within one branch. Arrays are selectable as whole fields. Expand
+an array to inspect its object fields directly, without intermediate `*` rows.
+Array item fields remain readonly and cannot be selected.
 
 Picker and entry trees resolve local JSON Pointer `$ref` values, including
 references in compositions and array items, without changing the supplied
@@ -251,7 +252,16 @@ Each option accepts a boolean or Filament callback:
 a picker selection. Display options do not change selected paths or validation.
 Enum badges show allowed JSON values in a popover. Composition and array-item
 restrictions stay associated with their branches or items. The selected value
-shows its full path and enabled badges; descriptions and limits stay in the tree.
+shows its full path and enabled badges; inline descriptions and limits stay in
+the tree.
+
+Array type badges use compact notation such as `string[]`, `object[]`, and
+`number[][]`. Click the badge, or focus it and press Enter or Space, to inspect
+the array and each item level separately. The details include types, nullability,
+titles, enabled descriptions, formats, enum values, and value limits. Nested
+array counts and scalar limits remain associated with their own levels. Escape
+closes the details. Search includes item metadata and enabled restrictions even
+though item rows are hidden. Exact paths and selection rules remain unchanged.
 
 `x-icon` accepts a registered Blade icon name, such as `heroicon-o-envelope`.
 `x-color` accepts a Filament palette name, HEX with optional alpha, or numeric

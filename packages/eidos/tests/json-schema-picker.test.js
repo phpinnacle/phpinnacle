@@ -131,7 +131,7 @@ test('omits the root row while keeping exact paths, depths and field selection',
     assert.deepEqual(picker.jsonSchemaChoose(picker.jsonSchemaData[0].sources[0]), ['customer'])
 })
 
-test('expands array item schemas under readonly wildcard rows without leaking restrictions to parents', () => {
+test('keeps array item paths readonly and restrictions owned by their original levels', () => {
     const document = { properties: {
         '*': { type: 'string' },
         tags: { type: 'array', maxItems: 10, uniqueItems: true, items: { type: 'string', maxLength: 30, enum: ['red', 'green'] } },
@@ -163,7 +163,7 @@ test('expands array item schemas under readonly wildcard rows without leaking re
     assert.equal(picker.jsonSchemaSelected(item), false)
     assert.equal(picker.jsonSchemaVisible(item), false)
     picker.jsonSchemaToggle(tags)
-    assert.equal(picker.jsonSchemaVisible(item), true)
+    assert.equal(picker.jsonSchemaVisible(item), false)
     assert.equal(picker.jsonSchemaChoose(item), false)
     assert.equal(picker.jsonSchemaChoose(fields.find(field => field.key === '["records",null,"*"]')), false)
     assert.equal(chosen, null)
@@ -590,7 +590,7 @@ test('searches enabled format and enum restrictions including array item values'
     for (const [options, query, values] of [
         [{ format: true }, 'email', [['email']]],
         [{ format: true }, 'pending', [['status']]],
-        [{ format: true, descendArrays: true }, 'webhook', [null]],
+        [{ format: true, descendArrays: true }, 'webhook', [['channels']]],
         [{}, 'pending', []],
     ]) {
         const picker = createPicker({ groups: () => schemaGroups(document, 'Result', options) })
@@ -775,4 +775,94 @@ test('traverses oneOf and allOf properties with scoped limits and required marke
     assert.deepEqual(quantity.constraints.map(constraint => constraint.scope), [['allOf 1'], ['allOf 2']])
     assert.equal(schemaNullable({ allOf: [{ type: ['string', 'null'] }, { type: 'string' }] }), false)
     assert.equal(schemaNullable({ oneOf: [{ type: ['string', 'null'] }, { type: ['number', 'null'] }] }), false)
+})
+
+test('opens object fields directly through array chains without exposing item rows or changing paths', () => {
+    const document = { properties: {
+        '*': { type: 'string' },
+        tags: { type: 'array', items: { type: 'string', maxLength: 30 } },
+        matrix: { type: 'array', items: { type: 'array', items: { type: 'number' } } },
+        records: { type: 'array', items: { type: 'array', items: { type: 'object', properties: {
+            id: { type: 'integer' },
+            '*': { type: 'object', properties: { name: { type: 'string' } } },
+        } } } },
+    } }
+    const picker = createPicker({ groups: () => schemaGroups(document, 'Schema', { includeRoot: false, descendArrays: true }), choose: source => source.value })
+    const fields = picker.jsonSchemaData[0].sources
+    assert.equal(fields.some(source => source.arrayItem), false)
+    assert.deepEqual(fields.map(source => source.type), ['string', 'string[]', 'number[][]', 'object[][]', 'integer', 'object', 'string'])
+    assert.equal(fields.find(source => source.fieldName === 'tags').hasChildren, false)
+    assert.equal(fields.find(source => source.fieldName === 'matrix').hasChildren, false)
+    const records = fields.find(source => source.fieldName === 'records')
+    const id = fields.find(source => source.fieldName === 'id')
+    const wildcard = fields.find(source => source.key === '["records",null,null,"*"]')
+    const name = fields.find(source => source.fieldName === 'name')
+    assert.equal(records.hasChildren, true)
+    assert.equal(id.depth, 1)
+    assert.deepEqual(id.ancestors, ['["records"]'])
+    assert.equal(id.fieldLabel, 'records → * → * → id')
+    assert.equal(picker.jsonSchemaVisible(id), false)
+    picker.jsonSchemaToggle(records)
+    assert.equal(picker.jsonSchemaVisible(id), true)
+    assert.equal(picker.jsonSchemaVisible(wildcard), true)
+    assert.equal(picker.jsonSchemaVisible(name), false)
+    picker.jsonSchemaToggle(wildcard)
+    assert.equal(picker.jsonSchemaVisible(name), true)
+    assert.equal(name.depth, 2)
+    assert.equal(picker.jsonSchemaChoose(id), false)
+    assert.deepEqual(picker.jsonSchemaChoose(fields[0]), ['*'])
+    assert.deepEqual(picker.jsonSchemaChoose(records), ['records'])
+    picker.jsonSchemaToggle(records)
+    assert.equal(picker.jsonSchemaVisible(name), false)
+})
+
+test('inspects array levels with separate constraints, nullable items, descriptions and escaped enums', () => {
+    const document = { properties: { matrix: {
+        type: 'array', maxItems: 10,
+        items: { type: 'array', minItems: 3, maxItems: 3, description: 'Inner <array>', items: {
+            type: ['string', 'null'], minLength: 2, maxLength: 30, enum: ['<script>', 'green'], title: '<Value>', description: 'Color <name>',
+        } },
+    } } }
+    const labels = { items: 'Items', alternative: 'Alternative', limits: 'Value limits', enum: 'Allowed values',
+        constraints: { items: 'Items', length: 'Length' } }
+    for (const format of [false, true]) {
+        const picker = createPicker({ groups: () => schemaGroups(document, 'Schema', { includeRoot: false, descendArrays: true, constraints: true, format }) })
+        const source = picker.jsonSchemaData[0].sources[0]
+        assert.equal(source.type, format ? 'enum[][]' : 'string[][]')
+        assert.deepEqual(source.arrayItems.map(item => item.scope), [['items'], ['items', 'items']])
+        assert.deepEqual(source.constraints[0].values, [{ kind: 'items', value: '≤ 10' }])
+        assert.deepEqual(source.arrayItems[0].constraints[0].values, [{ kind: 'items', value: '3–3' }])
+        assert.deepEqual(source.arrayItems[1].constraints[0].values, [{ kind: 'length', value: '2–30' }])
+        assert.equal(source.arrayItems[1].nullable, true)
+        const html = picker.jsonSchemaArrayPopover(source, labels)
+        assert.ok(html.includes('>Items → Items</span>'))
+        assert.ok(html.includes('>Length</dt>'))
+        assert.ok(html.includes('>2–30</dd>'))
+        assert.ok(html.includes('&lt;Value&gt;'))
+        assert.ok(html.includes('Color &lt;name&gt;'))
+        assert.equal(html.includes('<script>'), false)
+        assert.equal(html.includes('>Allowed values</div>'), format)
+        assert.ok(picker.jsonSchemaArrayTooltip(source, labels).includes((format ? 'enum' : 'string') + ' | null'))
+        assert.equal(picker.jsonSchemaArrayPopover(source, labels, false).includes('Color &lt;name&gt;'), false)
+        picker.jsonSchemaSearch = 'color name'
+        picker.jsonSchemaSyncSearch()
+        assert.deepEqual(picker.jsonSchemaMatches[0].sources.map(source => source.value), [['matrix']])
+    }
+    const source = schemaSources(document, { includeRoot: false })[0]
+    assert.deepEqual(source.constraints, [])
+    assert.ok(source.arrayItems.every(item => item.constraints.length === 0 && item.enums.length === 0))
+})
+
+test('preserves array alternatives in type notation and in item detail scopes', () => {
+    const document = { properties: { choices: { oneOf: [
+        { type: 'array', minItems: 1, items: { type: 'string', maxLength: 10 } },
+        { type: 'array', maxItems: 5, items: { type: 'array', items: { type: 'number', minimum: 0 } } },
+    ] } } }
+    const source = schemaSources(document, { includeRoot: false, constraints: true })[0]
+    assert.equal(source.type, 'string[] | number[][]')
+    assert.deepEqual(source.arrayItems.map(item => item.scope), [['oneOf 1', 'items'], ['oneOf 2', 'items'], ['oneOf 2', 'items', 'items']])
+    assert.equal(source.arrayItems[0].constraints[0].values[0].value, '≤ 10')
+    assert.equal(source.arrayItems[2].constraints[0].values[0].value, '≥ 0')
+    assert.equal(schemaType({ type: 'array', items: { anyOf: [{ type: 'string' }, { type: 'number' }] } }), '(string | number)[]')
+    assert.equal(schemaType({ type: 'array', items: { type: 'array', items: { allOf: [{ type: 'number' }, { type: 'integer' }] } } }), '(number & integer)[][]')
 })

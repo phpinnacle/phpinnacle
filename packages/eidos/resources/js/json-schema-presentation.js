@@ -33,10 +33,26 @@ export const schemaPresentation = {
     jsonSchemaEnumTooltip(source, labels) {
         return source.enums.length ? labels.enum + '\n' + source.enums.map(enumeration => restrictionScope(enumeration, labels) + enumeration.values.join(', ')).join('\n\n') : ''
     },
+    jsonSchemaArrayTooltip(source, labels) {
+        return source.fieldLabel + '\n' + [source, ...source.arrayItems].map(level =>
+            (level.scope?.length ? scopeLabel(level.scope, labels) + ': ' : '') + level.type + (level.nullable ? ' | null' : '')
+        ).join('\n')
+    },
+    jsonSchemaArrayPopover(source, labels, descriptions = true) {
+        return '<div class="eidos-json-schema-popover"><div class="eidos-json-schema-popover__title">' + escapeHtml(source.fieldLabel) + '</div>'
+            + [source, ...source.arrayItems].map(level => '<div class="eidos-json-schema-popover__group">'
+                + '<div class="eidos-json-schema-popover__scope"><span>' + escapeHtml(level.scope?.length ? scopeLabel(level.scope, labels) : source.fieldName)
+                + '</span><span class="eidos-json-schema-popover__type">' + escapeHtml(level.type + (level.nullable ? ' | null' : '')) + '</span></div>'
+                + (level.scope?.length && level.titles.length ? '<div>' + escapeHtml(level.titles.join(' / ')) + '</div>' : '')
+                + (descriptions && level.description ? '<div class="eidos-json-schema-popover__description">' + escapeHtml(level.description) + '</div>' : '')
+                + (level.constraints.length ? constraintsPopover(level.constraints, labels, '') : '')
+                + (level.enums.length ? this.jsonSchemaEnumPopover(level, labels) : '')
+                + '</div>').join('') + '</div>'
+    },
 }
 
-function constraintsPopover(constraints, labels) {
-    return restrictionPopover(labels.limits, constraints, constraint => '<dl class="eidos-json-schema-popover__limits">'
+function constraintsPopover(constraints, labels, title = labels.limits) {
+    return restrictionPopover(title, constraints, constraint => '<dl class="eidos-json-schema-popover__limits">'
         + constraint.values.map(value => '<dt class="eidos-json-schema-popover__label">' + escapeHtml(labels.constraints[value.kind]) + '</dt>'
             + '<dd class="eidos-json-schema-popover__limit-value' + (value.kind === 'unique' ? ' eidos-json-schema-popover__limit-value--unique' : '') + '">'
             + escapeHtml(value.kind === 'unique' ? '✓' : value.value) + '</dd>').join('')
@@ -44,10 +60,10 @@ function constraintsPopover(constraints, labels) {
 }
 
 function restrictionPopover(title, restrictions, content, labels) {
-    return '<div class="eidos-json-schema-popover"><div class="eidos-json-schema-popover__title">' + escapeHtml(title) + '</div>'
+    return '<div class="eidos-json-schema-popover">' + (title ? '<div class="eidos-json-schema-popover__title">' + escapeHtml(title) + '</div>' : '')
         + restrictions.map(restriction => '<div class="eidos-json-schema-popover__group">'
             + (restriction.scope.length ? '<div class="eidos-json-schema-popover__scope"><span>'
-                + escapeHtml(restriction.scope.map(part => typeof part === 'number' ? labels.alternative + ' ' + part : part === 'items' ? labels.items : part).join(' → '))
+                + escapeHtml(scopeLabel(restriction.scope, labels))
                 + '</span><span class="eidos-json-schema-popover__type">' + escapeHtml(restriction.type) + '</span></div>' : '')
             + content(restriction) + '</div>').join('') + '</div>'
 }
@@ -62,6 +78,10 @@ function constraintDescription(value, labels) {
 
 function restrictionScope(restriction, labels) {
     return restriction.scope.length
-        ? restriction.scope.map(part => typeof part === 'number' ? labels.alternative + ' ' + part : part === 'items' ? labels.items : part).join(' → ') + ' (' + restriction.type + ')\n'
+        ? scopeLabel(restriction.scope, labels) + ' (' + restriction.type + ')\n'
         : ''
+}
+
+function scopeLabel(scope, labels) {
+    return scope.map(part => typeof part === 'number' ? labels.alternative + ' ' + part : part === 'items' ? labels.items : part).join(' → ')
 }

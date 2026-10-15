@@ -6,7 +6,16 @@ export function schemaType(schema, format = false) {
     }
     const types = (Array.isArray(schema?.type) ? schema.type : [schema?.type]).filter(type => type && type !== 'null')
     if (['object', 'array', 'string', 'number', 'boolean'].every(type => types.includes(type))) return 'any'
-    if (types.length === 1 && types[0] === 'array' && schema?.items) return `${schemaType(schema.items, format)}[]`
+    if (types.length === 1 && types[0] === 'array' && schema?.items) {
+        const itemType = schemaType(schema.items, format)
+        let depth = 0
+        const composition = [...itemType].some(character => {
+            if (character === '(') depth++
+            if (character === ')') depth--
+            return depth === 0 && (character === '|' || character === '&')
+        })
+        return `${composition ? `(${itemType})` : itemType}[]`
+    }
     return types.join(' | ') || (schemaNullable(schema) || schema?.type === 'null' ? 'null' : 'any')
 }
 
@@ -80,6 +89,20 @@ export function schemaEnums(schema, format = false) {
     return enums
 }
 
+function schemaArrayItems(schema, format, constraints, scope = []) {
+    return [...schemaVariants(schema, scope)].flatMap(({ schema: value, scope }) => {
+        if (!value.items) return []
+        const item = value.items
+        const itemScope = [...scope, 'items']
+        return [{
+            scope: itemScope, type: schemaType(item, format), nullable: schemaNullable(item),
+            titles: schemaTitles(item), description: item.description,
+            enums: format ? schemaEnums(item, format) : [],
+            constraints: constraints ? schemaConstraints(item, format) : [],
+        }, ...schemaArrayItems(item, format, constraints, itemScope)]
+    })
+}
+
 export function schemaSources(schema, { whole = 'All data', includeRoot = true, descendArrays = false, format = false, required = false, constraints = false, icons = {}, colors = true, propertyTitles = {} } = {}) {
     if (schema === null || schema === undefined) return []
     schema = resolveSchemaReferences(schema)
@@ -94,6 +117,7 @@ export function schemaSources(schema, { whole = 'All data', includeRoot = true, 
         sources.set(key, {
             key, value: path.includes(null) ? null : path, schema: value,
             compatible: !path.includes(null),
+            arrayItem: path.at(-1) === null,
             propertyTitle: path.length && path.at(-1) !== null && Object.hasOwn(propertyTitles, path.at(-1)) ? propertyTitles[path.at(-1)] : undefined,
             required: required && schemaRequired(schema, path),
             fieldName: path.at(-1) ?? (path.length ? '*' : whole), fieldLabel: path.map(part => part === null ? '*' : part).join(' → ') || whole,
@@ -130,6 +154,7 @@ export function schemaSources(schema, { whole = 'All data', includeRoot = true, 
         source.iconHtml = source.icon !== undefined && Object.hasOwn(icons, source.icon) ? icons[source.icon] : null
         source.enums = format ? schemaEnums(source.schema, format) : []
         source.constraints = constraints ? schemaConstraints(source.schema, format) : []
+        source.arrayItems = schemaArrayItems(source.schema, format, constraints)
         if (source.ancestors.length) sources.get(source.ancestors.at(-1)).hasChildren = true
     }
     return [...sources.values()]

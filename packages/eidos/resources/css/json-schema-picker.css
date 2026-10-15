@@ -132,6 +132,9 @@ button.eidos-json-schema-tree__value:disabled { cursor: not-allowed; opacity: .5
 .tippy-box[data-theme~='json-schema'] .tippy-content { padding: .75rem; white-space: normal; overflow-wrap: anywhere; text-align: start; }
 .eidos-json-schema-popover { min-width: 12rem; max-width: 100%; font-size: .75rem; line-height: 1.25rem; }
 .eidos-json-schema-popover__title { padding-bottom: .5rem; margin-bottom: .625rem; border-bottom: 1px solid var(--json-schema-popover-border); font-weight: 600; }
+.eidos-json-schema-popover .eidos-json-schema-popover { margin-top: .625rem; }
+.eidos-json-schema-popover__description { margin-block: .375rem; color: var(--json-schema-popover-muted); }
+.tippy-box[data-theme~='json-schema-array'] .tippy-content { max-height: min(32rem, 60dvh); overflow-y: auto; }
 .eidos-json-schema-popover__group + .eidos-json-schema-popover__group { margin-top: .75rem; padding-top: .75rem; border-top: 1px solid var(--json-schema-popover-border); }
 .eidos-json-schema-popover__scope { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .375rem; margin-bottom: .5rem; color: var(--json-schema-popover-muted); }
 .eidos-json-schema-popover__type { color: var(--json-schema-popover-accent); font-family: ui-monospace, monospace; }
@@ -155,6 +158,7 @@ button.eidos-json-schema-tree__value:disabled { cursor: not-allowed; opacity: .5
 }
 .eidos-json-schema-tree__type { color: var(--json-schema-accent); }
 .eidos-json-schema-tree__type--enum { cursor: help; }
+.eidos-json-schema-tree__type--array { cursor: pointer; }
 .eidos-json-schema-tree__type--null { background: transparent; color: var(--success-600, #16a34a); }
 .dark .eidos-json-schema-tree__type--null { color: var(--success-400, #4ade80); }
 .eidos-json-schema-tree__constraints { display: flex; flex-wrap: wrap; min-width: 0; max-width: 100%; align-items: center; justify-content: end; gap: .25rem .375rem; }
@@ -177,6 +181,7 @@ button.eidos-json-schema-tree__value:disabled { cursor: not-allowed; opacity: .5
 .eidos-json-schema-tree__row:has(.eidos-json-schema-tree__branch:focus-visible, .eidos-json-schema-tree__value:focus-visible),
 .eidos-json-schema-tree__restrictions-icon:focus-visible,
 .eidos-json-schema-tree__type--enum:focus-visible,
+.eidos-json-schema-tree__type--array:focus-visible,
 .eidos-json-schema-picker__trigger:focus-visible { outline: 2px solid var(--json-schema-accent); outline-offset: 2px; }
 .eidos-json-schema-tree__branch:focus-visible,
 .eidos-json-schema-tree__value:focus-visible { outline: none; }

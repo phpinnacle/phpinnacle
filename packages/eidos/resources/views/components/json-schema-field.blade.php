@@ -50,10 +50,20 @@
                 </template>
             @endif
             <span x-show="source.nullable" class="eidos-json-schema-tree__type eidos-json-schema-tree__type--null">null</span>
-            <template x-if="!source.enums.length">
+            <template x-if="source.arrayItems.length">
+                <x-phpinnacle-eidos::json-schema-popover
+                    tooltip="jsonSchemaArrayTooltip"
+                    popover="jsonSchemaArrayPopover"
+                    :interactive="true"
+                    :descriptions="is_bool($description) ? ($description ? 'true' : 'false') : $description"
+                    x-text="source.type"
+                    class="eidos-json-schema-tree__type eidos-json-schema-tree__type--array"
+                />
+            </template>
+            <template x-if="!source.arrayItems.length && !source.enums.length">
                 <span class="eidos-json-schema-tree__type" :class="{ 'eidos-json-schema-tree__type--null': source.type === 'null' }" x-text="source.type"></span>
             </template>
-            <template x-if="source.enums.length">
+            <template x-if="!source.arrayItems.length && source.enums.length">
                 <x-phpinnacle-eidos::json-schema-popover
                     tooltip="jsonSchemaEnumTooltip"
                     popover="jsonSchemaEnumPopover"
