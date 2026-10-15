@@ -17,7 +17,7 @@ use PHPinnacle\Common\Forms\ItemPicker\ItemTree;
 /**
  * @phpstan-import-type PickerRow from ItemTree
  * @phpstan-type PickerNode array{key: string, value: ?string, group: bool, disabled: bool, selectable: bool, branch: bool, ancestors: list<string>, parent: ?string}
- * @phpstan-type PickerData array{nodes: list<PickerNode>, html: string, selectionNodes: list<PickerNode>, selectionHtml: string, empty: bool, limit: ?int, searchable: bool, hasResolver: bool, disabled: bool}
+ * @phpstan-type PickerData array{state: list<string>|string|null, nodes: list<PickerNode>, html: string, selectionNodes: list<PickerNode>, selectionHtml: string, empty: bool, limit: ?int, searchable: bool, hasResolver: bool, disabled: bool}
  */
 class ItemPicker extends Field implements HasNestedRecursiveValidationRulesContract
 {
@@ -327,6 +327,7 @@ class ItemPicker extends Field implements HasNestedRecursiveValidationRulesContr
         $selection = $this->selectionData($resolved);
 
         return [
+            'state' => $state,
             ...$this->renderRows('item-picker-rows', $rows),
             'selectionNodes' => $selection['nodes'],
             'selectionHtml' => $selection['html'],

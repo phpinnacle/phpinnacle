@@ -7,6 +7,7 @@
         x-load
         x-load-src="{{ FilamentAsset::getAlpineComponentSrc('item-picker', package: 'phpinnacle/common') }}"
         x-data="itemPicker({
+            ...@js($pickerData),
             state: $wire.{{ $applyStateBindingModifiers("\$entangle('{$getStatePath()}')") }},
             fetchItems: (search, offset, state) => $wire.callSchemaComponentMethod(@js($getKey()), 'getItemsForJs', { search, offset, state }),
             fetchSelection: (state) => $wire.callSchemaComponentMethod(@js($getKey()), 'getSelectionForJs', { state }),

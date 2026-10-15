@@ -15,6 +15,7 @@ This repository is the source of truth for the PHPinnacle package collection. Ea
 | [`phpinnacle/chronica`](packages/chronica/) | Auditable Eloquent activity history and Filament timelines built on Spatie Activitylog. |
 | [`phpinnacle/comments`](packages/comments/) | Polymorphic discussion threads with Livewire and Filament integrations, policies, and pruning. |
 | [`phpinnacle/common`](packages/common/) | Shared Laravel and Filament utilities, including ranges, filters, columns, and reusable concerns. |
+| [`phpinnacle/decima`](packages/decima/) | Visual workflows, queued execution, and run history for Laravel Filament. |
 | [`phpinnacle/dendros`](packages/dendros/) | Hierarchical Eloquent and Filament building blocks using materialized paths and tree-aware interfaces. |
 | [`phpinnacle/eidos`](packages/eidos/) | JSON Schema generation, Laravel validation rules, Eloquent introspection, and Filament schema components. |
 | [`phpinnacle/franz`](packages/franz/) | Framework-agnostic PHP client for the Kafka Connect REST API with typed connector management. |

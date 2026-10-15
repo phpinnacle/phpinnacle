@@ -310,6 +310,7 @@ function remotePicker(options = {}) {
 
 function portion(values, options = {}) {
     return {
+        state: 'saved',
         nodes: values.map(value => ({ key: value, value, selectable: true, ancestors: [] })),
         html: values.join(','),
         selectionNodes: [{ key: 'saved', value: 'saved', selectable: true, ancestors: [] }],
@@ -318,6 +319,21 @@ function portion(values, options = {}) {
         ...options,
     }
 }
+
+test('initializes server-rendered labels without requesting the saved selection again', () => {
+    const component = remotePicker({
+        select: true,
+        fetchSelection: () => { assert.fail('The saved selection was resolved during rendering') },
+    })
+    component.$watch = () => {}
+    component.$nextTick = () => {}
+
+    component.init()
+    component.sync(portion([], { disabled: false, searchable: false, hasResolver: true, limit: 2 }))
+
+    assert.equal(component.selectionHtml, 'saved')
+    assert.deepEqual(component.selectedNodes().map(node => node.value), ['saved'])
+})
 
 test('appends scroll portions by the configured limit and stops on an empty result', async () => {
     const calls = []
@@ -548,6 +564,7 @@ test('keeps loaded portions and retained inline cards when Livewire only updates
     component.state = 'one'
     component.sync({
         ...initial,
+        state: 'one',
         selectionNodes: [{ key: 'selected-one', value: 'one', ancestors: [] }],
         selectionHtml: 'one',
     })

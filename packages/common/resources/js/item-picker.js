@@ -90,8 +90,10 @@ export function itemPicker({
             this.hasResolver = data.hasResolver
             this.limit = data.limit
             if (!sourceChanged) {
-                this.selectionVersion++
-                this.setSelection(data.selectionNodes, data.selectionHtml)
+                if (JSON.stringify(data.state) === JSON.stringify(this.state)) {
+                    this.selectionVersion++
+                    this.setSelection(data.selectionNodes, data.selectionHtml)
+                }
                 this.selectionError = false
                 this.$nextTick(() => this.fitSelection())
                 return
@@ -107,7 +109,7 @@ export function itemPicker({
             this.loading = false
             this.error = false
             this.selectionError = false
-            this.applyResult(data, 0, JSON.stringify(this.state))
+            this.applyResult(data, 0, JSON.stringify(data.state))
         },
 
         scheduleSearch() {

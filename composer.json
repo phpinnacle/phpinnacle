@@ -23,6 +23,7 @@
         "phpinnacle/chronica": "*",
         "phpinnacle/comments": "*",
         "phpinnacle/common": "*",
+        "phpinnacle/decima": "*",
         "phpinnacle/dendros": "*",
         "phpinnacle/eidos": "*",
         "phpinnacle/ferry": "*",
@@ -50,7 +51,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Tests\\": "tests/"
+            "Tests\\": "tests/",
+            "PHPinnacle\\Decima\\Tests\\": "packages/decima/tests/"
         }
     },
     "repositories": [

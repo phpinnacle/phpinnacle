@@ -436,6 +436,7 @@ it('paginates static choices while keeping selections outside the current portio
 
     $schema->fill(['choice' => 'second']);
     expect($schema->getState())->toBe(['choice' => 'second']);
+    expect($picker->getItemsForJs(null, 0, 'second')['state'])->toBe('second');
     expect($picker->getSelectionForJs('second')['html'])->toContain('Second');
 });
 
