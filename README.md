@@ -43,7 +43,7 @@ This repository is the source of truth for the PHPinnacle package collection. Ea
 
 ## Licensing
 
-Atlas, Cabeiro, Manuscript, and Vulcan are proprietary commercial packages. Unless an order states otherwise, their licenses grant perpetual use of eligible versions for one production application and include 12 months of updates. Each package contains the complete license terms that apply after it is split from this repository.
+Atlas, Cabeiro, Decima, Manuscript, and Vulcan are proprietary commercial packages. Unless an order states otherwise, their licenses grant perpetual use of eligible versions for one production application and include 12 months of updates. Each package contains the complete license terms that apply after it is split from this repository.
 
 All other packages are governed by the license declared in their own directory under `packages/`.
 
