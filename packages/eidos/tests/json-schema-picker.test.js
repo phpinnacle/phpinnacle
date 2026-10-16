@@ -73,7 +73,7 @@ test('rebuilds adapter groups from current display options while preserving exac
     assert.equal(tools.schemaSelectedSource.color, '#abc')
     tools.schemaFormat = tools.schemaRequired = tools.schemaConstraints = true
     tools.schemaColors = false
-    tools.schemaIcons = {}
+    tools.schemaIcons = false
     rebuild()
     assert.deepEqual(tools.schemaSelectedSource.value, ['metadata.version'])
     assert.equal(tools.schemaSelectedSource.type, 'uuid')
@@ -81,7 +81,27 @@ test('rebuilds adapter groups from current display options while preserving exac
     assert.deepEqual(tools.schemaSelectedSource.constraints[0].values, [{ kind: 'length', value: '≥ 1' }])
     assert.equal(tools.schemaSelectedSource.color, undefined)
     assert.equal(tools.schemaSelectedSource.iconHtml, null)
+    assert.equal(tools.schemaSelectedSource.icon, undefined)
     assert.equal(tools.schemaSelectedSource.schema['x-color'], '#abc')
+})
+
+test('keeps schema icon names available automatically after replacing a schema without a server SVG catalog', () => {
+    const tools = jsonSchemaTools()
+    const schema = { properties: { email: { type: 'string', 'x-icon': 'heroicon-o-envelope', 'x-color': 'primary' } } }
+    const field = () => tools.schemaData[0].sources[0]
+    tools.schemaData = tools.schemaBuildGroups(schema, 'Schema')
+    assert.equal(field().icon, 'heroicon-o-envelope')
+    assert.equal(field().iconHtml, null)
+    assert.equal(field().color, 'primary')
+
+    tools.schemaData = tools.schemaBuildGroups({ properties: { user: { type: 'string', 'x-icon': 'heroicon-o-user' } } }, 'Schema')
+    assert.equal(field().icon, 'heroicon-o-user')
+    assert.equal(field().iconHtml, null)
+
+    tools.schemaIcons = false
+    tools.schemaData = tools.schemaBuildGroups(schema, 'Schema')
+    assert.equal(field().icon, undefined)
+    assert.equal(field().schema['x-icon'], 'heroicon-o-envelope')
 })
 
 test('returns exact path segments and distinguishes dotted names from nested fields', () => {
@@ -814,6 +834,41 @@ test('opens object fields directly through array chains without exposing item ro
     assert.deepEqual(picker.jsonSchemaChoose(records), ['records'])
     picker.jsonSchemaToggle(records)
     assert.equal(picker.jsonSchemaVisible(name), false)
+})
+
+test('nests root array fields under an initially expanded root without exposing item rows', () => {
+    for (const nested of [false, true]) {
+        const item = { type: 'object', properties: {
+            id: { type: 'integer' },
+            location: { type: 'object', properties: { city: { type: 'string' } } },
+        } }
+        const document = { type: 'array', items: nested ? { type: 'array', items: item } : item }
+        const groups = schemaGroups(document, 'Addresses', { descendArrays: true })
+        const original = structuredClone(groups)
+        const picker = createPicker({ groups: () => groups, disabled: true })
+        const [root, id, location, city] = picker.jsonSchemaData[0].sources
+
+        assert.equal(root.type, nested ? 'object[][]' : 'object[]')
+        assert.equal(root.hasChildren, true)
+        assert.equal(root.depth, 0)
+        assert.equal(picker.jsonSchemaIsExpanded(root.key), true)
+        assert.equal(id.depth, 1)
+        assert.deepEqual(id.ancestors, [root.key])
+        assert.equal(picker.jsonSchemaVisible(id), true)
+        assert.equal(city.depth, 2)
+        assert.deepEqual(city.ancestors, [root.key, location.key])
+        assert.equal(picker.jsonSchemaVisible(city), false)
+        picker.jsonSchemaToggle(location)
+        assert.equal(picker.jsonSchemaVisible(city), true)
+        picker.jsonSchemaToggle(root)
+        assert.equal(picker.jsonSchemaVisible(id), false)
+        assert.equal(picker.jsonSchemaVisible(city), false)
+        picker.jsonSchemaToggle(root)
+        assert.equal(picker.jsonSchemaVisible(city), true)
+        assert.deepEqual(JSON.parse(id.key), nested ? [null, null, 'id'] : [null, 'id'])
+        assert.equal(id.value, null)
+        assert.deepEqual(groups, original)
+    }
 })
 
 test('inspects array levels with separate constraints, nullable items, descriptions and escaped enums', () => {

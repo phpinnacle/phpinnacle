@@ -18,7 +18,8 @@ class EidosServiceProvider extends PackageServiceProvider
         $package
             ->name(static::$name)
             ->hasTranslations()
-            ->hasViews();
+            ->hasViews()
+            ->hasRoute('web');
     }
 
     public function packageBooted(): void

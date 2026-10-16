@@ -94,7 +94,8 @@ button.eidos-json-schema-tree__value:disabled { cursor: not-allowed; opacity: .5
 .eidos-json-schema-tree__content--icons > .eidos-json-schema-tree__heading { grid-template-columns: 1.25rem minmax(0, 1fr) fit-content(60%) auto; }
 .eidos-json-schema-tree__field-icon { display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; height: 1.5rem; color: var(--json-schema-field-color, var(--json-schema-muted)); }
 .dark .eidos-json-schema-tree__field-icon { color: var(--json-schema-field-color-dark, var(--json-schema-muted)); }
-.eidos-json-schema-tree__field-icon > svg { width: 1rem; height: 1rem; }
+.eidos-json-schema-tree__field-icon svg { width: 1rem; height: 1rem; }
+.eidos-json-schema-tree__icon-mask { display: block; width: 1rem; height: 1rem; background-color: currentColor; mask-size: contain; mask-position: center; mask-repeat: no-repeat; }
 .eidos-json-schema-tree__content--icons > .eidos-json-schema-tree__description { margin-inline-start: 1.5rem; }
 .eidos-json-schema-tree__names { display: flex; flex-wrap: wrap; min-width: 0; align-items: baseline; gap: .25rem .375rem; }
 .eidos-json-schema-tree__required { flex-shrink: 0; font-size: .875rem; line-height: 1.25rem; font-weight: 600; color: var(--danger-600, #dc2626); }

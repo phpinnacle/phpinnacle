@@ -1,8 +1,15 @@
 @props(['compact' => 'false', 'name' => 'jsonSchemaName(source)', 'properties' => 'true', 'selected' => null, 'description' => true, 'constraints' => true])
 
-<span {{ $attributes->class(['eidos-json-schema-tree__content']) }} :class="{ 'eidos-json-schema-tree__content--icons': source.iconHtml }" :style="jsonSchemaColorStyles(source.color)">
+<span {{ $attributes->class(['eidos-json-schema-tree__content']) }} :class="{ 'eidos-json-schema-tree__content--icons': source.iconHtml || source.icon }" :style="jsonSchemaColorStyles(source.color)">
     <span class="eidos-json-schema-tree__heading">
-        <span x-show="source.iconHtml" class="eidos-json-schema-tree__field-icon" x-html="source.iconHtml"></span>
+        <span x-show="source.iconHtml || source.icon" class="eidos-json-schema-tree__field-icon" aria-hidden="true">
+            <template x-if="source.iconHtml">
+                <span x-html="source.iconHtml"></span>
+            </template>
+            <template x-if="!source.iconHtml && source.icon">
+                <span class="eidos-json-schema-tree__icon-mask" :style="{ maskImage: 'url(' + @js(route('phpinnacle-eidos.icons', ['icon' => '__icon__'])).replace('__icon__', encodeURIComponent(source.icon)) + ')' }"></span>
+            </template>
+        </span>
         <span class="eidos-json-schema-tree__names">
             <span class="eidos-json-schema-tree__name" :class="{ 'eidos-json-schema-tree__name--title': source.title }" x-text="source.title || {{ $name }}"></span>
             <span x-show="source.required" class="eidos-json-schema-tree__required">

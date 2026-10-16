@@ -150,7 +150,7 @@ export function schemaSources(schema, { whole = 'All data', includeRoot = true, 
         if (!source.titles.length && source.propertyTitle !== undefined) source.titles = [source.propertyTitle]
         source.title = source.titles[0]
         source.color = colors ? schemaColor(source.schema) : undefined
-        source.icon = schemaIcon(source.schema)
+        source.icon = icons === false ? undefined : schemaIcon(source.schema)
         source.iconHtml = source.icon !== undefined && Object.hasOwn(icons, source.icon) ? icons[source.icon] : null
         source.enums = format ? schemaEnums(source.schema, format) : []
         source.constraints = constraints ? schemaConstraints(source.schema, format) : []

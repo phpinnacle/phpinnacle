@@ -13,10 +13,14 @@ export function jsonSchemaPicker({ groups, selected = () => false, choose = null
         jsonSchemaSync() {
             this.jsonSchemaData = groups().map(group => {
                 const hidden = new Set(group.sources.filter(source => source.arrayItem).map(source => source.key))
+                const root = group.sources.find(source => source.key === '[]' && source.arrayItems.length)
                 const sources = group.sources.filter(source => !source.arrayItem).map(source => ({
                     ...source,
-                    ancestors: source.ancestors.filter(key => !hidden.has(key)),
-                    depth: source.depth - source.ancestors.filter(key => hidden.has(key)).length,
+                    ancestors: [
+                        ...(root && source !== root ? [root.key] : []),
+                        ...source.ancestors.filter(key => !hidden.has(key)),
+                    ],
+                    depth: source.depth - source.ancestors.filter(key => hidden.has(key)).length + (root && source !== root ? 1 : 0),
                 }))
                 const parents = new Set(sources.map(source => source.ancestors.at(-1)))
                 return {
@@ -64,7 +68,7 @@ export function jsonSchemaPicker({ groups, selected = () => false, choose = null
         },
         jsonSchemaSelected(source) { return this.jsonSchemaSelectedKeys.has(source.key) },
         jsonSchemaIsExpanded(key) {
-            return this.jsonSchemaExpanded[key] ?? this.jsonSchemaSelectedAncestors.has(key)
+            return this.jsonSchemaExpanded[key] ?? (key === '[]' || this.jsonSchemaSelectedAncestors.has(key))
         },
         jsonSchemaVisible(source) {
             return !source.arrayItem && (this.jsonSchemaSearching || source.ancestors.every(key => this.jsonSchemaIsExpanded(key)))

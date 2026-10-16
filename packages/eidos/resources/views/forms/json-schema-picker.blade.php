@@ -17,7 +17,7 @@
             :constraints="$areConstraintsVisible()"
             :compact="$isCompact()"
             :searchable="$isSearchable()"
-            :icons="$icons"
+            :icons="$areIconsVisible() ? $icons : false"
             :colors="$areColorsVisible()"
             :descriptions="$areDescriptionsVisible()"
             :property-titles="$propertyTitles"

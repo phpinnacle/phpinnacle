@@ -188,6 +188,8 @@ Properties in `anyOf`, `oneOf`, and `allOf` branches are available, but a comple
 path must exist within one branch. Arrays are selectable as whole fields. Expand
 an array to inspect its object fields directly, without intermediate `*` rows.
 Array item fields remain readonly and cannot be selected.
+When a tree includes the array root, its item fields are indented beneath it.
+The root starts expanded and can be collapsed without introducing `*` rows.
 
 Picker and entry trees resolve local JSON Pointer `$ref` values, including
 references in compositions and array items, without changing the supplied
@@ -297,10 +299,17 @@ available as boolean props; the required-marker prop is named `required`.
 The entry reads `value` without modifying it; omit `inline` for the normal
 field summary and popover.
 
-For icons and fallback titles, pass the `icons` and `property-titles` props from
-`SchemaPresentation::render($schema->toArray())`. Its result contains `definition`,
-`icons`, and `propertyTitles`; `withIcons: false` omits rendered icons. Filament
-components supply these automatically. Icon markup must be trusted server output.
+Blade components display `x-icon` names automatically, including names introduced
+when the Alpine schema changes. Eidos serves registered icons from
+`phpinnacle/eidos/icons/{icon}.svg` with an ETag and browser caching. The icon uses the
+field color in light and dark mode. No SVG catalog or Livewire request is needed
+from the consuming component. Pass `:icons="false"` to hide schema icons.
+
+For pre-rendered icons and fallback titles, the `icons` and `property-titles`
+props still accept the output of `SchemaPresentation::render($schema->toArray())`.
+Its result contains `definition`, `icons`, and `propertyTitles`; `withIcons: false`
+omits rendered icons. Filament components supply these automatically. Supplied
+icon markup must be trusted server output.
 
 ## Testing
 
