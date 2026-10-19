@@ -749,18 +749,18 @@ it('registers Twig tools and Filament configuration actions', function () {
             'configureTwigConditionRule',
             'editTwigIf',
             'editTwigInlineIf',
-        )->and($insertConditionTool->getJsHandler())->toContain("\$wire.mountAction('insertTwigIf'")->toContain(
+        )->and($insertConditionTool->getJsHandler())->toContain("'insertTwigIf',")->toContain(
             "conditionType: 'truthy'",
         )->toContain('canInsertTwigInlineIf($getEditor())')->toContain(
             'getLoopStack($getEditor())',
         )->and($insertConditionTool->getExtraAttributeBag()->get('data-stylus-twig-condition-description'))->toBe(
             'The value must evaluate to true.',
-        )->and($insertEqualsConditionTool->getJsHandler())->toContain("\$wire.mountAction('insertTwigIf'")->toContain(
+        )->and($insertEqualsConditionTool->getJsHandler())->toContain("'insertTwigIf',")->toContain(
             "conditionType: 'comparison:equals'",
         )->and($insertEqualsConditionTool->getExtraAttributeBag()->get('data-stylus-twig-condition-description'))->toBe(
             'Compare values.',
         )->and($insertRowConditionTool->getJsHandler())->toContain(
-            "\$wire.mountAction('insertTwigTableRowIf'",
+            "'insertTwigTableRowIf',",
         )->toContain("conditionTarget: 'row'")->and($insertApplyTool->getJsHandler())->toContain(
             'twigOpenApplyInsertPanel($getEditor()?.state.selection.toJSON() ?? null)',
         )->and($insertApplyTool->getExtraAttributeBag()->get('data-stylus-twig-panel-trigger'))->toBe('apply')->and(

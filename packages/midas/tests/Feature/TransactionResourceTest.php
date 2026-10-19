@@ -384,8 +384,7 @@ it('preserves application query scopes for listing and direct record access', fu
     Livewire::test(ListTransactions::class)
         ->assertCanSeeTableRecords([$visible])
         ->assertCanNotSeeTableRecords([$hidden]);
-    expect(fn () => Livewire::test(ViewTransaction::class, ['record' => $hidden->id]))
-        ->toThrow(ModelNotFoundException::class);
+    Livewire::test(ViewTransaction::class, ['record' => $hidden->id])->assertNotFound();
 });
 
 it('does not expose direct ledger editing or deletion', function () {

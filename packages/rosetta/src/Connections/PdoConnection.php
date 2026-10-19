@@ -38,10 +38,6 @@ final readonly class PdoConnection implements Connection
             return null;
         }
 
-        if (!is_object($row)) {
-            throw new RuntimeException('Cannot fetch an infobase row');
-        }
-
         return $row;
     }
 

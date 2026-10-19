@@ -4,7 +4,6 @@ use Filament\Facades\Filament;
 use Filament\Pages\Page;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Http\Request;
@@ -211,9 +210,8 @@ it('isolates menu reads and writes by user panel and tenant', function (string $
     expect($own->id)->not->toBe($private->id)->and(Recent::query()->count())->toBe(2);
 
     $component = Livewire::test(Entries::class)->assertSee('My orders')->assertDontSee('Private orders');
-    expect(fn () => $component->call('togglePin', $private->id))->toThrow(ModelNotFoundException::class);
-    expect(fn () => Livewire::test(Entries::class)->call('remove', $private->id))
-        ->toThrow(ModelNotFoundException::class);
+    $component->call('togglePin', $private->id)->assertNotFound();
+    Livewire::test(Entries::class)->call('remove', $private->id)->assertNotFound();
     Livewire::test(Entries::class)->call('clear');
 
     expect(Recent::query()->count())->toBe(1)->and($private->refresh()->pinned_at)->toBeNull();
