@@ -31,6 +31,7 @@
 
 - Implement the smallest complete solution for the current requirement. Do not add speculative features, configuration, compatibility layers, or extension points.
 - Prefer existing Laravel, Filament, Livewire, and package components over local framework-like abstractions.
+- An abstraction must not know or anticipate specific descendants. If its implementation depends on descendant types, names, identifiers, settings, or special cases, remove that abstraction and put the behavior in the concrete implementations. Do not hide the same dependency in traits, flags, registries, or another base class; prefer small, explicit duplication.
 - Use arrays for lists, maps, and serialization boundaries. Convert structured domain state into typed value objects before domain behavior begins.
 - Use explicit parameter and return types on named methods, constructor property promotion, descriptive names, and PHPDoc array shapes where arrays are intentional.
 - Do not declare return types on anonymous functions or arrow functions.

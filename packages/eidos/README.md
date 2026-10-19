@@ -60,6 +60,9 @@ Relationships with concrete return types include the related model's columns,
 including their own `required` list, but do not expand its relationships.
 Relationship properties are marked `readOnly: true` and are not required on the
 parent object. `MorphTo` relationships are omitted.
+`HasMany`, `MorphMany`, `HasManyThrough`, and `BelongsToMany` (including
+`MorphToMany`) relationships are arrays of related objects. Singular
+relationships are nullable objects.
 Schema generation uses the model's database connection and table.
 
 ### Custom casts

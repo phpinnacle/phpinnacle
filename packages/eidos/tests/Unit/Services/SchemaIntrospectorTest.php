@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Database\Query\Processors\MySqlProcessor;
 use Illuminate\Database\Schema\Blueprint;
@@ -49,6 +51,32 @@ class GeneratedSchemaSupplier extends Model
     public function products(): HasMany
     {
         return $this->hasMany(GeneratedSchemaProduct::class, 'supplier_id');
+    }
+}
+
+class PolymorphicSchemaProduct extends Model
+{
+    public $timestamps = false;
+
+    protected $table = 'eidos_polymorphic_products';
+}
+
+class PolymorphicSchemaOwner extends Model
+{
+    public $timestamps = false;
+
+    protected $table = 'eidos_polymorphic_owners';
+
+    /** @return MorphMany<PolymorphicSchemaProduct, $this> */
+    public function products(): MorphMany
+    {
+        return $this->morphMany(PolymorphicSchemaProduct::class, 'owner');
+    }
+
+    /** @return MorphOne<PolymorphicSchemaProduct, $this> */
+    public function product(): MorphOne
+    {
+        return $this->morphOne(PolymorphicSchemaProduct::class, 'owner');
     }
 }
 
@@ -96,6 +124,32 @@ class RequiredSchemaRecord extends DefaultSchemaRecord
 {
     protected $guarded = [];
 }
+
+it('describes polymorphic collections as arrays and singular relations as nullable objects', function () {
+    Schema::create('eidos_polymorphic_owners', function (Blueprint $table) {
+        $table->id();
+    });
+    Schema::create('eidos_polymorphic_products', function (Blueprint $table) {
+        $table->id();
+        $table->nullableMorphs('owner');
+        $table->string('sku');
+    });
+
+    $properties = app(SchemaIntrospector::class)->introspect(PolymorphicSchemaOwner::class)->toArray()['properties'];
+
+    expect($properties['products']['type'])
+        ->toBe('array')
+        ->and($properties['products']['readOnly'])
+        ->toBeTrue()
+        ->and($properties['products']['items']['type'])
+        ->toBe('object')
+        ->and($properties['products']['items']['properties']['sku']['type'])
+        ->toBe('string')
+        ->and($properties['product']['type'])
+        ->toBe(['object', 'null'])
+        ->and($properties['product']['readOnly'])
+        ->toBeTrue();
+});
 
 it('requires writable nonnullable columns without database or declared model defaults', function (bool $useInstance) {
     Schema::create('eidos_default_records', function (Blueprint $table) {
