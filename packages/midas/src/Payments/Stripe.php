@@ -13,6 +13,7 @@ use PHPinnacle\Midas\Contracts\AuthorizationGateway;
 use PHPinnacle\Midas\Contracts\QueuedGateway;
 use PHPinnacle\Midas\Contracts\RefundGateway;
 use PHPinnacle\Midas\Enums\Ability;
+use PHPinnacle\Midas\Enums\AmountMode;
 use PHPinnacle\Midas\Enums\TransactionType;
 use PHPinnacle\Midas\Models\Continuation;
 use PHPinnacle\Midas\Models\GatewayRequest;
@@ -24,6 +25,11 @@ use Stripe\Exception\AuthenticationException;
 
 class Stripe extends Base implements AuthorizationGateway, QueuedGateway, RefundGateway
 {
+    public function amountMode(TransactionType $operation): AmountMode
+    {
+        return AmountMode::Full;
+    }
+
     public function key(): string
     {
         return 'stripe';
@@ -116,6 +122,7 @@ class Stripe extends Base implements AuthorizationGateway, QueuedGateway, Refund
 
     public function capture(Transaction $transaction): Continuation
     {
+        $this->amountMode(TransactionType::CAPTURE)->validate($transaction->amount, $transaction->parent->amount);
         $client = $this->client($transaction->method);
         $request = $client->derive($transaction);
 
@@ -124,6 +131,7 @@ class Stripe extends Base implements AuthorizationGateway, QueuedGateway, Refund
 
     public function void(Transaction $transaction): Continuation
     {
+        $this->amountMode(TransactionType::VOID)->validate($transaction->amount, $transaction->parent->amount);
         $client = $this->client($transaction->method);
         $request = $client->derive($transaction);
 

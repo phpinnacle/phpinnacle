@@ -59,10 +59,6 @@ readonly class PaymentClient
     public function derive(Transaction $transaction): GatewayRequest
     {
         if (in_array($transaction->type, [TransactionType::CAPTURE, TransactionType::VOID], true)) {
-            if ($transaction->amount->amount !== $transaction->parent->amount->amount) {
-                throw new InvalidArgumentException('Stripe requires a full capture or void of the authorization.');
-            }
-
             return new GatewayRequest([
                 'payment_intent' => $transaction->parent->external_id,
                 'amount' => $transaction->amount->amount,

@@ -341,6 +341,16 @@ it('rejects partial Stripe capture and void before creating a queued operation',
         ->toBe([]);
 })->with(['capture', 'void']);
 
+it('rejects partial amounts in direct Stripe authorization operations', function (string $operation) {
+    $authorization = Transaction::authorize(midas_stripe_intent())
+        ->handle(Continuation::success('pi_authorize'));
+    $transaction = $authorization->$operation('PARTIAL', new Money(300, 'USD'));
+
+    expect(fn () => new StripeGateway()->$operation($transaction))
+        ->toThrow(InvalidArgumentException::class, 'full capture or void');
+    expect($this->stripeHttp->requests)->toBe([]);
+})->with(['capture', 'void']);
+
 it('rejects unsupported Stripe Checkout inputs before creating a transaction', function (
     ?CardToken $instrument,
     bool $recurring,

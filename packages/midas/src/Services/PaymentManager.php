@@ -109,6 +109,16 @@ class PaymentManager
                     throw new LogicException('This provider does not support refunds.');
                 }
 
+                if (
+                    $gateway instanceof AuthorizationGateway
+                    && in_array($transaction->type, [TransactionType::CAPTURE, TransactionType::VOID], true)
+                ) {
+                    $gateway->amountMode($transaction->type)->validate(
+                        $transaction->amount,
+                        $transaction->parent->amount,
+                    );
+                }
+
                 $request = $origin instanceof Intent ? $gateway->prepare($origin) : $gateway->derive($transaction);
 
                 if ($request->metadata !== []) {

@@ -15,7 +15,9 @@ use PHPinnacle\Midas\Contracts\QueuedGateway;
 use PHPinnacle\Midas\Contracts\RefundGateway;
 use PHPinnacle\Midas\Contracts\WebhookGateway;
 use PHPinnacle\Midas\Enums\Ability;
+use PHPinnacle\Midas\Enums\AmountMode;
 use PHPinnacle\Midas\Enums\TransactionStatus;
+use PHPinnacle\Midas\Enums\TransactionType;
 use PHPinnacle\Midas\Instruments\EncryptedCard;
 use PHPinnacle\Midas\Models\Continuation;
 use PHPinnacle\Midas\Models\CreditCard;
@@ -31,6 +33,11 @@ use PHPinnacle\Midas\Services\BePaid\Webhook;
 
 class BePaid extends Base implements AuthorizationGateway, QueuedGateway, RefundGateway, WebhookGateway
 {
+    public function amountMode(TransactionType $operation): AmountMode
+    {
+        return AmountMode::Partial;
+    }
+
     public function acceptsWebhook(Transaction $transaction, Request $request): bool
     {
         return Webhook::accepts($transaction, $request);

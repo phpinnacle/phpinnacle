@@ -148,8 +148,15 @@ class TransactionHistoryEntry extends Entry
                 return false;
             }
 
-            if (in_array($operation, ['capture', 'void'], true) && !$provider instanceof AuthorizationGateway) {
-                return false;
+            if (in_array($operation, ['capture', 'void'], true)) {
+                if (!$provider instanceof AuthorizationGateway || $transaction->type !== TransactionType::AUTHORIZE) {
+                    return false;
+                }
+
+                $available = $transaction->capturable();
+
+                return $available->isSome()
+                && $provider->amountMode(TransactionType::from($operation))->accepts($available, $transaction->amount);
             }
         }
 

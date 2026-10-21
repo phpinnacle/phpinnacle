@@ -23,7 +23,9 @@ use Illuminate\Support\Str;
 use Livewire\Livewire;
 use PHPinnacle\Midas\Contracts\PaymentPayer;
 use PHPinnacle\Midas\Contracts\TransactionSource;
+use PHPinnacle\Midas\Enums\AmountMode;
 use PHPinnacle\Midas\Enums\TransactionStatus;
+use PHPinnacle\Midas\Enums\TransactionType;
 use PHPinnacle\Midas\Events\TransactionCreated;
 use PHPinnacle\Midas\Infolists\TransactionHistoryEntry;
 use PHPinnacle\Midas\MidasPlugin;
@@ -35,17 +37,51 @@ use PHPinnacle\Midas\Models\PaymentMethod;
 use PHPinnacle\Midas\Models\Source;
 use PHPinnacle\Midas\Models\Transaction;
 use PHPinnacle\Midas\Pages\ManageTransactions;
+use PHPinnacle\Midas\Payments\BePaid;
 use PHPinnacle\Midas\Payments\Cash;
 use PHPinnacle\Midas\Resources\Methods\Pages\ListMethods;
 use PHPinnacle\Midas\Resources\Transactions\Pages\ListTransactions;
 use PHPinnacle\Midas\Resources\Transactions\Pages\ViewTransaction;
 use PHPinnacle\Midas\Resources\Transactions\RelationManagers\OperationsRelationManager;
 use PHPinnacle\Midas\Resources\Transactions\TransactionResource;
+use PHPinnacle\Midas\Services\PaymentManager;
 use PHPinnacle\Midas\Services\ProviderRegistry;
 use PHPinnacle\Money\Money;
 use Tests\TestCase;
 
 uses(TestCase::class);
+
+class MidasAmountProvider extends BePaid
+{
+    public function key(): string
+    {
+        return 'amount-provider';
+    }
+
+    public function amountMode(TransactionType $operation): AmountMode
+    {
+        return $operation === TransactionType::CAPTURE ? AmountMode::Full : AmountMode::Partial;
+    }
+}
+
+function midas_amount_authorization(): Transaction
+{
+    $provider = new MidasAmountProvider;
+    app(ProviderRegistry::class)->register($provider);
+    $method = $provider->define();
+    $method->save();
+
+    return Transaction::authorize(new Intent(
+        id: (string) Str::uuid(),
+        number: 'AUTH-AMOUNT',
+        description: 'Authorization amount policy',
+        method: $method,
+        source: new Source('00000000-0000-0000-0000-000000000001', 'order'),
+        payer: new Payer('00000000-0000-0000-0000-000000000002', 'customer'),
+        instrument: null,
+        lines: [new IntentLine('Item', 1, new Money(1000, 'USD'))],
+    ))->handle(Continuation::success('authorization'));
+}
 
 class MidasTransactionPolicy
 {
@@ -545,6 +581,50 @@ it('records manual capture and void against the same authorization', function ()
         ->toBe(600)
         ->and($authorization->capturable()->isZero())
         ->toBeTrue();
+});
+
+it('uses the providers amount mode for each authorization operation', function () {
+    $authorization = midas_amount_authorization();
+    $entry = TransactionHistoryEntry::make('history')->state([$authorization])->manageWhen(true);
+    $actions = collect($entry->getDefaultActions())->keyBy(fn ($action) => $action->getName());
+
+    $capture = $actions->get('capture')->arguments(['transaction' => $authorization->id]);
+    $amount = $capture->getSchema(Schema::make())->getComponents()[0];
+
+    expect($amount->isReadOnly())
+        ->toBeTrue()
+        ->and($amount->getDefaultState()->amount)
+        ->toBe(1000)
+        ->and($amount->getEqValue()->amount)
+        ->toBe(1000);
+
+    $void = $actions->get('void')->arguments(['transaction' => $authorization->id]);
+    $amount = $void->getSchema(Schema::make())->getComponents()[0];
+
+    expect($amount->isReadOnly())->toBeFalse()->and($amount->getMaxValue()->amount)->toBe(1000);
+
+    $reservation = $authorization->capture('RESERVED', new Money(300, 'USD'));
+    $providers = app(ProviderRegistry::class);
+
+    expect($entry->canOperate($authorization, 'capture', $providers))
+        ->toBeFalse()
+        ->and($entry->canOperate($authorization, 'void', $providers))
+        ->toBeTrue();
+
+    $amount = $void->getSchema(Schema::make())->getComponents()[0];
+    expect($amount->getDefaultState()->amount)->toBe(700)->and($amount->getMaxValue()->amount)->toBe(700);
+
+    $reservation->handle(Continuation::failure('Declined'));
+    expect($entry->canOperate($authorization, 'capture', $providers))->toBeTrue();
+});
+
+it('enforces a custom providers full amount mode before queueing', function () {
+    $authorization = midas_amount_authorization();
+
+    expect(fn () => app(PaymentManager::class)->capture($authorization, 'PARTIAL', new Money(300, 'USD')))
+        ->toThrow(InvalidArgumentException::class, 'full capture or void');
+    expect($authorization->children()->count())->toBe(0);
+    Http::assertNothingSent();
 });
 
 it('lists only the payer transactions on a related records page', function () {

@@ -8,10 +8,12 @@ use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Str;
 use LogicException;
+use PHPinnacle\Midas\Contracts\AuthorizationGateway;
+use PHPinnacle\Midas\Contracts\PaymentProvider;
+use PHPinnacle\Midas\Enums\AmountMode;
 use PHPinnacle\Midas\Enums\TransactionType;
 use PHPinnacle\Midas\Infolists\TransactionHistoryEntry;
 use PHPinnacle\Midas\Models\Transaction;
-use PHPinnacle\Midas\Payments\Stripe;
 use PHPinnacle\Midas\Services\PaymentManager;
 use PHPinnacle\Midas\Services\ProviderRegistry;
 use PHPinnacle\Money\Forms\MoneyInput;
@@ -114,17 +116,25 @@ abstract class TransactionOperationAction extends Action
         $available = static::operation() === TransactionType::REFUND
             ? $transaction->refundable()
             : $transaction->capturable();
+        $mode = AmountMode::Partial;
+
+        if (
+            $transaction->method->isOnline()
+            && in_array(static::operation(), [TransactionType::CAPTURE, TransactionType::VOID], true)
+        ) {
+            /** @var PaymentProvider&AuthorizationGateway $provider */
+            $provider = $providers->get($transaction->method->provider);
+            $mode = $provider->amountMode(static::operation());
+        }
+
         $amount = MoneyInput::make('amount')
             ->label(__('phpinnacle-midas::resources.transaction.fields.amount'))
             ->currencies([$transaction->currency])
-            ->default($available)
+            ->default($mode === AmountMode::Full ? $transaction->amount : $available)
             ->required();
 
-        if (
-            in_array(static::operation(), [TransactionType::CAPTURE, TransactionType::VOID], true)
-            && $providers->get($transaction->method->provider) instanceof Stripe
-        ) {
-            $amount->equal($available)->readOnly();
+        if ($mode === AmountMode::Full) {
+            $amount->equal($transaction->amount)->readOnly();
         } else {
             $amount->lesser($available);
         }
