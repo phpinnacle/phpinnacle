@@ -42,19 +42,18 @@
                         x-bind:aria-expanded="isOpen"
                     />
                 </x-slot>
-                <template x-if="isOpen">
-                    <div role="dialog" aria-label="{{ __('phpinnacle-eidos::json-schema.view_schema') }}" class="eidos-json-schema-entry__panel">
-                        <x-phpinnacle-eidos::json-schema-tree
-                            groups="schemaData"
-                            selected="source.value === schemaSelectedKey"
-                            properties="schemaProperties"
-                            descriptions="schemaDescriptions"
-                            compact="schemaCompact"
-                            searchable="schemaSearchable"
-                            :disabled="true"
-                        />
-                    </div>
-                </template>
+                <div role="dialog" aria-label="{{ __('phpinnacle-eidos::json-schema.view_schema') }}" class="eidos-json-schema-entry__panel">
+                    <x-phpinnacle-eidos::json-schema-tree
+                        x-init="$watch('isOpen', open => { if (!open) { jsonSchemaSearch = ''; jsonSchemaExpanded = {}; $el.parentElement.scrollTop = 0 } })"
+                        groups="schemaData"
+                        selected="source.value === schemaSelectedKey"
+                        properties="schemaProperties"
+                        descriptions="schemaDescriptions"
+                        compact="schemaCompact"
+                        searchable="schemaSearchable"
+                        :disabled="true"
+                    />
+                </div>
             </x-filament::dropdown>
         </div>
     @endif

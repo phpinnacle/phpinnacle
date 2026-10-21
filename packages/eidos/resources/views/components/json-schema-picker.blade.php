@@ -44,19 +44,18 @@
                 </div>
             </x-filament::input.wrapper>
         </x-slot>
-        <template x-if="isOpen">
-            <div class="eidos-json-schema-picker__panel">
-                <x-phpinnacle-eidos::json-schema-tree
-                    groups="schemaData"
-                    selected="source.value === schemaSelectedKey"
-                    :choose="$choose . '; close(); return true'"
-                    properties="schemaProperties"
-                    descriptions="schemaDescriptions"
-                    compact="schemaCompact"
-                    searchable="schemaSearchable"
-                    :disabled="$disabled"
-                />
-            </div>
-        </template>
+        <div class="eidos-json-schema-picker__panel">
+            <x-phpinnacle-eidos::json-schema-tree
+                x-init="$watch('isOpen', open => { if (!open) { jsonSchemaSearch = ''; jsonSchemaExpanded = {}; $el.parentElement.scrollTop = 0 } })"
+                groups="schemaData"
+                selected="source.value === schemaSelectedKey"
+                :choose="$choose . '; close(); return true'"
+                properties="schemaProperties"
+                descriptions="schemaDescriptions"
+                compact="schemaCompact"
+                searchable="schemaSearchable"
+                :disabled="$disabled"
+            />
+        </div>
     </x-filament::dropdown>
 </div>

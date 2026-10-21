@@ -315,6 +315,22 @@ it('rejects malformed, missing and array item selections', function (mixed $sele
     'different numeric key' => ["$['1']"],
 ]);
 
+it('prepares dropdown trees before opening so their full height can be measured', function () {
+    [$form] = eidos_json_schema_form(null);
+    view()->share('errors', new ViewErrorBag);
+
+    foreach ($form->getComponents() as $component) {
+        $document = new DOMDocument;
+        $document->loadHTML($component->toHtml(), LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new DOMXPath($document);
+
+        expect($xpath->query(
+            '//div[contains(@class, "fi-dropdown-panel")]//div[contains(@class, "eidos-json-schema-tree") and not(ancestor::template)]',
+        )->length)
+            ->toBeGreaterThan(0);
+    }
+});
+
 it('renders schema descriptions in the picker and readonly infolist entry', function () {
     [$form] = eidos_json_schema_form("$['customer']['email']");
     view()->share('errors', new ViewErrorBag);

@@ -192,6 +192,8 @@ Filament callbacks. Their state is an exact property path or `null`.
 The picker stores canonical JSONPath strings, such as `$['customer']['email']`.
 Its default value is `null`. Optional pickers allow clearing; required pickers need
 a selected field. Disabled pickers cannot be cleared. The root `$` is not selectable.
+The dropdown matches the field width and opens on the side with available space,
+including on its first opening.
 
 Dots, slashes, and asterisks in quoted property names remain literal:
 `$['metadata.version']` differs from `$['metadata']['version']` and `$['*']`
