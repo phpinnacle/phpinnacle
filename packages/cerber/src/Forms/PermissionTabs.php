@@ -35,13 +35,8 @@ class PermissionTabs
             foreach ($sections as $section => $permissions) {
                 $schema[] = Section::make(__($section))
                     ->schema([
-                        CheckboxList::make('permissions.' . $section)
-                            ->hiddenLabel()
-                            ->bulkToggleable()
+                        self::checkboxList($section)
                             ->options(array_map(fn (string $label) => __($label), $permissions))
-                            ->afterStateHydrated(
-                                self::adapt(...),
-                            )
                             ->columns(4)
                             ->gridDirection('row'),
                     ]);
@@ -91,13 +86,8 @@ class PermissionTabs
             Tab::make(__('phpinnacle-cerber::resources.role.sections.widgets'))
                 ->badge(count($widgets))
                 ->schema([
-                    CheckboxList::make('permissions.widgets')
-                        ->hiddenLabel()
-                        ->bulkToggleable()
-                        ->options(array_combine($widgets, $widgets))
-                        ->afterStateHydrated(
-                            self::adapt(...),
-                        ),
+                    self::checkboxList('widgets')
+                        ->options(array_combine($widgets, $widgets)),
                 ])
                 ->visible($widgets !== []),
         ];
@@ -109,19 +99,14 @@ class PermissionTabs
     public static function pages(): array
     {
         $pages = Cerberus::getPages();
-        $titles = array_map(fn (string $page) => call_user_func([$page, 'getNavigationLabel']), $pages);
+        $titles = array_map(fn (string $page) => $page::getNavigationLabel(), $pages);
 
         return [
             Tab::make(__('phpinnacle-cerber::resources.role.sections.pages'))
                 ->badge(count($pages))
                 ->schema([
-                    CheckboxList::make('permissions.pages')
-                        ->hiddenLabel()
-                        ->bulkToggleable()
-                        ->options(array_combine($pages, $titles))
-                        ->afterStateHydrated(
-                            self::adapt(...),
-                        ),
+                    self::checkboxList('pages')
+                        ->options(array_combine($pages, $titles)),
                 ])
                 ->visible($pages !== []),
         ];
@@ -159,13 +144,8 @@ class PermissionTabs
             $section = Section::make($label)
                 ->description($model)
                 ->schema([
-                    CheckboxList::make('permissions.' . $name)
-                        ->hiddenLabel()
-                        ->bulkToggleable()
+                    self::checkboxList($name)
                         ->options(array_combine($permissions, $titles))
-                        ->afterStateHydrated(
-                            self::adapt(...),
-                        )
                         ->columns(4)
                         ->gridDirection('row'),
                 ]);
@@ -189,17 +169,17 @@ class PermissionTabs
 
     private static function adapt(CheckboxList $component, ?Role $record): void
     {
-        $permissions = self::grants($record);
+        $permissions = $record?->permissions->pluck('name')->all() ?? [];
 
         $component->state(array_intersect($permissions, array_keys($component->getOptions())));
     }
 
-    /**
-     * @return list<string>
-     */
-    private static function grants(?Role $role): array
+    private static function checkboxList(string $name): CheckboxList
     {
-        return once(fn () => $role?->permissions->pluck('name')->all() ?? []);
+        return CheckboxList::make('permissions.' . $name)
+            ->hiddenLabel()
+            ->bulkToggleable()
+            ->afterStateHydrated(self::adapt(...));
     }
 
     /**

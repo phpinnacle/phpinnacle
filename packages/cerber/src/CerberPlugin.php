@@ -17,11 +17,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Route;
 use Lab404\Impersonate\Services\ImpersonateManager;
 use Livewire\Component;
-use PHPinnacle\Cerber\Enums\ProviderScope;
+use PHPinnacle\Cerber\Contracts\SocialAccountContext;
 use PHPinnacle\Cerber\Models\Provider;
 use PHPinnacle\Cerber\Models\Tenant;
 use PHPinnacle\Cerber\Services\DeveloperLogin;
 use PHPinnacle\Cerber\Services\ProviderRegistry;
+use PHPinnacle\Cerber\Services\SocialAccountContextRepository;
 
 class CerberPlugin implements Plugin
 {
@@ -30,6 +31,8 @@ class CerberPlugin implements Plugin
     public const string ID = 'phpinnacle/cerber';
 
     private bool $tenancy = false;
+
+    private ?string $socialAccountContext = null;
 
     /**
      * @var array<string, string>
@@ -42,10 +45,6 @@ class CerberPlugin implements Plugin
     private array $disabled = [];
 
     private ?Closure $modifyProfileForm = null;
-
-    public function __construct(
-        private readonly ProviderRegistry $providers,
-    ) {}
 
     public static function make(): static
     {
@@ -64,6 +63,20 @@ class CerberPlugin implements Plugin
     public function getId(): string
     {
         return self::ID;
+    }
+
+    public function socialAccountContext(string $name): static
+    {
+        $this->socialAccountContext = $name;
+
+        return $this;
+    }
+
+    public function getSocialAccountContext(): ?SocialAccountContext
+    {
+        return $this->socialAccountContext === null
+            ? null
+            : app(SocialAccountContextRepository::class)->get($this->socialAccountContext);
     }
 
     public function tenancy(bool $value = true): static
@@ -142,10 +155,6 @@ class CerberPlugin implements Plugin
      */
     public function guards(string $group, array $permissions): static
     {
-        if ($permissions === []) {
-            return $this;
-        }
-
         foreach ($permissions as $section => $items) {
             Cerberus::guard($group, $section, (array) $items);
         }
@@ -225,33 +234,8 @@ class CerberPlugin implements Plugin
                 EmailAuthentication::make(),
             ]);
 
-        if ($this->developers !== [] && !app()->isProduction()) {
-            $panel->renderHook(PanelsRenderHook::AUTH_LOGIN_FORM_AFTER, fn () => $this->developersHook($panel));
-            $panel->routes(fn () => [
-                Route::post('/developer-auth', Http\Controllers\LoginController::class)
-                    ->name('cerber-developer-auth')
-                    ->domain($panel->getTenantDomain()),
-            ]);
-        }
-
-        if ($this->providers->all()->isNotEmpty()) {
-            $panel->renderHook(
-                PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
-                fn (ProviderRegistry $registry) => $this->providersHook($panel, $registry),
-            );
-            $panel->routes(fn () => [
-                Route::get('/auth/{provider}/redirect', Http\Controllers\OAuth\RedirectController::class)
-                    ->name('auth.redirect'),
-                Route::get('/auth/{provider}/callback', Http\Controllers\OAuth\CallbackController::class)
-                    ->name('auth.callback'),
-                Route::get('/auth/{provider}/test', Http\Controllers\OAuth\TestController::class)
-                    ->name('auth.test'),
-            ]);
-            $panel->authenticatedRoutes(fn () => [
-                Route::get('/auth/{provider}/link', Http\Controllers\OAuth\LinkController::class)
-                    ->name('auth.link'),
-            ]);
-        }
+        $this->registerDeveloperLogin($panel);
+        $this->registerSocialLogin($panel);
 
         if ($this->tenancy) {
             $panel
@@ -270,7 +254,7 @@ class CerberPlugin implements Plugin
 
     protected function providersHook(Panel $panel, ProviderRegistry $registry): string
     {
-        $providers = Provider::valid(ProviderScope::Session)->map(function (Provider $provider) use (
+        $providers = Provider::valid($this->getSocialAccountContext())->map(function (Provider $provider) use (
             $panel,
             $registry,
         ) {
@@ -294,6 +278,45 @@ class CerberPlugin implements Plugin
             : '';
     }
 
+    private function registerDeveloperLogin(Panel $panel): void
+    {
+        if ($this->developers === [] || app()->isProduction()) {
+            return;
+        }
+
+        $panel->renderHook(PanelsRenderHook::AUTH_LOGIN_FORM_AFTER, fn () => $this->developersHook($panel));
+        $panel->routes(fn () => [
+            Route::post('/developer-auth', Http\Controllers\LoginController::class)
+                ->name('cerber-developer-auth')
+                ->domain($panel->getTenantDomain()),
+        ]);
+    }
+
+    private function registerSocialLogin(Panel $panel): void
+    {
+        if ($this->socialAccountContext === null) {
+            return;
+        }
+
+        $panel->authGuard($this->getSocialAccountContext()->guard());
+        $panel->renderHook(
+            PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
+            fn (ProviderRegistry $registry) => $this->providersHook($panel, $registry),
+        );
+        $panel->routes(fn () => [
+            Route::get('/auth/{provider}/redirect', Http\Controllers\OAuth\RedirectController::class)
+                ->name('auth.redirect'),
+            Route::get('/auth/{provider}/callback', Http\Controllers\OAuth\CallbackController::class)
+                ->name('auth.callback'),
+            Route::get('/auth/{provider}/test', Http\Controllers\OAuth\TestController::class)
+                ->name('auth.test'),
+        ]);
+        $panel->authenticatedRoutes(fn () => [
+            Route::get('/auth/{provider}/link', Http\Controllers\OAuth\LinkController::class)
+                ->name('auth.link'),
+        ]);
+    }
+
     private function developersHook(Panel $panel): View
     {
         return view('phpinnacle-cerber::login.developers', [
@@ -303,18 +326,5 @@ class CerberPlugin implements Plugin
                 'tenant' => $this->tenancy ? Tenant::resolve($panel)?->domain : null,
             ]),
         ]);
-    }
-
-    /**
-     * @deprecated Providers are now configured via config('phpinnacle-cerber.auth_providers').
-     */
-    public function authProviders(AuthProvider|Closure|string ...$providers): static
-    {
-        trigger_error(
-            'CerberPlugin::authProviders() is deprecated. Use config("phpinnacle-cerber.auth_providers") instead.',
-            E_USER_DEPRECATED,
-        );
-
-        return $this;
     }
 }

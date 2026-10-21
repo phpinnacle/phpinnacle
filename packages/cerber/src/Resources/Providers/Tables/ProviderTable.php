@@ -9,6 +9,7 @@ use Filament\Facades\Filament;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use PHPinnacle\Cerber\CerberPlugin;
 use PHPinnacle\Cerber\Models\Provider;
 use PHPinnacle\Cerber\Resources\Providers\ProviderResource;
 use PHPinnacle\Cerber\Services\ProviderRegistry;
@@ -20,8 +21,6 @@ class ProviderTable
 {
     public static function configure(Table $table): Table
     {
-        $panel = Filament::getCurrentOrDefaultPanel();
-
         return $table
             ->heading(__('phpinnacle-cerber::resources.provider.pages.list'))
             ->emptyStateHeading(__('phpinnacle-cerber::resources.provider.empty.heading'))
@@ -33,9 +32,7 @@ class ProviderTable
             ->columns([
                 TextColumn::make('name')
                     ->label(__('phpinnacle-cerber::resources.provider.fields.name'))
-                    ->description(fn (Provider $record) => $panel->route('auth.redirect', [
-                        'provider' => $record->getKey(),
-                    ]))
+                    ->description(self::callbackUrl(...))
                     ->searchable()
                     ->sortable(),
 
@@ -45,10 +42,9 @@ class ProviderTable
                     ->badge()
                     ->sortable(),
 
-                TextColumn::make('scopes')
-                    ->label(__('phpinnacle-cerber::resources.provider.fields.scopes'))
-                    ->badge()
-                    ->separator(','),
+                TextColumn::make('context')
+                    ->label(__('phpinnacle-cerber::resources.provider.fields.context'))
+                    ->badge(),
 
                 TextColumn::make('accounts_count')
                     ->label(__('phpinnacle-cerber::resources.provider.fields.accounts'))
@@ -69,11 +65,28 @@ class ProviderTable
             ])
             ->recordActions([
                 EditAction::make()
-                    ->label(__('phpinnacle-cerber::resources.provider.actions.update'))
                     ->iconButton(),
                 DeleteAction::make()
                     ->label(__('phpinnacle-cerber::resources.provider.actions.delete'))
                     ->iconButton(),
             ]);
+    }
+
+    private static function callbackUrl(Provider $provider): string
+    {
+        foreach (Filament::getPanels() as $panel) {
+            if (!$panel->hasPlugin(CerberPlugin::ID)) {
+                continue;
+            }
+
+            /** @var CerberPlugin $plugin */
+            $plugin = $panel->getPlugin(CerberPlugin::ID);
+
+            if ($plugin->getSocialAccountContext()?->name() === $provider->context) {
+                return $panel->route('auth.callback', ['provider' => $provider->id]);
+            }
+        }
+
+        return $provider->frontendCallbackUrl();
     }
 }

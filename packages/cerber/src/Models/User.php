@@ -265,6 +265,12 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
         $this->save();
     }
 
+    public function toggleArchived(): void
+    {
+        $this->status = $this->status === UserStatus::Active ? UserStatus::Archived : UserStatus::Active;
+        $this->save();
+    }
+
     protected static function booted(): void
     {
         self::creating(function (self $record) {

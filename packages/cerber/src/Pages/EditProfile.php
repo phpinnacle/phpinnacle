@@ -17,7 +17,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Enums\Alignment;
 use LogicException;
 use PHPinnacle\Cerber\CerberPlugin;
-use PHPinnacle\Cerber\Enums\ProviderScope;
 use PHPinnacle\Cerber\Forms\AvatarUpload;
 use PHPinnacle\Cerber\Models\Provider;
 use PHPinnacle\Cerber\Models\SocialAccount;
@@ -122,10 +121,16 @@ class EditProfile extends BasePage
 
     public function getOAuthAccountsComponent(): ?Component
     {
-        $linked = SocialAccount::linked(Filament::auth()->user());
+        $context = CerberPlugin::get()->getSocialAccountContext();
+
+        if ($context === null) {
+            return null;
+        }
+
+        $linked = SocialAccount::linked($context, Filament::auth()->user());
         $components = [];
 
-        foreach (Provider::valid(ProviderScope::Session) as $provider) {
+        foreach (Provider::valid($context) as $provider) {
             $isLinked = in_array($provider->getKey(), $linked, strict: true);
 
             $components[] = Actions::make(
@@ -179,7 +184,10 @@ class EditProfile extends BasePage
                 ->icon($icon)
                 ->color('danger')
                 ->visible($linked)
-                ->action(fn () => SocialAccount::unlink(Filament::auth()->user(), $provider))
+                ->action(fn () => SocialAccount::unlink(
+                    Filament::auth()->user(),
+                    $provider,
+                ))
                 ->requiresConfirmation()
                 ->link(),
         ];

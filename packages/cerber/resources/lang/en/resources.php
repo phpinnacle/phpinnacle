@@ -91,10 +91,9 @@ return [
             'accounts' => 'Linked Accounts',
             'client_id' => 'Client ID',
             'client_secret' => 'Client Secret',
-            'redirect' => 'Redirect URL',
-            'scopes' => 'Scopes',
             'additional' => 'Additional Parameters',
-            'oauth_scopes' => 'OAuth scopes',
+            'context' => 'Sign-in context',
+            'scopes' => 'OAuth scopes',
         ],
         'pages' => [
             'list' => 'Auth Providers',
@@ -102,17 +101,11 @@ return [
             'edit' => 'Edit Provider',
         ],
         'placeholders' => [
-            'scopes' => 'Enter scope and press Enter',
-            'oauth_scopes' => 'email, profile',
+            'scopes' => 'email, profile',
         ],
         'sections' => [
             'general' => 'General Information',
             'configuration' => 'Auth Configuration',
-        ],
-        'scopes' => [
-            'session' => 'Panel (session)',
-            'stateless' => 'API (stateless)',
-            'bff' => 'BFF (SPA cookie)',
         ],
     ],
     'accounts' => [

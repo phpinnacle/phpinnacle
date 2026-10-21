@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use PHPinnacle\Cerber\Http\Controllers\OAuth\API\OAuthController;
 
-Route::prefix('api/auth/oauth')
+Route::prefix('api/auth/oauth/{socialAccountContext}')
     ->name('cerber.oauth.')
     ->middleware(['api'])
     ->group(function () {
@@ -17,5 +17,8 @@ Route::prefix('api/auth/oauth')
 
         Route::post('{provider}/callback', [OAuthController::class, 'callback'])
             ->name('callback')
+            ->middleware('throttle:10,1');
+        Route::delete('{provider}/link', [OAuthController::class, 'unlink'])
+            ->name('unlink')
             ->middleware('throttle:10,1');
     });

@@ -16,7 +16,7 @@ return new class extends Migration {
             $table->string('name');
             $table->string('type');
             $table->text('config');
-            $table->json('scopes')->default('["session"]');
+            $table->string('context')->index();
             $table
                 ->unsignedInteger('sort')
                 ->index()
@@ -48,7 +48,7 @@ return new class extends Migration {
             $table->timestamp('token_expires_at')->nullable();
             $table->timestamps();
 
-            $table->index(['user_id', 'provider_id']);
+            $table->unique(['user_id', 'provider_id']);
             $table->unique(['provider_id', 'external_id']);
         });
     }

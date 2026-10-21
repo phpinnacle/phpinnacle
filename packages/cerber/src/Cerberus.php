@@ -8,6 +8,7 @@ use Filament\Resources\Resource;
 use Filament\Widgets\WidgetConfiguration;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Event;
 use InvalidArgumentException;
 use PHPinnacle\Cerber\Contracts\HasCustomPermissions;
 use PHPinnacle\Cerber\Models\Invitation;
@@ -66,18 +67,27 @@ class Cerberus
 
     public static function registerScoped(): void
     {
+        $listener = [self::class, 'assignTenant'];
+
         /** @var class-string<Model> $model */
         foreach (self::$scoped as $model) {
-            $model::creating(function (Model $record) {
-                if ($record->getAttribute('tenant_id') === null) {
-                    $record->setAttribute('tenant_id', self::tenant());
-                }
-            });
+            $listeners = Event::getRawListeners()['eloquent.creating: ' . $model] ?? [];
+
+            if (!in_array($listener, $listeners, true)) {
+                $model::creating($listener);
+            }
 
             $model::resolveRelationUsing('tenant', fn (Model $record) => $record->belongsTo(
                 Tenant::class,
                 'tenant_id',
             ));
+        }
+    }
+
+    public static function assignTenant(Model $record): void
+    {
+        if ($record->getAttribute('tenant_id') === null) {
+            $record->setAttribute('tenant_id', self::tenant());
         }
     }
 

@@ -2,25 +2,21 @@
 
 namespace PHPinnacle\Cerber\Http\Controllers\OAuth;
 
-use Illuminate\Http\Request;
-use PHPinnacle\Cerber\Enums\ProviderScope;
+use PHPinnacle\Cerber\CerberPlugin;
 use PHPinnacle\Cerber\Models\Provider;
-use PHPinnacle\Cerber\OAuth\OAuthFactory;
+use PHPinnacle\Cerber\Services\SessionOAuth;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
 readonly class LinkController
 {
     public function __construct(
-        private OAuthFactory $factory,
+        private SessionOAuth $oauth,
     ) {}
 
-    public function __invoke(Provider $provider, Request $request): RedirectResponse
+    public function __invoke(Provider $provider): RedirectResponse
     {
-        $oauthProvider = $this->factory
-            ->make(ProviderScope::Session);
+        $context = CerberPlugin::get()->getSocialAccountContext();
 
-        $request->session()->put('oauth_link_mode', true);
-
-        return $oauthProvider->redirect($provider);
+        return $this->oauth->redirect($context, $provider, linkUserId: auth()->guard($context->guard())->id());
     }
 }

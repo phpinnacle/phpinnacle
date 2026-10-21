@@ -2,14 +2,14 @@
 
 namespace PHPinnacle\Cerber\Resources\Providers\Schemas;
 
-use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\KeyValue;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use PHPinnacle\Cerber\Enums\ProviderScope;
 use PHPinnacle\Cerber\Forms\ProviderSelect;
+use PHPinnacle\Cerber\Services\SocialAccountContextRepository;
 use PHPinnacle\Common\Forms\ActiveSelect;
 
 class ProviderForm
@@ -31,18 +31,20 @@ class ProviderForm
                         ProviderSelect::make('type')
                             ->label(__('phpinnacle-cerber::resources.provider.fields.type'))
                             ->disabledOn('edit')
-                            ->scopedUnique()
                             ->required()
                             ->live(),
 
                         ActiveSelect::make(),
 
-                        CheckboxList::make('scopes')
-                            ->label(__('phpinnacle-cerber::resources.provider.fields.scopes'))
-                            ->options(ProviderScope::class)
-                            ->default([ProviderScope::Session->value])
+                        Select::make('context')
+                            ->label(__('phpinnacle-cerber::resources.provider.fields.context'))
+                            ->options(function (SocialAccountContextRepository $contexts) {
+                                $names = array_keys($contexts->all());
+
+                                return array_combine($names, $names);
+                            })
                             ->required()
-                            ->columns(3)
+                            ->disabledOn('edit')
                             ->columnSpanFull(),
                     ]),
 
@@ -62,9 +64,9 @@ class ProviderForm
                             ->maxLength(255)
                             ->required(),
 
-                        TagsInput::make('oauth_scopes')
-                            ->label(__('phpinnacle-cerber::resources.provider.fields.oauth_scopes'))
-                            ->placeholder(__('phpinnacle-cerber::resources.provider.placeholders.oauth_scopes'))
+                        TagsInput::make('scopes')
+                            ->label(__('phpinnacle-cerber::resources.provider.fields.scopes'))
+                            ->placeholder(__('phpinnacle-cerber::resources.provider.placeholders.scopes'))
                             ->columnSpanFull(),
 
                         KeyValue::make('additional')

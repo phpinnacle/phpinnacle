@@ -3,18 +3,14 @@
 return [
     'login' => [
         'or_login_with' => 'or sign in with:',
-        'no_permission_contact_admin' => 'You do not have permission to access the admin panel. Please contact your administrator.',
     ],
     'errors' => [
+        'access_denied' => 'You do not have permission to sign in.',
         'callback_failed' => 'Authorization failed',
-        'domain_not_allowed' => 'Access denied. Email must be from an allowed domain.',
         'invalid_state' => 'Invalid or expired OAuth state. Please try again.',
-        'invalid_callback_url' => 'OAuth callback URL is not configured.',
-        'email_not_provided' => 'The provider did not return an email address.',
     ],
     'account' => [
         'linked' => 'Account successfully linked',
-        'unlinked' => 'Account successfully unlinked',
     ],
     'test' => [
         'title' => 'Test for :provider',

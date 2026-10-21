@@ -8,14 +8,15 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
-use PHPinnacle\Cerber\Enums\ProviderScope;
-use PHPinnacle\Cerber\Models\Casts\ProviderScopeCast;
+use Illuminate\Support\Uri;
+use PHPinnacle\Cerber\Contracts\SocialAccountContext;
 
 /**
  * @property string $id
  * @property string $type
  * @property string $name
  * @property array<string, mixed> $config
+ * @property string $context
  * @property bool $is_active
  * @property int $sort
  * @property CarbonImmutable $created_at
@@ -37,7 +38,6 @@ class Provider extends Model implements HasLabel
     protected $casts = [
         'config' => 'encrypted:array',
         'is_active' => 'bool',
-        'scopes' => ProviderScopeCast::class,
     ];
 
     protected $fillable = [
@@ -45,7 +45,7 @@ class Provider extends Model implements HasLabel
         'type',
         'config',
         'is_active',
-        'scopes',
+        'context',
         'sort',
     ];
 
@@ -62,30 +62,12 @@ class Provider extends Model implements HasLabel
     /**
      * @return Collection<int, self>
      */
-    public static function valid(ProviderScope $scope): Collection
+    public static function valid(SocialAccountContext $context): Collection
     {
         return self::active()
-            ->whereJsonContains('scopes', $scope->value)
+            ->where('context', $context->name())
             ->get()
             ->filter(fn (self $provider) => $provider->isConfigValid());
-    }
-
-    /**
-     * @return Collection<string, string>
-     */
-    public static function list(): Collection
-    {
-        return self::active()->pluck('name', 'type');
-    }
-
-    public static function get(string $type): self
-    {
-        return self::active()->where('type', $type)->firstOrFail();
-    }
-
-    public static function find(string $type): ?self
-    {
-        return self::active()->where('type', $type)->first();
     }
 
     public static function booted(): void
@@ -109,6 +91,17 @@ class Provider extends Model implements HasLabel
     public function isConfigValid(): bool
     {
         return filled($this->config['client_id'] ?? null) && filled($this->config['client_secret'] ?? null);
+    }
+
+    public function isAvailableTo(SocialAccountContext $context): bool
+    {
+        return $this->is_active && $this->context === $context->name() && $this->isConfigValid();
+    }
+
+    public function frontendCallbackUrl(): string
+    {
+        return (string) Uri::of(config('phpinnacle-cerber.api.callback_url'))
+            ->withQuery(['context' => $this->context, 'provider' => $this->id]);
     }
 
     /**

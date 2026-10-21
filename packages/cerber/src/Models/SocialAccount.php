@@ -6,6 +6,9 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Laravel\Socialite\Contracts\User as SocialiteUser;
+use Laravel\Socialite\Two\User as OAuthTwoUser;
+use PHPinnacle\Cerber\Contracts\SocialAccountContext;
 
 /**
  * @property string $id
@@ -51,9 +54,13 @@ class SocialAccount extends Model
     /**
      * @return list<string>
      */
-    public static function linked(Authenticatable $user): array
+    public static function linked(SocialAccountContext $context, Authenticatable $user): array
     {
-        return self::query()->where('user_id', $user->getAuthIdentifier())->pluck('provider_id')->all();
+        return self::query()
+            ->whereHas('provider', fn ($query) => $query->where('context', $context->name()))
+            ->where('user_id', $user->getAuthIdentifier())
+            ->pluck('provider_id')
+            ->all();
     }
 
     public static function unlink(Authenticatable $user, Provider $provider): void
@@ -72,6 +79,36 @@ class SocialAccount extends Model
             ->where('provider_id', $provider->getKey())
             ->where('external_id', $externalId)
             ->first();
+    }
+
+    public static function link(
+        Provider $provider,
+        User $user,
+        SocialiteUser $socialiteUser,
+    ): self {
+        $values = [
+            'external_id' => $socialiteUser->getId(),
+            'email' => $socialiteUser->getEmail(),
+            'profile' => [
+                'name' => $socialiteUser->getName(),
+                'nickname' => $socialiteUser->getNickname(),
+                'avatar' => $socialiteUser->getAvatar(),
+            ],
+        ];
+
+        if ($socialiteUser instanceof OAuthTwoUser) {
+            $values += [
+                'access_token' => $socialiteUser->token,
+                'refresh_token' => $socialiteUser->refreshToken,
+                'token_expires_at' => $socialiteUser->expiresIn ? now()->addSeconds($socialiteUser->expiresIn) : null,
+            ];
+        }
+
+        return self::query()
+            ->updateOrCreate([
+                'user_id' => $user->getKey(),
+                'provider_id' => $provider->getKey(),
+            ], $values);
     }
 
     /**

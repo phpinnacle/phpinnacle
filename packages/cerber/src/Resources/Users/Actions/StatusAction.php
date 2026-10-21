@@ -28,12 +28,6 @@ class StatusAction extends Action
                 UserStatus::Active => __('phpinnacle-cerber::resources.user.actions.archive'),
                 UserStatus::Archived, UserStatus::Blocked => __('phpinnacle-cerber::resources.user.actions.restore'),
             })
-            ->action(function (User $record) {
-                $record->status = $record->status === UserStatus::Active
-                    ? UserStatus::Archived
-                    : UserStatus::Active;
-
-                $record->save();
-            });
+            ->action(fn (User $record) => $record->toggleArchived());
     }
 }

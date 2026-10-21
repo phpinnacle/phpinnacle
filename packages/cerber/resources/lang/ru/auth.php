@@ -3,18 +3,14 @@
 return [
     'login' => [
         'or_login_with' => 'или войдите через:',
-        'no_permission_contact_admin' => 'У вас нет прав доступа к админ-панели. Обратитесь к администратору.',
     ],
     'errors' => [
+        'access_denied' => 'У вас нет разрешения на вход.',
         'callback_failed' => 'Ошибка авторизации',
-        'domain_not_allowed' => 'Вход запрещён. Email должен быть из разрешённого домена.',
         'invalid_state' => 'Недействительный или просроченный OAuth state. Попробуйте снова.',
-        'invalid_callback_url' => 'OAuth callback URL не настроен.',
-        'email_not_provided' => 'Провайдер не вернул email.',
     ],
     'account' => [
         'linked' => 'Аккаунт успешно подключён',
-        'unlinked' => 'Аккаунт успешно отключён',
     ],
     'test' => [
         'title' => 'Результат проверки :provider',

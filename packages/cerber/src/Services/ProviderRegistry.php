@@ -44,8 +44,6 @@ class ProviderRegistry
      */
     public function build(string $class, array $config): Provider
     {
-        $this->boot();
-
         $provider = $this->get($class);
 
         if ($provider === null) {

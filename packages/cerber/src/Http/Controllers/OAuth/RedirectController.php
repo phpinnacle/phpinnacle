@@ -2,21 +2,19 @@
 
 namespace PHPinnacle\Cerber\Http\Controllers\OAuth;
 
-use PHPinnacle\Cerber\Enums\ProviderScope;
+use PHPinnacle\Cerber\CerberPlugin;
 use PHPinnacle\Cerber\Models\Provider;
-use PHPinnacle\Cerber\OAuth\OAuthFactory;
+use PHPinnacle\Cerber\Services\SessionOAuth;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
 readonly class RedirectController
 {
     public function __construct(
-        private OAuthFactory $factory,
+        private SessionOAuth $oauth,
     ) {}
 
     public function __invoke(Provider $provider): RedirectResponse
     {
-        return $this->factory
-            ->make(ProviderScope::Session)
-            ->redirect($provider);
+        return $this->oauth->redirect(CerberPlugin::get()->getSocialAccountContext(), $provider);
     }
 }

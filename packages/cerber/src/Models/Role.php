@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use PHPinnacle\Cerber\Cerberus;
 
 /**
@@ -79,9 +78,9 @@ class Role extends Model implements HasLabel
     public static function register(Tenant $tenant, string $name, array $permissions = []): self
     {
         /** @var Role $self */
-        $self = self::query()
+        $self = $tenant
+            ->roles()
             ->firstOrCreate([
-                'tenant_id' => $tenant->id,
                 'name' => $name,
             ]);
 
@@ -119,10 +118,8 @@ class Role extends Model implements HasLabel
 
     public function grant(Permission|string ...$permissions): self
     {
-        DB::transaction(function () use ($permissions) {
-            $exists = $this->permissions->pluck('id')->all();
+        $this->getConnection()->transaction(function () use ($permissions) {
             $actual = [];
-            $relation = $this->permissions();
 
             foreach ($permissions as $permission) {
                 $permission = Permission::filter($permission, register: true);
@@ -132,14 +129,12 @@ class Role extends Model implements HasLabel
                 }
 
                 $actual[] = $permission->getKey();
-
-                if (!in_array($permission->getKey(), $exists, true)) {
-                    $relation->attach($permission);
-                }
             }
 
-            $relation->detach(array_diff($exists, $actual));
+            $this->permissions()->sync($actual);
         });
+
+        $this->unsetRelation('permissions');
 
         return $this;
     }

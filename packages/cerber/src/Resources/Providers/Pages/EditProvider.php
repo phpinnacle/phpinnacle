@@ -7,6 +7,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Facades\Filament;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Contracts\Support\Htmlable;
+use PHPinnacle\Cerber\CerberPlugin;
 use PHPinnacle\Cerber\Models\Provider;
 use PHPinnacle\Cerber\Resources\Providers\ProviderResource;
 
@@ -26,9 +27,10 @@ class EditProvider extends EditRecord
     {
         return [
             Action::make('test_connection')
+                ->visible(fn () => CerberPlugin::get()->getSocialAccountContext()?->name() === $this->record->context)
                 ->label(__('phpinnacle-cerber::resources.provider.actions.test_connection'))
                 ->icon('phosphor-play-circle')
-                ->url(Filament::getCurrentPanel()->route('auth.test', $this->record->id))
+                ->url(fn () => Filament::getCurrentPanel()->route('auth.test', $this->record->id))
                 ->openUrlInNewTab(),
             DeleteAction::make()
                 ->label(__('phpinnacle-cerber::resources.provider.actions.delete')),

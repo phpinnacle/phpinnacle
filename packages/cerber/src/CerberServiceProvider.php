@@ -3,17 +3,19 @@
 namespace PHPinnacle\Cerber;
 
 use BladeUI\Icons\Factory;
-use Filament\Exceptions\NoDefaultPanelSetException;
 use Filament\Facades\Filament;
-use Filament\PanelRegistry;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Route;
 use Lab404\Impersonate\Events\LeaveImpersonation;
 use Lab404\Impersonate\Events\TakeImpersonation;
 use Laravel\Sanctum\Sanctum;
 use PHPinnacle\Cerber\Console\SyncPermissions;
+use PHPinnacle\Cerber\Http\Middleware\AuthenticateSocialAccountContext;
 use PHPinnacle\Cerber\Models\AccessToken;
 use PHPinnacle\Cerber\Models\User;
+use PHPinnacle\Cerber\Services\ImpersonationSession;
+use PHPinnacle\Cerber\Services\SocialAccountContextRepository;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 use SocialiteProviders\Yandex\Provider;
 use Spatie\LaravelPackageTools\Commands\InstallCommand;
@@ -36,12 +38,18 @@ class CerberServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
+        Route::aliasMiddleware('cerber.context', AuthenticateSocialAccountContext::class);
+        Route::bind(
+            'socialAccountContext',
+            fn (string $name) => app(SocialAccountContextRepository::class)->all()[$name] ?? abort(404),
+        );
+
         Sanctum::usePersonalAccessTokenModel(AccessToken::class);
 
         Gate::after(fn (User $user, string $ability) => $user->able($ability, Filament::getTenant()));
 
-        Event::listen(TakeImpersonation::class, $this->clearAuthHashes(...));
-        Event::listen(LeaveImpersonation::class, $this->clearAuthHashes(...));
+        Event::listen(TakeImpersonation::class, [ImpersonationSession::class, 'clearAuthHashes']);
+        Event::listen(LeaveImpersonation::class, [ImpersonationSession::class, 'clearAuthHashes']);
         Event::listen(SocialiteWasCalled::class, $this->socioliteCalled(...));
     }
 
@@ -63,43 +71,6 @@ class CerberServiceProvider extends PackageServiceProvider
                     ->publishMigrations()
                     ->askToRunMigrations();
             });
-    }
-
-    /**
-     * A missing default Filament panel has no panel-specific authentication hash to clear.
-     *
-     * @mago-expect lint:no-empty-catch-clause
-     */
-    private function clearAuthHashes(): void
-    {
-        $hashes = [
-            'password_hash_sanctum',
-            'password_hash_' . auth()->getDefaultDriver(),
-        ];
-
-        $guard = session('impersonate.guard');
-
-        if ($guard) {
-            $hashes[] = 'password_hash_' . $guard;
-        }
-
-        try {
-            /** @throws NoDefaultPanelSetException */
-            $hashes[] = 'password_hash_' . Filament::getCurrentOrDefaultPanel()->getAuthGuard();
-        } catch (NoDefaultPanelSetException) {
-        }
-
-        $backToPanelId = session()->get('impersonate.back_to_panel');
-
-        if ($backToPanelId) {
-            $panel = app(PanelRegistry::class)->get($backToPanelId);
-
-            if ($panel !== null) {
-                $hashes[] = 'password_hash_' . $panel->getAuthGuard();
-            }
-        }
-
-        session()->forget(array_unique($hashes));
     }
 
     private function socioliteCalled(SocialiteWasCalled $socialiteWasCalled): void
