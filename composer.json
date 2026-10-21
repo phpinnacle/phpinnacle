@@ -52,7 +52,8 @@
     "autoload-dev": {
         "psr-4": {
             "Tests\\": "tests/",
-            "PHPinnacle\\Decima\\Tests\\": "packages/decima/tests/"
+            "PHPinnacle\\Decima\\Tests\\": "packages/decima/tests/",
+            "PHPinnacle\\Manuscript\\Tests\\": "packages/manuscript/tests/"
         }
     },
     "repositories": [
