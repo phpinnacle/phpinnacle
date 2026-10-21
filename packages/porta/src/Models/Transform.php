@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Date;
 use JsonPath\JsonObject;
 use PHPinnacle\Intl\Locales;
 use PHPinnacle\Porta\Enums\TransformType;
+use ReflectionReference;
 use Throwable;
 
 /**
@@ -107,20 +108,54 @@ readonly class Transform
      */
     private function drop(array $data): array
     {
-        $parts = explode('.', $this->path);
-        $field = array_pop($parts);
+        if ($this->path === '$') {
+            return [];
+        }
 
-        if ($field === '') {
+        $json = new JsonObject($data);
+        $selected = $json->get($this->path);
+        $references = [];
+
+        // Galbar exposes selected nodes by reference, so deletion needs no second JSONPath parser.
+        foreach (array_keys($selected) as $key) {
+            $reference = ReflectionReference::fromArrayElement($selected, $key);
+
+            if ($reference !== null) {
+                $references[$reference->getId()] = true;
+            }
+        }
+
+        if ($references === []) {
             return $data;
         }
 
-        return $this->update($data, implode('.', $parts), function (mixed $value) use ($field) {
-            if (is_array($value)) {
-                unset($value[$field]);
-            }
+        $data = $json->getValue();
+        $this->removeSelected($data, $references);
 
-            return $value;
-        });
+        return $data;
+    }
+
+    /**
+     * @param array<array-key, mixed> $data
+     * @param array<string, true> $references
+     */
+    private function removeSelected(array &$data, array $references): void
+    {
+        $list = array_is_list($data);
+
+        foreach (array_keys($data) as $key) {
+            $reference = ReflectionReference::fromArrayElement($data, $key);
+
+            if ($reference !== null && array_key_exists($reference->getId(), $references)) {
+                unset($data[$key]);
+            } elseif (is_array($data[$key])) {
+                $this->removeSelected($data[$key], $references);
+            }
+        }
+
+        if ($list) {
+            $data = array_values($data);
+        }
     }
 
     private function insertValue(mixed $value): mixed

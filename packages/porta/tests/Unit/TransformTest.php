@@ -42,12 +42,82 @@ final class TransformTest extends TestCase
             ['items' => [['id' => 1, 'secret' => 'a'], ['id' => 2, 'secret' => 'b']]],
             ['items' => [['id' => 1], ['id' => 2]]],
         ];
+        yield 'drop a quoted property containing a dot' => [
+            TransformType::DROP,
+            "$['meta.version']",
+            [],
+            ['meta.version' => 'v1', 'safe' => 'v1'],
+            ['safe' => 'v1'],
+        ];
+        yield 'drop a literal wildcard property' => [
+            TransformType::DROP,
+            "$['*']",
+            [],
+            ['*' => null, 'safe' => null],
+            ['safe' => null],
+        ];
+        yield 'drop an array index and retain a list' => [
+            TransformType::DROP,
+            '$.items[0]',
+            [],
+            ['items' => ['remove', 'keep']],
+            ['items' => ['keep']],
+        ];
+        yield 'drop multiple null items without matching their values' => [
+            TransformType::DROP,
+            '$.items[0,2]',
+            [],
+            ['items' => [null, null, null, 'keep']],
+            ['items' => [null, 'keep']],
+        ];
+        yield 'drop filtered array items' => [
+            TransformType::DROP,
+            '$.items[?(@.remove == true)]',
+            [],
+            ['items' => [['remove' => true], ['remove' => false], ['remove' => true]]],
+            ['items' => [['remove' => false]]],
+        ];
+        yield 'drop all array items' => [
+            TransformType::DROP,
+            '$.items[*]',
+            [],
+            ['items' => [1, 2]],
+            ['items' => []],
+        ];
+        yield 'drop recursive property matches' => [
+            TransformType::DROP,
+            '$..secret',
+            [],
+            ['secret' => 'root', 'child' => ['secret' => null, 'safe' => null]],
+            ['child' => ['safe' => null]],
+        ];
+        yield 'drop the root document' => [
+            TransformType::DROP,
+            '$',
+            [],
+            ['secret' => 'value'],
+            [],
+        ];
         yield 'move replaces the destination and removes the source' => [
             TransformType::MOVE,
             '$.source',
             ['dest' => '$.destination'],
             ['source' => ['id' => 1], 'destination' => 'old'],
             ['destination' => ['id' => 1]],
+        ];
+        yield 'move a quoted source into a missing destination' => [
+            TransformType::MOVE,
+            "$['meta.version']",
+            ['dest' => '$.metadata.version'],
+            ['meta.version' => 'v1'],
+            ['metadata' => ['version' => 'v1']],
+        ];
+        yield 'move an array item and retain the source list' => [
+            TransformType::MOVE,
+            '$.items[0]',
+            ['dest' => '$.selected'],
+            ['items' => ['move', 'keep']],
+            ['items' => ['keep'], 'selected' => 'move'],
         ];
         yield 'cast selected values' => [
             TransformType::CAST,
