@@ -94,6 +94,8 @@
 - Make surgical changes: every changed line must serve the requested outcome, its verification, or cleanup made necessary by the change. Preserve unrelated user work and report unrelated defects instead of fixing them.
 - Remove only imports, code, tests, assets, and configuration made obsolete by the current change.
 - Define observable success before implementation. Reproduce bugs with the narrowest practical test, cover invalid inputs for validation changes, and establish a passing baseline before refactors.
+- Keep JavaScript and PHP test suites independently runnable. JavaScript tests must not require PHP, Composer dependencies, or a booted PHP application; PHP tests must not require Node.js, npm dependencies, or JavaScript builds.
+- Do not invoke the other language's runtime to generate test inputs or expected results. Define explicit fixtures in the test suite's own language.
 - For PHP changes, run `composer format`, focused package tests, and repository-wide `composer lint`. Also run `composer lint` when changing Composer or PHP analysis configuration. Use the package's declared test runner.
 - For frontend behavior changes, run relevant JavaScript and integration checks and rebuild affected committed assets as required by the package.
 - For component changes demonstrated in `../playground`, update the affected demos, tests, and README in the same task, following that repository's `AGENTS.md`. Republish its package assets with `php artisan filament:assets` when package JavaScript or CSS changes.
