@@ -56,10 +56,19 @@ Current values on a supplied model instance are not defaults. SQL expressions
 such as `CURRENT_TIMESTAMP` and sequences, and defaults on generated columns,
 are omitted. A database metadata `null` means no reported default; Eidos does
 not infer a default from nullability.
-Relationships with concrete return types include the related model's columns,
-including their own `required` list, but do not expand its relationships.
+Relationships with concrete return types include related model schemas and their
+own `required` lists. `introspect($model, relationshipDepth: 3)` expands three
+relationship levels; the default is one, and zero includes only the root columns.
+Cyclic and self-referential paths may repeat until the requested depth, where only
+columns remain. Larger depths increase the generated schema size and metadata reads.
+To omit an unavailable optional relationship, register
+`$introspector->excludeRelationship(Media::class, 'temporaryUpload')` at application
+startup. Exclusions use the exact model class and method name. They are shared
+with cast registrations; exceptions from other relationships still propagate.
 Relationship properties are marked `readOnly: true` and are not required on the
-parent object. `MorphTo` relationships are omitted.
+parent object. Their `x-relationship` annotation preserves the exact Eloquent
+method name even when the property is snake-cased. BelongsTo properties also
+include `x-foreign-key` with the exact local foreign key column. `MorphTo` relationships are omitted.
 `HasMany`, `MorphMany`, `HasManyThrough`, and `BelongsToMany` (including
 `MorphToMany`) relationships are arrays of related objects. Singular
 relationships are nullable objects.
@@ -180,17 +189,19 @@ JsonSchemaEntry::make('output_path')->jsonSchema($schema);
 
 Both components accept schema types through `jsonSchema()`, directly or through
 Filament callbacks. Their state is an exact property path or `null`.
-The picker stores exact property names as a path array, such as
-`['customer', 'email']`. Its default value is `null`. Optional pickers allow
-clearing; required pickers need a nonempty path. Disabled pickers cannot be
-cleared. The root and an empty path are not selectable.
+The picker stores canonical JSONPath strings, such as `$['customer']['email']`.
+Its default value is `null`. Optional pickers allow clearing; required pickers need
+a selected field. Disabled pickers cannot be cleared. The root `$` is not selectable.
 
-Dots and slashes in property names remain literal: `['metadata.version']` differs
-from `['metadata', 'version']`. Validation rejects malformed or unavailable paths.
+Dots, slashes, and asterisks in quoted property names remain literal:
+`$['metadata.version']` differs from `$['metadata']['version']` and `$['*']`
+differs from `$[*]`. Validation rejects malformed or unavailable paths.
 Properties in `anyOf`, `oneOf`, and `allOf` branches are available, but a complete
 path must exist within one branch. Arrays are selectable as whole fields. Expand
 an array to inspect its object fields directly, without intermediate `*` rows.
-Array item fields remain readonly and cannot be selected.
+Array item fields are readonly by default. Enable `selectArrayItemFields()` to
+select paths such as `$['items'][*]['name']`; the wildcard identifies every item
+without choosing a concrete index.
 When a tree includes the array root, its item fields are indented beneath it.
 The root starts expanded and can be collapsed without introducing `*` rows.
 
@@ -200,16 +211,10 @@ definition. Referenced titles, icons, colors, required markers, and constraints
 are available too. Sibling annotations override those on the referenced schema.
 External references and circular references are unsupported and raise errors.
 
-Keep paths as arrays when storing them. If an application needs a string, it can
-format the submitted value through Filament:
-
-```php
-JsonSchemaPicker::make('output_path')
-    ->jsonSchema($schema)
-    ->dehydrateStateUsing(fn (?array $state) => $state === null ? null : implode('.', $state));
-```
-
-A dotted string loses the distinction between literal dots and path separators.
+Store the selected JSONPath string directly. `JsonSchema\JsonPath::fromSegments()`
+and `JsonSchema\JsonPath::parse()` convert the supported canonical subset:
+quoted property names, nonnegative indexes, and `[*]`. Previous array state is
+unsupported.
 
 ### Entry modes
 
@@ -296,9 +301,10 @@ or `<x-phpinnacle-eidos::json-schema-entry>`:
 />
 ```
 
-Provide a serialized schema object and a writable path array or `null` in Alpine.
+Provide a serialized schema object and a writable JSONPath string or `null` in Alpine.
 Set `:clearable="false"` for a required selection. The same display options are
-available as boolean props; the required-marker prop is named `required`.
+available as boolean props; use `:select-array-item-fields="true"` to enable
+array item selection. The required-marker prop is named `required`.
 The entry reads `value` without modifying it; omit `inline` for the normal
 field summary and popover.
 

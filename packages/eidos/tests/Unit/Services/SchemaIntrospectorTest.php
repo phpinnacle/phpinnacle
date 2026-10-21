@@ -36,6 +36,11 @@ class GeneratedSchemaProduct extends Model
     {
         return $this->belongsTo(GeneratedSchemaSupplier::class, 'supplier_id');
     }
+
+    public function purchasingPartner(): BelongsTo
+    {
+        return $this->belongsTo(GeneratedSchemaSupplier::class, 'supplier_id');
+    }
 }
 
 class GeneratedSchemaSupplier extends Model
@@ -68,6 +73,12 @@ class PolymorphicSchemaOwner extends Model
     protected $table = 'eidos_polymorphic_owners';
 
     /** @return MorphMany<PolymorphicSchemaProduct, $this> */
+    public function relatedProducts(): MorphMany
+    {
+        return $this->morphMany(PolymorphicSchemaProduct::class, 'owner');
+    }
+
+    /** @return MorphMany<PolymorphicSchemaProduct, $this> */
     public function products(): MorphMany
     {
         return $this->morphMany(PolymorphicSchemaProduct::class, 'owner');
@@ -91,6 +102,34 @@ class CustomSchemaRecord extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(GeneratedSchemaSupplier::class, 'supplier_id');
+    }
+}
+
+class DepthSchemaProduct extends Model
+{
+    protected $table = 'eidos_depth_products';
+
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(DepthSchemaSupplier::class, 'supplier_id');
+    }
+}
+
+class DepthSchemaSupplier extends Model
+{
+    protected $table = 'eidos_depth_suppliers';
+
+    public function products(): HasMany
+    {
+        return $this->hasMany(DepthSchemaProduct::class, 'supplier_id');
+    }
+}
+
+class UnavailableRelationshipProduct extends DepthSchemaProduct
+{
+    public function optionalSupplier(): BelongsTo
+    {
+        throw new \LogicException('Optional relation is unavailable.');
     }
 }
 
@@ -137,7 +176,11 @@ it('describes polymorphic collections as arrays and singular relations as nullab
 
     $properties = app(SchemaIntrospector::class)->introspect(PolymorphicSchemaOwner::class)->toArray()['properties'];
 
-    expect($properties['products']['type'])
+    expect($properties['related_products']['x-relationship'])
+        ->toBe('relatedProducts')
+        ->and($properties['products']['x-relationship'])
+        ->toBe('products')
+        ->and($properties['products']['type'])
         ->toBe('array')
         ->and($properties['products']['readOnly'])
         ->toBeTrue()
@@ -403,7 +446,11 @@ it('marks stored and virtual generated columns as read only across relations', f
     $introspector = app(SchemaIntrospector::class);
     $schema = $introspector->introspect(new GeneratedSchemaProduct)->toArray();
 
-    expect($schema['required'])
+    expect($schema['properties']['supplier']['x-foreign-key'])
+        ->toBe('supplier_id')
+        ->and($schema['properties']['purchasing_partner']['x-foreign-key'])
+        ->toBe('supplier_id')
+        ->and($schema['required'])
         ->toBe(['sku'])
         ->and($schema['properties']['supplier']['required'])
         ->toBe(['code'])
@@ -552,4 +599,44 @@ it('keeps default cast and database types when no handler is registered', functi
         ->toBe(['object', 'array'])
         ->and($properties['quantity']['type'])
         ->toBe('integer');
+});
+
+it('expands relationships to the requested depth and bounds cyclic paths', function () {
+    Schema::create('eidos_depth_suppliers', function (Blueprint $table) {
+        $table->id();
+        $table->string('name');
+    });
+    Schema::create('eidos_depth_products', function (Blueprint $table) {
+        $table->id();
+        $table->unsignedBigInteger('supplier_id');
+        $table->string('sku');
+    });
+    $introspector = app(SchemaIntrospector::class);
+    $columns = $introspector->introspect(DepthSchemaProduct::class, relationshipDepth: 0)->toArray();
+    $default = $introspector->introspect(DepthSchemaProduct::class)->toArray();
+    $deep = $introspector->introspect(DepthSchemaProduct::class, relationshipDepth: 3)->toArray();
+
+    expect($columns['properties'])
+        ->toHaveKey('sku')
+        ->not->toHaveKey('supplier')->and($default['properties']['supplier']['properties'])->toHaveKey('name')
+        ->not->toHaveKey('products');
+    $products = $deep['properties']['supplier']['properties']['products'];
+    expect($products['type'])
+        ->toBe('array')
+        ->and($products['x-relationship'])
+        ->toBe('products')
+        ->and($products['items']['properties']['supplier']['x-foreign-key'])
+        ->toBe('supplier_id')
+        ->and($products['items']['properties']['supplier']['properties'])
+        ->toHaveKey('name')
+        ->not->toHaveKey('products')->and($products['items']['properties']['supplier']['type'])->toBe([
+            'object',
+            'null',
+        ])->and($products['items']['properties']['supplier'])
+        ->not->toHaveKey('title');
+    expect(fn () => $introspector->introspect(UnavailableRelationshipProduct::class, relationshipDepth: 3))
+        ->toThrow(\LogicException::class, 'Optional relation is unavailable.');
+    $introspector->excludeRelationship(UnavailableRelationshipProduct::class, 'optionalSupplier');
+    $filtered = $introspector->introspect(UnavailableRelationshipProduct::class, relationshipDepth: 3)->toArray();
+    expect($filtered['properties'])->toHaveKey('supplier')->not->toHaveKey('optional_supplier');
 });

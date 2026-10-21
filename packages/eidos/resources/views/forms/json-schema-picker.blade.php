@@ -10,6 +10,7 @@
             choose="schemaValue = source.value"
             :label="\Illuminate\Support\Js::from($getLabel())"
             :disabled="$isDisabled()"
+            :select-array-item-fields="$canSelectArrayItemFields()"
             :clearable="!$isRequired()"
             :format="$isFormatVisible()"
             :properties="$arePropertiesVisible()"

@@ -39,29 +39,40 @@ final class Node
         }
     }
 
-    /** @param list<string> $path */
-    public function hasPath(array $path): bool
+    public function hasPath(string $path, bool $selectArrayItemFields = false): bool
     {
-        return $this->hasPathAt($path, 0);
+        return $this->hasPathAt($path, '$', $selectArrayItemFields);
     }
 
-    /** @param list<string> $path */
-    private function hasPathAt(array $path, int $offset): bool
+    private function hasPathAt(string $path, string $prefix, bool $selectArrayItemFields): bool
     {
-        if ($offset === count($path)) {
+        if ($path === $prefix) {
             return true;
         }
 
         foreach ($this->variants() as $variant) {
-            if ($variant->hasPathAt($path, $offset)) {
+            if ($variant->hasPathAt($path, $prefix, $selectArrayItemFields)) {
                 return true;
             }
         }
 
-        $properties = $this->definition['properties'] ?? [];
-        $name = $path[$offset];
+        foreach ($this->definition['properties'] ?? [] as $name => $property) {
+            $child = $prefix . JsonPath::property((string) $name);
 
-        return array_key_exists($name, $properties) && new self($properties[$name])->hasPathAt($path, $offset + 1);
+            if (
+                str_starts_with($path, $child)
+                && new self($property)->hasPathAt($path, $child, $selectArrayItemFields)
+            ) {
+                return true;
+            }
+        }
+
+        return (
+            $selectArrayItemFields
+            && array_key_exists('items', $this->definition)
+            && str_starts_with($path, $prefix . '[*]')
+            && new self($this->definition['items'])->hasPathAt($path, $prefix . '[*]', $selectArrayItemFields)
+        );
     }
 
     /** @return iterable<self> */

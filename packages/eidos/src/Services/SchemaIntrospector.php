@@ -8,6 +8,7 @@ use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -31,6 +32,17 @@ class SchemaIntrospector
     /** @var array<string, Closure(Model, string, list<string>): Type> */
     private array $castHandlers = [];
 
+    /** @var array<class-string<Model>, array<string, true>> */
+    private array $excludedRelationships = [];
+
+    /** @param class-string<Model> $model */
+    public function excludeRelationship(string $model, string $relationship): static
+    {
+        $this->excludedRelationships[$model][$relationship] = true;
+
+        return $this;
+    }
+
     /** @param Closure(Model, string, list<string>): Type $handler */
     public function registerCast(string $name, Closure $handler): static
     {
@@ -39,20 +51,43 @@ class SchemaIntrospector
         return $this;
     }
 
-    /** @param class-string<Model>|Model $model */
-    public function introspect(string|Model $model): Schema
+    /**
+     * @param class-string<Model>|Model $model
+     * @param int<0, max> $relationshipDepth
+     */
+    public function introspect(string|Model $model, int $relationshipDepth = 1): Schema
     {
         $model = is_string($model) ? new $model : $model;
 
-        $definition = $this->columnSchema($model);
-        $definition['properties'] = array_replace($definition['properties'], $this->relationSchemas($model));
+        $definition = $this->modelSchema($model, $relationshipDepth);
         $definition['title'] = $model::class;
 
         return Schema::fromArray($definition);
     }
 
-    /** @return array<string, array<string, mixed>> */
-    private function relationSchemas(Model $model): array
+    /**
+     * @param int<0, max> $relationshipDepth
+     * @return array{type: string, properties: array<string, array<string, mixed>>, required: list<string>}
+     */
+    private function modelSchema(Model $model, int $relationshipDepth): array
+    {
+        $definition = $this->columnSchema($model);
+
+        if ($relationshipDepth > 0) {
+            $definition['properties'] = array_replace(
+                $definition['properties'],
+                $this->relationSchemas($model, $relationshipDepth - 1),
+            );
+        }
+
+        return $definition;
+    }
+
+    /**
+     * @param int<0, max> $relationshipDepth
+     * @return array<string, array<string, mixed>>
+     */
+    private function relationSchemas(Model $model, int $relationshipDepth): array
     {
         $properties = [];
 
@@ -62,6 +97,7 @@ class SchemaIntrospector
             if (
                 $method->isStatic()
                 || $method->getNumberOfRequiredParameters() !== 0
+                || array_key_exists($method->getName(), $this->excludedRelationships[$model::class] ?? [])
                 || !$returnType instanceof ReflectionNamedType
                 || !is_a($returnType->getName(), Relation::class, true)
                 || is_a($returnType->getName(), MorphTo::class, true)
@@ -70,7 +106,7 @@ class SchemaIntrospector
             }
 
             $relation = $this->relation($model, $method);
-            $relatedSchema = $this->columnSchema($relation->getRelated());
+            $relatedSchema = $this->modelSchema($relation->getRelated(), $relationshipDepth);
             $name = $model::$snakeAttributes ? Str::snake($method->getName()) : $method->getName();
 
             $properties[$name] =
@@ -80,6 +116,11 @@ class SchemaIntrospector
                 || $relation instanceof HasManyThrough
                     ? ['type' => 'array', 'items' => $relatedSchema, 'readOnly' => true]
                     : array_replace($relatedSchema, ['type' => ['object', 'null'], 'readOnly' => true]);
+            $properties[$name]['x-relationship'] = $method->getName();
+
+            if ($relation instanceof BelongsTo) {
+                $properties[$name]['x-foreign-key'] = $relation->getForeignKeyName();
+            }
         }
 
         return $properties;

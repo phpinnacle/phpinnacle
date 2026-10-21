@@ -1,10 +1,10 @@
-@props(['schema', 'value', 'choose', 'label', 'disabled' => false, 'clearable' => true, 'format' => false, 'properties' => true, 'required' => false, 'constraints' => false, 'compact' => false, 'searchable' => true, 'icons' => [], 'colors' => true, 'descriptions' => true, 'propertyTitles' => []])
+@props(['schema', 'value', 'choose', 'label', 'disabled' => false, 'clearable' => true, 'format' => false, 'properties' => true, 'required' => false, 'constraints' => false, 'compact' => false, 'searchable' => true, 'icons' => [], 'colors' => true, 'descriptions' => true, 'propertyTitles' => [], 'selectArrayItemFields' => false])
 
 <div
     x-load
     x-load-src="{{ \Filament\Support\Facades\FilamentAsset::getAlpineComponentSrc('json-schema-tools', package: 'phpinnacle/eidos') }}"
     x-data="jsonSchemaTools()"
-    x-effect="schemaSelectedKey = JSON.stringify({{ $value }}); schemaSyncSelection()"
+    x-effect="schemaSelectedKey = {{ $value }}; schemaSyncSelection()"
     {{ $attributes->class(['eidos-json-schema-picker']) }}
 >
     @include('phpinnacle-eidos::components.json-schema-options')
@@ -48,7 +48,7 @@
             <div class="eidos-json-schema-picker__panel">
                 <x-phpinnacle-eidos::json-schema-tree
                     groups="schemaData"
-                    selected="source.key === schemaSelectedKey"
+                    selected="source.value === schemaSelectedKey"
                     :choose="$choose . '; close(); return true'"
                     properties="schemaProperties"
                     descriptions="schemaDescriptions"

@@ -16,6 +16,7 @@ final class ValidPath implements ValidationRule
     /** @param Closure(): Type $schema */
     public function __construct(
         private readonly Closure $schema,
+        private readonly bool $selectArrayItemFields = false,
     ) {}
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
@@ -24,33 +25,19 @@ final class ValidPath implements ValidationRule
             return;
         }
 
-        if (!is_array($value)) {
-            $fail('validation.array')->translate();
+        if (!is_string($value)) {
+            $fail('validation.string')->translate();
 
             return;
         }
 
-        if (!array_is_list($value)) {
-            $fail('validation.list')->translate();
-
-            return;
-        }
-
-        foreach ($value as $segment) {
-            if (!is_string($segment)) {
-                $fail('validation.string')->translate();
-
-                return;
-            }
-        }
-
-        if ($value === []) {
-            $fail('validation.min.array')->translate(['min' => 1]);
-
-            return;
-        }
-
-        if (!new Node(Deserializer::resolveReferences(($this->schema)()->toArray()))->hasPath($value)) {
+        if (
+            $value === '$'
+            || !new Node(Deserializer::resolveReferences(($this->schema)()->toArray()))->hasPath(
+                $value,
+                $this->selectArrayItemFields,
+            )
+        ) {
             $fail('validation.in')->translate();
         }
     }

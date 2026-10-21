@@ -18,6 +18,22 @@ class JsonSchemaPicker extends Field
     /** @var Type|Closure(): Type */
     private Type|Closure $jsonSchema;
 
+    /** @var bool|Closure(): bool */
+    private bool|Closure $canSelectArrayItemFields = false;
+
+    /** @param bool|Closure(): bool $condition */
+    public function selectArrayItemFields(bool|Closure $condition = true): static
+    {
+        $this->canSelectArrayItemFields = $condition;
+
+        return $this;
+    }
+
+    public function canSelectArrayItemFields(): bool
+    {
+        return $this->evaluate($this->canSelectArrayItemFields);
+    }
+
     /** @param Type|Closure(): Type $schema */
     public function jsonSchema(Type|Closure $schema): static
     {
@@ -45,6 +61,11 @@ class JsonSchemaPicker extends Field
         parent::setUp();
 
         $this->searchable();
-        $this->rule(fn (JsonSchemaPicker $component) => new ValidPath($component->getJsonSchema(...)));
+        $this->rule(
+            fn (JsonSchemaPicker $component) => new ValidPath(
+                $component->getJsonSchema(...),
+                $component->canSelectArrayItemFields(),
+            ),
+        );
     }
 }

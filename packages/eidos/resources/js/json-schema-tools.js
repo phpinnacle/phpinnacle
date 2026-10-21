@@ -10,18 +10,18 @@ export default function jsonSchemaTools() {
         schemaGroups, schemaSelectionLabel, schemaSelectedKey: null,
         schemaData: [], schemaSelectedSource: null,
         schemaDescriptions: true, schemaColors: true, schemaFormat: false, schemaProperties: true, schemaRequired: false,
-        schemaConstraints: false, schemaCompact: false, schemaSearchable: true, schemaIcons: {}, schemaPropertyTitles: {},
+        schemaSelectArrayItemFields: false, schemaConstraints: false, schemaCompact: false, schemaSearchable: true, schemaIcons: {}, schemaPropertyTitles: {},
         dropdownResizeObserver: null,
         dropdownMutationObserver: null,
         schemaBuildGroups(schema, label) {
             return schemaGroups(schema, label, {
-                includeRoot: false, descendArrays: true,
+                includeRoot: false, descendArrays: true, selectArrayItemFields: this.schemaSelectArrayItemFields,
                 format: this.schemaFormat, required: this.schemaRequired, constraints: this.schemaConstraints,
                 icons: this.schemaIcons, colors: this.schemaColors, propertyTitles: this.schemaPropertyTitles,
             })
         },
         schemaSyncSelection() {
-            this.schemaSelectedSource = this.schemaData[0]?.sources.find(source => source.key === this.schemaSelectedKey) ?? null
+            this.schemaSelectedSource = this.schemaData[0]?.sources.find(source => source.value === this.schemaSelectedKey) ?? null
         },
         matchDropdownWidth(panel, trigger) {
             let width = `${trigger.getBoundingClientRect().width}px`

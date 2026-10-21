@@ -8692,7 +8692,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/decima",
-                "reference": "e63e367d7a33b2bac1e0dfe61bc2abcd4e5dce7b"
+                "reference": "e4d1416876deb4ebc575e4b4722f848d7815f1e4"
             },
             "require": {
                 "filament/filament": "^5.0",
@@ -8701,7 +8701,8 @@
                 "phpinnacle/common": "^1.0",
                 "phpinnacle/eidos": "^1.0",
                 "phpinnacle/tempo": "^1.0",
-                "spatie/laravel-package-tools": "^1.92"
+                "spatie/laravel-package-tools": "^1.92",
+                "symfony/json-path": "^7.4|^8.0"
             },
             "require-dev": {
                 "orchestra/testbench": "^11.0",
@@ -14987,6 +14988,78 @@
                 }
             ],
             "time": "2026-08-21T17:47:34+00:00"
+        },
+        {
+            "name": "symfony/json-path",
+            "version": "v8.1.9",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/json-path.git",
+                "reference": "aa639d06ea65b5b99444a3a00db585e6f251502c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/json-path/zipball/aa639d06ea65b5b99444a3a00db585e6f251502c",
+                "reference": "aa639d06ea65b5b99444a3a00db585e6f251502c",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.4.1",
+                "symfony/polyfill-ctype": "^1.8",
+                "symfony/polyfill-mbstring": "^1.0"
+            },
+            "require-dev": {
+                "jsonpath-standard/jsonpath-compliance-test-suite": "*",
+                "symfony/json-streamer": "^7.4|^8.0",
+                "symfony/service-contracts": "^2.5|^3"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Component\\JsonPath\\": ""
+                },
+                "exclude-from-classmap": [
+                    "/Tests/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Alexandre Daubois",
+                    "email": "alex.daubois@gmail.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Eases JSON navigation using the JSONPath syntax as described in RFC 9535",
+            "homepage": "https://symfony.com",
+            "support": {
+                "source": "https://github.com/symfony/json-path/tree/v8.1.9"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-10-04T07:54:35+00:00"
         },
         {
             "name": "symfony/mailer",

@@ -4,7 +4,7 @@
     x-load
     x-load-src="{{ \Filament\Support\Facades\FilamentAsset::getAlpineComponentSrc('json-schema-tools', package: 'phpinnacle/eidos') }}"
     x-data="jsonSchemaTools()"
-    x-effect="schemaSelectedKey = JSON.stringify({{ $value }}); schemaSyncSelection()"
+    x-effect="schemaSelectedKey = {{ $value }}; schemaSyncSelection()"
     {{ $attributes->class(['eidos-json-schema-entry']) }}
 >
     @include('phpinnacle-eidos::components.json-schema-options')
@@ -12,7 +12,7 @@
     @if ($inline)
         <x-phpinnacle-eidos::json-schema-tree
             groups="schemaData"
-            selected="source.key === schemaSelectedKey"
+            selected="source.value === schemaSelectedKey"
             properties="schemaProperties"
             descriptions="schemaDescriptions"
             compact="schemaCompact"
@@ -46,7 +46,7 @@
                     <div role="dialog" aria-label="{{ __('phpinnacle-eidos::json-schema.view_schema') }}" class="eidos-json-schema-entry__panel">
                         <x-phpinnacle-eidos::json-schema-tree
                             groups="schemaData"
-                            selected="source.key === schemaSelectedKey"
+                            selected="source.value === schemaSelectedKey"
                             properties="schemaProperties"
                             descriptions="schemaDescriptions"
                             compact="schemaCompact"
