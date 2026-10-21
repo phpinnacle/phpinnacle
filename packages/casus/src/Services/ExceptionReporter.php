@@ -2,11 +2,11 @@
 
 namespace PHPinnacle\Casus\Services;
 
-use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
+use PHPinnacle\Casus\Data\FrontendError;
 use PHPinnacle\Casus\Enums\HttpMethod;
 use PHPinnacle\Casus\Models\Exception;
 use PHPinnacle\Casus\Notifications\ExceptionReported;
@@ -32,10 +32,7 @@ class ExceptionReporter
                 $file,
                 $error->getLine(),
             ]));
-            // ponytail: best-effort read/update; use an atomic upsert if concurrent counts must be exact.
-            $exception = Exception::query()->where('fingerprint', $fingerprint)->first() ?? new Exception;
-
-            $exception->forceFill([
+            $exception = Exception::recordOccurrence($fingerprint, [
                 'sapi' => php_sapi_name(),
                 'type' => $error::class,
                 'code' => $error->getCode(),
@@ -44,16 +41,18 @@ class ExceptionReporter
                 'message' => $error->getMessage(),
                 'trace' => $error->getTraceAsString(),
                 'context' => $this->context($error),
-                'fingerprint' => $fingerprint,
-                'occurrences' => $exception->exists ? $exception->occurrences + 1 : 1,
-                'occurred_at' => CarbonImmutable::now(),
                 ...$this->requestSnapshot($request),
-            ])->saveQuietly();
+            ]);
 
             $this->notify($exception);
         } catch (Throwable) {
             return;
         }
+    }
+
+    public function reportFrontend(FrontendError $error, Request $request): void
+    {
+        $this->notify(Exception::recordFrontend($error, $this->requestMetadata($request)));
     }
 
     /**
@@ -68,6 +67,28 @@ class ExceptionReporter
      * }
      */
     public function requestSnapshot(?Request $request): array
+    {
+        $snapshot = $this->requestMetadata($request);
+
+        if ($request !== null) {
+            $snapshot['body'] = $this->redactBody($request);
+        }
+
+        return $snapshot;
+    }
+
+    /**
+     * @return array{
+     *     method: HttpMethod|null,
+     *     path: string|null,
+     *     query: array<array-key, mixed>|null,
+     *     cookies: array<array-key, mixed>|null,
+     *     headers: array<array-key, mixed>|null,
+     *     body: null,
+     *     ip: string|null,
+     * }
+     */
+    private function requestMetadata(?Request $request): array
     {
         if ($request === null) {
             return [
@@ -95,7 +116,7 @@ class ExceptionReporter
             'query' => $this->sensitiveValues->redact($request->query()),
             'cookies' => $this->sensitiveValues->redact($request->cookies->all()),
             'headers' => $this->sensitiveValues->redact(Arr::except($request->headers->all(), 'cookie')),
-            'body' => $this->redactBody($request),
+            'body' => null,
             'ip' => $request->ip(),
         ];
     }

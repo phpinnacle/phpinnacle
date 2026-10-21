@@ -7,6 +7,21 @@ return [
             'sort' => 1000,
         ],
     ],
+    'frontend' => [
+        'enabled' => false,
+        'rate_limits' => [
+            'global' => [
+                1 => 20,
+                10 => 100,
+                60 => 300,
+            ],
+            'per_ip' => [
+                1 => 3,
+                10 => 10,
+                60 => 30,
+            ],
+        ],
+    ],
     'prune' => 30,
     'connection' => null,
     'redaction' => [

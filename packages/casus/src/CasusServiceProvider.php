@@ -2,6 +2,8 @@
 
 namespace PHPinnacle\Casus;
 
+use Illuminate\Support\Facades\RateLimiter;
+use PHPinnacle\Casus\Services\FrontendRateLimiter;
 use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -17,6 +19,7 @@ class CasusServiceProvider extends PackageServiceProvider
             ->discoversMigrations()
             ->hasTranslations()
             ->hasConfigFile()
+            ->hasRoutes('web')
             ->hasInstallCommand(function (InstallCommand $command) {
                 $command
                     ->publishConfigFile()
@@ -24,5 +27,10 @@ class CasusServiceProvider extends PackageServiceProvider
                     ->askToRunMigrations()
                     ->askToStarRepoOnGitHub('phpinnacle/casus');
             });
+    }
+
+    public function packageBooted(): void
+    {
+        RateLimiter::for('phpinnacle-casus.frontend', app(FrontendRateLimiter::class)->limits(...));
     }
 }

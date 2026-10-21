@@ -11,6 +11,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Phiki\Grammar\Grammar;
+use PHPinnacle\Casus\Data\FrontendError;
 use PHPinnacle\Casus\Enums\ExceptionStatus;
 use PHPinnacle\Casus\Enums\HttpMethod;
 use PHPinnacle\Casus\Services\ExceptionReporter;
@@ -81,6 +82,59 @@ class Exception extends Model
     public static function report(Throwable $error, ?Request $request = null): void
     {
         app(ExceptionReporter::class)->report($error, $request);
+    }
+
+    /**
+     * @param array{
+     *     method: HttpMethod|null,
+     *     path: string|null,
+     *     query: array<array-key, mixed>|null,
+     *     cookies: array<array-key, mixed>|null,
+     *     headers: array<array-key, mixed>|null,
+     *     body: string|null,
+     *     ip: string|null,
+     * } $snapshot
+     */
+    public static function recordFrontend(FrontendError $error, array $snapshot): self
+    {
+        return self::recordOccurrence($error->fingerprint(), [
+            ...$snapshot,
+            ...$error->attributes($snapshot['path']),
+        ]);
+    }
+
+    /**
+     * @param array{
+     *     sapi: string,
+     *     type: string,
+     *     code: int|string,
+     *     file: string,
+     *     line: int,
+     *     message: string,
+     *     trace: string,
+     *     context: array<array-key, mixed>,
+     *     method: HttpMethod|null,
+     *     path: string|null,
+     *     query: array<array-key, mixed>|null,
+     *     cookies: array<array-key, mixed>|null,
+     *     headers: array<array-key, mixed>|null,
+     *     body: string|null,
+     *     ip: string|null,
+     * } $attributes
+     */
+    public static function recordOccurrence(string $fingerprint, array $attributes): self
+    {
+        // Occurrence counts are best-effort when reports arrive concurrently.
+        $exception = self::query()->where('fingerprint', $fingerprint)->first() ?? new self;
+
+        $exception->forceFill([
+            ...$attributes,
+            'fingerprint' => $fingerprint,
+            'occurrences' => $exception->exists ? $exception->occurrences + 1 : 1,
+            'occurred_at' => CarbonImmutable::now(),
+        ])->saveQuietly();
+
+        return $exception;
     }
 
     public function link(): string

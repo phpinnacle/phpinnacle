@@ -146,3 +146,9 @@ it('groups repeated exceptions, preserves triage, and notifies at the threshold'
 
     Notification::assertSentOnDemandTimes(ExceptionReported::class, 2);
 });
+
+it('keeps PHP reporting best-effort when persistence fails', function () {
+    Schema::drop('exceptions');
+
+    expect(fn () => ExceptionRecord::report(new RuntimeException('Failed')))->not->toThrow(Throwable::class);
+});

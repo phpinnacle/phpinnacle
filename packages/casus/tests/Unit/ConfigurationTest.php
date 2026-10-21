@@ -37,3 +37,7 @@ it('preserves nullable connection and navigation configuration', function () {
         ->and(ExceptionResource::getNavigationIcon())
         ->toBe('phosphor-bug');
 });
+
+it('keeps frontend ingestion disabled by default', function () {
+    $this->postJson('/casus/errors', ['type' => 'Error', 'message' => 'Failed'])->assertNotFound();
+});
