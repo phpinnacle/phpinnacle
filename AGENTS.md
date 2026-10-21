@@ -41,6 +41,15 @@
 - Use services for external APIs, provider protocols, registries, reflection or storage adapters, parsing and formatting, authorization orchestration, and cross-boundary transactions.
 - Never store request-, user-, or tenant-specific state in static properties or singleton services under Octane.
 
+## Avoid Contract-Bypassing Workarounds
+
+- A contract-bypassing workaround compensates for another component's limitation or defect by bypassing its public contract, misrepresenting data, or reproducing its internal behavior in a consumer. Avoid these workarounds; fix or extend the component that owns the behavior and consume its public API.
+- Do not override another component's internal methods or force its availability, compatibility, or validation results to enable unsupported behavior.
+- Do not change a value's meaning, type, or path, introduce dummy values, or discard information merely to pass another component's restrictions.
+- Keep general mechanisms independent of particular implementations. Do not branch on a descendant's class, identifier, or implementation-specific fields to supply behavior that belongs to that descendant.
+- Do not duplicate another component's parsing, validation, or computation in a consumer when the rules must change together. Keep those rules with their owner and expose the capability through its public contract.
+- Ordinary adapters, intentional boundary conversions, documented extension points, and justified workarounds for external library defects are not automatically violations. Judge whether the code preserves the contract and data semantics. For each finding, identify a concrete scenario, the misplaced responsibility, and the smallest correction.
+
 ## Behavior Follows Owned State
 
 - When a method does not use its declaring object's state and instead operates exclusively on another typed object's state, place that behavior on the typed object when it is universally meaningful to it.
