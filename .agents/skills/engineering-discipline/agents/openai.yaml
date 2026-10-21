@@ -1,0 +1,4 @@
+interface:
+  display_name: "Engineering Discipline"
+  short_description: "Disciplined, verifiable repository changes"
+  default_prompt: "Use $engineering-discipline to make the smallest verifiable change while preserving existing behavior."
