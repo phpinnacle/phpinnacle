@@ -63,6 +63,7 @@ ItemPicker::make('assignees')
 `compact()` puts item and group descriptions on the label line. `dense()` independently reduces spacing and visual sizes. `circular()` rounds images and icon backgrounds. Images take precedence over icons. These options, `multiple()` and `branches()` accept boolean conditions or closures. Multiple dropdowns show complete selected chips and summarize overflow as `+N`. `branches(false)` allows leaf choices while keeping parent branches expandable. Disabled choices cannot be selected.
 
 Item and group names get title-case labels unless an explicit label is supplied. Single selection stores a string or `null`; multiple selection stores a list of strings. The field validates availability, disabled items and branch selection. Both inline and dropdown modes support keyboard navigation. Groups are labels rather than selectable values.
+Dropdown panels receive their position and width before becoming visible, including on their first opening.
 
 Enable server search with `searchable()`. Its boolean or closure controls whether the search input is available. The `items()` callback receives a nullable `$search` and the current `$state`, alongside the usual Filament utility injections. Initial loading and clearing the search pass `null`. The callback owns filtering, ordering and access restrictions; the field does not filter search results automatically.
 

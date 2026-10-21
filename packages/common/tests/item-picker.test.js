@@ -88,6 +88,42 @@ test('selects parents and descendants but rejects groups and disabled choices', 
     assert.equal(component.state, 'dry')
 })
 
+test('applies popup coordinates before showing, loading or focusing it', () => {
+    const originalWindow = globalThis.window
+    globalThis.window = { innerHeight: 800, innerWidth: 1000 }
+
+    try {
+        for (const top of [100, 700]) {
+            const component = picker({ select: true, searchable: true })
+            const ticks = []
+            const events = []
+            const panel = {
+                style: '',
+                showPopover() {
+                    assert.match(this.style, /left:80px;width:320px;/)
+                    assert.ok(this.style.includes(top === 100 ? 'top:146px;bottom:auto' : 'bottom:106px;top:auto'))
+                    events.push('show')
+                },
+            }
+            component.$refs = {
+                panel,
+                trigger: { getBoundingClientRect: () => ({ top, bottom: top + 40, left: 80, width: 320 }) },
+                search: { focus() { events.push('focus') } },
+            }
+            component.$nextTick = callback => ticks.push(callback)
+            component.loadMore = () => events.push('load')
+
+            component.toggle()
+            assert.deepEqual(events, [])
+            panel.style = component.panelStyle
+            for (const tick of ticks) tick()
+            assert.deepEqual(events, ['show', 'load', 'focus'])
+        }
+    } finally {
+        globalThis.window = originalWindow
+    }
+})
+
 test('closes the select popup and returns focus after keyboard selection or Escape', () => {
     const component = picker({ select: true })
     let closed = 0

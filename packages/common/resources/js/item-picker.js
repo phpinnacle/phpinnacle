@@ -339,8 +339,10 @@ export function itemPicker({
             if (this.open) return this.close()
             this.open = true
             this.position()
-            this.$refs.panel.showPopover()
-            this.$nextTick(() => this.loadMore())
+            this.$nextTick(() => {
+                this.$refs.panel.showPopover()
+                this.loadMore()
+            })
             if (this.searchable) {
                 this.$nextTick(() => this.$refs.search.focus())
             } else {
