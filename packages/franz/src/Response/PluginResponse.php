@@ -22,7 +22,7 @@ final readonly class PluginResponse
         return new self(
             ResponseValue::string($payload['class'] ?? null),
             ResponseValue::string($payload['type'] ?? null),
-            ($payload['version'] ?? null) === null ? null : ResponseValue::string($payload['version']),
+            ResponseValue::string($payload['version'] ?? null, nullable: true),
             $payload,
         );
     }

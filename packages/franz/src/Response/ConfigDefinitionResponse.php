@@ -26,7 +26,7 @@ final readonly class ConfigDefinitionResponse
             ResponseValue::string($payload['name'] ?? null),
             ResponseValue::string($payload['type'] ?? null),
             ResponseValue::bool($payload['required'] ?? null),
-            ($payload['default_value'] ?? null) === null ? null : ResponseValue::string($payload['default_value']),
+            ResponseValue::string($payload['default_value'] ?? null, nullable: true),
             ResponseValue::string($payload['importance'] ?? null),
             ResponseValue::string($payload['documentation'] ?? null),
             $payload,
