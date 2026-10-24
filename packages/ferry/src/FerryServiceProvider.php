@@ -88,8 +88,9 @@ class FerryServiceProvider extends PackageServiceProvider
         FilamentAsset::register(
             assets: [
                 AlpineComponent::make('field-mapping', __DIR__ . '/../resources/js/field-mapping.js'),
-                Css::make('field-mapping', __DIR__ . '/../resources/css/field-mapping.css')
-                    ->loadedOnRequest(),
+                AlpineComponent::make('field-binding', __DIR__ . '/../resources/js/field-binding.js'),
+                AlpineComponent::make('field-transforms', __DIR__ . '/../resources/js/field-transforms.js'),
+                Css::make('field-mapping', __DIR__ . '/../resources/css/field-mapping.css'),
             ],
             package: self::PACKAGE,
         );

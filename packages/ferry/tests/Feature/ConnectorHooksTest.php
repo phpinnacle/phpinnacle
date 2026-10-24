@@ -155,7 +155,7 @@ it('resumes an automatic pause but preserves a manual pause after saving', funct
         $connectors
             ->shouldReceive('activate')
             ->once()
-            ->with($sync)
+            ->with($sync, false)
             ->andReturnUsing(fn (Sync $sync) => $sync->activate());
     }
 
@@ -184,7 +184,7 @@ it('updates active connectors after commit and discards the update on rollback',
     $manager
         ->shouldReceive('activate')
         ->times($commit ? 1 : 0)
-        ->with($sync)
+        ->with($sync, false)
         ->andReturnUsing(function (Sync $sync) use (&$calls) {
             expect($sync->getConnection()->transactionLevel())->toBe(0);
             $calls++;
@@ -206,7 +206,7 @@ it('updates active connectors after commit and discards the update on rollback',
         ->toBe($commit ? 1 : 0)
         ->and($sync->fresh()->name)
         ->toBe($commit ? 'Renamed' : 'Test synchronization')
-        ->and($sync->fresh()->schema[0]->column)
+        ->and($sync->fresh()->schema[0]->target)
         ->toBe($commit ? 'reference_id' : 'external_id')
         ->and($database->getSchemaBuilder()->hasColumn($sync->destination, 'reference_id'))
         ->toBe($commit)

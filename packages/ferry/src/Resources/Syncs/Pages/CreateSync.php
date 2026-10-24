@@ -14,8 +14,9 @@ class CreateSync extends CreateRecord
 
     private DestinationFactory $destinations;
 
-    public function boot(DestinationFactory $destinations): void
-    {
+    public function boot(
+        DestinationFactory $destinations,
+    ): void {
         $this->destinations = $destinations;
     }
 

@@ -12,7 +12,7 @@ final readonly class PluginResponse
     public function __construct(
         public string $class,
         public string $type,
-        public string $version,
+        public ?string $version,
         public array $raw,
     ) {}
 
@@ -22,7 +22,7 @@ final readonly class PluginResponse
         return new self(
             ResponseValue::string($payload['class'] ?? null),
             ResponseValue::string($payload['type'] ?? null),
-            ResponseValue::string($payload['version'] ?? null),
+            ResponseValue::string($payload['version'] ?? null, nullable: true),
             $payload,
         );
     }

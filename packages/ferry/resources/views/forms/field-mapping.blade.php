@@ -3,18 +3,30 @@
     use PHPinnacle\Ferry\FerryServiceProvider;
 
     $sources = $getSources();
+    $constants = $getConstants();
     $targets = $getTargets();
+    $outputPresentation = $getSourcePresentations();
+    $connectionModes = $getConnectionModes();
     $sourceLabel = $getSourceLabel();
     $targetLabel = $getTargetLabel();
-    $hasFields = $sources !== [] && $targets !== [];
+    $hasFields = ($sources !== [] || $hasStaticValues()) && $targets !== [];
     $sourceWarnings = $getSourceWarnings();
     $targetWarnings = $getTargetWarnings();
     $requiredTargets = array_column(array_filter($targets, fn (array $target) => $target['required']), 'id');
     $multipleTargets = $getMultipleTargets();
+    $stateKeys = $getStateKeys();
+    $staticDefaults = $getStaticDefaults();
+    $staticSchemas = $getChildSchemas();
+    $sourceStateKeys = $getSourceStateKeys();
     $inverse = $isInverse();
     $disabled = $isDisabled();
+    $searchable = $isSearchable();
+    $contained = $isContained();
+    $dense = $isDense();
+    $compact = $isCompact();
+    $columnSpans = $getColumnSpans();
     $statePath = $getStatePath();
-    $configurationKey = md5(serialize([$sources, $targets, $multipleTargets, $inverse, $disabled, $sourceLabel, $targetLabel, $sourceWarnings, $targetWarnings]));
+    $configurationKey = md5(serialize([$sources, $targets, $outputPresentation, $connectionModes, $multipleTargets, $stateKeys, $staticDefaults, $inverse, $disabled, $searchable, $contained, $dense, $compact, $columnSpans, $sourceLabel, $targetLabel, $sourceWarnings, $targetWarnings]));
     $panels = ['source' => ['label' => $sourceLabel, 'items' => $sources, 'warnings' => $sourceWarnings], 'target' => ['label' => $targetLabel, 'items' => $targets, 'warnings' => $targetWarnings]];
 
     if ($inverse) {
@@ -24,40 +36,69 @@
 
 <x-dynamic-component :component="$getFieldWrapperView()" :field="$field">
     <div
-        {{ $getExtraAttributeBag()->class(['field-mapping isolate rounded-xl border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900']) }}
+        {{ $getExtraAttributeBag()->class([
+            'field-mapping isolate',
+            'rounded-xl border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900' => $contained,
+            'fi-dense' => $dense,
+            'fi-compact' => $compact,
+        ])->style([
+            '--ferry-left-column: '.$columnSpans[$inverse ? 'target' : 'source'].'fr',
+            '--ferry-gap-column: '.$columnSpans['gap'].'fr',
+            '--ferry-right-column: '.$columnSpans[$inverse ? 'source' : 'target'].'fr',
+        ]) }}
         wire:key="{{ $getId() }}-{{ $configurationKey }}"
-        wire:ignore
+        @if (! $hasStaticForms() && ! $hasSourceSettings() && ! $hasStaticValues())
+            wire:ignore
+        @endif
         x-load
-        x-load-css="[@js(FilamentAsset::getStyleHref('field-mapping', FerryServiceProvider::PACKAGE))]"
         x-load-src="{{ FilamentAsset::getAlpineComponentSrc('field-mapping', FerryServiceProvider::PACKAGE) }}"
         x-data="fieldMapping({
+            element: $el,
             state: $wire.{{ $applyStateBindingModifiers("\$entangle('{$statePath}')") }},
             disabled: @js($disabled),
             inverse: @js($inverse),
             requiredTargets: @js($requiredTargets),
-            multipleTargets: @js($multipleTargets),
+            connectionModes: @js($connectionModes),
+            stateKeys: @js((object) $stateKeys),
+            staticDefaults: @js((object) $staticDefaults),
         })"
         x-on:keydown.escape.window="cancel()"
         x-on:resize.window="refresh()"
     >
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 dark:border-white/10">
-            <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                <input type="checkbox" x-model="unmappedOnly" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800" />
-                {{ __('phpinnacle-ferry::resources.mapping.show_unmapped') }}
-            </label>
-            <span class="text-sm text-gray-500 dark:text-gray-400">
-                {!! __('phpinnacle-ferry::resources.mapping.mapped_count', ['mapped' => '<span x-text="mappedTargetCount()"></span>', 'total' => count($targets)]) !!}
-                @if ($requiredTargets !== [])
-                    <span class="ml-3 text-amber-600 dark:text-amber-400" x-show="missingRequired().length" x-cloak>
-                        {!! __('phpinnacle-ferry::resources.mapping.required_remaining', ['count' => '<span x-text="missingRequired().length"></span>']) !!}
-                    </span>
-                @endif
-            </span>
-        </div>
+        {!! $staticSchemas['mappingUi']->getComponent('configuration')->toSchemaHtml() !!}
+
+        @if ($contained)
+            <div @class(['flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 dark:border-white/10', 'px-3 py-2' => $dense, 'px-5 py-4' => ! $dense])>
+                <fieldset class="ferry-mapping-filter">
+                    <legend class="sr-only">{{ __('phpinnacle-ferry::resources.mapping.filter.label') }}</legend>
+                    @foreach (['all', 'mapped', 'unmapped'] as $filter)
+                        <label>
+                            <input
+                                type="radio"
+                                name="{{ $getId() }}-visibility-filter"
+                                value="{{ $filter }}"
+                                x-model="visibilityFilter"
+                                class="sr-only"
+                                @checked($filter === 'all')
+                            />
+                            <span>{{ __('phpinnacle-ferry::resources.mapping.filter.'.$filter) }}</span>
+                        </label>
+                    @endforeach
+                </fieldset>
+                <span class="text-sm text-gray-500 dark:text-gray-400">
+                    {!! __('phpinnacle-ferry::resources.mapping.mapped_count', ['mapped' => '<span x-text="mappedTargetCount()"></span>', 'total' => count($targets)]) !!}
+                    @if ($requiredTargets !== [])
+                        <span class="ml-3 text-warning-600 dark:text-warning-400" x-show="missingRequired().length" x-cloak>
+                            {!! __('phpinnacle-ferry::resources.mapping.required_remaining', ['count' => '<span x-text="missingRequired().length"></span>']) !!}
+                        </span>
+                    @endif
+                </span>
+            </div>
+        @endif
 
         @foreach ($panels as $panel)
             @foreach ($hasFields ? array_diff_key($panel['warnings'], array_column($panel['items'], null, 'id')) : $panel['warnings'] as $id => $warning)
-                <div class="field-mapping-warning px-5 pt-4" role="alert">
+                <div @class(['field-mapping-warning', 'px-3 pt-2' => $dense, 'px-5 pt-4' => ! $dense]) role="alert">
                     <x-filament::icon icon="heroicon-m-exclamation-triangle" />
                     <span>{{ $id }}: {{ $warning }}</span>
                 </div>
@@ -65,7 +106,7 @@
         @endforeach
 
         <div class="overflow-x-auto" x-on:scroll="refresh()">
-            <div class="field-mapping-canvas relative grid grid-cols-[minmax(0,1fr)_minmax(72px,0.45fr)_minmax(0,1fr)] gap-0 px-5 py-5" x-ref="canvas">
+            <div @class(['field-mapping-canvas relative grid gap-0', 'p-3' => $dense, 'px-5 py-5' => ! $dense]) x-ref="canvas" :class="{ 'is-connecting': selected !== null }">
                 @if (! $hasFields)
                     <x-filament::empty-state
                         class="col-span-full"
@@ -79,110 +120,31 @@
                             $isLeft = $side === ($inverse ? 'target' : 'source');
                         @endphp
                         <section class="{{ $isLeft ? 'col-start-1' : 'col-start-3' }} row-start-1 min-w-0" aria-label="{{ $panel['label'] }}" wire:key="{{ $getId() }}-{{ $side }}">
-                            <h3 class="mb-3 text-sm font-semibold text-gray-950 dark:text-white">{{ $panel['label'] }}</h3>
-                            <x-filament::input.wrapper prefix-icon="heroicon-m-magnifying-glass">
-                                <x-filament::input
-                                    type="search"
-                                    x-model="{{ $side }}Search"
-                                    placeholder="{{ __('phpinnacle-ferry::resources.mapping.search_placeholder') }}"
-                                    aria-label="{{ 'Search '.$panel['label'] }}"
-                                />
-                            </x-filament::input.wrapper>
+                            <h3 @class(['text-sm font-semibold text-gray-950 dark:text-white', 'mb-2' => $dense, 'mb-3' => ! $dense])>{{ $panel['label'] }}</h3>
+                            @if ($searchable)
+                                <x-filament::input.wrapper prefix-icon="heroicon-m-magnifying-glass">
+                                    <x-filament::input
+                                        type="search"
+                                        x-model="{{ $side }}Search"
+                                        placeholder="{{ __('phpinnacle-ferry::resources.mapping.search_placeholder') }}"
+                                        aria-label="{{ 'Search '.$panel['label'] }}"
+                                    />
+                                </x-filament::input.wrapper>
+                            @endif
 
-                            <div class="mt-5 flex flex-col gap-3">
+                            <div @class(['flex flex-col', 'gap-2' => $dense, 'gap-3' => ! $dense, 'mt-3' => $searchable && $dense, 'mt-5' => $searchable && ! $dense])>
                                 @foreach ($panel['items'] as $item)
-                                    @php
-                                        $plainLabel = strip_tags($item['label'] instanceof \Illuminate\Contracts\Support\Htmlable ? $item['label']->toHtml() : $item['label']);
-                                        $descriptionText = $item['description'] instanceof \Illuminate\Contracts\Support\Htmlable ? $item['description']->toHtml() : ($item['description'] ?? '');
-                                        $searchText = $plainLabel.' '.strip_tags($descriptionText).' '.$item['id'].' '.($item['type'] ?? '').' '.implode(' ', array_column($item['badges'], 'label'));
-                                        $warning = $panel['warnings'][$item['id']] ?? null;
-                                        $isMultiple = $side === 'target' && in_array($item['id'], $multipleTargets, true);
-                                    @endphp
-                                    <div
-                                        @class([
-                                            'field-mapping-row relative flex min-h-20 items-center gap-2 rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900',
-                                            'has-warning' => $warning !== null,
-                                        ])
-                                        data-mapping-row
-                                        wire:key="{{ $getId() }}-{{ $side }}-{{ $item['id'] }}"
-                                        x-show="isVisible(@js($side), @js($item['id']), @js($searchText))"
-                                        :class="rowClasses(@js($side), @js($item['id']), @js($item['required']))"
-                                    >
-                                        <button
-                                            type="button"
-                                            class="flex min-w-0 flex-1 items-start gap-3 rounded-lg px-4 py-3 text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 disabled:cursor-default"
-                                            x-bind="fieldBindings(@js($side), @js($item['id']))"
-                                            aria-label="{{ 'Select '.$plainLabel.' as '.$side }}"
-                                            @disabled($disabled)
-                                        >
-                                            @if ($item['icon'] !== null)
-                                                <x-filament::icon :icon="$item['icon']" class="mt-0.5 text-gray-500 dark:text-gray-400" />
-                                            @endif
-                                            <span class="min-w-0 flex-1">
-                                                <span class="flex flex-wrap items-center justify-between gap-2">
-                                                    <span class="text-sm font-medium wrap-anywhere text-gray-950 dark:text-white">{{ $item['label'] }}</span>
-                                                    @if ($item['required'] || $isMultiple || $item['type'] !== null || $item['badges'] !== [])
-                                                        <span class="flex flex-wrap gap-1.5">
-                                                            @if ($item['required'])
-                                                                <x-filament::badge color="warning" size="sm">{{ __('phpinnacle-ferry::resources.mapping.required') }}</x-filament::badge>
-                                                            @endif
-                                                            @if ($isMultiple)
-                                                                <x-filament::badge color="info" size="sm">{{ __('phpinnacle-ferry::resources.mapping.multiple') }}</x-filament::badge>
-                                                            @endif
-                                                            @if ($item['type'] !== null)
-                                                                <x-filament::badge color="gray" size="sm">{{ $item['type'] }}</x-filament::badge>
-                                                            @endif
-                                                            @foreach ($item['badges'] as $badge)
-                                                                <x-filament::badge :color="$badge['color']" size="sm" wire:key="{{ $getId() }}-{{ $side }}-{{ $item['id'] }}-badge-{{ $loop->index }}">{{ $badge['label'] }}</x-filament::badge>
-                                                            @endforeach
-                                                        </span>
-                                                    @endif
-                                                </span>
-                                                @if ($item['description'] !== null)
-                                                    <span class="mt-1 block text-xs/5 wrap-anywhere text-gray-500 dark:text-gray-400">{{ $item['description'] }}</span>
-                                                @endif
-                                                @if ($warning !== null)
-                                                    <span class="field-mapping-warning mt-1" role="alert">
-                                                        <x-filament::icon icon="heroicon-m-exclamation-triangle" />
-                                                        <span>{{ $warning }}</span>
-                                                    </span>
-                                                @endif
-                                                @if ($side === 'target')
-                                                    <span class="mt-1 block text-xs text-danger-600 dark:text-danger-400" x-show="hasTypeConflict(@js($item['id']))" x-cloak>{{ __('phpinnacle-ferry::resources.mapping.incompatible') }}</span>
-                                                @endif
-                                            </span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            class="field-mapping-port {{ $isLeft ? 'is-left' : 'is-right' }}"
-                                            data-mapping-port
-                                            data-side="{{ $side }}"
-                                            data-id="{{ $item['id'] }}"
-                                            data-label="{{ $plainLabel }}"
-                                            data-type="{{ $item['type'] ?? '' }}"
-                                            x-bind="fieldBindings(@js($side), @js($item['id']))"
-                                            aria-label="{{ 'Connect '.$plainLabel.' ('.$side.')' }}"
-                                            @disabled($disabled)
-                                        ></button>
-                                        @if (! $isLeft)
-                                            <button
-                                                type="button"
-                                                class="mr-3 rounded-md p-1 text-teal-600 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-teal-500 dark:text-teal-400 dark:hover:bg-teal-400/10"
-                                                x-show="isMapped(@js($side), @js($item['id']))"
-                                                @if ($inverse)
-                                                    x-on:click="remove(mappings()[@js($item['id'])], @js($item['id']))"
-                                                @else
-                                                    x-on:click="remove(@js($item['id']))"
-                                                @endif
-                                                aria-label="{{ 'Disconnect '.$plainLabel }}"
-                                                @disabled($disabled)
-                                                x-cloak
-                                            >
-                                                <x-filament::icon icon="heroicon-m-x-mark" />
-                                            </button>
+                                    @if ($side === 'source')
+                                        @if (! isset($constants[$item['id']]))
+                                            {!! $staticSchemas['sourceCards']->getComponent('card_'.$sourceStateKeys[$item['id']])->toSchemaHtml() !!}
                                         @endif
-                                    </div>
+                                    @else
+                                        @include('phpinnacle-ferry::forms.field-mapping-row', ['field' => $field, 'presentation' => $item['presentation']])
+                                    @endif
                                 @endforeach
+                                @if ($side === 'source' && $hasStaticValues())
+                                    {!! $staticSchemas['mappingUi']->getComponent('staticSources')->toSchemaHtml() !!}
+                                @endif
                             </div>
                         </section>
                     @endforeach
@@ -190,17 +152,27 @@
                     <div class="field-mapping-lines absolute inset-0">
                         <template x-for="connection in connections" :key="connection.source">
                             <svg class="absolute inset-0 size-full" :viewBox="`0 0 ${width} ${height}`" role="group" aria-label="Field connection">
-                                <path class="field-mapping-line" :d="connection.path" />
-                                <path
-                                    class="field-mapping-hit"
-                                    :d="connection.path"
+                                <g
+                                    class="field-connection-control"
                                     :aria-label="connection.label"
+                                    :aria-disabled="disabled"
                                     :tabindex="disabled ? -1 : 0"
                                     role="button"
+                                    x-on:mouseenter="hoveredConnection = connection"
+                                    x-on:mouseleave="hoveredConnection = null"
+                                    x-on:focus="focusedConnection = connection"
+                                    x-on:blur="focusedConnection = null"
                                     x-on:click="remove(connection.target, connection.source)"
                                     x-on:keydown.enter.prevent="remove(connection.target, connection.source)"
                                     x-on:keydown.space.prevent="remove(connection.target, connection.source)"
-                                />
+                                >
+                                    <path class="field-mapping-line" :d="connection.path" />
+                                    <path class="field-mapping-hit" :d="connection.path" />
+                                    <g class="field-connection-indicator" :transform="`translate(${connection.midpoint.x}, ${connection.midpoint.y})`" aria-hidden="true">
+                                        <circle class="field-connection-disc" r="12" />
+                                        <path class="field-connection-cross" d="M -4 -4 L 4 4 M -4 4 L 4 -4" />
+                                    </g>
+                                </g>
                             </svg>
                         </template>
                     </div>
@@ -208,11 +180,6 @@
             </div>
         </div>
 
-        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 px-5 py-4 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
-            <span class="flex items-center gap-2"><span class="size-2 rounded-full bg-teal-600 dark:bg-teal-400"></span> {{ __('phpinnacle-ferry::resources.mapping.connected') }}</span>
-            <p>{{ __('phpinnacle-ferry::resources.mapping.hint') }}</p>
-        </div>
-        <p class="px-5 pb-4 text-sm text-danger-600 dark:text-danger-400" role="alert" x-show="connectionError" x-text="connectionError" x-cloak></p>
         <span class="sr-only" role="status" aria-live="polite" x-text="announcement"></span>
     </div>
 </x-dynamic-component>

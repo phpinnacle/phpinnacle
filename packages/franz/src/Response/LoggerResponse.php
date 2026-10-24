@@ -18,7 +18,7 @@ final readonly class LoggerResponse
     {
         return new self(
             ResponseValue::string($payload['level'] ?? null),
-            ($payload['last_modified'] ?? null) !== null ? ResponseValue::int($payload['last_modified']) : null,
+            ResponseValue::int($payload['last_modified'] ?? null, nullable: true),
             $payload,
         );
     }

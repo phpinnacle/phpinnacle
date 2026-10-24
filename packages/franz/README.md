@@ -176,7 +176,7 @@ if (!$validation->isValid()) {
 }
 ```
 
-Validation errors returned with HTTP 200 are a normal typed result. Non-successful HTTP responses throw `ApiException`. Plugin listings describe the worker handling the request and can differ during rolling upgrades. `connectorsOnly: false` includes other plugin types supported by the server.
+Validation errors returned with HTTP 200 are a normal typed result. Non-successful HTTP responses throw `ApiException`. Plugin listings describe the worker handling the request and can differ during rolling upgrades. `connectorsOnly: false` includes other plugin types supported by the server. A plugin's `version` is `null` when the server omits it or returns `null`.
 
 ## Log levels
 

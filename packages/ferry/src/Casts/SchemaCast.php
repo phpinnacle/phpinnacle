@@ -8,11 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 use PHPinnacle\Ferry\Data\FieldMapping;
 
 /**
- * @phpstan-import-type FieldData from FieldDecoder
+ * @phpstan-import-type MappingData from FieldMapping
  *
- * @phpstan-type MappingData array{source: string, column: string, field: FieldData}
- *
- * @implements CastsAttributes<list<FieldMapping>, list<FieldMapping>>
+ * @implements CastsAttributes<list<FieldMapping>, list<FieldMapping>|list<MappingData>>
  */
 class SchemaCast implements CastsAttributes, SerializesCastableAttributes
 {
@@ -33,12 +31,16 @@ class SchemaCast implements CastsAttributes, SerializesCastableAttributes
     public function serialize(Model $model, string $key, mixed $value, array $attributes): array
     {
         /** @var list<array<string, mixed>> */
-        return json_decode(json_encode($value, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
+        return json_decode(
+            json_encode($value, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
     }
 
-    /** @param list<FieldMapping> $value */
+    /** @param list<FieldMapping>|list<MappingData> $value */
     public function set(Model $model, string $key, mixed $value, array $attributes): string
     {
-        return json_encode($value, JSON_THROW_ON_ERROR);
+        return json_encode($value, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);
     }
 }

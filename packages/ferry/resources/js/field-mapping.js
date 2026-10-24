@@ -1,28 +1,32 @@
-export default function fieldMapping({ state, disabled, inverse = false, requiredTargets = [], multipleTargets = [] }) {
+export default function fieldMapping({ element, state, disabled, inverse = false, requiredTargets = [], connectionModes, stateKeys = {}, staticDefaults = {} }) {
     let ports;
+    const idsByStateKey = Object.fromEntries(Object.entries(stateKeys).map(([id, key]) => [key, id]));
+    const isStaticValue = (entry) => entry?.kind === 'value';
 
     return {
         state,
         disabled,
         inverse,
         requiredTargets,
-        multipleTargets,
+        connectionModes,
+        sourceTypes: {},
         sourceSearch: '',
         targetSearch: '',
-        unmappedOnly: false,
+        visibilityFilter: 'all',
         selected: null,
         connections: [],
+        hoveredConnection: null,
+        focusedConnection: null,
         width: 1,
         height: 1,
         announcement: '',
-        connectionError: '',
         observer: null,
 
         init() {
             this.observer = new ResizeObserver(() => this.refresh());
             this.observer.observe(this.$refs.canvas);
-            this.$root.querySelectorAll('[data-mapping-row]').forEach((row) => this.observer.observe(row));
-            ['state', 'sourceSearch', 'targetSearch', 'unmappedOnly'].forEach((property) => {
+            element.querySelectorAll('[data-mapping-row], [data-mapping-anchor]').forEach((element) => this.observer.observe(element));
+            ['state', 'sourceSearch', 'targetSearch', 'visibilityFilter'].forEach((property) => {
                 this.$watch(property, () => {
                     if (property !== 'state') this.cancel();
                     this.$nextTick(() => this.refresh());
@@ -35,25 +39,54 @@ export default function fieldMapping({ state, disabled, inverse = false, require
             this.observer?.disconnect();
         },
 
+        updateConfiguration(connectionModes, sourceIds, sourceTypes) {
+            this.connectionModes = connectionModes;
+            this.sourceTypes = sourceTypes;
+            if (this.selected?.side === 'source' && !sourceIds.includes(this.selected.id)) this.cancel();
+            ports = undefined;
+            this.$nextTick(() => {
+                this.observer?.disconnect();
+                this.observer?.observe(this.$refs.canvas);
+                element.querySelectorAll('[data-mapping-row], [data-mapping-anchor]').forEach(element => this.observer?.observe(element));
+                this.refresh();
+            });
+        },
+
         mappings() {
-            return this.state ?? {};
+            return Object.fromEntries(Object.entries(this.state?.targets ?? {}).map(([key, value]) => [idsByStateKey[key] ?? key, value]));
+        },
+
+        setMappings(mappings) {
+            for (const [target, value] of Object.entries(staticDefaults)) {
+                if (!Object.hasOwn(mappings, target)) mappings[target] = { kind: 'value', value: JSON.parse(JSON.stringify(value)) };
+            }
+            this.state = {
+                ...this.state,
+                targets: Object.fromEntries(Object.entries(mappings).map(([id, value]) => [stateKeys[id] ?? id, value])),
+            };
+        },
+
+        isConstant(target) {
+            return isStaticValue(this.mappings()[target]);
         },
 
         pairs() {
             return Object.entries(this.mappings()).flatMap(([id, mapped]) => {
-                if (this.inverse) return [{ source: id, target: mapped }];
+                if (isStaticValue(mapped)) return [];
 
-                const sources = this.multipleTargets.includes(id) ? mapped : [mapped];
-                return sources.map((source) => ({ source, target: id }));
+                const sources = Array.isArray(mapped) ? mapped : [mapped];
+                return sources.map((entry) => ({ source: entry.source, target: id }));
             });
         },
 
         mappedTargetCount() {
-            return new Set(this.pairs().map(({ target }) => target)).size;
+            return Object.keys(this.mappings()).length;
         },
 
         isMapped(side, id) {
-            return this.pairs().some((pair) => pair[side] === id);
+            return side === 'target'
+                ? Object.hasOwn(this.mappings(), id)
+                : this.pairs().some((pair) => pair.source === id);
         },
 
         isSelected(side, id) {
@@ -61,13 +94,7 @@ export default function fieldMapping({ state, disabled, inverse = false, require
         },
 
         isDisabled(side, id) {
-            return this.disabled || this.isLocked(side, id);
-        },
-
-        isLocked(side, id) {
-            return side === 'source'
-                ? this.isSourceLocked(id)
-                : this.inverse && !this.multipleTargets.includes(id) && this.isMapped(side, id);
+            return this.disabled || side === 'source' && this.isMapped(side, id);
         },
 
         fieldBindings(side, id) {
@@ -81,11 +108,15 @@ export default function fieldMapping({ state, disabled, inverse = false, require
 
         rowClasses(side, id, required) {
             const mapped = this.isMapped(side, id);
+            const incompatible = this.isIncompatible(side, id);
 
             return {
                 'is-mapped': mapped,
+                'is-disconnecting': !this.disabled && [this.hoveredConnection, this.focusedConnection]
+                    .some(connection => connection?.[side] === id),
                 'is-selected': this.isSelected(side, id),
-                'is-incompatible': this.isIncompatible(side, id) || this.isLocked(side, id),
+                'is-incompatible': incompatible,
+                'is-compatible': Boolean(this.selected && this.selected.side !== side && !this.isDisabled(side, id) && !incompatible),
                 'is-required-missing': required && !mapped,
                 'has-type-conflict': side === 'target' && this.hasTypeConflict(id),
             };
@@ -96,13 +127,11 @@ export default function fieldMapping({ state, disabled, inverse = false, require
         },
 
         canConnect(source, target) {
-            const sourcePort = this.port('source', source);
-            const targetPort = this.port('target', target);
-            if (!sourcePort || !targetPort) return false;
+            return Boolean(this.port('source', source) && this.port('target', target) && this.connectionModes[source]?.[target]);
+        },
 
-            const sourceType = sourcePort.dataset.type;
-            const targetType = targetPort.dataset.type;
-            return !sourceType || !targetType || sourceType === targetType;
+        targetMode(target) {
+            return Array.isArray(this.mappings()[target]) ? 'item' : 'whole';
         },
 
         isIncompatible(side, id) {
@@ -118,24 +147,25 @@ export default function fieldMapping({ state, disabled, inverse = false, require
             return !this.pairs().some((pair) => pair.target !== target && pair.source === source);
         },
 
-        isSourceLocked(source) {
-            return this.isMapped('source', source);
-        },
-
         hasTypeConflict(target) {
-            return this.pairs().some((pair) => pair.target === target && !this.canConnect(pair.source, target));
+            return this.pairs().some((pair) => pair.target === target && (!this.canConnect(pair.source, target) || this.connectionModes[pair.source]?.[target] !== this.targetMode(target)));
         },
 
         isVisible(side, id, text) {
             const search = side === 'source' ? this.sourceSearch : this.targetSearch;
-            return text.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())
-                && (!this.unmappedOnly || !this.isMapped(side, id));
+            const searchableText = side === 'source' ? `${text} ${this.sourceTypes[id] ?? ''}` : text;
+            return searchableText.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())
+                && (this.visibilityFilter === 'all' || this.isMapped(side, id) === (this.visibilityFilter === 'mapped'));
+        },
+
+        selectFromCard(event, side, id) {
+            const control = event.target.closest('button, a, input, select, textarea, label, [role="button"], .ferry-transform, [role="combobox"], [contenteditable]');
+            if (control && event.currentTarget.contains(control)) return;
+            this.select(side, id);
         },
 
         select(side, id) {
-            if (this.isDisabled(side, id)) return;
-
-            this.connectionError = '';
+            if (this.isDisabled(side, id) || this.isIncompatible(side, id)) return;
 
             if (this.selected && this.selected.side !== side) {
                 const source = side === 'source' ? id : this.selected.id;
@@ -151,78 +181,54 @@ export default function fieldMapping({ state, disabled, inverse = false, require
         },
 
         connect(source, target) {
-            if (this.disabled || !this.port('source', source) || !this.port('target', target)) return;
+            if (this.disabled || !this.canConnect(source, target) || !this.isSourceAvailable(source, target)) return;
 
-            if (!this.canConnect(source, target)) {
-                this.connectionError = 'These fields have incompatible types. Choose fields with the same type.';
-                this.announcement = this.connectionError;
-                return;
-            }
-
-            if (!this.isSourceAvailable(source, target)) {
-                this.connectionError = 'This source already has a connection. Disconnect it first or choose another source.';
-                this.announcement = this.connectionError;
-                return;
-            }
-
-            const multiple = this.multipleTargets.includes(target);
-            const mappings = multiple ? { ...this.mappings() } : this.withoutConnection(target);
-
-            if (this.inverse) {
-                mappings[source] = target;
-            } else if (multiple) {
-                const sources = mappings[target] ?? [];
-                mappings[target] = sources.includes(source) ? sources : [...sources, source];
+            const mappings = this.mappings();
+            const multiple = this.connectionModes[source][target] === 'item';
+            const entry = { kind: 'source', source };
+            if (multiple) {
+                const sources = Array.isArray(mappings[target]) ? mappings[target] : [];
+                mappings[target] = sources.some(entry => entry.source === source) ? sources : [...sources, entry];
             } else {
-                mappings[target] = source;
+                mappings[target] = entry;
             }
 
-            this.state = mappings;
+            this.setMappings(mappings);
             this.selected = null;
-            this.connectionError = '';
             this.announcement = 'Fields connected.';
         },
 
-        withoutConnection(target, source = null) {
-            const mappings = { ...this.mappings() };
+        remove(target, source = null) {
+            if (this.disabled) return;
 
-            if (this.inverse) {
-                this.pairs().forEach((pair) => {
-                    if (pair.target === target && (source === null || pair.source === source)) delete mappings[pair.source];
-                });
-            } else if (source !== null && this.multipleTargets.includes(target)) {
-                const remaining = (mappings[target] ?? []).filter((id) => id !== source);
+            const mappings = this.mappings();
+
+            if (source !== null && Array.isArray(mappings[target])) {
+                const remaining = mappings[target].filter((entry) => entry.source !== source);
                 if (remaining.length) mappings[target] = remaining;
                 else delete mappings[target];
             } else {
                 delete mappings[target];
             }
 
-            return mappings;
-        },
-
-        remove(target, source = null) {
-            if (this.disabled) return;
-
-            this.state = this.withoutConnection(target, source);
+            this.setMappings(mappings);
             this.announcement = 'Connection removed.';
         },
 
         cancel() {
             this.selected = null;
-            this.connectionError = '';
         },
 
         port(side, id) {
-            ports ??= Array.from(this.$root.querySelectorAll('[data-mapping-port]'));
+            ports ??= new Map(Array.from(element.querySelectorAll('[data-mapping-port]'), port => [
+                `${port.dataset.side}:${port.dataset.id}`, port,
+            ]));
 
-            return ports.find((port) => {
-                return port.dataset.side === side && port.dataset.id === id;
-            });
+            return ports.get(`${side}:${id}`);
         },
 
         point(port, canvas) {
-            const rect = port?.getBoundingClientRect();
+            const rect = port?.querySelector('[data-mapping-anchor]').getBoundingClientRect();
             if (!rect || rect.width === 0 || rect.height === 0) return null;
 
             return {
@@ -237,6 +243,7 @@ export default function fieldMapping({ state, disabled, inverse = false, require
         },
 
         refresh() {
+            ports = undefined;
             const canvas = this.$refs.canvas.getBoundingClientRect();
             this.width = Math.max(1, canvas.width);
             this.height = Math.max(1, canvas.height);
@@ -249,9 +256,16 @@ export default function fieldMapping({ state, disabled, inverse = false, require
                     source,
                     target,
                     path: this.inverse ? this.path(end, start) : this.path(start, end),
+                    midpoint: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
                     label: `Disconnect ${sourcePort.dataset.label} from ${targetPort.dataset.label}`,
                 }] : [];
             });
+            for (const property of ['hoveredConnection', 'focusedConnection']) {
+                const highlighted = this[property];
+                if (highlighted && !this.connections.some(connection => connection.source === highlighted.source && connection.target === highlighted.target)) {
+                    this[property] = null;
+                }
+            }
         },
     };
 }

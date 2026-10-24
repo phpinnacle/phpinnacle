@@ -9,6 +9,7 @@ use PHPinnacle\Ferry\Data\DestinationField;
 use PHPinnacle\Ferry\Models\ConnectionMetadata;
 use PHPinnacle\Ferry\Models\Sync;
 use PHPinnacle\Ferry\Services\Connectors\JdbcConnectorConfig;
+use PHPinnacle\Ferry\Services\TransformFactory;
 
 final readonly class StaticDestination implements Destination, HasLabel
 {
@@ -31,14 +32,27 @@ final readonly class StaticDestination implements Destination, HasLabel
         return $this->label;
     }
 
-    public function connector(Sync $sync, ConnectionMetadata $object, string $topic): array
-    {
+    public function connector(
+        Sync $sync,
+        ConnectionMetadata $object,
+        string $topic,
+        TransformFactory $transforms,
+    ): array {
         return new JdbcConnectorConfig(
             table: $this->table,
             topic: $topic,
-            columns: $sync->columnMap($object, $this->primaryKey),
+            columns: [
+                ...array_values($sync->columnMap($object, $this->primaryKey)),
+                ...$sync->constantColumns(),
+                ...array_keys($this->fixedValues),
+            ],
+            transforms: $transforms->pipeline(
+                $sync,
+                $object,
+                keyColumn: $this->primaryKey,
+                fixedValues: $this->fixedValues,
+            ),
             connection: $this->connection,
-            fixedValues: $this->fixedValues,
         )->toArray();
     }
 }

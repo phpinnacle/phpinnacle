@@ -30,6 +30,6 @@ final readonly class LoggerContext
     {
         $payload = $this->transport->send('PUT', $this->path, ['scope' => $scope->value], ['level' => $level->value]);
 
-        return $payload === null ? null : ResponseValue::strings($payload);
+        return ResponseValue::strings($payload, nullable: true);
     }
 }

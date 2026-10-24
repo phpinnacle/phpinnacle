@@ -9,7 +9,6 @@ use PHPinnacle\Ferry\Data\FieldMapping;
 use PHPinnacle\Ferry\Enums\ColumnType;
 use PHPinnacle\Ferry\Models\Sync;
 use PHPinnacle\Rosetta\Fields\NumberField;
-use PHPinnacle\Rosetta\Fields\StringField;
 
 class SyncTableManager
 {
@@ -22,7 +21,9 @@ class SyncTableManager
                 $table->string(Sync::ID_COLUMN)->primary();
 
                 foreach ($sync->schema as $mapping) {
-                    $this->column($table, $mapping)->nullable();
+                    if ($mapping->target !== null) {
+                        $this->column($table, $mapping)->nullable();
+                    }
                 }
             });
     }
@@ -34,60 +35,57 @@ class SyncTableManager
 
     public function update(Sync $sync): void
     {
-        /** @var list<FieldMapping> $previousMappings */
-        $previousMappings = $sync->getOriginal('schema');
-        $previous = array_column($previousMappings, null, 'source');
-        $dropped = $sync->droppedColumns();
+        $changes = $sync->schemaChanges();
 
         $sync
             ->getConnection()
             ->getSchemaBuilder()
-            ->table($sync->destination, function (Blueprint $table) use ($sync, $previous, $dropped) {
-                foreach ($dropped as $column) {
+            ->table($sync->destination, function (Blueprint $table) use ($changes) {
+                foreach ($changes['drop'] as $column) {
                     $table->dropColumn($column);
                 }
 
-                foreach ($sync->schema as $mapping) {
-                    $existing = $previous[$mapping->source] ?? null;
-
-                    if ($existing === null || $existing->type() !== $mapping->type()) {
-                        $this->column($table, $mapping)->nullable();
-
-                        continue;
+                foreach ($changes['columns'] as $change) {
+                    if ($change['from'] === null) {
+                        $this->column($table, $change['mapping'])->nullable();
+                    } else {
+                        /** @var string $target */
+                        $target = $change['mapping']->target;
+                        $table->renameColumn($change['from'], $target);
                     }
+                }
 
-                    if ($existing->column !== $mapping->column) {
-                        $table->renameColumn($existing->column, $mapping->column);
-                    }
+                foreach ($changes['alter'] as $mapping) {
+                    $this->column($table, $mapping)->nullable()->change();
                 }
             });
     }
 
     private function column(Blueprint $table, FieldMapping $mapping): ColumnDefinition
     {
+        /** @var string $target */
+        $target = $mapping->target;
         $type = $mapping->type();
 
         if ($type === null) {
             throw new LogicException(__('phpinnacle-ferry::resources.sync.errors.unsupported_field_type', [
-                'column' => $mapping->column,
+                'column' => $target,
             ]));
         }
 
         $field = $mapping->field;
 
         return match ($type) {
-            ColumnType::Boolean => $table->boolean($mapping->column),
-            ColumnType::DateTime => $table->dateTime($mapping->column),
-            ColumnType::Integer => $table->bigInteger($mapping->column),
+            ColumnType::Boolean => $table->boolean($target),
+            ColumnType::DateTime => $table->dateTime($target),
+            ColumnType::Integer => $table->bigInteger($target),
             ColumnType::Decimal => $table->decimal(
-                $mapping->column,
+                $target,
                 $field instanceof NumberField ? $field->precision ?? 15 : 15,
                 $field instanceof NumberField ? $field->scale ?? 2 : 2,
             ),
-            ColumnType::String => $field instanceof StringField && $field->length !== null
-                ? $table->string($mapping->column, $field->length)
-                : $table->text($mapping->column),
-            ColumnType::Reference => $table->text($mapping->column),
+            ColumnType::String => $table->addColumn('string', $target, ['length' => $mapping->stringLength()]),
+            ColumnType::Reference => $table->text($target),
         };
     }
 }

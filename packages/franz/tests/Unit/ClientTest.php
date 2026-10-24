@@ -294,6 +294,33 @@ final class ClientTest extends TestCase
         );
     }
 
+    public function test_it_lists_plugins_with_missing_or_null_versions(): void
+    {
+        $payload = [
+            ['class' => 'FileStreamSource', 'type' => 'source', 'version' => '4.2.0'],
+            ['class' => 'io.confluent.connect.transforms.Filter$Value', 'type' => 'transformation'],
+            ['class' => 'TopicNameMatches', 'type' => 'predicate', 'version' => null],
+        ];
+        $http = new RecordingHttpClient($this->response($payload));
+        $plugins = $this->client($http)->plugins(connectorsOnly: false);
+
+        self::assertCount(3, $plugins);
+        self::assertSame('4.2.0', $plugins[0]->version);
+        self::assertNull($plugins[1]->version);
+        self::assertNull($plugins[2]->version);
+        self::assertSame($payload, array_column($plugins, 'raw'));
+    }
+
+    public function test_it_rejects_non_string_plugin_versions(): void
+    {
+        $http = new RecordingHttpClient($this->response([
+            ['class' => 'FileStreamSource', 'type' => 'source', 'version' => 42],
+        ]));
+
+        $this->expectException(UnexpectedValueException::class);
+        $this->client($http)->plugins(connectorsOnly: false);
+    }
+
     public function test_it_lists_plugins_and_returns_configuration_definitions_and_validation_errors(): void
     {
         $definition = [

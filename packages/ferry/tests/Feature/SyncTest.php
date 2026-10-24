@@ -5,12 +5,18 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use PHPinnacle\Ferry\Data\FieldMapping;
+use PHPinnacle\Ferry\Data\TransformSetting;
 use PHPinnacle\Ferry\Enums\StructureStatus;
 use PHPinnacle\Ferry\Enums\SyncStatus;
+use PHPinnacle\Ferry\Models\ConnectionMetadata;
 use PHPinnacle\Ferry\Models\Sync;
 use PHPinnacle\Ferry\Rules\SyncSchema;
 use PHPinnacle\Ferry\Services\SyncTableManager;
+use PHPinnacle\Ferry\Services\TransformFactory;
+use PHPinnacle\Ferry\Services\TransformRegistry;
 use PHPinnacle\Ferry\Tests\TestCase;
+use PHPinnacle\Ferry\Transformation;
+use PHPinnacle\Ferry\Transformations\MaskField;
 use PHPinnacle\Rosetta\Data\MetadataProperty;
 use PHPinnacle\Rosetta\Enums\FieldType;
 use PHPinnacle\Rosetta\Enums\PropertyKind;
@@ -24,6 +30,30 @@ uses(TestCase::class);
 
 beforeEach(function () {
     Queue::fake();
+});
+
+it('stores ordered record transforms without applying them', function () {
+    $sync = TestCase::makeSync(['schema' => []]);
+    expect($sync->fresh()->transforms)->toBe([]);
+
+    $settings = [
+        new TransformSetting('future_first', ['field' => '_description']),
+        new TransformSetting('future_second', ['value' => 'example']),
+    ];
+    $sync->update(['transforms' => $settings]);
+    $saved = $sync->fresh();
+    $serialized = array_map(fn (TransformSetting $setting) => $setting->jsonSerialize(), $settings);
+
+    expect($saved->transforms)
+        ->toEqual($settings)
+        ->and($saved->toArray()['transforms'])
+        ->toBe($serialized)
+        ->and(json_decode($saved->getRawOriginal('transforms'), true, flags: JSON_THROW_ON_ERROR))
+        ->toBe($serialized)
+        ->and(app(TransformFactory::class)->appliesTo($saved))
+        ->toBeTrue()
+        ->and(app(TransformFactory::class)->pipeline($saved, new ConnectionMetadata)['transforms'])
+        ->toBe('unwrap,rename_keys,rename_values');
 });
 
 it('rolls back a synchronization and its table when creation fails', function () {
@@ -98,12 +128,16 @@ it('owns the persisted schema and destination table throughout its lifecycle', f
 
     $sync = TestCase::makeSync([
         'connection_id' => $connection->id,
-        'schema' => SyncSchema::fromBindings($object, [
-            '_idrref' => 'external_id',
-            'title' => 'title',
-            'price' => 'price',
-            'posted' => 'posted',
-        ]),
+        'schema' => SyncSchema::fromBindings(
+            $object,
+            [
+                '_idrref' => 'external_id',
+                'title' => 'title',
+                'price' => 'price',
+                'posted' => 'posted',
+            ],
+            app(TransformRegistry::class),
+        ),
     ]);
 
     expect($sync->status)
@@ -139,22 +173,134 @@ it('adds, renames and drops columns when the mapping changes', function () use (
 
     $sync = TestCase::makeSync([
         'connection_id' => $connection->id,
-        'schema' => SyncSchema::fromBindings($object, [
-            '_idrref' => 'external_id',
-            'title' => 'title',
-        ]),
+        'schema' => SyncSchema::fromBindings(
+            $object,
+            [
+                '_idrref' => 'external_id',
+                'title' => 'title',
+            ],
+            app(TransformRegistry::class),
+        ),
     ]);
 
-    $updated = SyncSchema::fromBindings($object, [
-        '_idrref' => 'row_id',
-        'price' => 'price',
+    DB::table($sync->destination)->insert([
+        Sync::ID_COLUMN => 'row-1',
+        'external_id' => 'source-1',
+        'title' => 'Original title',
     ]);
 
-    $sync->update(['schema' => $updated]);
+    $updated = SyncSchema::fromBindings(
+        $object,
+        [
+            '_idrref' => 'row_id',
+            'price' => 'price',
+        ],
+        app(TransformRegistry::class),
+    );
 
+    $sync->fill(['schema' => $updated]);
+    expect($sync->droppedColumns())->toBe(['title']);
+    $sync->save();
+
+    expect(DB::table($sync->destination)->sole())->toEqual((object) [
+        Sync::ID_COLUMN => 'row-1',
+        'row_id' => 'source-1',
+        'price' => null,
+    ]);
     expect(Schema::getColumnListing($sync->destination))
         ->toContain('row_id', 'price')
         ->not->toContain('external_id', 'title');
+});
+
+it('preserves renamed values when a new mapping reuses the original column name', function () {
+    $field = new StringField(length: 100, fixed: false);
+    $sync = TestCase::makeSync(['schema' => [new FieldMapping('name', 'name', $field)]]);
+    DB::table($sync->destination)->insert([Sync::ID_COLUMN => 'row-1', 'name' => 'Original']);
+
+    $sync->fill(['schema' => [
+        new FieldMapping('name', 'display_name', $field),
+        new FieldMapping('alias', 'name', $field),
+    ]]);
+
+    expect($sync->droppedColumns())->toBe([]);
+    $sync->save();
+
+    expect(DB::table($sync->destination)->sole())->toEqual((object) [
+        Sync::ID_COLUMN => 'row-1',
+        'display_name' => 'Original',
+        'name' => null,
+    ]);
+});
+
+it('uses output schema bounds for PostgreSQL varchar columns', function () {
+    $registry = app(TransformRegistry::class);
+    $registry->register(
+        MaskField::make(),
+        Transformation::make('bounded')->outputSchema(['type' => 'string', 'maxLength' => 30]),
+    );
+    $object = new ConnectionMetadata([
+        'system' => [
+            'bounded' => new StringField(10, false),
+            'unbounded' => new StringField(null, false),
+            'zero' => new StringField(0, false),
+            'masked' => new StringField(1, false),
+            'expanded' => new StringField(1, false),
+        ],
+        'properties' => [],
+    ]);
+    $mappings = SyncSchema::fromBindings(
+        $object,
+        array_combine(array_keys($object->system), array_keys($object->system)),
+        $registry,
+        transforms: [
+            'fields' => [
+                'masked' => [new TransformSetting('mask', ['replacement' => '***'])],
+                'expanded' => [new TransformSetting('bounded')],
+            ],
+            'constants' => ['constant' => 'value'],
+        ],
+    );
+    $sync = new Sync(['schema' => $mappings]);
+    $sync->destination = 'string_outputs';
+    config(['phpinnacle-ferry.connection' => 'pgsql']);
+
+    $queries = DB::connection('pgsql')->pretend(fn () => app(SyncTableManager::class)->create($sync));
+
+    expect($queries[0]['query'])
+        ->toContain('"bounded" varchar(10) null', '"expanded" varchar(30) null')
+        ->toContain(
+            '"unbounded" varchar null',
+            '"zero" varchar null',
+            '"masked" varchar null',
+            '"constant" varchar null',
+        );
+});
+
+it('alters string bounds without dropping stored values, including when renaming', function () {
+    $registry = app(TransformRegistry::class);
+    $registry->register(
+        MaskField::make(),
+        Transformation::make('bounded')->outputSchema(['type' => 'string', 'maxLength' => 30]),
+    );
+    $object = new ConnectionMetadata(['system' => ['code' => new StringField(1, false)], 'properties' => []]);
+    $sync = TestCase::makeSync(['schema' => SyncSchema::fromBindings($object, ['code' => 'code'], $registry)]);
+    DB::table($sync->destination)->insert([Sync::ID_COLUMN => 'row-1', 'code' => 'A']);
+
+    foreach (['mask' => null, 'bounded' => 30] as $key => $length) {
+        $sync->fill(['schema' => SyncSchema::fromBindings($object, ['code' => 'display_code'], $registry, transforms: [
+            'fields' => ['code' => [new TransformSetting($key, $key === 'mask' ? ['replacement' => '***'] : [])]],
+        ])]);
+        expect($sync->droppedColumns())->toBe([]);
+        config(['phpinnacle-ferry.connection' => 'pgsql']);
+        $queries = DB::connection('pgsql')->pretend(fn () => app(SyncTableManager::class)->update($sync));
+        config(['phpinnacle-ferry.connection' => null]);
+        $sql = implode("\n", array_column($queries, 'query'));
+        expect($sql)
+            ->toContain('alter column "display_code" type varchar' . ($length === null ? ',' : '(30),'))
+            ->not->toContain('drop column', 'using');
+        $sync->save();
+        expect(DB::table($sync->destination)->value('display_code'))->toBe('A');
+    }
 });
 
 it('changes the column type when a mapped field changes type', function () use ($makeProperty) {
@@ -166,10 +312,14 @@ it('changes the column type when a mapped field changes type', function () use (
     $sync = TestCase::makeSync([
         'connection_id' => $connection->id,
         'code' => 'type_change',
-        'schema' => SyncSchema::fromBindings($object, [
-            '_idrref' => 'external_id',
-            'flag' => 'flag',
-        ]),
+        'schema' => SyncSchema::fromBindings(
+            $object,
+            [
+                '_idrref' => 'external_id',
+                'flag' => 'flag',
+            ],
+            app(TransformRegistry::class),
+        ),
     ]);
 
     $updated = [
@@ -230,6 +380,50 @@ it('pauses synchronizations when a mapped field changes its type', function () u
 
     expect($sync->fresh()->status)->toBe(SyncStatus::Pause);
 });
+
+it('pauses synchronizations whose transforms no longer apply to the published structure', function (
+    string $key,
+    array $system,
+    SyncStatus $status,
+) {
+    $connection = TestCase::makeConnection([], ['status' => StructureStatus::Ready, 'generation' => 1]);
+    TestCase::makeMetadata($connection, [
+        'system' => ['_idrref' => new ScalarField(FieldType::Id), '_marked' => new ScalarField(FieldType::Boolean)],
+    ]);
+
+    $sync = TestCase::makeSync([
+        'connection_id' => $connection->id,
+        'schema' => [new FieldMapping('_marked', null, new ScalarField(FieldType::Boolean), transforms: [
+            new TransformSetting($key, [
+                'mode' => 'exclude',
+                'condition' => '@ == true',
+                'missing_or_null_behavior' => 'include',
+            ]),
+        ])],
+    ], ['status' => SyncStatus::Active]);
+
+    TestCase::makeMetadata($connection, ['revision' => $connection->draftRevision(), 'system' => $system]);
+    $connection->publishStructure();
+
+    expect($sync->fresh()->status)->toBe($status);
+})->with([
+    'unchanged' => [
+        'filter',
+        ['_idrref' => new ScalarField(FieldType::Id), '_marked' => new ScalarField(FieldType::Boolean)],
+        SyncStatus::Active,
+    ],
+    'filter column removed' => ['filter', ['_idrref' => new ScalarField(FieldType::Id)], SyncStatus::Pause],
+    'filter column type changed' => [
+        'filter',
+        ['_idrref' => new ScalarField(FieldType::Id), '_marked' => new StringField(length: 10, fixed: false)],
+        SyncStatus::Pause,
+    ],
+    'transform no longer registered' => [
+        'missing',
+        ['_idrref' => new ScalarField(FieldType::Id), '_marked' => new ScalarField(FieldType::Boolean)],
+        SyncStatus::Pause,
+    ],
+]);
 
 it('keeps synchronizations active when the structure is republished unchanged', function () use ($makeProperty) {
     $connection = TestCase::makeConnection([], ['status' => StructureStatus::Ready, 'generation' => 1]);

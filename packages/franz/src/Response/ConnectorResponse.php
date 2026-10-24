@@ -26,7 +26,7 @@ final readonly class ConnectorResponse
             ResponseValue::string($payload['name'] ?? null),
             ResponseValue::config($payload['config'] ?? null),
             array_map(TaskIdResponse::fromArray(...), ResponseValue::objects($payload['tasks'] ?? null)),
-            ($payload['type'] ?? null) !== null ? ResponseValue::string($payload['type']) : null,
+            ResponseValue::string($payload['type'] ?? null, nullable: true),
             $payload,
         );
     }

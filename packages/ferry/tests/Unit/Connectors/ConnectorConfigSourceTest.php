@@ -5,6 +5,7 @@ use PHPinnacle\Ferry\Enums\StructureStatus;
 use PHPinnacle\Ferry\Enums\SyncStatus;
 use PHPinnacle\Ferry\Rules\SyncSchema;
 use PHPinnacle\Ferry\Services\SourceFactory;
+use PHPinnacle\Ferry\Services\TransformRegistry;
 use PHPinnacle\Ferry\Tests\TestCase;
 use PHPinnacle\Rosetta\Data\MetadataProperty;
 use PHPinnacle\Rosetta\Enums\PropertyKind;
@@ -39,9 +40,13 @@ it('builds a debezium postgres connector config scoped to the tracked synchroniz
     $sync = TestCase::makeSync([
         'connection_id' => $connection->id,
         'source' => 'object-0',
-        'schema' => SyncSchema::fromBindings($object, [
-            'title' => 'title',
-        ]),
+        'schema' => SyncSchema::fromBindings(
+            $object,
+            [
+                'title' => 'title',
+            ],
+            app(TransformRegistry::class),
+        ),
     ], ['status' => SyncStatus::Active]);
 
     $connection = $connection->fresh();
@@ -99,14 +104,22 @@ it('unions tables and columns across the tracked synchronizations of one connect
         'connection_id' => $connection->id,
         'code' => 'sync-a',
         'source' => 'object-0',
-        'schema' => SyncSchema::fromBindings($first, ['title' => 'title']),
+        'schema' => SyncSchema::fromBindings(
+            $first,
+            ['title' => 'title'],
+            app(TransformRegistry::class),
+        ),
     ], ['status' => SyncStatus::Active]);
 
     TestCase::makeSync([
         'connection_id' => $connection->id,
         'code' => 'sync-b',
         'source' => 'object-1',
-        'schema' => SyncSchema::fromBindings($second, ['name' => 'name']),
+        'schema' => SyncSchema::fromBindings(
+            $second,
+            ['name' => 'name'],
+            app(TransformRegistry::class),
+        ),
     ], ['status' => SyncStatus::Pause]);
 
     $connection = $connection->fresh();

@@ -25,7 +25,7 @@ final readonly class ConnectorOffset
 
         return new self(
             ResponseValue::object($payload['partition'] ?? null),
-            $payload['offset'] === null ? null : ResponseValue::object($payload['offset']),
+            ResponseValue::object($payload['offset'], nullable: true),
         );
     }
 

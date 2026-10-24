@@ -25,7 +25,7 @@ final readonly class ConfigValueResponse
     {
         return new self(
             ResponseValue::string($payload['name'] ?? null),
-            ($payload['value'] ?? null) === null ? null : ResponseValue::string($payload['value']),
+            ResponseValue::string($payload['value'] ?? null, nullable: true),
             ResponseValue::strings($payload['recommended_values'] ?? null),
             ResponseValue::strings($payload['errors'] ?? null),
             ResponseValue::bool($payload['visible'] ?? null),

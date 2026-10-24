@@ -22,7 +22,7 @@ final readonly class ConnectorStateResponse
         return new self(
             ResponseValue::string($payload['state'] ?? null),
             ResponseValue::string($payload['worker_id'] ?? null),
-            ($payload['trace'] ?? null) !== null ? ResponseValue::string($payload['trace']) : null,
+            ResponseValue::string($payload['trace'] ?? null, nullable: true),
             $payload,
         );
     }

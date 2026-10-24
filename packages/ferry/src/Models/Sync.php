@@ -7,11 +7,14 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use PHPinnacle\Ferry\Casts\SchemaCast;
+use PHPinnacle\Ferry\Casts\TransformsCast;
 use PHPinnacle\Ferry\Data\DestinationField;
 use PHPinnacle\Ferry\Data\FieldMapping;
+use PHPinnacle\Ferry\Data\TransformSetting;
 use PHPinnacle\Ferry\Enums\ColumnType;
 use PHPinnacle\Ferry\Enums\DestinationType;
 use PHPinnacle\Ferry\Enums\SyncStatus;
+use PHPinnacle\Ferry\Models\Concerns\HasConnector;
 use PHPinnacle\Ferry\Observers\SyncObserver;
 
 /**
@@ -26,6 +29,7 @@ use PHPinnacle\Ferry\Observers\SyncObserver;
  * @property string $source
  * @property string $destination
  * @property list<FieldMapping> $schema
+ * @property list<TransformSetting> $transforms
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $updated_at
  * @property-read Connection $connection
@@ -34,6 +38,7 @@ use PHPinnacle\Ferry\Observers\SyncObserver;
 #[ObservedBy(SyncObserver::class)]
 class Sync extends Model
 {
+    use HasConnector;
     use HasUuids;
 
     public const string ID_COLUMN = 'idrref';
@@ -45,6 +50,7 @@ class Sync extends Model
     protected $attributes = [
         'status' => SyncStatus::Pending->value,
         'type' => DestinationType::Dynamic->value,
+        'transforms' => '[]',
     ];
 
     protected $casts = [
@@ -52,6 +58,7 @@ class Sync extends Model
         'type' => DestinationType::class,
         'is_paused' => 'bool',
         'schema' => SchemaCast::class,
+        'transforms' => TransformsCast::class,
     ];
 
     protected $fillable = [
@@ -62,6 +69,7 @@ class Sync extends Model
         'destination',
         'source',
         'schema',
+        'transforms',
     ];
 
     /** @param array{touch?: bool|null} $options */
@@ -98,21 +106,6 @@ class Sync extends Model
         }
     }
 
-    public function recordConnector(Connector $connector): void
-    {
-        $this->connector()->associate($connector);
-
-        if ($this->isDirty('connector_id')) {
-            $this->saveQuietly();
-        }
-    }
-
-    /** @return BelongsTo<Connector, $this> */
-    public function connector(): BelongsTo
-    {
-        return $this->belongsTo(Connector::class, 'connector_id');
-    }
-
     /**
      * @param list<DestinationField>|null $destinationFields
      * @return list<string>
@@ -120,7 +113,11 @@ class Sync extends Model
     public function brokenColumns(?ConnectionMetadata $object, ?array $destinationFields = null): array
     {
         if ($object === null || $this->type === DestinationType::Static && $destinationFields === null) {
-            return array_map(static fn (FieldMapping $mapping) => $mapping->column, $this->schema);
+            /** @var list<string> */
+            return array_map(
+                static fn (FieldMapping $mapping) => $mapping->target ?? $mapping->source,
+                array_values(array_filter($this->schema, static fn (FieldMapping $mapping) => $mapping->isUsed())),
+            );
         }
 
         $fields = array_column($destinationFields ?? [], null, 'id');
@@ -128,18 +125,30 @@ class Sync extends Model
         $destinationColumns = [];
 
         foreach ($this->schema as $mapping) {
-            $field = $object->field($mapping->source);
+            if (!$mapping->isUsed()) {
+                continue;
+            }
+
             $type = $mapping->type();
 
-            if ($field === null || ColumnType::fromField($field) !== $type) {
-                $columns[] = $mapping->column;
+            if ($mapping->source !== null) {
+                $field = $object->field($mapping->source);
+
+                if ($field === null || ColumnType::fromField($field) !== $mapping->sourceType()) {
+                    $columns[] = $mapping->target ?? $mapping->source;
+                }
             }
 
-            if ($destinationFields !== null && ($fields[$mapping->column] ?? null)?->type !== $type) {
-                $destinationColumns[] = $mapping->column;
+            if ($mapping->target !== null && $destinationFields !== null) {
+                $destinationField = $fields[$mapping->target] ?? null;
+                if ($destinationField === null || $type === null || !$type->canMapTo($destinationField->type)) {
+                    $destinationColumns[] = $mapping->target;
+                }
             }
 
-            unset($fields[$mapping->column]);
+            if ($mapping->target !== null) {
+                unset($fields[$mapping->target]);
+            }
         }
 
         foreach ($fields as $field) {
@@ -160,24 +169,67 @@ class Sync extends Model
     /** @return list<string> */
     public function droppedColumns(): array
     {
+        return $this->schemaChanges()['drop'];
+    }
+
+    /** @return array{drop: list<string>, columns: list<array{mapping: FieldMapping, from: string|null}>, alter: list<FieldMapping>} */
+    public function schemaChanges(): array
+    {
+        $changes = ['drop' => [], 'columns' => [], 'alter' => []];
+
         if ($this->type === DestinationType::Static) {
-            return [];
+            return $changes;
         }
 
-        /** @var list<FieldMapping> $previous */
-        $previous = $this->getOriginal('schema');
-        $next = array_column($this->schema, null, 'source');
-        $columns = [];
-
+        /** @var list<FieldMapping> $original */
+        $original = $this->getOriginal('schema');
+        $previous = array_values(array_filter(
+            $original,
+            static fn (FieldMapping $mapping) => $mapping->target !== null,
+        ));
+        $schema = array_values(array_filter(
+            $this->schema,
+            static fn (FieldMapping $mapping) => $mapping->target !== null,
+        ));
+        $next = array_combine(
+            array_map(static fn (FieldMapping $mapping) => $mapping->identity(), $schema),
+            $schema,
+        );
         foreach ($previous as $mapping) {
-            $replacement = $next[$mapping->source] ?? null;
+            $replacement = $next[$mapping->identity()] ?? null;
 
             if ($replacement === null || $replacement->type() !== $mapping->type()) {
-                $columns[] = $mapping->column;
+                /** @var string $target */
+                $target = $mapping->target;
+                $changes['drop'][] = $target;
             }
         }
 
-        return $columns;
+        $previous = array_combine(
+            array_map(static fn (FieldMapping $mapping) => $mapping->identity(), $previous),
+            $previous,
+        );
+
+        foreach ($schema as $mapping) {
+            $existing = $previous[$mapping->identity()] ?? null;
+
+            if ($existing === null || $existing->type() !== $mapping->type()) {
+                $changes['columns'][] = ['mapping' => $mapping, 'from' => null];
+            } elseif ($existing->target !== $mapping->target) {
+                $changes['columns'][] = ['mapping' => $mapping, 'from' => $existing->target];
+            }
+
+            if (
+                $existing !== null
+                && $existing->type() === ColumnType::String
+                && $mapping->type() === ColumnType::String
+                && $existing->stringLength() !== $mapping->stringLength()
+            ) {
+                $changes['alter'][] = $mapping;
+            }
+        }
+
+        return $changes;
     }
 
     /** @param list<DestinationField>|null $destinationFields */
@@ -204,10 +256,26 @@ class Sync extends Model
         $columns = [ConnectionMetadata::KEY_COLUMN => $keyColumn];
 
         foreach ($this->schema as $mapping) {
-            $column = $object->physicalColumn($mapping->source);
+            $column = $mapping->source !== null ? $object->physicalColumn($mapping->source) : null;
 
-            if ($column !== null && $column !== ConnectionMetadata::KEY_COLUMN) {
-                $columns[$column] = $mapping->column;
+            if ($mapping->target !== null && $column !== null && $column !== ConnectionMetadata::KEY_COLUMN) {
+                $columns[$column] = $mapping->target;
+            }
+        }
+
+        return $columns;
+    }
+
+    /** @return list<string> */
+    public function constantColumns(): array
+    {
+        $columns = [];
+
+        foreach ($this->schema as $mapping) {
+            if ($mapping->source === null) {
+                /** @var string $target */
+                $target = $mapping->target;
+                $columns[] = $target;
             }
         }
 
