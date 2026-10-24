@@ -82,6 +82,7 @@
                     {{ (new ComponentAttributeBag)->class(['inline-builder-item', 'is-disabled' => $disabled])->color(BadgeComponent::class, $block->getColor()) }}
                     data-inline-builder-item
                     role="group"
+                    data-field-interactive
                     aria-label="{{ $block->getLabel() }}"
                     x-sortable-item="{{ $index }}"
                     wire:key="{{ $action->getSchemaComponent()->getId() }}-{{ $action->getName() }}-{{ $index }}"

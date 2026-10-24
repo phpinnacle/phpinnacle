@@ -64,7 +64,14 @@ it('runs without registering other PHPinnacle packages and renders block metadat
     expect(array_values($providers))->toBe([\PHPinnacle\Common\CommonServiceProvider::class]);
     $this->field->state([['type' => 'notify', 'data' => ['message' => 'Hello']]]);
     expect($this->field->toHtml())
-        ->toContain('Notify', 'Remove Notify', 'fi-color-success', 'inlineBuilder(', 'data-inline-builder-item');
+        ->toContain(
+            'Notify',
+            'Remove Notify',
+            'fi-color-success',
+            'inlineBuilder(',
+            'data-inline-builder-item',
+            'data-field-interactive',
+        );
 });
 
 it('adds repeated blocks and edits and removes only the selected instance', function () {
