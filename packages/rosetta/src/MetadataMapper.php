@@ -228,6 +228,11 @@ final class MetadataMapper
             }
 
             $title = $this->title($this->at($item, 1, 2, 2, 2, 4), $label);
+            $comment = $this->at($item, 1, 2, 2, 2, 5);
+            if ($comment !== null && !is_string($comment)) {
+                throw new RuntimeException(sprintf('Invalid metadata property comment at position %d', $position + 1));
+            }
+            $comment = $comment === '' ? null : $comment;
             $descriptors = $this->descriptors($this->at($item, 1, 2, 2, 3));
             $descriptor = count($descriptors) === 1 ? $descriptors[0] : null;
 
@@ -246,6 +251,7 @@ final class MetadataMapper
                     label: $label,
                     title: $title,
                     field: new ReferenceField($descriptor[1]),
+                    comment: $comment,
                 );
 
                 continue;
@@ -259,6 +265,7 @@ final class MetadataMapper
                 label: $label,
                 title: $title,
                 field: $this->field($descriptors),
+                comment: $comment,
             );
         }
 

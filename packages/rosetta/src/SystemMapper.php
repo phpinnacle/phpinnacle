@@ -10,6 +10,7 @@ use PHPinnacle\Rosetta\Fields\NumberField;
 use PHPinnacle\Rosetta\Fields\ReferenceField;
 use PHPinnacle\Rosetta\Fields\ScalarField;
 use PHPinnacle\Rosetta\Fields\StringField;
+use RuntimeException;
 
 final class SystemMapper
 {
@@ -79,7 +80,11 @@ final class SystemMapper
         $codeLength = $this->at($data, 2, 18);
 
         if (is_int($codeLength) && $codeLength > 0) {
-            $system['_code'] = new StringField(length: $codeLength, fixed: true);
+            $system['_code'] = match ($this->at($data, 2, 19)) {
+                0 => $this->integer($codeLength),
+                1 => new StringField(length: $codeLength, fixed: $this->fixedLength($this->at($data, 2, 52))),
+                default => throw new RuntimeException('Invalid reference code type'),
+            };
         }
 
         $descriptionLength = $this->at($data, 2, 20);
@@ -110,7 +115,11 @@ final class SystemMapper
         }
 
         if (is_int($numberLength) && $numberLength > 0) {
-            $system['_number'] = new StringField(length: $numberLength, fixed: true);
+            $system['_number'] = match ($this->at($data, 2, 12)) {
+                0 => $this->integer($numberLength),
+                1 => new StringField(length: $numberLength, fixed: $this->fixedLength($this->at($data, 2, 45))),
+                default => throw new RuntimeException('Invalid document number type'),
+            };
         }
 
         $system['_posted'] = $this->boolean();
@@ -171,6 +180,15 @@ final class SystemMapper
         $system['_active'] = $this->boolean();
 
         return $system;
+    }
+
+    private function fixedLength(mixed $value): bool
+    {
+        return match ($value) {
+            0 => true,
+            1 => false,
+            default => throw new RuntimeException('Invalid system string allowed length'),
+        };
     }
 
     private function boolean(): ScalarField

@@ -88,7 +88,7 @@ final class MetadataFixture
     }
 
     /** @return array<int, mixed> */
-    public static function structure(): array
+    public static function structure(mixed $comment = ''): array
     {
         $data = self::metadataStructure(
             [2, 10, 2],
@@ -100,6 +100,8 @@ final class MetadataFixture
         self::set($data, [2, 13], [0, 0]);
         self::set($data, [2, 17], 0);
         self::set($data, [2, 18], 11);
+        self::set($data, [2, 19], 1);
+        self::set($data, [2, 52], 0);
         self::set($data, [2, 20], 100);
         self::set($data, [2, 37], 0);
         self::set($data, [2, 38], 1);
@@ -114,12 +116,14 @@ final class MetadataFixture
                     label: 'ЕдиницаИзмерения',
                     title: 'Единица хранения',
                     descriptor: ['#', '254a3240-79c0-4a3f-9259-5122c9ddd71b'],
+                    comment: $comment,
                 ),
                 self::property(
                     id: '722c3d13-753d-4b4f-82b9-d41340f96d79',
                     label: 'Артикул',
                     title: 'Артикул ',
                     descriptor: ['S', 50, 1],
+                    comment: $comment,
                 ),
             ],
         );
@@ -128,7 +132,7 @@ final class MetadataFixture
     }
 
     /** @return array<int, mixed> */
-    public static function documentWithTabularSection(): array
+    public static function documentWithTabularSection(mixed $comment = ''): array
     {
         $data = self::metadataStructure(
             [2, 10, 2],
@@ -137,7 +141,9 @@ final class MetadataFixture
             'Ввод цен',
             'e32c4fa2-37ff-4a20-b3b8-c4ecb55a6a37',
         );
+        self::set($data, [2, 12], 1);
         self::set($data, [2, 13], 11);
+        self::set($data, [2, 45], 0);
         self::set($data, [2, 14], 1);
         self::set($data, [6], ['properties', 0]);
 
@@ -159,12 +165,14 @@ final class MetadataFixture
                     label: 'Номенклатура',
                     title: 'Номенклатура',
                     descriptor: ['#', '190a7469-3325-4d33-b5ec-28a63ac83b06'],
+                    comment: $comment,
                 ),
                 self::property(
                     id: 'a91b4ba8-1d4d-43e7-97cf-bb26e13f3aff',
                     label: 'Цена',
                     title: 'Цена',
                     descriptor: ['N', 10, 2, 0],
+                    comment: $comment,
                 ),
             ],
         );
@@ -262,6 +270,18 @@ final class MetadataFixture
         return $data;
     }
 
+    /**
+     * @param list<mixed> $descriptor
+     * @return array<int, mixed>
+     */
+    public static function structureWithStringDescriptor(array $descriptor): array
+    {
+        $data = self::structure();
+        self::set($data, [7, 3, 1, 2, 2, 3], ['Pattern', $descriptor]);
+
+        return $data;
+    }
+
     /** @return array<int, mixed> */
     public static function structureWithDefinedType(): array
     {
@@ -282,12 +302,18 @@ final class MetadataFixture
      * @param  list<mixed>  $descriptor
      * @return array<int, mixed>
      */
-    private static function property(string $id, string $label, string $title, array $descriptor): array
-    {
+    private static function property(
+        string $id,
+        string $label,
+        string $title,
+        array $descriptor,
+        mixed $comment = '',
+    ): array {
         $property = [];
         self::set($property, [1, 2, 2, 2, 2, 3], $id);
         self::set($property, [1, 2, 2, 2, 3], $label);
         self::set($property, [1, 2, 2, 2, 4], [1, 'ru', $title]);
+        self::set($property, [1, 2, 2, 2, 5], $comment);
         self::set($property, [1, 2, 2, 3], ['Pattern', $descriptor]);
 
         return $property;

@@ -21,6 +21,103 @@ use RuntimeException;
 final class MetadataMapperTest extends TestCase
 {
     #[Test]
+    #[DataProvider('propertyComments')]
+    public function it_reads_and_serializes_property_comments(mixed $comment, ?string $expected): void
+    {
+        $parser = new SerializedDataParser;
+        $mapper = new MetadataMapper(StorageMap::fromSerialized(MetadataFixture::storageMap(), $parser));
+        $metadata = $mapper->map(MetadataFixture::structure($comment), MetadataKind::Reference);
+
+        foreach ($metadata->properties as $property) {
+            $this->assertSame($expected, $property->comment);
+            $serialized = $property->jsonSerialize();
+            if ($expected === null) {
+                $this->assertArrayNotHasKey('comment', $serialized);
+            } else {
+                $this->assertSame($expected, $serialized['comment']);
+            }
+        }
+    }
+
+    /** @return iterable<string, array{mixed, ?string}> */
+    public static function propertyComments(): iterable
+    {
+        yield 'missing' => [null, null];
+        yield 'empty' => ['', null];
+        yield 'multiline' => ["Developer note\n  Keep this indentation.", "Developer note\n  Keep this indentation."];
+    }
+
+    #[Test]
+    public function it_preserves_comments_in_tabular_sections(): void
+    {
+        $parser = new SerializedDataParser;
+        $metadata = new MetadataMapper(StorageMap::fromSerialized(MetadataFixture::documentStorageMap(), $parser))
+            ->map(MetadataFixture::documentWithTabularSection('Section field note'), MetadataKind::Document);
+
+        foreach ($metadata->sections[0]->properties as $property) {
+            $this->assertSame('Section field note', $property->comment);
+        }
+    }
+
+    #[Test]
+    #[DataProvider('propertyOwnerKinds')]
+    public function it_reads_comments_for_each_property_owner(MetadataKind $kind): void
+    {
+        $data = MetadataFixture::metadataStructure($kind->identityPath(), 'owner-id', 'Owner', 'Owner');
+        $data[$kind->propertyRoots()[0] - 1] = ['properties', 1, MetadataFixture::structure('Owner field note')[6][2]];
+        $metadata = new MetadataMapper(StorageMap::fromArray([
+            'owner-id' => [$kind->storageToken() => 1],
+            '3d295926-ac21-4f62-b76e-64c929f1fc0e' => ['Fld' => 1],
+        ]))->map($data, $kind);
+
+        $this->assertSame('Owner field note', $metadata->properties[0]->comment);
+    }
+
+    /** @return iterable<string, array{MetadataKind}> */
+    public static function propertyOwnerKinds(): iterable
+    {
+        yield 'reference' => [MetadataKind::Reference];
+        yield 'document' => [MetadataKind::Document];
+        yield 'information register' => [MetadataKind::InformationRegister];
+        yield 'accumulation register' => [MetadataKind::AccumulationRegister];
+    }
+
+    /**
+     * @param list<mixed> $descriptor
+     * @param array<string, string|int|bool> $expected
+     */
+    #[Test]
+    #[DataProvider('stringDescriptors')]
+    public function it_preserves_string_qualifiers(array $descriptor, array $expected): void
+    {
+        $parser = new SerializedDataParser;
+        $metadata = new MetadataMapper(StorageMap::fromSerialized(MetadataFixture::storageMap(), $parser))
+            ->map(MetadataFixture::structureWithStringDescriptor($descriptor), MetadataKind::Reference);
+
+        $this->assertSame($expected, $metadata->properties[0]->field->jsonSerialize());
+    }
+
+    /** @return iterable<string, array{list<mixed>, array<string, string|int|bool>}> */
+    public static function stringDescriptors(): iterable
+    {
+        yield 'unlimited' => [['S'], ['type' => 'string', 'fixed' => false]];
+        yield 'explicit zero length' => [['S', 0, 1], ['type' => 'string', 'length' => 0, 'fixed' => false]];
+        yield 'variable' => [['S', 150, 1], ['type' => 'string', 'length' => 150, 'fixed' => false]];
+        yield 'fixed' => [['S', 6, 0], ['type' => 'string', 'length' => 6, 'fixed' => true]];
+    }
+
+    #[Test]
+    public function it_rejects_non_string_property_comments(): void
+    {
+        $parser = new SerializedDataParser;
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid metadata property comment');
+
+        new MetadataMapper(StorageMap::fromSerialized(MetadataFixture::storageMap(), $parser))
+            ->map(MetadataFixture::structure(42), MetadataKind::Reference);
+    }
+
+    #[Test]
     public function it_resolves_defined_types_to_their_physical_field_type(): void
     {
         $parser = new SerializedDataParser;

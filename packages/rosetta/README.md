@@ -103,6 +103,19 @@ identifier, physical name and code, metadata kind, logical name, localized
 title, system fields, and custom properties. Documents may contain tabular
 section definitions, while enumerations may contain possible values.
 
+Catalog codes and document numbers retain their configured numeric or string
+type. Numeric codes and numbers expose their precision with zero scale; string
+fields retain the configured maximum length and fixed/variable qualifier.
+Unbounded strings have no positive length limit: a descriptor without a length
+returns `length: null`, omitted from JSON. An explicit zero remains zero.
+
+Each `MetadataProperty` also exposes an optional `comment`, separate from its
+logical name and localized title. Comments are read for catalog and document
+attributes, register properties, and tabular-section attributes. Empty or absent
+comments become `null`; non-empty text retains whitespace and line breaks.
+JSON includes `comment` only when it is non-null. Rosetta returns and serializes
+this information; persistence remains the consumer's responsibility.
+
 Fields implement `PHPinnacle\Rosetta\Contracts\Field` and expose their
 semantic type and referenced metadata targets. Definitions, properties, values,
 and fields implement `JsonSerializable`, so they can be encoded directly.

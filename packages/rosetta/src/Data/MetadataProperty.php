@@ -16,6 +16,7 @@ final readonly class MetadataProperty implements JsonSerializable
         public string $label,
         public string $title,
         public Field $field,
+        public ?string $comment = null,
     ) {}
 
     /** @return array<string, mixed> */
@@ -29,6 +30,7 @@ final readonly class MetadataProperty implements JsonSerializable
             'label' => $this->label,
             'title' => $this->title,
             'field' => $this->field,
+            ...($this->comment !== null ? ['comment' => $this->comment] : []),
         ];
     }
 }
