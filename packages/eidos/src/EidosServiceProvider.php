@@ -2,6 +2,7 @@
 
 namespace PHPinnacle\Eidos;
 
+use Filament\Support\Assets\AlpineComponent;
 use Filament\Support\Assets\Css;
 use Filament\Support\Assets\Js;
 use Filament\Support\Facades\FilamentAsset;
@@ -24,6 +25,9 @@ class EidosServiceProvider extends PackageServiceProvider
     public function packageBooted(): void
     {
         FilamentAsset::register([
+            AlpineComponent::make('field-mapping', __DIR__ . '/../resources/js/field-mapping.js'),
+            AlpineComponent::make('field-binding', __DIR__ . '/../resources/js/field-binding.js'),
+            Css::make('field-mapping', __DIR__ . '/../resources/css/field-mapping.css'),
             Js::make('resources/js/json-schema-picker', __DIR__ . '/../resources/js/json-schema-picker.js')
                 ->module()
                 ->loadedOnRequest(),

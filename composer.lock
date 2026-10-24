@@ -9059,7 +9059,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/eidos",
-                "reference": "4762b6521599b9644bf6ffa5dacbb5321721bec4"
+                "reference": "d4839ba54067e24d48e7d74f29d2c84d5004e6eb"
             },
             "require": {
                 "filament/filament": "^4.0|^5.0",
@@ -9111,7 +9111,7 @@
                     "role": "Developer"
                 }
             ],
-            "description": "JSON Schema generation, Eloquent introspection, and Filament schema pickers and entries.",
+            "description": "JSON Schema generation, Laravel validation, and reusable Filament mapping, binding, and schema fields.",
             "homepage": "https://github.com/phpinnacle/eidos",
             "keywords": [
                 "eloquent",
@@ -9134,7 +9134,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/ferry",
-                "reference": "4d5c0f7c344ffb73c533ef0232b9ed26c0a6f278"
+                "reference": "063b47895ee1291a4115498fe4522e79183d05ed"
             },
             "require": {
                 "ext-pdo": "*",
@@ -9142,6 +9142,7 @@
                 "filament/filament": "^4.0|^5.0",
                 "php": "^8.4",
                 "phpinnacle/common": "^1.0",
+                "phpinnacle/eidos": "^1.0",
                 "phpinnacle/franz": "^1.0",
                 "phpinnacle/jason": "^1.0",
                 "phpinnacle/rosetta": "^1.0",

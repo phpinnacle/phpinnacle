@@ -41,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [atlas, cabeiro, decima, jason, tempo, vulcan]
+        package: [atlas, cabeiro, decima, eidos, jason, tempo, vulcan]
 
     steps:
       - name: Checkout
@@ -82,3 +82,28 @@ jobs:
       - name: Run Jason tests
         run: composer test
         working-directory: packages/jason
+
+  eidos:
+    name: Eidos without Ferry
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite
+          coverage: none
+
+      - name: Install Eidos dependencies
+        working-directory: packages/eidos
+        run: |
+          composer config minimum-stability dev
+          composer config --json repositories.jason '{"type":"path","url":"../jason","options":{"versions":{"phpinnacle/jason":"dev-master"}}}'
+          composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Run Eidos tests
+        run: composer test
+        working-directory: packages/eidos

@@ -17,7 +17,7 @@ This repository is the source of truth for the PHPinnacle package collection. Ea
 | [`phpinnacle/common`](packages/common/) | Shared Laravel and Filament utilities, including ranges, filters, columns, and reusable concerns. |
 | [`phpinnacle/decima`](packages/decima/) | Visual workflows, queued execution, and run history for Laravel Filament. |
 | [`phpinnacle/dendros`](packages/dendros/) | Hierarchical Eloquent and Filament building blocks using materialized paths and tree-aware interfaces. |
-| [`phpinnacle/eidos`](packages/eidos/) | JSON Schema generation, Laravel validation rules, Eloquent introspection, and Filament schema components. |
+| [`phpinnacle/eidos`](packages/eidos/) | JSON Schema generation, Laravel validation rules, Eloquent introspection, and Filament schema, mapping, and binding fields. |
 | [`phpinnacle/franz`](packages/franz/) | Framework-agnostic PHP client for the Kafka Connect REST API with typed connector management. |
 | [`phpinnacle/grimoire`](packages/grimoire/) | Project-specific linter rules and analyzer extensions for Mago. |
 | [`phpinnacle/iconic`](packages/iconic/) | Searchable Filament icon picker backed by Phosphor icons. |
@@ -72,7 +72,7 @@ Run `composer phpstan` to run PHPStan level 6 static analysis across all package
 | Command | Level | Packages |
 | --- | --- | --- |
 | `composer phpstan:level8` | 8 | cabeiro, vulcan |
-| `composer phpstan:level10` | 10 | babylon, canvio, casus, comments, ferry, franz, intl, langcat, rosetta, sequentia, tags |
+| `composer phpstan:level10` | 10 | babylon, canvio, casus, comments, eidos mapping/binding forms and helpers, ferry, franz, intl, jason, langcat, rosetta, sequentia, tags |
 
 ## Composer Repository
 

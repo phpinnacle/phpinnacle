@@ -1,6 +1,6 @@
 {
     "name": "phpinnacle/eidos",
-    "description": "JSON Schema generation, Eloquent introspection, and Filament schema pickers and entries.",
+    "description": "JSON Schema generation, Laravel validation, and reusable Filament mapping, binding, and schema fields.",
     "keywords": [
         "phpinnacle",
         "laravel",
