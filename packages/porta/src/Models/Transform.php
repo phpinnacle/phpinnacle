@@ -3,13 +3,11 @@
 namespace PHPinnacle\Porta\Models;
 
 use Carbon\CarbonImmutable;
-use Closure;
 use DateTimeInterface;
 use Illuminate\Support\Facades\Date;
-use JsonPath\JsonObject;
 use PHPinnacle\Intl\Locales;
+use PHPinnacle\Jason\JsonQuery;
 use PHPinnacle\Porta\Enums\TransformType;
-use ReflectionReference;
 use Throwable;
 
 /**
@@ -50,7 +48,7 @@ readonly class Transform
         return match ($this->type) {
             TransformType::DROP => $this->drop($data),
             TransformType::MOVE => $this->move($data),
-            default => $this->update($data, $this->path, match ($this->type) {
+            default => (array) new JsonQuery($this->path)->update($data, match ($this->type) {
                 TransformType::MAP => $this->mapValue(...),
                 TransformType::CAST => $this->castValue(...),
                 TransformType::TRIM => $this->trimValue(...),
@@ -108,54 +106,7 @@ readonly class Transform
      */
     private function drop(array $data): array
     {
-        if ($this->path === '$') {
-            return [];
-        }
-
-        $json = new JsonObject($data);
-        $selected = $json->get($this->path);
-        $references = [];
-
-        // Galbar exposes selected nodes by reference, so deletion needs no second JSONPath parser.
-        foreach (array_keys($selected) as $key) {
-            $reference = ReflectionReference::fromArrayElement($selected, $key);
-
-            if ($reference !== null) {
-                $references[$reference->getId()] = true;
-            }
-        }
-
-        if ($references === []) {
-            return $data;
-        }
-
-        $data = $json->getValue();
-        $this->removeSelected($data, $references);
-
-        return $data;
-    }
-
-    /**
-     * @param array<array-key, mixed> $data
-     * @param array<string, true> $references
-     */
-    private function removeSelected(array &$data, array $references): void
-    {
-        $list = array_is_list($data);
-
-        foreach (array_keys($data) as $key) {
-            $reference = ReflectionReference::fromArrayElement($data, $key);
-
-            if ($reference !== null && array_key_exists($reference->getId(), $references)) {
-                unset($data[$key]);
-            } elseif (is_array($data[$key])) {
-                $this->removeSelected($data[$key], $references);
-            }
-        }
-
-        if ($list) {
-            $data = array_values($data);
-        }
+        return new JsonQuery($this->path)->remove($data);
     }
 
     private function insertValue(mixed $value): mixed
@@ -196,18 +147,13 @@ readonly class Transform
      */
     private function move(array $data): array
     {
-        $json = new JsonObject($data);
-        $values = $json->get($this->path);
-
-        if (!is_array($values)) {
-            return $data;
-        }
+        $values = new JsonQuery($this->path)->find($data);
 
         foreach ($values as $value) {
-            $json->set($this->config['dest'] ?? '$', $value);
+            $data = (array) new JsonQuery($this->config['dest'] ?? '$')->set($data, $value);
         }
 
-        return $this->drop((array) $json->getValue());
+        return $values === [] ? $data : $this->drop($data);
     }
 
     private function renameValue(mixed $value): mixed
@@ -234,26 +180,5 @@ readonly class Transform
         $chars = $this->config['chars'] ?? '';
 
         return is_string($value) ? trim($value, $chars !== '' ? $chars : " \n\r\t\v\0") : $value;
-    }
-
-    /**
-     * @param array<array-key, mixed> $data
-     * @param Closure(mixed): mixed $transform
-     * @return array<array-key, mixed>
-     */
-    private function update(array $data, string $path, Closure $transform): array
-    {
-        $json = new JsonObject($data);
-        $values = $json->get($path);
-
-        if (!is_array($values)) {
-            return $data;
-        }
-
-        foreach ($values as &$value) {
-            $value = $transform($value);
-        }
-
-        return (array) $json->getValue();
     }
 }

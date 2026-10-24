@@ -119,6 +119,69 @@ final class TransformTest extends TestCase
             ['items' => ['move', 'keep']],
             ['items' => ['keep'], 'selected' => 'move'],
         ];
+        yield 'move multiple values to the same destination in order' => [
+            TransformType::MOVE,
+            '$.items[*].value',
+            ['dest' => '$.selected'],
+            ['items' => [['value' => 1], ['value' => 2]]],
+            ['items' => [[], []], 'selected' => 2],
+        ];
+        yield 'move null into a missing destination' => [
+            TransformType::MOVE,
+            '$.source',
+            ['dest' => '$.metadata.value'],
+            ['source' => null],
+            ['metadata' => ['value' => null]],
+        ];
+        yield 'move writes to matching destination nodes' => [
+            TransformType::MOVE,
+            '$.source',
+            ['dest' => '$.items[*].value'],
+            ['source' => 'new', 'items' => [['value' => 'old'], []]],
+            ['items' => [['value' => 'new'], ['value' => 'new']]],
+        ];
+        yield 'move filtered array items' => [
+            TransformType::MOVE,
+            '$.items[?(@.keep == true)]',
+            ['dest' => '$.selected'],
+            ['items' => [['keep' => true, 'value' => 1], ['keep' => false, 'value' => 2]]],
+            ['items' => [['keep' => false, 'value' => 2]], 'selected' => ['keep' => true, 'value' => 1]],
+        ];
+        yield 'move to the default root destination' => [
+            TransformType::MOVE,
+            '$.source',
+            [],
+            ['source' => ['value' => 1], 'other' => 2],
+            ['value' => 1],
+        ];
+        yield 'drop a negative array index' => [
+            TransformType::DROP,
+            '$.items[-1]',
+            [],
+            ['items' => ['keep', 'remove']],
+            ['items' => ['keep']],
+        ];
+        yield 'drop a slice without shifting later selections' => [
+            TransformType::DROP,
+            '$.items[1:4:2]',
+            [],
+            ['items' => [0, 1, 2, 3, 4]],
+            ['items' => [0, 2, 4]],
+        ];
+        yield 'trim values selected by a regex filter' => [
+            TransformType::TRIM,
+            '$.items[?(@.name =~ /^A/)].name',
+            ['chars' => '.'],
+            ['items' => [['name' => 'Alice..'], ['name' => 'Bob..']]],
+            ['items' => [['name' => 'Alice'], ['name' => 'Bob..']]],
+        ];
+        yield 'cast recursive matches' => [
+            TransformType::CAST,
+            '$..value',
+            ['type' => 'integer'],
+            ['value' => '1', 'child' => ['value' => '2']],
+            ['value' => 1, 'child' => ['value' => 2]],
+        ];
         yield 'cast selected values' => [
             TransformType::CAST,
             '$.items[*]',

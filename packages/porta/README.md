@@ -77,7 +77,9 @@ php artisan queue:work
 
 Only JSON payloads are currently supported. Transforms run in their configured order before the handler is invoked. A JSON payload containing `{"test":"test"}` exercises endpoint authentication and returns immediately without creating a webhook record.
 
-DROP removes the nodes selected by Galbar JSONPath, including quoted property names such as `$['meta.version']`, array indexes, wildcards, filters, and recursive selections. Matching uses node identity, so equal values elsewhere remain untouched. Removing array items preserves a list with consecutive indexes. DROP `$` clears the payload to `[]`; a missing path leaves it unchanged. MOVE uses the same deletion behavior after writing the selected values to its destination.
+Transforms use `PHPinnacle\Jason\JsonQuery`, with no Galbar dependency. JSONPath selectors support dot and quoted property names such as `$['meta.version']`, array indexes (including negative indexes), unions, slices, wildcards, filters, and recursive selections. Filters support comparisons, logical operators, root references, membership, and regular expressions.
+
+DROP removes the selected nodes by path, so equal values elsewhere remain untouched. Removing array items preserves a list with consecutive indexes. DROP `$` clears the payload to `[]`; a missing path leaves it unchanged. MOVE writes selected values to its destination in selection order, creating missing destination branches, and then applies the same source deletion. If several values target one destination, the last value wins. Invalid JSONPath syntax fails when the transform runs.
 
 Integration access is controlled by `IntegrationPolicy`. Webhook records may contain credentials or personal data from request headers and bodies, so restrict the Filament resource, logs, and database access and define an appropriate retention policy.
 

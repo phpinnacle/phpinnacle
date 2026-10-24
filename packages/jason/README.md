@@ -1,6 +1,6 @@
 # Jason
 
-Jason provides immutable JSON Schema values and builders for PHP 8.4 or later.
+Jason provides immutable JSON Schema values, builders, and JSONPath queries for PHP 8.4 or later.
 It has no runtime package dependencies.
 
 ```bash
@@ -145,6 +145,45 @@ const segments = parseJsonPath(path)
 ```
 
 Consumers own bundling or publishing the JavaScript module.
+
+## Query and transform JSON data
+
+`JsonQuery` selects and transforms PHP arrays representing JSON payloads. It is
+separate from the canonical `JsonPath` codec, whose syntax remains unchanged.
+
+```php
+use PHPinnacle\Jason\JsonQuery;
+
+$query = new JsonQuery('$.items[?(@.active == true)].name');
+$names = $query->find($payload);
+$trimmed = $query->update($payload, fn ($name) => trim($name));
+$withoutNames = $query->remove($payload);
+$withVersion = new JsonQuery('$.metadata.version')->set($payload, 'v1');
+```
+
+Queries support dot and bracket property names, escaped quoted names, wildcards,
+unions, negative indexes, slices with an optional step, and recursive descent.
+Filters support `@` and `$` references, scalar literals, strict equality and
+inequality, ordered comparisons, `and`/`or`/`not` (also `&&`/`||`/`!`), membership
+with `in [...]`, and regular expression comparisons with `=~ /pattern/flags`.
+A filter containing only a regular expression matches child property names.
+Dot notation `.length` reads stored properties when present in a selection,
+otherwise it computes lengths. Inside filters, a terminal `.length` always
+measures an array or string; other types produce `false`. Computed lengths are
+read-only. This query syntax preserves the webhook
+operations previously provided by Galbar; it does not claim RFC 9535 compliance
+or support script evaluation or JSONPath function extensions.
+
+`find()` always returns a list, including `[null]` for a selected null and `[]`
+when nothing matches. In filters, a missing reference evaluates to `false`, and
+booleans do not compare to other types. Numeric filter operands compare as floats,
+as in the previous webhook engine. References use the first selected value.
+All mutations return the result without changing the input. `update()` visits
+existing nodes; `set()` also creates missing named/indexed destination branches
+inside arrays and leaves scalar parents untouched. `remove()` matches paths,
+preserves unselected equal values, and compacts lists after deletion. Removing
+`$` returns `[]`. Invalid query syntax throws `InvalidArgumentException` when
+constructing the query, even if the payload would have no matches.
 
 ## Testing
 
