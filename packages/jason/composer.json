@@ -1,0 +1,20 @@
+{
+    "name": "phpinnacle/jason",
+    "type": "library",
+    "description": "Framework-independent JSON Schema values, builders, traversal, and local references.",
+    "keywords": ["json", "json-schema"],
+    "homepage": "https://github.com/phpinnacle/jason",
+    "support": {
+        "issues": "https://github.com/phpinnacle/jason/issues",
+        "source": "https://github.com/phpinnacle/jason"
+    },
+    "license": "MIT",
+    "authors": [{"name": "PHPinnacle Devs", "email": "dev@phpinnacle.edu.pl"}],
+    "require": {"php": "^8.4"},
+    "require-dev": {"pestphp/pest": "^4.0"},
+    "autoload": {"psr-4": {"PHPinnacle\\Jason\\": "src/"}},
+    "config": {"allow-plugins": {"pestphp/pest-plugin": true}, "sort-packages": true},
+    "scripts": {"test": "pest --no-coverage"},
+    "extra": {"branch-alias": {"dev-master": "1.x-dev"}},
+    "prefer-stable": true
+}

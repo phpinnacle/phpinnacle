@@ -81,14 +81,14 @@ Configure the singleton introspector in your application's service provider:
 
 ```php
 use App\Casts\MoneyCast;
-use Illuminate\JsonSchema\JsonSchema;
+use PHPinnacle\Jason\Schema;
 use PHPinnacle\Eidos\Services\SchemaIntrospector;
 
 public function boot(SchemaIntrospector $introspector): void
 {
-    $introspector->registerCast(MoneyCast::class, fn () => JsonSchema::object([
-        'amount' => JsonSchema::number(),
-        'currency' => JsonSchema::string(),
+    $introspector->registerCast(MoneyCast::class, fn () => Schema::object([
+        'amount' => Schema::number(),
+        'currency' => Schema::string(),
     ]));
 }
 ```
@@ -96,7 +96,7 @@ public function boot(SchemaIntrospector $introspector): void
 Handlers receive the model, attribute name, and a list of cast arguments. For
 `MoneyCast::class . ':USD,2'`, register `MoneyCast::class`; the arguments are
 `['USD', '2']`. A callback that does not need this context may omit its parameters.
-Return a fresh `Illuminate\JsonSchema\Types\Type` or Eidos `Schema` for each field.
+Return a `PHPinnacle\Jason\Schema` for each field. Jason schemas are immutable and may be reused.
 
 Registered handlers take precedence over built-in cast mappings and apply to
 related models too. Column nullability and inferred `readOnly` still
@@ -107,13 +107,13 @@ independent.
 ## Laravel validation
 
 ```php
-use Illuminate\JsonSchema\JsonSchema;
+use PHPinnacle\Jason\Schema;
 use PHPinnacle\Eidos\Validation\RuleFactory;
 
-$schema = JsonSchema::object([
-    'email' => JsonSchema::string()->format('email')->required(),
-    'quantity' => JsonSchema::integer()->min(1)->max(10),
-]);
+$schema = Schema::object([
+    'email' => Schema::string()->format('email'),
+    'quantity' => Schema::integer()->min(1)->max(10),
+])->required(['email']);
 
 $rules = app(RuleFactory::class)->make($schema, [
     'email' => ['unique:users,email'],
@@ -121,10 +121,11 @@ $rules = app(RuleFactory::class)->make($schema, [
 ```
 
 Use the returned rules in a Form Request or Laravel's validator. `make()` accepts
-an `Illuminate\JsonSchema\Types\Type`, optional application rules, and an optional
+a `PHPinnacle\Jason\Schema`, optional application rules, and an optional
 attribute prefix, for example `make($schema, [], 'payload')`. Application rules
 must use complete attribute names, including that prefix. They run before
-inferred rules. `x-validation` adds rules from schema annotations.
+inferred rules. Eidos interprets `x-validation` as additional Laravel rules;
+Jason preserves this annotation without interpreting it.
 
 Supported validation includes scalar types, nullable values, scalar enums,
 UUID/email/date formats, string and numeric bounds, item counts, required object
@@ -135,6 +136,9 @@ rules require it.
 `anyOf` accepts at least one matching branch; `oneOf` requires exactly one.
 Alternative validation requires an attribute prefix, including at the root.
 `allOf` applies all branch constraints and can be used without a root prefix.
+Boolean `true` adds no constraints. Boolean `false` rejects every supplied value,
+including null and empty values, while allowing an optional field to be absent;
+it requires an attribute prefix when used at the root.
 
 This conversion supports a subset of JSON Schema validation. Add Laravel rules
 for unsupported constraints such as patterns, multiples, and unique items.
@@ -142,12 +146,11 @@ for unsupported constraints such as patterns, multiples, and unique items.
 
 ## Schema composition and annotations
 
-Use `PHPinnacle\Eidos\JsonSchema\Schema` for `oneOf`, `allOf`, local references,
-`readOnly`, and `x-*` annotations:
+Eidos consumes immutable `PHPinnacle\Jason\Schema` values for builders, compositions,
+local references, and arbitrary annotations:
 
 ```php
-use Illuminate\JsonSchema\JsonSchema;
-use PHPinnacle\Eidos\JsonSchema\Schema;
+use PHPinnacle\Jason\Schema;
 
 $payment = Schema::fromArray([
     'type' => 'object',
@@ -159,27 +162,33 @@ $payment = Schema::fromArray([
 ]);
 
 $quantity = Schema::allOf([
-    JsonSchema::integer()->min(1),
-    JsonSchema::integer()->max(10),
+    Schema::integer()->min(1),
+    Schema::integer()->max(10),
 ]);
 ```
 
-`Schema::oneOf()` and `Schema::allOf()` accept lists of schema types. Calling
-`nullable()` permits null for the complete composition. Use `Schema::fromArray()`
-for nested compositions and annotated properties. Laravel's `JsonSchema::union()`
-accepts several primitive types; use compositions when branches have independent
-constraints.
+`Schema::oneOf()` and `Schema::allOf()` accept lists of Jason schemas.
+`nullable()` returns a new schema permitting null for the complete composition.
+`Schema::fromArray()` preserves definitions and references; Eidos resolves local
+references when presenting paths or generating validation rules. `required([...])`
+belongs to the containing object. `Schema::union()` accepts several primitive
+types; use compositions when branches have independent constraints.
+
+Replace Laravel schema factories and `Type` signatures with `PHPinnacle\Jason\Schema`.
+The former Eidos schema wrapper, deserializer, and composition subclasses have
+been removed. UI annotation checks belong to Eidos presentation; Jason preserves
+`x-*` values without Filament-specific interpretation.
 
 ## Filament picker and entry
 
 ```php
-use Illuminate\JsonSchema\JsonSchema;
+use PHPinnacle\Jason\Schema;
 use PHPinnacle\Eidos\Forms\JsonSchemaPicker;
 use PHPinnacle\Eidos\Infolists\JsonSchemaEntry;
 
-$schema = JsonSchema::object([
-    'customer' => JsonSchema::object([
-        'email' => JsonSchema::string()->nullable()->description('Delivery address'),
+$schema = Schema::object([
+    'customer' => Schema::object([
+        'email' => Schema::string()->nullable()->description('Delivery address'),
     ]),
 ]);
 
@@ -187,7 +196,7 @@ JsonSchemaPicker::make('output_path')->jsonSchema($schema);
 JsonSchemaEntry::make('output_path')->jsonSchema($schema);
 ```
 
-Both components accept schema types through `jsonSchema()`, directly or through
+Both components accept Jason schemas through `jsonSchema()`, directly or through
 Filament callbacks. Both store canonical JSONPath strings, such as
 `$['customer']['email']`, or `null`. The picker's default value is `null`.
 Optional pickers allow clearing; required pickers need
@@ -204,6 +213,8 @@ an array to inspect its object fields directly, without intermediate `*` rows.
 Array item fields are readonly by default. Enable `selectArrayItemFields()` to
 select paths such as `$['items'][*]['name']`; the wildcard identifies every item
 without choosing a concrete index.
+Jason supplies the structural lookup; Eidos applies selection policy. Concrete
+array indexes are not selectable, including when wildcard item selection is enabled.
 When a tree includes the array root, its item fields are indented beneath it.
 The root starts expanded and can be collapsed without introducing `*` rows.
 
@@ -212,11 +223,19 @@ references in compositions and array items, without changing the supplied
 definition. Referenced titles, icons, colors, required markers, and constraints
 are available too. Sibling annotations override those on the referenced schema.
 External references and circular references are unsupported and raise errors.
+Metadata preparation uses Jason's schema visitor, including definitions,
+conditional schemas, and positional array schemas. UI annotation validation
+remains in Eidos; selectable fields follow properties, compositions, and `items`.
 
-Store the selected JSONPath string directly. `JsonSchema\JsonPath::fromSegments()`
-and `JsonSchema\JsonPath::parse()` convert the supported canonical subset:
+Store the selected JSONPath string directly. `PHPinnacle\Jason\JsonPath::fromSegments()`
+and `PHPinnacle\Jason\JsonPath::parse()` convert the supported canonical subset:
 quoted property names, nonnegative indexes, and `[*]`. Previous array state is
 unsupported.
+
+Eidos consumes Jason's PHP and JavaScript path codecs. Its service provider
+publishes JavaScript under `js/phpinnacle/<package>/resources/js/`, preserving
+relative imports between the Composer packages. Republish assets with
+`php artisan filament:assets` after upgrading.
 
 ### Entry modes
 
@@ -267,9 +286,11 @@ restrictions stay associated with their branches or items. The selected value
 shows its full path and enabled badges; inline descriptions and limits stay in
 the tree.
 
-Array type badges use compact notation such as `string[]`, `object[]`, and
-`number[][]`. Click the badge, or focus it and press Enter or Space, to inspect
-the array and each item level separately. The details include types, nullability,
+Boolean schemas display as `any` for `true` and `never` for `false`, including
+local reference targets. Array type badges use compact notation such as `string[]`,
+`object[]`, `number[][]`, and `never[]` for `items: false`. Click the badge, or focus
+it and press Enter or Space, to inspect the array and each item level separately.
+The details include types, nullability,
 titles, enabled descriptions, formats, enum values, and value limits. Nested
 array counts and scalar limits remain associated with their own levels. Escape
 closes the details. Search includes item metadata and enabled restrictions even
@@ -280,7 +301,8 @@ though item rows are hidden. Exact paths and selection rules remain unchanged.
 RGB/RGBA. A field's color applies to its title and icon, not its descendants.
 For composition variants sharing a path, the first defined icon or color is used
 unless the field defines its own. Invalid annotation syntax is rejected when
-parsing the schema. Other `x-*` attributes are preserved without changing display.
+Eidos prepares presentation metadata. Other `x-*` attributes are preserved without
+changing display.
 
 ### Blade use
 

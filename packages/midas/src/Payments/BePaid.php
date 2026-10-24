@@ -9,7 +9,7 @@ use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Group;
 use Filament\Support\Colors\Color;
 use Illuminate\Http\Request;
-use PHPinnacle\Eidos\JsonSchema\Schema;
+use PHPinnacle\Jason\Schema;
 use PHPinnacle\Midas\Contracts\AuthorizationGateway;
 use PHPinnacle\Midas\Contracts\QueuedGateway;
 use PHPinnacle\Midas\Contracts\RefundGateway;

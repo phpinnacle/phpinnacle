@@ -13,7 +13,6 @@
         "orchestra/testbench": "^11.0",
         "pestphp/pest": "^4.0",
         "pestphp/pest-plugin-laravel": "^4.0",
-        "phpstan/phpstan": "^2.1",
         "phpinnacle/atlas": "*",
         "phpinnacle/babylon": "*",
         "phpinnacle/cabeiro": "*",
@@ -31,6 +30,7 @@
         "phpinnacle/grimoire": "*",
         "phpinnacle/iconic": "*",
         "phpinnacle/intl": "*",
+        "phpinnacle/jason": "*",
         "phpinnacle/langcat": "*",
         "phpinnacle/manuscript": "*",
         "phpinnacle/midas": "*",
@@ -47,7 +47,8 @@
         "phpinnacle/stylus": "*",
         "phpinnacle/tags": "*",
         "phpinnacle/tempo": "*",
-        "phpinnacle/vulcan": "*"
+        "phpinnacle/vulcan": "*",
+        "phpstan/phpstan": "^2.1"
     },
     "autoload-dev": {
         "psr-4": {
@@ -78,7 +79,7 @@
         "format": "mago format",
         "phpstan": "phpstan analyse packages/*/src packages/chronica/tests/Unit/HasHistoryTest.php packages/common/tests/Unit/ConcernsTest.php packages/dendros/tests/Unit/TreeTest.php --no-progress --memory-limit=1G",
         "phpstan:level8": "phpstan analyse packages/cabeiro/src packages/vulcan/src --level=8 --no-progress --memory-limit=1G",
-        "phpstan:level10": "phpstan analyse packages/babylon/src packages/canvio/src packages/casus/src packages/comments/src packages/ferry/src packages/franz/src packages/intl/src packages/langcat/src packages/rosetta/src packages/sequentia/src packages/tags/src --level=10 --no-progress --memory-limit=1G",
+        "phpstan:level10": "phpstan analyse packages/babylon/src packages/canvio/src packages/casus/src packages/comments/src packages/ferry/src packages/franz/src packages/intl/src packages/jason/src packages/langcat/src packages/rosetta/src packages/sequentia/src packages/tags/src --level=10 --no-progress --memory-limit=1G",
         "test": "pest $(find packages -mindepth 2 -maxdepth 2 -type d -name tests ! -path packages/skeleton/tests)"
     },
     "config": {

@@ -49,6 +49,36 @@ test('reports unresolved, external and circular references instead of building i
     }
 })
 
+test('renders local references to boolean schemas like inline definitions', () => {
+    const document = { $defs: { allowed: true, forbidden: false, alias: { $ref: '#/$defs/allowed' } }, properties: {
+        allowed: { $ref: '#/$defs/alias' },
+        forbidden: { $ref: '#/$defs/forbidden' },
+        titledAllowed: { $ref: '#/$defs/allowed', title: 'Available' },
+        titledForbidden: { $ref: '#/$defs/forbidden', title: 'Unavailable', 'x-custom': { $ref: '#/opaque' } },
+        alternatives: { anyOf: [{ $ref: '#/$defs/allowed' }, { $ref: '#/$defs/forbidden' }] },
+        items: { type: 'array', items: { $ref: '#/$defs/forbidden' } },
+    } }
+    const original = structuredClone(document)
+    const inline = { properties: {
+        allowed: true,
+        forbidden: false,
+        titledAllowed: { allOf: [true, { title: 'Available' }] },
+        titledForbidden: { allOf: [false, { title: 'Unavailable', 'x-custom': { $ref: '#/opaque' } }] },
+        alternatives: { anyOf: [true, false] },
+        items: { type: 'array', items: false },
+    } }
+    const options = { includeRoot: false, descendArrays: true, format: true, constraints: true, required: true }
+
+    assert.deepEqual(schemaSources(document, options), schemaSources(inline, options))
+    assert.deepEqual(document, original)
+})
+
+test('rejects local references to values that are not schema objects or booleans', () => {
+    for (const target of [null, [], 42]) {
+        assert.throws(() => schemaSources({ $defs: { target }, $ref: '#/$defs/target' }), /does not point to a schema/)
+    }
+})
+
 test('rebuilds adapter groups from current display options while preserving exact selection and readonly items', () => {
     const tools = jsonSchemaTools()
     const document = { properties: {
@@ -930,14 +960,7 @@ test('preserves array alternatives in type notation and in item detail scopes', 
     assert.equal(schemaType({ type: 'array', items: { type: 'array', items: { allOf: [{ type: 'number' }, { type: 'integer' }] } } }), '(number & integer)[][]')
 })
 
-test('uses canonical JSONPath for literal names and enables wildcard selection through the shared option', async () => {
-    const { jsonPath, parseJsonPath } = await import('../resources/js/json-schema-definition.js')
-    const segments = ['literal.key', 'slash/key', '*', `quote'"\\`, 'line\n\t', 'товар', '0', 0, null]
-    assert.deepEqual(parseJsonPath(jsonPath(segments)), segments)
-    assert.deepEqual(parseJsonPath('$'), [])
-    for (const invalid of [[], '', '$.name', '$["name"]', '$[-1]', '$[01]', "$['bad\\q']", "$['\\u0061']"]) {
-        assert.throws(() => parseJsonPath(invalid))
-    }
+test('enables wildcard selection through the shared option', () => {
     const tools = jsonSchemaTools()
     tools.schemaSelectedKey = "$['tags'][*]['name']"
     const rebuild = () => {
@@ -954,4 +977,21 @@ test('uses canonical JSONPath for literal names and enables wildcard selection t
     tools.schemaSelectArrayItemFields = false
     assert.equal(rebuild().compatible, false)
     assert.equal(tools.schemaSelectedKey, "$['tags'][*]['name']")
+})
+
+
+test('presents boolean schemas without treating false as unconstrained', () => {
+    assert.equal(schemaType(false), 'never')
+    assert.equal(schemaType(true), 'any')
+    assert.equal(schemaNullable(false), false)
+    assert.equal(schemaNullable(true), true)
+    assert.equal(schemaType({ type: 'array', items: false }), 'never[]')
+    const sources = schemaSources({ properties: { allowed: true, forbidden: false } }, { includeRoot: false })
+    assert.deepEqual(sources.map(source => source.type), ['any', 'never'])
+    const [array, item] = schemaSources({ type: 'array', items: false }, { descendArrays: true })
+    assert.deepEqual(array.arrayItems.map(item => [item.scope, item.type, item.nullable]), [[['items'], 'never', false]])
+    assert.equal(item.type, 'never')
+    assert.equal(item.value, '$[*]')
+    assert.equal(item.compatible, false)
+    assert.ok(jsonSchemaPicker({ groups: () => [] }).jsonSchemaArrayTooltip(array, { items: 'Items' }).includes('Items: never'))
 })

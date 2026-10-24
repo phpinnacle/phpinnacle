@@ -4,13 +4,12 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
-use Illuminate\JsonSchema\JsonSchema;
-use Illuminate\JsonSchema\Types\Type;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use PHPinnacle\Eidos\Forms\JsonSchemaPicker;
 use PHPinnacle\Eidos\Infolists\JsonSchemaEntry;
+use PHPinnacle\Jason\Schema as JsonSchema;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -45,21 +44,16 @@ it('selects array item fields only when explicitly enabled and preserves their J
 
 it('validates and presents exact paths in schema types that preserve local references', function () {
     $form = eidos_json_schema_form("$['home_address']['postal_code']");
-    $schema = new class extends Type {
-        public function toArray(): array
-        {
-            return [
+    $schema = JsonSchema::fromArray([
+        'type' => 'object',
+        '$defs' => [
+            'address' => [
                 'type' => 'object',
-                '$defs' => [
-                    'address' => [
-                        'type' => 'object',
-                        'properties' => ['postal_code' => ['type' => 'string', 'x-icon' => 'heroicon-o-map-pin']],
-                    ],
-                ],
-                'properties' => ['home_address' => ['$ref' => '#/$defs/address']],
-            ];
-        }
-    };
+                'properties' => ['postal_code' => ['type' => 'string', 'x-icon' => 'heroicon-o-map-pin']],
+            ],
+        ],
+        'properties' => ['home_address' => ['$ref' => '#/$defs/address']],
+    ]);
     $picker = $form->getComponent('selection')->jsonSchema($schema);
     $entry = $form->getComponent('preview')->jsonSchema($schema);
 
@@ -71,6 +65,13 @@ it('validates and presents exact paths in schema types that preserve local refer
         ->toHaveKey('postal_code');
 
     $form->fill(['selection' => "$['home_address']['missing']"]);
+
+    expect($form->getState(...))->toThrow(ValidationException::class);
+});
+
+it('rejects concrete array indexes even when wildcard item selection is enabled', function () {
+    $form = eidos_json_schema_form("$['tags'][0]['name']");
+    $form->getComponent('selection')->selectArrayItemFields();
 
     expect($form->getState(...))->toThrow(ValidationException::class);
 });
@@ -96,13 +97,13 @@ it('offers clearing only for optional enabled pickers independently of schema re
     expect($picker->toHtml())->not->toContain('aria-label="Clear selection"');
 });
 
-it('uses Laravel schema objects and closures for selection and readonly rendering', function (bool $useClosure) {
+it('uses Jason schema objects and closures for selection and readonly rendering', function (bool $useClosure) {
     $selection = "$['customer']['email']";
     $form = eidos_json_schema_form($selection);
     $schema = JsonSchema::anyOf([
         JsonSchema::object([
             'customer' => JsonSchema::object([
-                'email' => JsonSchema::string()->nullable()->description('Laravel schema address'),
+                'email' => JsonSchema::string()->nullable()->description('Jason schema address'),
             ]),
             'tags' => JsonSchema::array()->items(JsonSchema::object([
                 'name' => JsonSchema::string(),
@@ -117,8 +118,8 @@ it('uses Laravel schema objects and closures for selection and readonly renderin
     view()->share('errors', new ViewErrorBag);
 
     expect($form->getState()['selection'])->toBe($selection);
-    expect($picker->toHtml())->toContain('Laravel schema address');
-    expect($entry->toHtml())->toContain('Laravel schema address');
+    expect($picker->toHtml())->toContain('Jason schema address');
+    expect($entry->toHtml())->toContain('Jason schema address');
 
     $form->fill(['selection' => "$['count']"]);
 
@@ -179,7 +180,7 @@ it('keeps nested composition paths within one complete branch', function (
     string $keyword,
 ) {
     $form = eidos_json_schema_form($selection);
-    $form->getComponent('selection')->jsonSchema(\PHPinnacle\Eidos\JsonSchema\Schema::fromArray([
+    $form->getComponent('selection')->jsonSchema(JsonSchema::fromArray([
         $keyword => [
             [
                 'type' => 'object',

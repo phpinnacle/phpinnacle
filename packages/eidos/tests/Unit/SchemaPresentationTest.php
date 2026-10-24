@@ -102,3 +102,32 @@ it('does not interpret schema-like data inside arbitrary annotations', function 
         'icons' => [],
     ]);
 });
+
+it('prepares metadata in definitions, conditional schemas and positional array schemas', function () {
+    $definition = [
+        '$defs' => ['unused' => ['properties' => ['stored_name' => ['x-icon' => 'heroicon-o-user']]]],
+        'if' => ['properties' => ['condition_key' => []]],
+        'then' => ['properties' => ['conditional_value' => ['x-color' => 'success']]],
+        'else' => ['prefixItems' => [['properties' => ['positional_name' => []]]]],
+        'properties' => ['properties' => ['items' => []]],
+    ];
+    $presentation = SchemaPresentation::render($definition);
+
+    expect($presentation['propertyTitles'])
+        ->toEqual([
+            'properties' => 'Properties',
+            'stored_name' => 'Stored Name',
+            'condition_key' => 'Condition Key',
+            'conditional_value' => 'Conditional Value',
+            'positional_name' => 'Positional Name',
+        ])
+        ->and($presentation['icons'])
+        ->toHaveKey('heroicon-o-user')
+        ->and($presentation['definition'])
+        ->toBe($definition);
+});
+
+it('validates UI annotations in conditional schema positions', function () {
+    expect(fn () => SchemaPresentation::render(['then' => ['x-icon' => '<svg>']], withIcons: false))
+        ->toThrow(InvalidArgumentException::class, 'x-icon');
+});

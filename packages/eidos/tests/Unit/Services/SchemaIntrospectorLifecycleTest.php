@@ -2,9 +2,9 @@
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Schema as DatabaseSchema;
 use PHPinnacle\Eidos\Services\SchemaIntrospector;
+use PHPinnacle\Jason\Schema;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -39,7 +39,7 @@ it('creates independent schemas for model classes and instances', function (bool
 })->with(['model class' => false, 'model instance' => true]);
 
 it('shares cast registrations across container resolutions without sharing generated schemas', function () {
-    $introspector = app(SchemaIntrospector::class)->registerCast('string', fn () => JsonSchema::string()->title(
+    $introspector = app(SchemaIntrospector::class)->registerCast('string', fn () => Schema::string()->title(
         'Registered cast',
     ));
     $resolved = app(SchemaIntrospector::class);

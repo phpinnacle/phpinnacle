@@ -22,6 +22,7 @@ This repository is the source of truth for the PHPinnacle package collection. Ea
 | [`phpinnacle/grimoire`](packages/grimoire/) | Project-specific linter rules and analyzer extensions for Mago. |
 | [`phpinnacle/iconic`](packages/iconic/) | Searchable Filament icon picker backed by Phosphor icons. |
 | [`phpinnacle/intl`](packages/intl/) | Symfony Intl-backed country, language, locale, and timezone dictionaries with Laravel and Filament integration. |
+| [`phpinnacle/jason`](packages/jason/) | Framework-independent JSON Schema values, builders, traversal, local references, and canonical JSONPath codecs. |
 | [`phpinnacle/langcat`](packages/langcat/) | Framework-agnostic PHP client for the LangLion API with typed requests and responses. |
 | [`phpinnacle/manuscript`](packages/manuscript/) | Browser-based DOCX editor with a framework-neutral engine and a thin Filament field adapter. |
 | [`phpinnacle/midas`](packages/midas/) | Laravel and Filament payment orchestration for methods, plans, cards, intents, adjustments, and providers. |

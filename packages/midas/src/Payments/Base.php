@@ -4,8 +4,8 @@ namespace PHPinnacle\Midas\Payments;
 
 use BackedEnum;
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\JsonSchema\Types\Type;
 use LogicException;
+use PHPinnacle\Jason\Schema;
 use PHPinnacle\Midas\Contracts\PaymentProvider;
 use PHPinnacle\Midas\Models\Continuation;
 use PHPinnacle\Midas\Models\Intent;
@@ -55,7 +55,7 @@ abstract class Base implements PaymentProvider
         return [];
     }
 
-    public function schema(PaymentMethod $method, Payer $payer): ?Type
+    public function schema(PaymentMethod $method, Payer $payer): ?Schema
     {
         return null;
     }

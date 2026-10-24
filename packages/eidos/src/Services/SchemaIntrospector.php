@@ -15,10 +15,8 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\JsonSchema\JsonSchema;
-use Illuminate\JsonSchema\Types\Type;
 use Illuminate\Support\Str;
-use PHPinnacle\Eidos\JsonSchema\Schema;
+use PHPinnacle\Jason\Schema;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -29,7 +27,7 @@ use ReflectionNamedType;
 #[Singleton]
 class SchemaIntrospector
 {
-    /** @var array<string, Closure(Model, string, list<string>): Type> */
+    /** @var array<string, Closure(Model, string, list<string>): Schema> */
     private array $castHandlers = [];
 
     /** @var array<class-string<Model>, array<string, true>> */
@@ -43,7 +41,7 @@ class SchemaIntrospector
         return $this;
     }
 
-    /** @param Closure(Model, string, list<string>): Type $handler */
+    /** @param Closure(Model, string, list<string>): Schema $handler */
     public function registerCast(string $name, Closure $handler): static
     {
         $this->castHandlers[$name] = $handler;
@@ -67,7 +65,7 @@ class SchemaIntrospector
 
     /**
      * @param int<0, max> $relationshipDepth
-     * @return array{type: string, properties: array<string, array<string, mixed>>, required: list<string>}
+     * @return array{type: string, properties: array<string, array<string, mixed>>, required?: list<string>}
      */
     private function modelSchema(Model $model, int $relationshipDepth): array
     {
@@ -132,7 +130,7 @@ class SchemaIntrospector
         return Relation::noConstraints(fn () => $method->invoke($model));
     }
 
-    /** @return array{type: string, properties: array<string, array<string, mixed>>, required: list<string>} */
+    /** @return array{type: string, properties: array<string, array<string, mixed>>, required?: list<string>} */
     private function columnSchema(Model $model): array
     {
         $columns = $this->columns($model);
@@ -148,8 +146,9 @@ class SchemaIntrospector
             $name = $column['name'];
             $cast = $casts[$name] ?? null;
             $type = in_array($name, $dates, true) && $cast === null
-                ? JsonSchema::string()->format('date-time')
+                ? Schema::string()->format('date-time')
                 : $this->columnType($column['type_name'], $cast, $model, $name);
+            $type = $type->resolveReferences();
 
             $definition = ($column['nullable'] ? $type->nullable() : $type)->toArray();
 
@@ -175,14 +174,14 @@ class SchemaIntrospector
                 };
 
                 if (array_key_exists('default', $default)) {
-                    $definition['default'] = $this->defaultValue($default['default'], $definition);
+                    $definition['default'] = $this->defaultValue($default['default'], $type->keywords());
                 }
             }
 
             $properties[$name] = $definition;
         }
 
-        return ['type' => 'object', 'properties' => $properties, 'required' => $required];
+        return ['type' => 'object', 'properties' => $properties] + ($required === [] ? [] : ['required' => $required]);
     }
 
     /** @return list<Column> */
@@ -280,14 +279,14 @@ class SchemaIntrospector
         };
     }
 
-    private function columnType(string $databaseType, ?string $cast, Model $model, string $attribute): Type
+    private function columnType(string $databaseType, ?string $cast, Model $model, string $attribute): Schema
     {
         return (
             ($cast === null ? null : $this->castType($cast, $model, $attribute)) ?? $this->databaseType($databaseType)
         );
     }
 
-    private function castType(string $cast, Model $model, string $attribute): ?Type
+    private function castType(string $cast, Model $model, string $attribute): ?Schema
     {
         $segments = explode(':', $cast, 2);
         $castName = $segments[0];
@@ -302,39 +301,39 @@ class SchemaIntrospector
         if (is_subclass_of($castName, BackedEnum::class)) {
             $values = array_column($castName::cases(), 'value');
 
-            return (is_int($values[0]) ? JsonSchema::integer() : JsonSchema::string())->enum($values);
+            return (is_int($values[0]) ? Schema::integer() : Schema::string())->enum($values);
         }
 
         if (is_a($castName, AsArrayObject::class, true) || is_a($castName, AsCollection::class, true)) {
-            return JsonSchema::union(['object', 'array']);
+            return Schema::union(['object', 'array']);
         }
 
         return match ($castName) {
-            'int', 'integer' => JsonSchema::integer(),
-            'real', 'float', 'double' => JsonSchema::number(),
-            'bool', 'boolean' => JsonSchema::boolean(),
-            'array', 'json', 'object', 'collection' => JsonSchema::union(['object', 'array']),
-            'date', 'immutable_date' => JsonSchema::string()->format('date'),
-            'datetime', 'immutable_datetime', 'timestamp' => JsonSchema::string()->format('date-time'),
-            'decimal', 'string', 'hashed' => JsonSchema::string(),
+            'int', 'integer' => Schema::integer(),
+            'real', 'float', 'double' => Schema::number(),
+            'bool', 'boolean' => Schema::boolean(),
+            'array', 'json', 'object', 'collection' => Schema::union(['object', 'array']),
+            'date', 'immutable_date' => Schema::string()->format('date'),
+            'datetime', 'immutable_datetime', 'timestamp' => Schema::string()->format('date-time'),
+            'decimal', 'string', 'hashed' => Schema::string(),
             default => null,
         };
     }
 
-    private function databaseType(string $databaseType): Type
+    private function databaseType(string $databaseType): Schema
     {
         $type = strtolower($databaseType);
 
         return match (true) {
-            str_contains($type, 'bool') => JsonSchema::boolean(),
-            str_contains($type, 'int') => JsonSchema::integer(),
+            str_contains($type, 'bool') => Schema::boolean(),
+            str_contains($type, 'int') => Schema::integer(),
             str_contains($type, 'decimal'),
             str_contains($type, 'numeric'),
             str_contains($type, 'float'),
             str_contains($type, 'double'),
             str_contains($type, 'real'),
-                => JsonSchema::number(),
-            default => JsonSchema::string(),
+                => Schema::number(),
+            default => Schema::string(),
         };
     }
 }

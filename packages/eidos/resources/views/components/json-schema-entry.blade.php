@@ -2,7 +2,7 @@
 
 <div
     x-load
-    x-load-src="{{ \Filament\Support\Facades\FilamentAsset::getAlpineComponentSrc('json-schema-tools', package: 'phpinnacle/eidos') }}"
+    x-load-src="{{ \Filament\Support\Facades\FilamentAsset::getScriptSrc('resources/js/json-schema-tools', package: 'phpinnacle/eidos') }}"
     x-data="jsonSchemaTools()"
     x-effect="schemaSelectedKey = {{ $value }}; schemaSyncSelection()"
     {{ $attributes->class(['eidos-json-schema-entry']) }}

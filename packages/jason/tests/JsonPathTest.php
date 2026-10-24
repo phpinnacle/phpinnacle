@@ -1,6 +1,6 @@
 <?php
 
-use PHPinnacle\Eidos\JsonSchema\JsonPath;
+use PHPinnacle\Jason\JsonPath;
 
 it('round trips canonical JSONPath names indexes and wildcards', function () {
     $segments = ['literal.key', 'slash/key', '*', "quote'\"\\", "line\n\t", 'товар', '0', 0, null];

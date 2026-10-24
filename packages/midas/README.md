@@ -43,7 +43,7 @@ Register provider class names in `phpinnacle-midas.providers`. The built-in prov
 
 Registered providers are available when creating payment methods in the panel. Each supplies its label, configuration form, validation and supported payment operations. Stripe supports hosted Checkout payments and refunds, as well as direct PaymentIntent authorizations, captures and voids.
 
-`PaymentGateway::schema($method, $payer)` returns an `Illuminate\JsonSchema\Types\Type`, or `null` when no checkout input is needed. BePaid accepts either new card details or an available saved card. Use Eidos's `RuleFactory` to validate checkout input:
+`PaymentGateway::schema($method, $payer)` returns a `PHPinnacle\Jason\Schema`, or `null` when no checkout input is needed. BePaid accepts either new card details or an available saved card. Use Eidos's `RuleFactory` to validate checkout input:
 
 ```php
 use PHPinnacle\Eidos\Validation\RuleFactory;

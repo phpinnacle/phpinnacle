@@ -1,9 +1,8 @@
 <?php
 
-use Illuminate\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Validator;
-use PHPinnacle\Eidos\JsonSchema\Schema;
 use PHPinnacle\Eidos\Validation\RuleFactory;
+use PHPinnacle\Jason\Schema;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -12,10 +11,10 @@ it('validates nullable email, bounded quantities and boolean fields from native 
     array $payload,
     bool $passes,
 ) {
-    $schema = JsonSchema::object([
-        'email' => JsonSchema::string()->format('email')->nullable(),
-        'quantity' => JsonSchema::integer()->min(1)->max(10),
-        'active' => JsonSchema::boolean(),
+    $schema = Schema::object([
+        'email' => Schema::string()->format('email')->nullable(),
+        'quantity' => Schema::integer()->min(1)->max(10),
+        'active' => Schema::boolean(),
     ]);
 
     $rules = new RuleFactory()->make($schema, [], 'payload');
@@ -78,7 +77,7 @@ it('combines application validation with nested schema and allOf constraints', f
 });
 
 it('runs application validation before inferred rules when bail is requested', function () {
-    $rules = new RuleFactory()->make(JsonSchema::object(['email' => JsonSchema::string()->format('email')]), [
+    $rules = new RuleFactory()->make(Schema::object(['email' => Schema::string()->format('email')]), [
         'email' => [
             'bail',
             function (string $attribute, mixed $value, Closure $fail) {
@@ -92,14 +91,14 @@ it('runs application validation before inferred rules when bail is requested', f
 });
 
 it('validates required fields only within present optional objects and checks array items', function () {
-    $schema = JsonSchema::object([
-        'customer' => JsonSchema::object(['email' => JsonSchema::string()->format('email')->required()])->nullable(),
-        'items' => JsonSchema::array()
+    $schema = Schema::object([
+        'customer' => Schema::object(['email' => Schema::string()->format('email')])->required(['email'])->nullable(),
+        'items' => Schema::array()
             ->min(1)
             ->max(2)
-            ->items(JsonSchema::object([
-                'quantity' => JsonSchema::integer()->min(1)->required(),
-            ])),
+            ->items(Schema::object([
+                'quantity' => Schema::integer()->min(1),
+            ])->required(['quantity'])),
     ]);
     $rules = new RuleFactory()->make($schema);
 
@@ -161,8 +160,8 @@ it('validates alternative constraints and distinguishes anyOf from oneOf', funct
     bool $passes,
 ) {
     $schema = $keyword === 'oneOf'
-        ? Schema::oneOf([JsonSchema::integer()->min(1), JsonSchema::number()->max(10)])
-        : JsonSchema::anyOf([JsonSchema::integer()->min(1), JsonSchema::number()->max(10)]);
+        ? Schema::oneOf([Schema::integer()->min(1), Schema::number()->max(10)])
+        : Schema::anyOf([Schema::integer()->min(1), Schema::number()->max(10)]);
     $rules = new RuleFactory()->make($schema, [], 'value');
 
     expect(Validator::make(['value' => $value], $rules)->passes())->toBe($passes);
@@ -186,9 +185,9 @@ it('validates each wildcard alternative independently and keeps sibling-dependen
         ],
     ]);
     $rules = new RuleFactory()->make(
-        JsonSchema::array()->items(JsonSchema::anyOf([
-            JsonSchema::integer(),
-            JsonSchema::string()->format('email'),
+        Schema::array()->items(Schema::anyOf([
+            Schema::integer(),
+            Schema::string()->format('email'),
         ])),
         [],
         'choices',
@@ -200,9 +199,9 @@ it('validates each wildcard alternative independently and keeps sibling-dependen
 });
 
 it('validates nullable multi-type unions and scalar enums', function () {
-    $schema = JsonSchema::object([
-        'value' => JsonSchema::union(['integer', 'boolean'])->nullable(),
-        'status' => JsonSchema::string()->enum(['draft', 'published']),
+    $schema = Schema::object([
+        'value' => Schema::union(['integer', 'boolean'])->nullable(),
+        'status' => Schema::string()->enum(['draft', 'published']),
     ]);
     $rules = new RuleFactory()->make($schema);
 
@@ -211,4 +210,21 @@ it('validates nullable multi-type unions and scalar enums', function () {
     expect(Validator::make(['value' => false], $rules)->passes())->toBeTrue();
     expect(Validator::make(['value' => []], $rules)->fails())->toBeTrue();
     expect(Validator::make(['status' => 'missing'], $rules)->fails())->toBeTrue();
+});
+
+it('rejects present values for false schemas while preserving optional absence', function (mixed $value) {
+    $rules = new RuleFactory()->make(Schema::fromArray(['properties' => ['value' => false]]));
+    expect(Validator::make([], $rules)->passes())
+        ->toBeTrue()
+        ->and(Validator::make(['value' => $value], $rules)->fails())
+        ->toBeTrue();
+})->with(['null' => [null], 'empty string' => [''], 'false' => [false], 'zero' => [0], 'empty array' => [[]]]);
+
+it('validates boolean composition branches with their original meaning', function () {
+    $schema = Schema::fromArray(['oneOf' => [false, ['type' => 'integer']]]);
+    $rules = new RuleFactory()->make($schema, [], 'value');
+    expect(Validator::make(['value' => 1], $rules)->passes())
+        ->toBeTrue()
+        ->and(Validator::make(['value' => 'text'], $rules)->fails())
+        ->toBeTrue();
 });

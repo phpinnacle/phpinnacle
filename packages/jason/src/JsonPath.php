@@ -1,6 +1,6 @@
 <?php
 
-namespace PHPinnacle\Eidos\JsonSchema;
+namespace PHPinnacle\Jason;
 
 use InvalidArgumentException;
 use JsonException;
@@ -62,13 +62,19 @@ final class JsonPath
                 );
 
                 try {
-                    $segments[] = json_decode('"' . $encoded . '"', flags: JSON_THROW_ON_ERROR);
+                    $property = json_decode('"' . $encoded . '"', flags: JSON_THROW_ON_ERROR);
                 } catch (JsonException $error) {
                     throw new InvalidArgumentException(
                         'Invalid escape sequence in a JSONPath property name.',
                         previous: $error,
                     );
                 }
+
+                if (!is_string($property)) {
+                    throw new InvalidArgumentException('A JSONPath property name must be a string.');
+                }
+
+                $segments[] = $property;
             } else {
                 $segments[] = $token[2] !== null ? (int) $token[2] : null;
             }

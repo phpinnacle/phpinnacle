@@ -3,10 +3,10 @@
 namespace PHPinnacle\Eidos\Validation;
 
 use Closure;
-use Illuminate\JsonSchema\Types\Type;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
+use PHPinnacle\Jason\Schema;
 
 class RuleFactory
 {
@@ -14,17 +14,28 @@ class RuleFactory
      * @param array<string, mixed> $rules
      * @return array<string, mixed>
      */
-    public function make(Type $schema, array $rules = [], string $prefix = ''): array
+    public function make(Schema $schema, array $rules = [], string $prefix = ''): array
     {
-        return $this->merge($rules, $this->schemaRules($schema->toArray(), $prefix));
+        return $this->merge($rules, $this->schemaRules($schema->resolveReferences()->toArray(), $prefix));
     }
 
     /**
-     * @param array<string, mixed> $schema
+     * @param array<string, mixed>|bool $schema
      * @return array<string, list<mixed>>
      */
-    private function schemaRules(array $schema, string $prefix): array
+    private function schemaRules(array|bool $schema, string $prefix): array
     {
+        if (is_bool($schema)) {
+            if ($schema) {
+                return [];
+            }
+            if ($prefix === '') {
+                throw new InvalidArgumentException('A rejecting schema requires an attribute prefix.');
+            }
+
+            return [$prefix => [new FalseSchema]];
+        }
+
         $rules = $prefix === '' ? [] : [$prefix => $this->fieldRules($schema)];
 
         foreach ($schema['properties'] ?? [] as $name => $property) {
@@ -145,11 +156,11 @@ class RuleFactory
         return $rules;
     }
 
-    /** @param list<array<string, mixed>> $schemas */
+    /** @param list<array<string, mixed>|bool> $schemas */
     private function alternatives(array $schemas, bool $exactlyOne = false): SchemaAlternatives
     {
         return new SchemaAlternatives(
-            fn (string $attribute) => array_map(fn (array $schema) => $this->schemaRules(
+            fn (string $attribute) => array_map(fn (array|bool $schema) => $this->schemaRules(
                 $schema,
                 $attribute,
             ), $schemas),

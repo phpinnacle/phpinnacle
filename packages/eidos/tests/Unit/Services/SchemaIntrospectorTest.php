@@ -14,10 +14,9 @@ use Illuminate\Database\Query\Processors\MySqlProcessor;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\Builder;
 use Illuminate\Database\Schema\Grammars\MySqlGrammar;
-use Illuminate\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Schema;
-use PHPinnacle\Eidos\JsonSchema\Schema as JsonSchemaDefinition;
 use PHPinnacle\Eidos\Services\SchemaIntrospector;
+use PHPinnacle\Jason\Schema as JsonSchema;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -218,7 +217,7 @@ it('requires writable nonnullable columns without database or declared model def
         ->and($definition['properties']['id'])
         ->not->toHaveKey('readOnly')
         ->not->toHaveKey('default')->and($definition['properties']['created_at'])
-        ->not->toHaveKey('default')->and(JsonSchemaDefinition::fromArray($definition)->toArray())->toBe($definition);
+        ->not->toHaveKey('default')->and(JsonSchema::fromArray($definition)->toArray())->toEqual($definition);
 })->with(['model class' => false, 'model instance' => true]);
 
 it('does not require columns marked read only by registered cast schemas', function () {
@@ -228,7 +227,7 @@ it('does not require columns marked read only by registered cast schemas', funct
     });
     $model = new MassAssignableSchemaRecord;
     $model->fillable(['name', 'editable'])->mergeCasts(['name' => 'string']);
-    $introspector = new SchemaIntrospector()->registerCast('string', fn () => JsonSchemaDefinition::fromArray([
+    $introspector = new SchemaIntrospector()->registerCast('string', fn () => JsonSchema::fromArray([
         'type' => 'string',
         'readOnly' => true,
     ]));
@@ -338,7 +337,7 @@ it('uses model attribute defaults before database literals without reading insta
         ->not->toHaveKey('default')->and($properties['id'])
         ->not->toHaveKey('default')->and($model->getAttributes())->toBe($attributes)->and(
             $introspector->introspect(DefaultSchemaRecord::class)->toArray(),
-        )->toEqual($definition)->and(JsonSchemaDefinition::fromArray($definition)->toArray())->toEqual($definition);
+        )->toEqual($definition)->and(JsonSchema::fromArray($definition)->toArray())->toEqual($definition);
 });
 
 it('reads database defaults using the connection dialect', function (
@@ -512,7 +511,7 @@ it('uses registered cast schemas and preserves annotations, nullability and gene
     $introspector = new SchemaIntrospector;
     $introspector->registerCast(CustomSchemaCast::class, fn () => (
         $useSchema
-            ? JsonSchemaDefinition::fromArray([
+            ? JsonSchema::fromArray([
                 'type' => 'object',
                 'properties' => ['name' => ['type' => 'string']],
                 'x-icon' => 'heroicon-o-user',
@@ -538,7 +537,7 @@ it('uses registered cast schemas and preserves annotations, nullability and gene
     if ($useSchema) {
         expect($properties['metadata']['x-icon'])->toBe('heroicon-o-user');
     }
-})->with(['native type' => false, 'annotated schema' => true]);
+})->with(['fluent schema' => false, 'annotated schema' => true]);
 
 it('passes model, attribute and cast arguments to handlers for root and related fields', function () {
     Schema::create('eidos_schema_suppliers', function (Blueprint $table) {

@@ -2,7 +2,6 @@
 
 namespace PHPinnacle\Eidos;
 
-use Filament\Support\Assets\AlpineComponent;
 use Filament\Support\Assets\Css;
 use Filament\Support\Assets\Js;
 use Filament\Support\Facades\FilamentAsset;
@@ -25,15 +24,25 @@ class EidosServiceProvider extends PackageServiceProvider
     public function packageBooted(): void
     {
         FilamentAsset::register([
-            AlpineComponent::make('json-schema-picker', __DIR__ . '/../resources/js/json-schema-picker.js'),
-            AlpineComponent::make('json-schema-tools', __DIR__ . '/../resources/js/json-schema-tools.js'),
-            Js::make('components/json-schema-definition', __DIR__ . '/../resources/js/json-schema-definition.js')
+            Js::make('resources/js/json-schema-picker', __DIR__ . '/../resources/js/json-schema-picker.js')
                 ->module()
                 ->loadedOnRequest(),
-            Js::make('components/json-schema-presentation', __DIR__ . '/../resources/js/json-schema-presentation.js')
+            Js::make('resources/js/json-schema-tools', __DIR__ . '/../resources/js/json-schema-tools.js')
+                ->module()
+                ->loadedOnRequest(),
+            Js::make('resources/js/json-schema-definition', __DIR__ . '/../resources/js/json-schema-definition.js')
+                ->module()
+                ->loadedOnRequest(),
+            Js::make('resources/js/json-schema-presentation', __DIR__ . '/../resources/js/json-schema-presentation.js')
                 ->module()
                 ->loadedOnRequest(),
             Css::make('json-schema-picker', __DIR__ . '/../resources/css/json-schema-picker.css'),
         ], 'phpinnacle/eidos');
+
+        FilamentAsset::register([
+            Js::make('resources/js/json-path', __DIR__ . '/../../jason/resources/js/json-path.js')
+                ->module()
+                ->loadedOnRequest(),
+        ], 'phpinnacle/jason');
     }
 }

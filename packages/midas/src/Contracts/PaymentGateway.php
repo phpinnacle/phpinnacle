@@ -2,7 +2,7 @@
 
 namespace PHPinnacle\Midas\Contracts;
 
-use Illuminate\JsonSchema\Types\Type;
+use PHPinnacle\Jason\Schema;
 use PHPinnacle\Midas\Enums\Ability;
 use PHPinnacle\Midas\Models\Continuation;
 use PHPinnacle\Midas\Models\Intent;
@@ -17,7 +17,7 @@ interface PaymentGateway
     /** @return list<Ability> */
     public function abilities(): array;
 
-    public function schema(PaymentMethod $method, Payer $payer): ?Type;
+    public function schema(PaymentMethod $method, Payer $payer): ?Schema;
 
     public function intent(Intent $intent): Continuation;
 

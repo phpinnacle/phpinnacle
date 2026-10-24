@@ -1,25 +1,8 @@
-export function jsonPath(segments) {
-    return '$' + segments.map(segment => segment === null ? '[*]' : Number.isInteger(segment) ? '[' + segment + ']'
-        : "['" + JSON.stringify(String(segment)).slice(1, -1).replace(/\\"/g, '"').replace(/'/g, "\\'") + "']").join('')
-}
-
-export function parseJsonPath(path) {
-    if (typeof path !== 'string' || !path.startsWith('$')) throw new Error('A JSONPath must start with $.')
-    const segments = []
-    let offset = 1
-    while (offset < path.length) {
-        const token = /^\[(?:'((?:[^'\\]|\\.)*)'|(0|[1-9][0-9]*)|(\*))\]/s.exec(path.slice(offset))
-        if (!token) throw new Error('Use bracketed property names, nonnegative indexes, or [*] in a JSONPath.')
-        segments.push(token[1] !== undefined
-            ? JSON.parse('"' + token[1].replace(/\\.|"/gs, part => part === "\\'" ? "'" : part === '"' ? '\\"' : part) + '"')
-            : token[2] !== undefined ? Number(token[2]) : null)
-        offset += token[0].length
-    }
-    if (jsonPath(segments) !== path) throw new Error('Use the canonical bracket notation for JSONPath.')
-    return segments
-}
+import { jsonPath } from '../../../jason/resources/js/json-path.js'
 
 export function schemaType(schema, format = false) {
+    if (schema === false) return 'never'
+    if (schema === true) return 'any'
     if (format && schema?.enum) return 'enum'
     if (format && schema?.format) return schema.format
     for (const keyword of ['anyOf', 'oneOf', 'allOf']) {
@@ -27,7 +10,7 @@ export function schemaType(schema, format = false) {
     }
     const types = (Array.isArray(schema?.type) ? schema.type : [schema?.type]).filter(type => type && type !== 'null')
     if (['object', 'array', 'string', 'number', 'boolean'].every(type => types.includes(type))) return 'any'
-    if (types.length === 1 && types[0] === 'array' && schema?.items) {
+    if (types.length === 1 && types[0] === 'array' && schema?.items !== undefined) {
         const itemType = schemaType(schema.items, format)
         let depth = 0
         const composition = [...itemType].some(character => {
@@ -41,7 +24,7 @@ export function schemaType(schema, format = false) {
 }
 
 export function schemaNullable(schema) {
-    return schema?.type === 'null'
+    return schema === true || schema?.type === 'null'
         || Array.isArray(schema?.type) && schema.type.includes('null')
         || (schema?.anyOf ?? []).some(schemaNullable)
         || (schema?.oneOf ?? []).filter(schemaNullable).length === 1
@@ -112,7 +95,7 @@ export function schemaEnums(schema, format = false) {
 
 function schemaArrayItems(schema, format, constraints, scope = []) {
     return [...schemaVariants(schema, scope)].flatMap(({ schema: value, scope }) => {
-        if (!value.items) return []
+        if (value.items === undefined) return []
         const item = value.items
         const itemScope = [...scope, 'items']
         return [{
@@ -154,7 +137,7 @@ export function schemaSources(schema, { whole = 'All data', includeRoot = true, 
             append(field, child)
             properties(field, child)
         }
-        if (descendArrays && value?.items) {
+        if (descendArrays && value?.items !== undefined) {
             // Null identifies an item schema without colliding with literal "*" properties.
             const child = [...path, null]
             append(value.items, child)
@@ -209,14 +192,16 @@ function resolveSchemaReferences(root) {
                 if (target === null || typeof target !== 'object' || !Object.hasOwn(target, name)) throw new Error(`Unable to resolve JSON Schema $ref [${ref}].`)
                 target = target[name]
             }
-            if (target === null || typeof target !== 'object' || Array.isArray(target)) throw new Error(`The JSON Schema $ref [${ref}] does not point to a schema.`)
-            definition = { ...target, ...siblings }
+            if (target === null || typeof target !== 'object' && typeof target !== 'boolean' || Array.isArray(target)) throw new Error(`The JSON Schema $ref [${ref}] does not point to a schema.`)
+            definition = typeof target === 'boolean'
+                ? Object.keys(siblings).length ? { allOf: [target, siblings] } : target
+                : { ...target, ...siblings }
         }
         if (definition.properties) definition.properties = Object.fromEntries(Object.entries(definition.properties).map(([name, property]) => [name, resolve(property, refs)]))
         for (const keyword of ['anyOf', 'oneOf', 'allOf']) {
             if (definition[keyword]) definition[keyword] = definition[keyword].map(variant => resolve(variant, refs))
         }
-        if (definition.items) definition.items = resolve(definition.items, refs)
+        if (definition.items !== undefined) definition.items = resolve(definition.items, refs)
         return definition
     }
     return resolve(root)

@@ -41,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [atlas, cabeiro, decima, tempo, vulcan]
+        package: [atlas, cabeiro, decima, jason, tempo, vulcan]
 
     steps:
       - name: Checkout
@@ -61,3 +61,24 @@ jobs:
       - name: Run tests
         run: npm test
         working-directory: packages/${{ matrix.package }}
+
+  jason:
+    name: Jason without framework dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Install Jason dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+        working-directory: packages/jason
+
+      - name: Run Jason tests
+        run: composer test
+        working-directory: packages/jason

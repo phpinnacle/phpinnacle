@@ -7,7 +7,7 @@
 
 <div
     x-load
-    x-load-src="{{ \Filament\Support\Facades\FilamentAsset::getAlpineComponentSrc('json-schema-picker', package: 'phpinnacle/eidos') }}"
+    x-load-src="{{ \Filament\Support\Facades\FilamentAsset::getScriptSrc('resources/js/json-schema-picker', package: 'phpinnacle/eidos') }}"
     x-data="jsonSchemaPicker({
         groups: () => {{ $groups }},
         selected: source => {{ $selected }},

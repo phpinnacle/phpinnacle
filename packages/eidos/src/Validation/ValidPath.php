@@ -4,16 +4,16 @@ namespace PHPinnacle\Eidos\Validation;
 
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\JsonSchema\Types\Type;
-use PHPinnacle\Eidos\JsonSchema\Deserializer;
-use PHPinnacle\Eidos\JsonSchema\Node;
+use InvalidArgumentException;
+use PHPinnacle\Jason\JsonPath;
+use PHPinnacle\Jason\Schema;
 
 /** @internal */
 final class ValidPath implements ValidationRule
 {
     public bool $implicit = true;
 
-    /** @param Closure(): Type $schema */
+    /** @param Closure(): Schema $schema */
     public function __construct(
         private readonly Closure $schema,
         private readonly bool $selectArrayItemFields = false,
@@ -31,12 +31,20 @@ final class ValidPath implements ValidationRule
             return;
         }
 
+        try {
+            $segments = JsonPath::parse($value);
+        } catch (InvalidArgumentException) {
+            $fail('validation.in')->translate();
+
+            return;
+        }
+
         if (
-            $value === '$'
-            || !new Node(Deserializer::resolveReferences(($this->schema)()->toArray()))->hasPath(
-                $value,
-                $this->selectArrayItemFields,
-            )
+            $segments === []
+            || array_any($segments, fn ($segment) => is_int($segment))
+            || !$this->selectArrayItemFields
+            && in_array(null, $segments, true)
+            || !($this->schema)()->resolveReferences()->hasDeclaredPath($segments)
         ) {
             $fail('validation.in')->translate();
         }
