@@ -188,9 +188,9 @@ JsonSchemaEntry::make('output_path')->jsonSchema($schema);
 ```
 
 Both components accept schema types through `jsonSchema()`, directly or through
-Filament callbacks. Their state is an exact property path or `null`.
-The picker stores canonical JSONPath strings, such as `$['customer']['email']`.
-Its default value is `null`. Optional pickers allow clearing; required pickers need
+Filament callbacks. Both store canonical JSONPath strings, such as
+`$['customer']['email']`, or `null`. The picker's default value is `null`.
+Optional pickers allow clearing; required pickers need
 a selected field. Disabled pickers cannot be cleared. The root `$` is not selectable.
 The dropdown matches the field width and opens on the side with available space,
 including on its first opening.
@@ -230,7 +230,7 @@ Use `inline()` to display the complete tree directly:
 ```php
 JsonSchemaEntry::make('output_path')
     ->jsonSchema($schema)
-    ->state(['customer', 'email'])
+    ->state("$['customer']['email']")
     ->inline();
 ```
 

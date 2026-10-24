@@ -601,17 +601,25 @@ test('keeps enum restrictions scoped to anyOf branches and array items', () => {
     assert.deepEqual(fields[1].enums.map(enumeration => enumeration.scope), [[1], [2]])
 })
 
-test('searches enabled format and enum restrictions including array item values', () => {
+test('searches field and array item metadata with enabled restrictions', () => {
     const document = { properties: {
         email: { type: 'string', description: 'Contact address', format: 'email' },
         status: { type: 'string', enum: ['paid', 'pending'] },
-        channels: { type: 'array', items: { type: 'string', enum: ['webhook'] } },
+        channels: { type: 'array', title: 'Notifications', description: 'Delivery methods', maxItems: 12, items: {
+            type: 'array', items: { type: 'string', title: 'Channel', description: 'Transport choice', enum: ['webhook'], maxLength: 30 },
+        } },
     } }
     for (const [options, query, values] of [
         [{ format: true }, 'email', ["$['email']"]],
         [{ format: true }, 'pending', ["$['status']"]],
         [{ format: true, descendArrays: true }, 'webhook', ["$['channels']"]],
+        [{}, 'notifications delivery methods', ["$['channels']"]],
+        [{}, 'channel transport choice', ["$['channels']"]],
+        [{}, 'string', ["$['email']", "$['status']", "$['channels']"]],
+        [{ constraints: true }, '12 30', ["$['channels']"]],
         [{}, 'pending', []],
+        [{}, 'webhook', []],
+        [{}, '30', []],
     ]) {
         const picker = createPicker({ groups: () => schemaGroups(document, 'Result', options) })
         picker.jsonSchemaSearch = query
