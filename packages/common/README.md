@@ -7,6 +7,7 @@ Common provides reusable Filament fields, table filters and columns, range match
 
 ## Features
 
+- InlineBuilder fields with repeatable blocks, compact chips, modal forms, and constrained drag or keyboard ordering.
 - ItemPicker form fields with inline or custom dropdown layouts, grouped trees, server search, scroll loading, multiple selection, badges and images.
 - Inclusive, strict and open-ended range matching.
 - Range, active and combined table filters.
@@ -32,6 +33,39 @@ use PHPinnacle\Common\Tables\CreatedColumn;
 
 CreatedColumn::make();
 ```
+
+### Inline builder
+
+`InlineBuilder` uses a Builder-style block catalog and stores a list of `['type' => 'message', 'data' => [...]]` items. Data retains the types and nested structures of the configured Filament fields. Blocks may repeat.
+
+```php
+use Filament\Forms\Components\TextInput;
+use PHPinnacle\Common\Forms\InlineBuilder;
+use PHPinnacle\Common\Forms\InlineBuilder\Block;
+
+InlineBuilder::make('steps')
+    ->addActionLabel('Add step')
+    ->placeholder('Step')
+    ->blocks([
+        Block::make('message')
+            ->label('Send message')
+            ->description('Configure the message to send.')
+            ->icon('heroicon-o-envelope')
+            ->color('success')
+            ->schema([
+                TextInput::make('message')->required(),
+            ]),
+        Block::make('stop')->label('Stop'),
+    ]);
+```
+
+Click the plus button to choose a block. Blocks without a schema are added immediately; other blocks open a native Filament form. Click a chip label to edit, its separate close button to remove, or drag its label to reorder. Alt+Left and Alt+Right provide keyboard ordering. Chips wrap while the add button stays on the first row. An empty field shows a muted plus and placeholder; only those controls open its menu. Free input space also opens the menu when chips are present. Modals contain no deletion action.
+
+`blocks()` accepts an array or closure. Block schemas accept arrays or deferred closures; schema callbacks receive the nullable `$index` of the edited item (`null` for additions), plus the field's usual Filament utility injections. Forms retain native defaults, validation and dehydration. Schema callbacks are not evaluated while rendering catalog menus. `label()`, `description()`, `icon()` and `color()` supply presentation metadata. `addable()`, `deletable()` and `reorderable()` accept boolean conditions or closures on the field. A block's `addable()` condition controls additions of that type while preserving editing and removal of existing instances.
+
+Use `reorderableUsing(fn (array $items) => ...)` for application-specific ordering constraints. Its `$items` argument contains the complete proposed sequence, including each instance's data. The same callback builds allowed positions for the browser and checks the current sequence again before a server mutation. Drag hovering and rejected moves make no request, rejected drops restore the original order, and keyboard moves use the same permissions. Allowed positions refresh on rendering after changes to data or surrounding form state. Submitted orders must be complete permutations without missing, duplicated or unknown items. Application-specific validation of the full value belongs in the consuming field's Laravel rules.
+
+Actions partially render their editor by default; use `partiallyRenderAfterStateUpdated(false)` when the containing form needs a full refresh. No domain registry, JSON Schema definition, panel plugin, or other PHPinnacle package is required.
 
 ### Item picker
 
@@ -161,9 +195,7 @@ to refresh sidebar and topbar navigation.
 
 ## Testing
 
-Tests cover valid and invalid selections, unavailable choices, search and loading,
-keyboard navigation, safe rendering, range matching, record creators and page
-refreshes.
+Tests cover native builder forms and nested data, repeated blocks, constrained drag and keyboard ordering, independent package booting, valid and invalid selections, unavailable choices, search and loading, safe rendering, range matching, record creators and page refreshes.
 
 ```bash
 composer test

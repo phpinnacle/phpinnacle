@@ -20,6 +20,8 @@ class CommonServiceProvider extends PackageServiceProvider
     public function packageBooted(): void
     {
         FilamentAsset::register([
+            AlpineComponent::make('inline-builder', __DIR__ . '/../resources/js/inline-builder.js'),
+            Css::make('inline-builder', __DIR__ . '/../resources/css/inline-builder.css'),
             AlpineComponent::make('item-picker', __DIR__ . '/../resources/js/item-picker.js'),
             Css::make('item-picker', __DIR__ . '/../resources/css/item-picker.css'),
         ], 'phpinnacle/common');

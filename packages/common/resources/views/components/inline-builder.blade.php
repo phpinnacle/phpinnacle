@@ -1,3 +1,3 @@
 <x-dynamic-component :component="$getFieldWrapperView()" :field="$field">
-    {{ $getAction('fieldTransforms') }}
+    {{ $getAction($getEditorActionName()) }}
 </x-dynamic-component>

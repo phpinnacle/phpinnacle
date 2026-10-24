@@ -3,7 +3,6 @@
     use Filament\Support\View\ComponentAttributeBag;
     use Filament\Support\View\Components\BadgeComponent;
     use Illuminate\Support\Js;
-    use PHPinnacle\Ferry\FerryServiceProvider;
 
     $disabled = $action->getSchemaComponent()->isDisabled();
     $valid = ! $action->getSchemaComponent()->getLivewire()->getErrorBag()->has($action->getSchemaComponent()->getStatePath());
@@ -12,17 +11,17 @@
 <x-filament::input.wrapper
     :disabled="$disabled"
     :valid="$valid"
-    :class="$settings === [] ? 'ferry-transforms-empty' : ''"
+    :class="$settings === [] ? 'inline-builder-empty' : ''"
     role="group"
     aria-label="{{ $action->getLabel() }}"
-    data-field-transforms="{{ $action->getSchemaComponent()->getId() }}"
+    data-inline-builder="{{ $action->getSchemaComponent()->getId() }}"
     x-load
-    x-load-src="{{ FilamentAsset::getAlpineComponentSrc('field-transforms', FerryServiceProvider::PACKAGE) }}"
-    :x-data="'fieldTransforms('.Js::from(['action' => $action->getName(), 'context' => $action->getContext(), 'disabled' => $disabled])->toHtml().')'"
+    x-load-src="{{ FilamentAsset::getAlpineComponentSrc('inline-builder', 'phpinnacle/common') }}"
+    :x-data="'inlineBuilder('.Js::from(['action' => $action->getName(), 'context' => $action->getContext(), 'disabled' => $disabled])->toHtml().')'"
     x-on:click="openFromSpace($event)"
 >
-    <div @class(['ferry-transforms-input', 'has-additions' => ! $disabled && $addable !== []])>
-        <div class="ferry-transforms-add" x-ref="add">
+    <div @class(['inline-builder-input', 'has-additions' => ! $disabled && $addable !== []])>
+        <div class="inline-builder-add" x-ref="add">
             @if ($addable !== [])
                 <x-filament::dropdown placement="bottom-start" teleport>
                     <x-slot name="trigger">
@@ -33,15 +32,15 @@
                             :disabled="$disabled"
                             color="gray"
                             size="sm"
-                            class="ferry-transforms-add-button"
+                            class="inline-builder-add-button"
                         />
                     </x-slot>
                     <x-filament::dropdown.list>
-                        @foreach ($addable as $transform)
+                        @foreach ($addable as $block)
                             @php
-                                $button = $action(['transform' => $transform->key()]);
+                                $button = $action(['block' => $block->getName()]);
                             @endphp
-                            {{ $button->grouped()->label($transform->getLabel())->icon($transform->getIcon()) }}
+                            {{ $button->grouped()->label($block->getLabel())->icon($block->getIcon()) }}
                         @endforeach
                     </x-filament::dropdown.list>
                 </x-filament::dropdown>
@@ -53,18 +52,18 @@
                     disabled
                     color="gray"
                     size="sm"
-                    class="ferry-transforms-add-button"
+                    class="inline-builder-add-button"
                 />
             @endif
         </div>
         @if ($settings === [])
-            <span class="ferry-transforms-placeholder" aria-hidden="true">{{ __('phpinnacle-ferry::resources.sync.fields.transform') }}</span>
+            <span class="inline-builder-placeholder" aria-hidden="true">{{ $action->getSchemaComponent()->getPlaceholder() ?? __('phpinnacle-common::inline-builder.placeholder') }}</span>
         @endif
         <div
-            class="ferry-transforms-items"
+            class="inline-builder-items"
             x-ref="items"
             data-allowed-moves="{{ json_encode($allowedMoves, JSON_THROW_ON_ERROR) }}"
-            @if (! $disabled)
+            @if ($action->getSchemaComponent()->isReorderable())
                 x-sortable
                 x-init="$nextTick(() => configureSorting($el))"
                 x-on:end.stop="reorder($event)"
@@ -72,22 +71,23 @@
         >
             @foreach ($settings as $index => $setting)
                 @php
-                    $transform = $available[$setting['key']];
-                    $hasSettings = $transform->getSchema($object) !== [];
+                    $block = $available[$setting['type']];
+                    $hasSettings = $block->hasSchema();
                     $labelTag = $hasSettings ? 'button' : 'span';
-                    $edit = $action(['transform' => $transform->key(), 'index' => $index]);
-                    $remove = $action(['transform' => $transform->key(), 'index' => $index, 'remove' => true]);
-                    $removeLabel = __('phpinnacle-ferry::resources.sync.fields.remove_transform', ['transform' => $transform->getLabel()]);
+                    $edit = $action(['block' => $block->getName(), 'index' => $index]);
+                    $remove = $action(['block' => $block->getName(), 'index' => $index, 'remove' => true]);
+                    $removeLabel = __('phpinnacle-common::inline-builder.remove', ['block' => $block->getLabel()]);
                 @endphp
                 <span
-                    {{ (new ComponentAttributeBag)->class(['ferry-transform', 'is-disabled' => $disabled])->color(BadgeComponent::class, $transform->getColor()) }}
+                    {{ (new ComponentAttributeBag)->class(['inline-builder-item', 'is-disabled' => $disabled])->color(BadgeComponent::class, $block->getColor()) }}
+                    data-inline-builder-item
                     role="group"
-                    aria-label="{{ $transform->getLabel() }}"
+                    aria-label="{{ $block->getLabel() }}"
                     x-sortable-item="{{ $index }}"
                     wire:key="{{ $action->getSchemaComponent()->getId() }}-{{ $action->getName() }}-{{ $index }}"
                 >
                     <{{ $labelTag }}
-                        class="ferry-transform-label"
+                        class="inline-builder-item-label"
                         x-sortable-handle
                         x-on:keydown.alt.arrow-left.prevent="move(@js((string) $index), -1)"
                         x-on:keydown.alt.arrow-right.prevent="move(@js((string) $index), 1)"
@@ -102,23 +102,25 @@
                             aria-disabled="{{ $disabled ? 'true' : 'false' }}"
                         @endif
                     >
-                        @if ($transform->getIcon())
-                            <x-filament::icon :icon="$transform->getIcon()" />
+                        @if ($block->getIcon())
+                            <x-filament::icon :icon="$block->getIcon()" />
                         @endif
-                        <span class="ferry-transform-text">{{ $transform->getLabel() }}</span>
+                        <span class="inline-builder-item-text">{{ $block->getLabel() }}</span>
                     </{{ $labelTag }}>
-                    <button
-                        type="button"
-                        class="ferry-transform-remove"
-                        aria-label="{{ $removeLabel }}"
-                        title="{{ $removeLabel }}"
-                        wire:click="{{ $remove->getLivewireClickHandler() }}"
-                        wire:loading.attr="disabled"
-                        wire:target="{{ $remove->getLivewireClickHandler() }}"
-                        @disabled($disabled)
-                    >
-                        <x-filament::icon icon="heroicon-m-x-mark" />
-                    </button>
+                    @if ($action->getSchemaComponent()->isDeletable())
+                        <button
+                            type="button"
+                            class="inline-builder-item-remove"
+                            aria-label="{{ $removeLabel }}"
+                            title="{{ $removeLabel }}"
+                            wire:click="{{ $remove->getLivewireClickHandler() }}"
+                            wire:loading.attr="disabled"
+                            wire:target="{{ $remove->getLivewireClickHandler() }}"
+                            @disabled($disabled)
+                        >
+                            <x-filament::icon icon="heroicon-m-x-mark" />
+                        </button>
+                    @endif
                 </span>
             @endforeach
         </div>

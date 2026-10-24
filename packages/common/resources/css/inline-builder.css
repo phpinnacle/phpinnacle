@@ -1,0 +1,149 @@
+.inline-builder-empty.fi-input-wrp:not(.fi-invalid) {
+    background: transparent;
+    box-shadow: none;
+}
+
+.inline-builder-input {
+    display: flex;
+    min-height: 2.25rem;
+    align-items: flex-start;
+    gap: 0.25rem;
+    padding: 0.25rem;
+}
+
+.fi-input-wrp:not(.inline-builder-empty) .inline-builder-input.has-additions,
+.inline-builder-empty .has-additions .inline-builder-placeholder {
+    cursor: pointer;
+}
+
+.inline-builder-add {
+    flex-shrink: 0;
+}
+
+.inline-builder-input .inline-builder-add-button {
+    width: 1.75rem;
+    height: 1.75rem;
+    margin: 0;
+}
+
+.inline-builder-empty .inline-builder-input {
+    gap: 0;
+    padding-inline: 0;
+}
+
+.inline-builder-empty .inline-builder-add-button {
+    margin-inline-start: -0.25rem;
+}
+
+.inline-builder-empty .inline-builder-add-button .fi-icon {
+    width: 1rem;
+    height: 1rem;
+}
+
+.inline-builder-placeholder {
+    padding-block: 0.25rem;
+    color: var(--gray-500);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    transition: color 180ms ease;
+}
+
+.inline-builder-empty:has(.inline-builder-add-button:enabled:hover, .has-additions .inline-builder-placeholder:hover) :is(.inline-builder-placeholder, .inline-builder-add-button:enabled),
+.inline-builder-empty:focus-within :is(.inline-builder-placeholder, .inline-builder-add-button:enabled) {
+    color: inherit;
+}
+
+.inline-builder-items {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.inline-builder-item {
+    display: inline-flex;
+    max-width: 100%;
+    align-items: center;
+    gap: 0.125rem;
+    padding: 0.0625rem;
+    border: 1px solid color-mix(in oklab, var(--color-600, var(--gray-600)) 20%, transparent);
+    border-radius: 0.375rem;
+    background: var(--color-50, var(--gray-50));
+    color: var(--text, var(--gray-600));
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1rem;
+}
+
+.inline-builder-item-label {
+    display: inline-flex;
+    min-width: 0;
+    min-height: 1.5rem;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0 0.25rem;
+    border-radius: 0.375rem;
+    cursor: grab;
+}
+
+.inline-builder-item-label:active {
+    cursor: grabbing;
+}
+
+.inline-builder-item-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.inline-builder-item-remove {
+    display: inline-flex;
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.375rem;
+    background: color-mix(in oklab, currentColor 8%, transparent);
+    cursor: pointer;
+}
+
+.inline-builder-item-remove:not(:disabled):hover,
+button.inline-builder-item-label:not(:disabled):hover {
+    background: color-mix(in oklab, currentColor 14%, transparent);
+}
+
+.inline-builder-item-label:focus-visible,
+.inline-builder-item-remove:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+
+.inline-builder-item .fi-icon {
+    width: 0.875rem;
+    height: 0.875rem;
+    flex-shrink: 0;
+}
+
+.inline-builder-item.is-disabled {
+    opacity: 0.6;
+}
+
+.inline-builder-item.is-disabled .inline-builder-item-label,
+.inline-builder-item-remove:disabled {
+    cursor: default;
+}
+
+.dark .inline-builder-item {
+    border-color: color-mix(in oklab, var(--color-400, var(--gray-400)) 25%, transparent);
+    background: color-mix(in oklab, var(--color-400, var(--gray-400)) 10%, transparent);
+    color: var(--dark-text, var(--gray-200));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .inline-builder-placeholder {
+        transition-duration: 0s;
+    }
+}

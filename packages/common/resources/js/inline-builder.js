@@ -1,4 +1,4 @@
-export default function fieldTransforms({ action, context, disabled }) {
+export default function inlineBuilder({ action, context, disabled }) {
     return {
         configureSorting(element) {
             Sortable.get(element).option('onMove', event => this.canMove(event));
@@ -24,11 +24,11 @@ export default function fieldTransforms({ action, context, disabled }) {
 
         openFromSpace(event) {
             if (disabled || event.defaultPrevented) return;
-            if (event.target.closest('button, a, .ferry-transform')) {
+            if (event.target.closest('button, a, [data-inline-builder-item]')) {
                 event.stopPropagation();
                 return;
             }
-            if (this.$refs.items.children.length === 0 && !event.target.closest('.ferry-transforms-placeholder')) return;
+            if (this.$refs.items.children.length === 0 && !event.target.closest('.inline-builder-placeholder')) return;
             event.stopPropagation();
             const button = this.$refs.add.querySelector('button');
             if (button.disabled) return;

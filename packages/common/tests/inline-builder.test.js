@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import fieldTransforms from '../../resources/js/field-transforms.js';
+import inlineBuilder from '../resources/js/inline-builder.js';
 
 function editor(keys, disabled = false, allowedMoves = keys.map(() => keys.map((_, index) => index))) {
     const calls = [];
@@ -11,7 +11,7 @@ function editor(keys, disabled = false, allowedMoves = keys.map(() => keys.map((
         dispatchEvent: event => activations.push([event.type, event.bubbles, event.button]),
         click: () => activations.push('click'),
     };
-    const component = fieldTransforms({ action: 'fieldTransforms', context: { schemaComponent: 'form.mapping' }, disabled });
+    const component = inlineBuilder({ action: 'inlineBuilder', context: { schemaComponent: 'form.mapping' }, disabled });
     component.$refs = { items: { children: keys.map(key => ({ getAttribute: () => key })), dataset: { allowedMoves: JSON.stringify(allowedMoves) } }, add: { querySelector: () => button } };
     component.$nextTick = callback => callback();
     component.$wire = { mountAction: (...args) => calls.push(args) };
@@ -21,7 +21,7 @@ function editor(keys, disabled = false, allowedMoves = keys.map(() => keys.map((
 test('dragging sends the visible badge order to its field action', () => {
     const { component, calls } = editor(['2', '0', '1']);
     component.reorder({ oldDraggableIndex: 2, newDraggableIndex: 0, item: { getAttribute: () => '2' } });
-    assert.deepEqual(calls, [['fieldTransforms', { order: ['2', '0', '1'] }, { schemaComponent: 'form.mapping' }]]);
+    assert.deepEqual(calls, [['inlineBuilder', { order: ['2', '0', '1'] }, { schemaComponent: 'form.mapping' }]]);
 });
 
 test('dropping in the same position makes no request', () => {
@@ -59,7 +59,7 @@ test('the empty Transform label and filled input space activate the native add b
     for (const keys of [[], ['0']]) {
         const { component, calls, activations } = editor(keys);
         let stopped = false;
-        component.openFromSpace({ stopPropagation: () => { stopped = true; }, target: { closest: selector => keys.length === 0 && selector === '.ferry-transforms-placeholder' ? {} : null } });
+        component.openFromSpace({ stopPropagation: () => { stopped = true; }, target: { closest: selector => keys.length === 0 && selector === '.inline-builder-placeholder' ? {} : null } });
         assert.equal(stopped, true);
         assert.deepEqual(activations, ['focus', ['mousedown', true, 0], 'click']);
         assert.deepEqual(calls, []);
@@ -125,7 +125,7 @@ test('keyboard reorders send only permitted changes and read refreshed permissio
     component.move('0', 2);
     assert.deepEqual(calls, []);
     component.move('1', -1);
-    assert.deepEqual(calls, [['fieldTransforms', { order: ['1', '0', '2'] }, { schemaComponent: 'form.mapping' }]]);
+    assert.deepEqual(calls, [['inlineBuilder', { order: ['1', '0', '2'] }, { schemaComponent: 'form.mapping' }]]);
     component.$refs.items.dataset.allowedMoves = JSON.stringify([[0], [1], [2]]);
     component.move('1', -1);
     assert.equal(calls.length, 1);
