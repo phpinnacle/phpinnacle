@@ -60,9 +60,6 @@ beforeEach(function () {
     $migration = require __DIR__ . '/../../database/migrations/create_comments_table.php';
     $migration->up();
 
-    $migration = require __DIR__ . '/../../database/migrations/update_comments_table.php';
-    $migration->up();
-
     Filament::setCurrentPanel(Panel::make()->id('comments-test'));
 });
 
@@ -154,16 +151,21 @@ it('keeps subscriptions scoped to their subject', function () {
     expect(CommentSubscription::forSubject($subject)->count())->toBe(1);
 });
 
-it('rolls back the feature migration', function () {
-    $migration = require __DIR__ . '/../../database/migrations/update_comments_table.php';
+it('rolls back and recreates comments and subscriptions together', function () {
+    $migration = require __DIR__ . '/../../database/migrations/create_comments_table.php';
     $migration->down();
 
     expect(Schema::hasTable('comment_subscriptions'))
         ->toBeFalse()
-        ->and(Schema::hasColumn('comments', 'parent_id'))
+        ->and(Schema::hasTable('comments'))
         ->toBeFalse()
-        ->and(Schema::hasColumn('comments', 'edited_at'))
-        ->toBeFalse();
+        ->and(Schema::hasTable('comment_authors'))
+        ->toBeTrue();
+
+    $migration->up();
+
+    expect(Schema::hasTable('comment_subscriptions'))->toBeTrue();
+    expect(Schema::hasColumns('comments', ['parent_id', 'edited_at']))->toBeTrue();
 });
 
 it('notifies subscribers and mentioned users once while excluding the author', function () {

@@ -11,6 +11,7 @@ return new class extends Migration {
         /** @see Exception */
         Schema::create('exceptions', function (Blueprint $table) {
             $table->uuid('id')->primary();
+            $table->string('fingerprint', 64)->nullable()->unique();
             $table->string('sapi');
             $table->string('type');
             $table->string('code');
@@ -18,6 +19,9 @@ return new class extends Migration {
             $table->integer('line');
             $table->longText('message');
             $table->text('trace');
+            $table->unsignedBigInteger('occurrences')->default(1);
+            $table->string('status')->default('open')->index();
+            $table->text('note')->nullable();
             $table->json('context')->default('{}');
             $table->string('method')->nullable();
             $table->string('path')->nullable();

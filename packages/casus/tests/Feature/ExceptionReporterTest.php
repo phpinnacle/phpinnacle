@@ -21,6 +21,17 @@ beforeEach(function () {
     }
 });
 
+it('rolls back and recreates the complete exception schema', function () {
+    $migration = require __DIR__ . '/../../database/migrations/create_casus_tables.php';
+    $migration->down();
+
+    expect(Schema::hasTable('exceptions'))->toBeFalse();
+
+    $migration->up();
+
+    expect(Schema::hasColumns('exceptions', ['fingerprint', 'occurrences', 'status', 'note']))->toBeTrue();
+});
+
 it('records exceptions when their context serializes to a scalar', function () {
     $error = new class extends RuntimeException {
         public function context(): JsonSerializable

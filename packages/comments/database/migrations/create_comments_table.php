@@ -17,13 +17,25 @@ return new class extends Migration {
                 ->constrained()
                 ->cascadeOnDelete();
             $table->uuidMorphs('subject');
+            $table->foreignUuid('parent_id')->nullable()->constrained('comments')->nullOnDelete();
             $table->longText('text');
+            $table->timestamp('edited_at')->nullable();
             $table->timestamps();
+        });
+
+        Schema::create('comment_subscriptions', function (Blueprint $table) {
+            $table
+                ->foreignIdFor(config('phpinnacle-comments.user.model'), 'user_id')
+                ->constrained()
+                ->cascadeOnDelete();
+            $table->uuidMorphs('subject');
+            $table->unique(['user_id', 'subject_type', 'subject_id']);
         });
     }
 
     public function down(): void
     {
+        Schema::dropIfExists('comment_subscriptions');
         Schema::dropIfExists('comments');
     }
 

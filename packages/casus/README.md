@@ -34,6 +34,8 @@ php artisan vendor:publish --tag="phpinnacle-casus-migrations"
 php artisan migrate
 ```
 
+The initial migration creates the complete exception schema, including fingerprints, occurrence counts and triage fields.
+
 Publish the configuration when you need to customize navigation, retention, connection or tenancy:
 
 ```bash

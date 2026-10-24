@@ -23,6 +23,8 @@ php artisan vendor:publish --tag="phpinnacle-comments-migrations"
 php artisan migrate
 ```
 
+The initial migration creates comments with reply and edit metadata, together with thread subscriptions. Rolling it back removes both tables.
+
 Publish configuration or views only when customization is required:
 
 ```bash

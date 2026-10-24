@@ -21,6 +21,8 @@ php artisan vendor:publish --tag="phpinnacle-settings-migrations"
 php artisan migrate
 ```
 
+The package migration creates both `settings` and `preferences`; rolling it back removes both tables.
+
 ## Registering definitions
 
 ```php

@@ -29,5 +29,3 @@ Acceptance: partial and empty saves, nullable scalars, enums, and a filled typed
 ## 4. Priority: medium — batch writes after consistency is defined
 
 Calculate the existing group UUID once and submit one upsert for the supplied rows. Preserve UUID derivation and JSON representation; update/invalidate the cache only after a successful write. Verify query count and failure atomicity rather than merely moving the loop.
-
-Migration coverage should also address `create_settings_table.php::down()` leaving `preferences` behind. Keep that rollback fix separate from storage refactoring and test it on disposable tables.
