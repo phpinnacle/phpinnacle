@@ -71,7 +71,7 @@ class BuilderAction
                 );
             })
             ->fillForm(fn (InlineBuilder $component, array $arguments) => self::hasForm($arguments)
-                ? self::formData($component->getItems(), $arguments)
+                ? self::formData($component, $arguments)
                 : null)
             ->action(function (InlineBuilder $component, array $arguments, array $data) use ($available) {
                 if (self::isAdding($arguments)) {
@@ -90,6 +90,10 @@ class BuilderAction
                     ]);
                 }
                 $component->state($settings);
+                if (self::hasForm($arguments)) {
+                    $index = self::position($settings, $arguments) ?? array_key_last($settings);
+                    $component->getItemSchema($settings[$index]['type'], $index)->fill($data['data'] ?? []);
+                }
                 $component->callAfterStateUpdated();
             });
     }
@@ -135,15 +139,14 @@ class BuilderAction
     }
 
     /**
-     * @param list<BuilderItem> $settings
      * @param array<array-key, mixed> $arguments
      * @return array{data: array<string, mixed>}|null
      */
-    private static function formData(array $settings, array $arguments): ?array
+    private static function formData(InlineBuilder $component, array $arguments): ?array
     {
-        $position = self::position($settings, $arguments);
+        $position = self::position($component->getItems(), $arguments);
 
-        return $position === null ? null : ['data' => $settings[$position]['data'] ?? []];
+        return $position === null ? null : ['data' => $component->getItemData($position)];
     }
 
     /**

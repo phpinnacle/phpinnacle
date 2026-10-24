@@ -71,7 +71,7 @@ class Block extends \Filament\Support\Components\Component
     public function getSchema(InlineBuilder $component, ?int $index): array
     {
         return array_map(
-            static fn (Component $field) => clone $field,
+            static fn (Component $field) => $field->getClone(),
             $component->evaluate($this->schema, ['index' => $index]),
         );
     }

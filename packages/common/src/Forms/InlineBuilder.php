@@ -145,6 +145,12 @@ class InlineBuilder extends Field
             ->components($this->getBlocks()[$type]->getSchema($this, $index));
     }
 
+    /** @return array<string, mixed> */
+    public function getItemData(int $index): array
+    {
+        return $this->dehydrateItems([$index => $this->getItems()[$index]])[$index]['data'];
+    }
+
     /** @return list<list<int>> */
     public function getAllowedMoves(): array
     {
@@ -172,6 +178,11 @@ class InlineBuilder extends Field
         parent::setUp();
 
         $this->default([]);
+        $this->afterStateHydrated(function (self $component) {
+            foreach ($component->getItems() as $index => $item) {
+                $component->getItemSchema($item['type'], $index)->fill($item['data'] ?? []);
+            }
+        });
         $this->partiallyRenderAfterStateUpdated();
         $this->mutateDehydratedStateUsing(fn (self $component, array $state) => $component->dehydrateItems($state));
         $this->rule('bail');
@@ -180,8 +191,8 @@ class InlineBuilder extends Field
     }
 
     /**
-     * @param list<BuilderItem> $state
-     * @return list<BuilderItem>
+     * @param array<int, BuilderItem> $state
+     * @return array<int, array{type: string, data: array<string, mixed>}>
      */
     private function dehydrateItems(array $state): array
     {

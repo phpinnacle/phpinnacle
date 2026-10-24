@@ -4,6 +4,7 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
@@ -124,6 +125,68 @@ it('validates native fields and preserves typed nested data through dehydration'
     ]);
     $this->field->state([['type' => 'typed', 'data' => ['count' => 'invalid', 'rows' => []]]]);
     expect($this->schema->getState(...))->toThrow(ValidationException::class);
+});
+
+it('keeps nested fields and their state independent between repeated blocks', function () {
+    $this->field->blocks([
+        Block::make('note')->schema([Group::make([TextInput::make('message')->required()])]),
+    ])->state([
+        ['type' => 'note', 'data' => ['message' => 'First']],
+        ['type' => 'note', 'data' => ['message' => 'Second']],
+    ]);
+    $first = collect($this->field->getItemSchema('note', 0)->getFlatComponents())
+        ->first(
+            fn ($component) => $component instanceof TextInput,
+        );
+    $second = collect($this->field->getItemSchema('note', 1)->getFlatComponents())
+        ->first(
+            fn ($component) => $component instanceof TextInput,
+        );
+
+    expect($first)->not->toBe($second);
+    expect($first->getStatePath())->toBe('data.steps.0.data.message');
+    expect($second->getStatePath())->toBe('data.steps.1.data.message');
+    expect($first->getState())->toBe('First');
+    expect($second->getState())->toBe('Second');
+});
+
+it('round trips formatted parameters through loading, adding and editing', function () {
+    $field = InlineBuilder::make('amounts')->blocks([
+        Block::make('amount')->schema([
+            TextInput::make('value')
+                ->required()
+                ->numeric()
+                ->formatStateUsing(fn ($state) => $state === null ? null : $state / 100)
+                ->dehydrateStateUsing(fn ($state) => (int) round($state * 100)),
+        ]),
+    ]);
+    $schema = Schema::make($this->field->getLivewire())->statePath('data')->components([$field]);
+    $schema->fill(['amounts' => [['type' => 'amount', 'data' => ['value' => 1234]]]]);
+
+    expect($field->getItems()[0]['data']['value'])->toBe(12.34);
+    expect($schema->getState()['amounts'])->toBe([['type' => 'amount', 'data' => ['value' => 1234]]]);
+
+    $action = $field->getAction('inlineBuilder');
+    $add = $action(['block' => 'amount']);
+    $addSchema = $add->getSchema(Schema::make($field->getLivewire())->statePath('data.addData'));
+    $addSchema->fill(['data' => ['value' => 2468]]);
+    $add->data($addSchema->getState())->call();
+
+    expect($field->getItems()[1]['data']['value'])->toBe(24.68);
+    expect($schema->getState()['amounts'][1])->toBe(['type' => 'amount', 'data' => ['value' => 2468]]);
+
+    $edit = $action(['block' => 'amount', 'index' => 0]);
+    $editSchema = $edit->getSchema(Schema::make($field->getLivewire())->statePath('data.editData'));
+    $edit->mount(['schema' => $editSchema]);
+    expect($editSchema->getRawState()['data']['value'])->toBe(12.34);
+    $editSchema->getComponent('data.value')->state('56.78');
+    $edit->data($editSchema->getState())->call();
+    expect($field->getItems()[0]['data']['value'])->toBe(56.78);
+    $action(['order' => [1, 0]])->call();
+    expect($schema->getState()['amounts'])->toBe([
+        ['type' => 'amount', 'data' => ['value' => 2468]],
+        ['type' => 'amount', 'data' => ['value' => 5678]],
+    ]);
 });
 
 it('validates user-controlled item structure', function (mixed $state) {
