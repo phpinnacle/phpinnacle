@@ -8,7 +8,7 @@
     $connectionModes = $getConnectionModes();
     $sourceLabel = $getSourceLabel();
     $targetLabel = $getTargetLabel();
-    $hasFields = ($sources !== [] || $hasStaticValues()) && $targets !== [];
+    $hasFields = ($sources !== [] || $hasStaticValues() || $hasStaticForms()) && $targets !== [];
     $sourceWarnings = $getSourceWarnings();
     $targetWarnings = $getTargetWarnings();
     $requiredTargets = array_column(array_filter($targets, fn (array $target) => $target['required']), 'id');

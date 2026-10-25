@@ -88,7 +88,14 @@ export function schemaConstraints(schema, format = false) {
 export function schemaEnums(schema, format = false) {
     const enums = []
     for (const { schema: value, scope } of schemaVariants(schema)) {
-        if (value.enum) enums.push({ scope, type: schemaType(value, format), values: value.enum.map(value => JSON.stringify(value)) })
+        if (value.enum) {
+            const labels = value['x-enum'] ?? {}
+            const values = value.enum.map(item => {
+                const key = typeof item === 'string' ? item : JSON.stringify(item)
+                return Object.hasOwn(labels, key) ? labels[key] : JSON.stringify(item)
+            })
+            enums.push({ scope, type: schemaType(value, format), values })
+        }
     }
     return enums
 }

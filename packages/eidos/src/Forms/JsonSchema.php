@@ -28,7 +28,7 @@ use stdClass;
  *     allOf?: list<array<string, mixed>>, anyOf?: list<array<string, mixed>>, oneOf?: list<array<string, mixed>>,
  *     title?: string, description?: string, format?: string, minLength?: int, maxLength?: int,
  *     minimum?: int|float, maximum?: int|float, exclusiveMinimum?: int|float, exclusiveMaximum?: int|float,
- *     minItems?: int, maxItems?: int, uniqueItems?: bool, multipleOf?: int|float, pattern?: string, enum?: list<mixed>,
+ *     minItems?: int, maxItems?: int, uniqueItems?: bool, multipleOf?: int|float, pattern?: string, enum?: list<mixed>, x-enum?: array<array-key, string>,
  *     x-icon?: string, x-color?: string, x-badges?: list<Badge>, ...
  * }
  * @phpstan-type Constraint array{kind: string, value: string, scope: list<string>}
@@ -226,13 +226,27 @@ final readonly class JsonSchema
             'nullable' => count($this->types()) > 1 && in_array('null', $this->types(), true),
             'constraints' => $this->constraints(),
             'enum' => array_map(
-                fn (mixed $value) => json_encode(
-                    $value,
-                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
+                fn (mixed $value) => (
+                    $this->enumLabel($value) ?? json_encode(
+                        $value,
+                        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
+                    )
                 ),
                 $this->resolved->keyword('enum') ?? [],
             ),
         ];
+    }
+
+    public function enumLabel(mixed $value): ?string
+    {
+        $key = is_string($value)
+            ? $value
+            : json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+
+        /** @var array<array-key, string> $labels */
+        $labels = $this->resolved->keyword('x-enum') ?? [];
+
+        return $labels[$key] ?? null;
     }
 
     /**

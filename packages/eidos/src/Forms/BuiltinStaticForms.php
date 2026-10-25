@@ -8,6 +8,7 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
@@ -91,7 +92,7 @@ final class BuiltinStaticForms
             $options = [];
             foreach ($definition['enum'] as $value) {
                 if (is_string($value)) {
-                    $options[$value] = $value;
+                    $options[$value] = $property->enumLabel($value) ?? $value;
                 }
             }
 
@@ -99,6 +100,7 @@ final class BuiltinStaticForms
         }
 
         $field = match ($property->annotation('format')) {
+            'text' => Textarea::make('value'),
             'uuid' => TextInput::make('value')->uuid(),
             'phone' => TextInput::make('value')->tel(),
             'email' => TextInput::make('value')->email(),
@@ -108,7 +110,7 @@ final class BuiltinStaticForms
             default => TextInput::make('value'),
         };
 
-        if ($field instanceof TextInput) {
+        if ($field instanceof TextInput || $field instanceof Textarea) {
             $field->minLength($definition['minLength'] ?? null)->maxLength($definition['maxLength'] ?? null);
         }
 

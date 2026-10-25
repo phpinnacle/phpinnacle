@@ -517,3 +517,41 @@ it('rejects boolean mapping fields instead of changing them into unconstrained d
     $schema = JsonSchema::fromArray(['properties' => ['forbidden' => false]]);
     expect($schema->properties(...))->toThrow(InvalidArgumentException::class, 'Boolean schemas');
 });
+
+it('uses x-enum labels in enum presentations without changing compatibility', function () {
+    $definition = [
+        'type' => ['string', 'null'],
+        'enum' => ['draft', 'active', 'archived', null],
+        'x-enum' => ['draft' => 'Draft order', 'active' => 'Active order'],
+    ];
+    $schema = JsonSchema::fromArray($definition);
+
+    expect($schema->presentation()['enum'])->toBe(['Draft order', 'Active order', '"archived"', 'null']);
+    expect($schema->toArray())->toBe($definition);
+    expect(JsonSchema::fromArray(['type' => 'string', 'enum' => ['draft']])->compatible($schema))->toBeTrue();
+    expect(JsonSchema::fromArray(['type' => 'string', 'enum' => ['Draft order']])->compatible($schema))->toBeFalse();
+});
+
+it('resolves x-enum labels through local schema references', function () {
+    $schema = JsonSchema::fromArray([
+        '$defs' => [
+            'status' => [
+                'type' => 'string',
+                'enum' => ['draft'],
+                'x-enum' => ['draft' => 'Draft order'],
+            ],
+        ],
+        '$ref' => '#/$defs/status',
+    ]);
+
+    expect($schema->presentation()['enum'])->toBe(['Draft order']);
+});
+
+it('uses JSON keys for numeric, Boolean and null enum labels', function () {
+    $schema = JsonSchema::fromArray([
+        'enum' => [0, true, null],
+        'x-enum' => [0 => 'Zero', 'true' => 'Yes', 'null' => 'None'],
+    ]);
+
+    expect($schema->presentation()['enum'])->toBe(['Zero', 'Yes', 'None']);
+});

@@ -995,3 +995,28 @@ test('presents boolean schemas without treating false as unconstrained', () => {
     assert.equal(item.compatible, false)
     assert.ok(jsonSchemaPicker({ groups: () => [] }).jsonSchemaArrayTooltip(array, { items: 'Items' }).includes('Items: never'))
 })
+
+
+test('uses x-enum labels in picker presentations and escapes labels in popovers', () => {
+    const document = { properties: { status: {
+        type: 'string',
+        enum: ['draft', 'active', 'archived', 'toString'],
+        'x-enum': { draft: 'Draft order', active: '<img src=x onerror="alert(1)">', other: 'Not an option' },
+    } } }
+    const original = structuredClone(document)
+    const source = schemaSources(document, { format: true }).find(item => item.key === '["status"]')
+    const picker = createPicker({ groups: () => [] })
+
+    assert.deepEqual(source.enums[0].values, ['Draft order', '<img src=x onerror="alert(1)">', '"archived"', '"toString"'])
+    const popover = picker.jsonSchemaEnumPopover(source, { enum: 'Allowed values' })
+    assert.ok(popover.includes('Draft order'))
+    assert.ok(popover.includes('&lt;img'))
+    assert.equal(popover.includes('<img'), false)
+    assert.deepEqual(document, original)
+})
+
+
+test('uses JSON keys for numeric, Boolean and null x-enum labels', () => {
+    const enumerations = schemaEnums({ enum: [0, true, null], 'x-enum': { 0: 'Zero', true: 'Yes', null: 'None' } }, true)
+    assert.deepEqual(enumerations[0].values, ['Zero', 'Yes', 'None'])
+})

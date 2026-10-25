@@ -4,10 +4,12 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
+use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use PHPinnacle\Eidos\Forms\FieldMapping;
 use PHPinnacle\Eidos\Tests\Fixtures\MappingState;
@@ -41,6 +43,7 @@ it('registers native editors for basic types and string formats', function (arra
     expect($field)->toBeInstanceOf($class);
 })->with([
     'string' => [['type' => 'string'], TextInput::class],
+    'text' => [['type' => 'string', 'format' => 'text'], Textarea::class],
     'integer' => [['type' => 'integer'], TextInput::class],
     'number' => [['type' => 'number'], TextInput::class],
     'boolean' => [['type' => 'boolean'], Toggle::class],
@@ -63,6 +66,7 @@ it('round trips built-in static values with their native types', function (array
     expect($state)->toBe(MappingState::mapping(['target' => MappingState::value($value)], [], ['source']));
 })->with([
     'string' => [['type' => 'string'], '007'],
+    'text' => [['type' => 'string', 'format' => 'text'], "First line\nSecond line"],
     'integer' => [['type' => 'integer'], 0],
     'number' => [['type' => 'number'], 1.25],
     'boolean' => [['type' => 'boolean'], false],
@@ -151,6 +155,9 @@ it('validates submitted values through built-in fields', function (array $proper
 })->with([
     'required' => [['type' => 'string'], ''],
     'length' => [['type' => 'string', 'maxLength' => 3], 'long'],
+    'required text' => [['type' => 'string', 'format' => 'text'], ''],
+    'minimum text length' => [['type' => 'string', 'format' => 'text', 'minLength' => 3], 'ab'],
+    'maximum text length' => [['type' => 'string', 'format' => 'text', 'maxLength' => 3], 'long'],
     'uuid' => [['type' => 'string', 'format' => 'uuid'], 'invalid'],
     'reference' => [['type' => 'string', 'format' => 'uuid', 'x-eidos-reference' => true], 'invalid'],
     'email' => [['type' => 'string', 'format' => 'email'], 'invalid'],
@@ -199,3 +206,39 @@ it('preserves custom factories when adding built-in static forms', function (str
     expect($field->getStaticFormSchema('target')->getComponent('value')->getMaxLength())->toBe(2);
     expect($schema->getState(...))->toThrow(ValidationException::class);
 })->with(['string', 'array', 'object']);
+
+it('renders destination static forms without source fields', function () {
+    $field = FieldMapping::make('mapping')
+        ->jsonSchema(source: ['type' => 'object'], dest: [
+            'properties' => [
+                'name' => ['type' => 'string', 'title' => 'Name', 'maxLength' => 255],
+                'active' => ['type' => 'boolean', 'title' => 'Active'],
+            ],
+        ])
+        ->withBuiltinStaticForms();
+    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema->fill(['mapping' => []]);
+    view()->share('errors', new ViewErrorBag);
+
+    expect($schema->toHtml())
+        ->toContain('role="switch"', 'maxlength="255"')
+        ->not->toContain(__('phpinnacle-eidos::schema-forms.mapping.empty'));
+});
+
+it('labels enum options with x-enum while saving and validating their original values', function () {
+    $property = [
+        'type' => 'string',
+        'enum' => ['draft', 'active', 'archived'],
+        'x-enum' => ['draft' => 'Draft order', 'active' => 'Active order', 'other' => 'Not an option'],
+    ];
+    $schema = builtin_static_schema($property, 'active');
+    $field = $schema->getComponent('mapping')->getStaticFormSchema('target')->getComponent('value');
+
+    expect($field->getOptions())->toBe([
+        'draft' => 'Draft order',
+        'active' => 'Active order',
+        'archived' => 'archived',
+    ]);
+    expect($schema->getState()['mapping'][0]['static'])->toBe('active');
+    expect(builtin_static_schema($property, 'Active order')->getState(...))->toThrow(ValidationException::class);
+});

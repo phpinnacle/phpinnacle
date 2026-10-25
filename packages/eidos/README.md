@@ -423,6 +423,18 @@ The component projects `type`, `format`, `minLength`, `maxLength`, `enum`, `item
 
 Use `outputSchema(array|Closure)` for the effective source object schema after applying source settings. It replaces the input schema for source type chips, constraint hints and compatibility checks. Declare only formats and bounds guaranteed by the effective output: a logical string output alone does not preserve an email/UUID format or establish a length limit. The consumer supplies this schema; the field does not compute output values or infer their guarantees.
 
+`x-enum` maps enum values to display labels, using the same format as checkout schemas:
+
+```php
+[
+    'type' => 'string',
+    'enum' => ['draft', 'active'],
+    'x-enum' => ['draft' => 'Draft order', 'active' => 'Active order'],
+]
+```
+
+Built-in static selects, mapping cards and schema picker enum hints use these labels. Missing labels keep the original value, and extra label keys do not add enum choices. Validation, compatibility and saved values still use `enum`. Non-string keys use their JSON representation, such as `0`, `true` or `null`.
+
 ### Static values
 
 Use `FieldMapping::staticValues()` to add static source cards and connect them manually to existing destinations. The default is disabled; `staticValues(false)` disables the mode. **Add static value** creates an unconnected `static_N` card titled `Static N`, with a full-width string input, Value placeholder, and accessible hidden label. Existing scalar values retain their native types. These cards use the usual compatibility checks, support Inverse mode, and accept the configured `sourceSettings()` schema.
@@ -439,7 +451,7 @@ Static source settings receive the generated identifier as `$source` and a `Clos
 
 The static-source mode replaces destination-side `staticForms()` editors while enabled. Without `staticValues()`, static values use rows such as `['kind' => 'static', 'target' => 'contact', 'static' => 'Customer']`. Without a matching `staticForms()` editor, non-empty scalar values are accepted. With an editor, its native rules and casts define accepted values. These destination-side static values count as mapped without a source or line in either orientation; the consumer owns domain validation.
 
-Use `withBuiltinStaticForms()` to register standard Filament editors:
+Use `withBuiltinStaticForms()` to register standard Filament editors. Destination static forms also render when the source schema has no fields:
 
 ```php
 FieldMapping::make('mapping')
@@ -450,6 +462,7 @@ FieldMapping::make('mapping')
 | JSON Schema type or format | Editor |
 | --- | --- |
 | `string` | `TextInput`; string enums use `Select` |
+| `string` with `format: text` | `Textarea` for multiline text |
 | `uuid` | `TextInput` with UUID validation |
 | `phone`, `email` | Telephone or email `TextInput` |
 | `date`, `time`, `date-time` | `DatePicker`, `TimePicker`, `DateTimePicker` |
