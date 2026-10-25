@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Illuminate\Support\Facades\Schema;
@@ -149,6 +150,17 @@ it('keeps subscriptions scoped to their subject', function () {
     }
 
     expect(CommentSubscription::forSubject($subject)->count())->toBe(1);
+});
+
+it('creates the PostgreSQL primary key before the self-referencing foreign key', function () {
+    config(['database.default' => 'pgsql']);
+    $migration = require __DIR__ . '/../../database/migrations/create_comments_table.php';
+
+    $queries = collect(DB::connection('pgsql')->pretend($migration->up(...)))->pluck('query');
+    $primaryKey = $queries->search(fn (string $query) => str_contains($query, 'add primary key'));
+    $parentReference = $queries->search(fn (string $query) => str_contains($query, 'references "comments"'));
+
+    expect($primaryKey)->toBeInt()->toBeLessThan($parentReference);
 });
 
 it('rolls back and recreates comments and subscriptions together', function () {

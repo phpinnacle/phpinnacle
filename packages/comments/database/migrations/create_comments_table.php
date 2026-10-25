@@ -10,7 +10,8 @@ return new class extends Migration {
     {
         /** @see Comment */
         Schema::create('comments', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->uuid('id');
+            $table->primary('id');
             $table
                 ->foreignIdFor(config('phpinnacle-comments.user.model'), 'author_id')
                 ->index()
