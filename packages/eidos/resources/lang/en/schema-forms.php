@@ -27,7 +27,6 @@ return [
             'unmapped' => 'Unmapped',
         ],
         'mapped_count' => ':mapped of :total destinations mapped',
-        'required_remaining' => ':count required remaining',
         'search_placeholder' => 'Search fields…',
         'required' => 'Required',
         'allowed_values' => 'Allowed values',

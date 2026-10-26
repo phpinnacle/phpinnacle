@@ -100,7 +100,7 @@
     @endif
     @if ($staticSchema !== null)
         {{-- Mount against Livewire's client state so nested field entanglements see their value. --}}
-        <template x-if="$wire.$get(@js($statePath))?.targets?.[@js($stateKeys[$item['id']])]?.kind === 'value'">
+        <template x-if="isConstant(@js($item['id']))">
             <div @class(['w-full', 'px-3 pb-2' => $dense, 'px-4 pb-3' => ! $dense]) data-mapping-static-form="{{ $item['id'] }}">
                 {{ $staticSchema }}
             </div>

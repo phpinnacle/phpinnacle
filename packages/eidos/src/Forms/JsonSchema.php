@@ -188,7 +188,7 @@ final readonly class JsonSchema
 
                 return $label ? $label : 'null';
             }
-            $format = $this->annotation('format');
+            $format = $this->format();
             if ($format !== null) {
                 return $format;
             }
@@ -371,6 +371,11 @@ final readonly class JsonSchema
         return $this->types() === ['null'] ? 'null' : null;
     }
 
+    public function format(): ?string
+    {
+        return $this->annotation('format');
+    }
+
     /**
      * @return ($name is 'title'|'description'|'format'|'x-icon'|'x-color' ? string|null : ($name is 'x-badges' ? list<Badge>|null : mixed))
      */
@@ -519,8 +524,8 @@ final readonly class JsonSchema
     {
         if (
             $compatibility->checkFormats
-            && $target->annotation('format') !== null
-            && $this->annotation('format') !== $target->annotation('format')
+            && $target->format() !== null
+            && $this->format() !== $target->format()
         ) {
             return false;
         }

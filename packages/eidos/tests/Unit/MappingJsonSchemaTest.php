@@ -523,11 +523,16 @@ it('requires source enum values to fit the destination enum', function (
 
 it('uses Jason reference projections without changing the serialized mapping schema', function () {
     $definition = [
-        '$defs' => ['code' => ['type' => 'string', 'maxLength' => 5]],
+        '$defs' => ['code' => ['type' => 'string', 'format' => 'email', 'maxLength' => 5]],
         'properties' => ['code' => ['$ref' => '#/$defs/code', 'maxLength' => 10]],
     ];
     $schema = JsonSchema::fromArray($definition);
-    expect($schema->properties()['code']->maxLength())->toBe(5)->and($schema->toArray())->toBe($definition);
+    expect($schema->properties()['code']->maxLength())
+        ->toBe(5)
+        ->and($schema->properties()['code']->format())
+        ->toBe('email')
+        ->and($schema->toArray())
+        ->toBe($definition);
 });
 
 it('rejects boolean mapping fields instead of changing them into unconstrained definitions', function () {

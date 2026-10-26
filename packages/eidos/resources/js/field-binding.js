@@ -4,9 +4,22 @@ export default function fieldBinding({ state, disabled, sourceKeys }) {
         disabled,
         search: '',
         visibilityFilter: 'all',
+        openEditors: {},
+
+        edit(key) {
+            if (!this.disabled) this.openEditors[key] = true;
+        },
+
+        closeEditor(key) {
+            delete this.openEditors[key];
+        },
+
+        isEditing(key) {
+            return this.openEditors[key] === true || this.isBound(key);
+        },
 
         isBound(key) {
-            return this.state.bound[key] === true;
+            return this.state.some(row => row.kind === 'source' && row.source === key && row.target !== null);
         },
 
         matchesFilter(bound) {
@@ -22,20 +35,10 @@ export default function fieldBinding({ state, disabled, sourceKeys }) {
             return sourceKeys.filter(key => this.isBound(key)).length;
         },
 
-        bind(key) {
-            if (this.disabled || this.isBound(key)) return;
-            this.state = { ...this.state, bound: { ...this.state.bound, [key]: true } };
-        },
-
         unbind(key) {
-            if (this.disabled || !this.isBound(key)) return;
-            const bound = { ...this.state.bound };
-            delete bound[key];
-            this.state = {
-                ...this.state,
-                bound,
-                bindings: { ...this.state.bindings, [key]: JSON.parse(JSON.stringify(this.state.previews[key])) },
-            };
+            if (this.disabled) return;
+            const row = this.state.find(row => row.kind === 'source' && row.source === key);
+            if (row) row.target = null;
         },
     };
 }

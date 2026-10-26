@@ -55,6 +55,11 @@ class FieldMappingForm extends Component implements HasSchemas
             ]);
     }
 
+    public function submit(): void
+    {
+        $this->form->getState();
+    }
+
     public function render(): string
     {
         return '<div>{{ $this->form }}</div>';

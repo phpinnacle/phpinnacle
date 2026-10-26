@@ -97,7 +97,7 @@ final class BuiltinStaticForms
             return Select::make('value')->options($options);
         }
 
-        $field = match ($property->annotation('format')) {
+        $field = match ($property->format()) {
             'text' => Textarea::make('value'),
             'uuid' => TextInput::make('value')->uuid(),
             'phone' => TextInput::make('value')->tel(),

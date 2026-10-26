@@ -27,7 +27,6 @@ return [
             'unmapped' => 'Несопоставленные',
         ],
         'mapped_count' => 'Сопоставлено назначений: :mapped из :total',
-        'required_remaining' => 'Осталось обязательных: :count',
         'search_placeholder' => 'Поиск полей…',
         'required' => 'Обязательное',
         'allowed_values' => 'Допустимые значения',

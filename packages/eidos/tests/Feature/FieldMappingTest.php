@@ -28,12 +28,19 @@ require_once __DIR__ . '/../Fixtures/FieldMappingForm.php';
 
 uses(TestCase::class);
 
+it('renders a malformed user row list so native validation can reject it', function () {
+    Livewire::test(\PHPinnacle\Eidos\Tests\Fixtures\FieldMappingForm::class)
+        ->set('data.mapping', ['unknown' => 'first'])
+        ->call('submit')
+        ->assertHasErrors(['data.mapping' => 'list']);
+});
+
 it('partially updates every changed presentation and fully renders structural schema changes', function (bool $dynamicTarget) {
     $page = Livewire::test(\PHPinnacle\Eidos\Tests\Fixtures\FieldMappingForm::class, [
         'dynamicTarget' => $dynamicTarget,
     ]);
     $keys = $page->instance()->form->getComponent('mapping')->getSourceStateKeys();
-    $page->set('data.mapping.sources.' . $keys['first'] . '.type', 'boolean');
+    $page->set('data.mapping.0.options.type', 'boolean');
     expect($page->effects)->not->toHaveKey('html');
     if ($dynamicTarget) {
         expect($page->effects['partials'])->toHaveKey('schema-component::form.mapping');
@@ -578,8 +585,7 @@ it('persists and validates source settings independently of connections', functi
         'first.part' => ['alias' => 'first.part', 'enabled' => true],
         '0' => ['alias' => '0', 'enabled' => true],
     ]);
-    $key = $field->getSourceStateKeys()['first.part'];
-    $schema->getComponentByStatePath('mapping.sources.' . $key . '.alias')->state('');
+    $schema->getComponentByStatePath('mapping.0.options.alias')->state('');
     expect($schema->getState(...))->toThrow(ValidationException::class);
     $schema->fill(['mapping' => MappingState::mapping(['name' => MappingState::source('first.part')], ['first.part' => [
         'alias' => '',
@@ -702,36 +708,47 @@ it('adds unconnected static source drafts and connects them without changing the
     $field->getAction('addConstant')->call();
     expect(array_keys($field->getConstants()))->toBe(['static_2', 'static_3']);
     expect($schema->getState()['mapping'])->toBe([
-        ['kind' => 'source', 'source' => 'static_1', 'target' => null, 'alias' => 'default', 'options' => []],
+        [
+            'kind' => 'source',
+            'source' => 'static_1',
+            'target' => null,
+            'options' => ['alias' => 'default', 'options' => []],
+        ],
+        ['kind' => 'static', 'target' => null, 'static' => null, 'options' => ['alias' => 'default', 'options' => []]],
+        ['kind' => 'static', 'target' => null, 'static' => null, 'options' => ['alias' => 'default', 'options' => []]],
     ]);
     view()->share('errors', new ViewErrorBag);
     expect($schema->toHtml())->toContain('Static 2', 'data-mapping-static-source="static_2"');
 
     $field->getConstantValueSchema('static_2')->getComponent('static')->state('Customer');
     $state = $field->getRawState();
-    $state['targets'][$field->getStateKeys()['name.part']] = MappingState::source('static_2');
+    $state[$field->getSourceRowIndex('static_2')]['target'] = 'name.part';
     $field->rawState($state);
     expect($schema->getState()['mapping'])->toContain([
         'kind' => 'static',
         'target' => 'name.part',
         'static' => 'Customer',
-        'alias' => 'default',
-        'options' => [],
+        'options' => ['alias' => 'default', 'options' => []],
     ]);
 
     $field->getAction('removeConstant')(['constant' => 'static_2'])->call();
     expect(array_keys($field->getConstants()))->toBe(['static_2', 'static_3']);
     $state = $field->getRawState();
-    unset($state['targets'][$field->getStateKeys()['name.part']]);
+    $state[$field->getSourceRowIndex('static_2')]['target'] = null;
     $field->rawState($state);
     $field->getAction('removeConstant')(['constant' => 'static_2'])->call();
-    expect(array_keys($field->getConstants()))->toBe(['static_3']);
+    expect(array_keys($field->getConstants()))->toBe(['static_2']);
     expect($field->isSourceUsed('static_2'))->toBeFalse();
-    expect($schema->getState()['mapping'])->toHaveCount(1);
+    expect($schema->getState()['mapping'])->toHaveCount(2);
 });
 
 it('round trips typed static sources and their settings', function (mixed $value, string $target) {
-    $rows = [['kind' => 'static', 'target' => $target, 'static' => $value, 'alias' => 'saved', 'options' => []]];
+    $rows = [[
+        'kind' => 'static',
+        'target' => $target,
+        'static' => $value,
+        'options' => ['alias' => 'saved', 'options' => []],
+    ]];
     $schema = static_source_mapping_schema($rows);
     expect($schema->getState()['mapping'][0])->toBe($rows[0]);
 })->with([
@@ -754,18 +771,151 @@ it('rejects non-scalar or empty values only after a static source is connected',
     $field->getAction('addConstant')->call();
     $field->getConstantValueSchema('static_2')->getComponent('static')->state($value);
     $state = $field->getRawState();
-    $state['targets'][$field->getStateKeys()['name.part']] = MappingState::source('static_2');
+    $state[$field->getSourceRowIndex('static_2')]['target'] = 'name.part';
     $field->rawState($state);
     expect($schema->getState(...))->toThrow(ValidationException::class);
 })->with([[''], [null], [['invalid']]]);
 
 it('fills settings defaults when loading a static row without settings', function () {
-    $schema = static_source_mapping_schema([['kind' => 'static', 'target' => 'name.part', 'static' => 'Customer']]);
+    $schema = static_source_mapping_schema([[
+        'kind' => 'static',
+        'target' => 'name.part',
+        'static' => 'Customer',
+        'options' => [],
+    ]]);
     expect($schema->getState()['mapping'][0])->toBe([
         'kind' => 'static',
         'target' => 'name.part',
         'static' => 'Customer',
-        'alias' => 'default',
-        'options' => [],
+        'options' => ['alias' => 'default', 'options' => []],
     ]);
+});
+
+it('keeps header actions and the trailing filter in one toolbar with density defaults', function (
+    bool $binding,
+    bool $contained,
+    bool $dense,
+) {
+    require_once __DIR__ . '/../Fixtures/MappingHeaderActionsForm.php';
+    $page = Livewire::test(\PHPinnacle\Eidos\Tests\Fixtures\MappingHeaderActionsForm::class, [
+        'binding' => $binding,
+        'contained' => $contained,
+    ]);
+    $field = $page->instance()->form->getComponent('mapping')->dense($dense);
+    view()->share('errors', new ViewErrorBag);
+    $document = new DOMDocument;
+    $document->loadHTML($page->instance()->form->toHtml(), LIBXML_NOERROR | LIBXML_NOWARNING);
+    $xpath = new DOMXPath($document);
+    $toolbars = $xpath->query('//div[contains(@class, "eidos-mapping-toolbar")]');
+    expect($toolbars)->toHaveCount(1);
+    $toolbar = $toolbars->item(0);
+    expect($toolbar->getAttribute('class'))->toContain($dense ? 'px-3 py-2' : 'px-5 py-4');
+    expect($xpath->query('./div[1]//button', $toolbar))->toHaveCount(1);
+    expect($xpath->query('./div[2]/fieldset[last()]', $toolbar))->toHaveCount($contained ? 1 : 0);
+    expect($field->getAction('addSource')->getSize())
+        ->toBe($dense ? \Filament\Support\Enums\Size::Small : \Filament\Support\Enums\Size::Medium);
+    $field->getAction('addSource')->size(\Filament\Support\Enums\Size::Large);
+    $page->instance()->form->toHtml();
+    expect($field->getAction('addSource')->getSize())->toBe(\Filament\Support\Enums\Size::Large);
+})->with([false, true])->with([false, true])->with([false, true]);
+
+it('uses native row state in owning header actions across Livewire requests', function (
+    bool $binding,
+    bool $contained,
+) {
+    require_once __DIR__ . '/../Fixtures/MappingHeaderActionsForm.php';
+    $page = Livewire::test(\PHPinnacle\Eidos\Tests\Fixtures\MappingHeaderActionsForm::class, [
+        'binding' => $binding,
+        'contained' => $contained,
+    ]);
+    $action = \Filament\Actions\Testing\TestAction::make('addSource')->schemaComponent('mapping', 'form');
+    $page
+        ->assertSee('Add source')
+        ->callAction($action, data: ['field' => 'record.id'])
+        ->assertHasNoErrors()
+        ->assertSet('owner', $binding ? FieldBinding::class : FieldMapping::class)
+        ->assertSet('data.mapping.0.source', 'record.id')
+        ->assertSet(
+            'data.mapping.0.options.transforms',
+            fn (array $items) => array_values($items) === [['type' => 'trim']],
+        )
+        ->set('data.mapping.0.target', 'destination')
+        ->callAction($action, data: ['field' => 'second'])
+        ->assertHasNoErrors()
+        ->assertSet('data.mapping.0.target', 'destination')
+        ->assertSet('data.mapping.1.source', 'second')
+        ->call('$refresh')
+        ->assertSee('record.id')
+        ->assertSee('second')
+        ->call('submit')
+        ->assertHasNoErrors()
+        ->assertSet('saved.mapping', [
+            [
+                'kind' => 'source',
+                'source' => 'record.id',
+                'target' => 'destination',
+                'options' => ['transforms' => [['type' => 'TRIM']]],
+            ],
+            [
+                'kind' => 'source',
+                'source' => 'second',
+                'target' => null,
+                'options' => ['transforms' => [['type' => 'TRIM']]],
+            ],
+        ]);
+    $field = $page->instance()->form->getComponent('mapping');
+    expect($field->getState())->toBe($page->get('data.mapping'));
+    expect(array_is_list($field->getState()))->toBeTrue();
+    if (!$binding) {
+        expect($field->getTargetSchema())->toBe(['properties' => ['destination' => ['type' => 'string']]]);
+    }
+})->with([false, true])->with([false, true]);
+
+it('rebinds native settings and static editors to their current row indexes', function () {
+    $field = FieldMapping::make('mapping')
+        ->jsonSchema(source: [
+            'properties' => ['first' => ['type' => 'string'], 'second' => ['type' => 'string']],
+        ], dest: [
+            'properties' => [
+                'items' => ['type' => 'array', 'items' => ['type' => 'string']],
+                'label' => ['type' => 'string'],
+            ],
+        ])
+        ->sourceSettings([Repeater::make('rules')
+            ->schema([TextInput::make('value')])
+            ->defaultItems(0)])
+        ->staticForms(fn (string $target) => $target === 'label' ? TextInput::make('value') : null);
+    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $first = [
+        'kind' => 'source',
+        'source' => 'first',
+        'target' => null,
+        'options' => ['rules' => [['value' => 'First']]],
+    ];
+    $second = [
+        'kind' => 'source',
+        'source' => 'second',
+        'target' => null,
+        'options' => ['rules' => [['value' => 'Second']]],
+    ];
+    $constant = ['kind' => 'static', 'target' => 'label', 'static' => 'Saved label', 'options' => []];
+    $schema->fill(['mapping' => [$first, $second, $constant]]);
+    $field->getChildSchemas();
+    $rows = $field->getState();
+    $rows[0]['target'] = 'items';
+    $rows[1]['target'] = 'items';
+    $field->state([$rows[1], $rows[2], $rows[0]]);
+    $children = $field->getChildSchemas();
+    $keys = $field->getSourceStateKeys();
+    expect($children['settings_' . $keys['first']]->getStatePath())->toBe('data.mapping.2.options');
+    expect($children['settings_' . $keys['second']]->getStatePath())->toBe('data.mapping.0.options');
+    expect($field->getStaticFormSchema('label')->getComponent('value')->getStatePath())->toBe('data.mapping.1.static');
+    $children['settings_' . $keys['first']]->getComponent('rules')->state([['value' => 'Edited first']]);
+    $field->getStaticFormSchema('label')->getComponent('value')->state('Edited label');
+    $expected = [$second, $constant, $first];
+    $expected[0]['target'] = 'items';
+    $expected[1]['static'] = 'Edited label';
+    $expected[2]['target'] = 'items';
+    $expected[2]['options']['rules'] = [['value' => 'Edited first']];
+    expect($schema->getState()['mapping'])->toBe($expected);
 });

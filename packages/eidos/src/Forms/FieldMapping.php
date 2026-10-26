@@ -13,12 +13,12 @@ use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Support\Concerns\CanBeContained;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\Rule;
 use PHPinnacle\Eidos\Forms\Concerns\HasColumnSpans;
+use PHPinnacle\Eidos\Forms\Concerns\HasHeaderActions;
 use PHPinnacle\Eidos\Forms\Concerns\HasSourceSettings;
 use PHPinnacle\Eidos\Forms\Concerns\Searchable;
 
@@ -30,8 +30,8 @@ use PHPinnacle\Eidos\Forms\Concerns\Searchable;
  * @phpstan-type ValueEntry array{kind: 'value', value: mixed}
  * @phpstan-type Entry SourceEntry|ValueEntry
  * @phpstan-type Targets array<string, Entry|non-empty-list<SourceEntry>>
- * @phpstan-type SourceState array{kind: 'source', source: string, target: string|null}&array<string, mixed>
- * @phpstan-type StaticState array{kind: 'static', target: string, static: mixed}&array<string, mixed>
+ * @phpstan-type SourceState array{kind: 'source', source: string, target: string|null, options: array<string, mixed>}
+ * @phpstan-type StaticState array{kind: 'static', target: string|null, static: mixed, options: array<string, mixed>}
  * @phpstan-type State list<SourceState|StaticState>
  */
 // @mago-expect lint:too-many-properties
@@ -40,6 +40,7 @@ class FieldMapping extends Field
     use CanBeCompact;
     use CanBeContained;
     use HasColumnSpans;
+    use HasHeaderActions;
     use HasSourceSettings;
     use Searchable;
 
@@ -179,17 +180,52 @@ class FieldMapping extends Field
             return [];
         }
 
-        /** @var array{constants?: array<string, array{static: mixed}>}|null $state */
-        $state = $this->getRawState();
+        $constants = [];
+        $names = $this->evaluate($this->sourceSchema)['properties'] ?? [];
+        foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
+            if (!is_array($row) || !isset($row['kind'])) {
+                continue;
+            }
+            if ($row['kind'] === 'static') {
+                $number = $index + 1;
+                while (array_key_exists('static_' . $number, $names)) {
+                    $number++;
+                }
+                $name = 'static_' . $number;
+                $names[$name] = true;
+                $constants[$name] = ['static' => $row['static']];
+            }
+        }
 
-        return $state['constants'] ?? [];
+        return $constants;
+    }
+
+    public function getSourceRowIndex(string $source): ?int
+    {
+        $constantNames = array_keys($this->getConstants());
+        $constant = 0;
+        foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
+            if (!is_array($row) || !isset($row['kind'])) {
+                continue;
+            }
+            if (
+                $row['kind'] === 'source'
+                && $row['source'] === $source
+                || $row['kind'] === 'static'
+                && $source === ($constantNames[$constant++] ?? null)
+            ) {
+                return $index;
+            }
+        }
+
+        return null;
     }
 
     public function getConstantValueSchema(string $source): Schema
     {
         return $this
             ->makeChildSchema('constant_' . $source)
-            ->statePath('constants.' . $source)
+            ->statePath((string) $this->getSourceRowIndex($source))
             ->components([
                 TextInput::make('static')
                     ->label(__('phpinnacle-eidos::schema-forms.value'))
@@ -237,12 +273,11 @@ class FieldMapping extends Field
 
         return $this
             ->makeChildSchema(self::stateKey($target))
-            ->statePath('targets.' . self::stateKey($target))
+            ->statePath((string) $this->getStaticRowIndex($target))
             ->partiallyRender()
             ->components([
                 Group::make([
-                    Hidden::make('kind')->default('value'),
-                    $field,
+                    $field->statePath('static')->key('value'),
                 ])->key('staticValue', isInheritable: false)->partiallyRenderAfterStateUpdated(),
             ]);
     }
@@ -270,9 +305,27 @@ class FieldMapping extends Field
     /** @return array<Schema> */
     public function getDefaultChildSchemas(): array
     {
+        $state = $this->getRawState();
+        if ($state !== null && (!is_array($state) || !array_is_list($state))) {
+            return ['sourceCards' => $this->makeChildSchema('sourceCards')->inline()->components($this->sourceCards())];
+        }
+        $this->initializeSourceRows();
         $this->sourcePresentationsBeforeUpdate ??= $this->getSourcePresentations();
         $this->cachedStaticTargets = $this->getStaticTargets();
-        $schemas = $this->makeSourceSettingsSchemas();
+        $schemas = [];
+        foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
+            if (!is_array($row) || !isset($row['kind'])) {
+                continue;
+            }
+            $schemas['row_' . $index] = $this
+                ->makeChildSchema('row_' . $index)
+                ->statePath((string) $index)
+                ->components(array_map(
+                    fn (string $name) => Hidden::make($name)->default($row[$name])->rules(['present']),
+                    array_keys($row),
+                ));
+        }
+        $schemas += $this->makeSourceSettingsSchemas();
         foreach (array_keys($this->getConstants()) as $source) {
             $schemas['constant_' . $source] = $this->getConstantValueSchema($source);
         }
@@ -303,56 +356,28 @@ class FieldMapping extends Field
         array &$appliedStateCastPaths = [],
     ): void {
         $this->hydrateDefaultState($hydratedDefaultState);
-        /** @var State $state */
-        $state = $this->getRawState() ?? [];
-        $sourceState = $this->sourceStateFromMappings($state);
-        $this->rawState([
-            'constants' => $sourceState['constants'],
-            'sources' => $this->encodeSourceSettings($sourceState['sources']),
-            'targets' => [],
-        ]);
-        $modes = $this->getConnectionModes();
-        $constantSources = array_keys($sourceState['constants']);
-        $constantIndex = 0;
-        $targets = [];
-        foreach ($state as $entry) {
-            if ($entry['target'] === null) {
-                continue;
-            }
-            $target = $entry['target'];
-            if ($entry['kind'] === 'static' && !$this->hasStaticValues()) {
-                $targets[$target] = ['kind' => 'value', 'value' => $entry['static']];
-
-                continue;
-            }
-            $source = $entry['kind'] === 'static' ? $constantSources[$constantIndex++] : $entry['source'];
-            if (($modes[$source][$target] ?? null) === 'item') {
-                $targets[$target][] = ['kind' => 'source', 'source' => $source];
-            } else {
-                $targets[$target] = ['kind' => 'source', 'source' => $source];
+        /** @var State $rows */
+        $rows = $this->getRawState() ?? [];
+        $sources = array_column(array_filter($rows, fn (array $row) => $row['kind'] === 'source'), 'source');
+        foreach (array_keys($this->evaluate($this->sourceSchema)['properties'] ?? []) as $source) {
+            if (!in_array((string) $source, $sources, true)) {
+                $rows[] = ['kind' => 'source', 'source' => (string) $source, 'target' => null, 'options' => []];
             }
         }
-        $encoded = [
-            'constants' => $sourceState['constants'],
-            'sources' => $this->encodeSourceSettings($sourceState['sources']),
-            'targets' => self::rekey($targets, $this->getStateKeys()),
-        ];
+        $this->rawState($rows);
         foreach ($this->getStaticDefaults() as $target => $value) {
-            $key = self::stateKey((string) $target);
-            if (!array_key_exists($key, $encoded['targets'])) {
-                $encoded['targets'][$key] = ['kind' => 'value', 'value' => $value];
+            if ($this->getStaticRowIndex((string) $target) === null && !$this->isTargetUsed((string) $target)) {
+                $rows[] = ['kind' => 'static', 'target' => (string) $target, 'static' => $value, 'options' => []];
             }
         }
-        $this->rawState($encoded);
+        $this->rawState($rows);
         $this->clearCachedChildSchemas();
-        $this->fillSourceSettingsDefaults($encoded['sources']);
-        if ($hydratedDefaultState !== null) {
-            $defaults = $hydratedDefaultState;
-            Arr::set($defaults, $this->getStatePath(), $this->getRawState());
-            /** @var array<string, mixed> $defaults */
-            $hydratedDefaultState = $defaults;
+        foreach ($this->getSources() as $source) {
+            $index = $this->getSourceRowIndex($source['id']);
+            if ($this->hasSourceSettings() && $index !== null && ($rows[$index]['options'] ?? []) === []) {
+                $this->getChildSchemas()['settings_' . $this->getSourceStateKeys()[$source['id']]]->fill();
+            }
         }
-
         parent::hydrateState(
             $hydratedDefaultState,
             $shouldCallHydrationHooks,
@@ -361,74 +386,26 @@ class FieldMapping extends Field
         );
     }
 
-    /**
-     * @param State $state
-     * @return array{constants: array<string, array{static: mixed}>, sources: array<string, array<string, mixed>>}
-     */
-    private function sourceStateFromMappings(array $state): array
+    public function getStaticRowIndex(string $target): ?int
     {
-        $sources = [];
-        $constants = [];
-        foreach ($state as $entry) {
-            if ($entry['kind'] === 'source') {
-                $source = $entry['source'];
-                /** @var array<string, mixed> $settings */
-                $settings = Arr::except($entry, ['kind', 'source', 'target']);
-            } elseif ($this->hasStaticValues()) {
-                $source = $this->nextConstantName($constants);
-                $constants[$source] = ['static' => $entry['static']];
-                $settings = array_diff_key($entry, ['kind' => true, 'target' => true, 'static' => true]);
-            } else {
+        foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
+            if (!is_array($row) || !isset($row['kind'])) {
                 continue;
             }
-            if ($settings !== []) {
-                $sources[$source] = $settings;
+            if ($row['kind'] === 'static' && $row['target'] === $target) {
+                return $index;
             }
         }
 
-        return ['constants' => $constants, 'sources' => $sources];
+        return null;
     }
 
-    /**
-     * @param array{constants?: array<string, array{static: mixed}>, sources?: array<string, array<string, mixed>>, targets?: Targets}|null $state
-     * @return array<array-key, mixed>
-     */
-    private function dehydrateMapping(?array $state): array
+    private function isTargetUsed(string $target): bool
     {
-        $sources = $this->decodeSourceSettings($state['sources'] ?? []);
-        /** @var Targets $targets */
-        $targets = self::rekey($state['targets'] ?? [], array_flip($this->getStateKeys()));
-        $rows = [];
-        $used = [];
-        foreach ($targets as $target => $mapped) {
-            /** @var list<Entry> $entries */
-            $entries = array_is_list($mapped) ? $mapped : [$mapped];
-            foreach ($entries as $entry) {
-                if ($entry['kind'] === 'value') {
-                    $rows[] = ['kind' => 'static', 'target' => (string) $target, 'static' => $entry['value']];
-                } else {
-                    $source = $entry['source'];
-                    $rows[] = array_key_exists($source, $state['constants'] ?? [])
-                        ? [
-                            'kind' => 'static',
-                            'target' => (string) $target,
-                            'static' => $state['constants'][$source]['static'],
-                        ]
-                        + ($sources[$source] ?? [])
-                        : ['kind' => 'source', 'source' => $source, 'target' => (string) $target]
-                        + ($sources[$source] ?? []);
-                    $used[$source] = true;
-                }
-            }
-        }
-        foreach ($this->getSources() as $source) {
-            $id = $source['id'];
-            if (!($used[$id] ?? false) && !array_key_exists($id, $state['constants'] ?? [])) {
-                $rows[] = ['kind' => 'source', 'source' => $id, 'target' => null] + ($sources[$id] ?? []);
-            }
-        }
+        /** @var State $rows */
+        $rows = $this->getRawState() ?? [];
 
-        return $rows;
+        return in_array($target, array_column($rows, 'target'), true);
     }
 
     /** @param bool|Closure(): bool $condition */
@@ -448,10 +425,14 @@ class FieldMapping extends Field
      * @param Definition|Closure $source
      * @param Definition|Closure $dest
      */
-    public function jsonSchema(array|Closure $source = [], array|Closure $dest = []): static
+    public function jsonSchema(array|Closure|null $source = null, array|Closure|null $dest = null): static
     {
-        $this->sourceSchema = $source;
-        $this->targetSchema = $dest;
+        if ($source !== null) {
+            $this->sourceSchema = $source;
+        }
+        if ($dest !== null) {
+            $this->targetSchema = $dest;
+        }
 
         return $this;
     }
@@ -599,10 +580,10 @@ class FieldMapping extends Field
         $this->default([]);
         $this->afterStateUpdated(fn (self $component) => $component->renderMappingUpdates());
         $this->required(fn () => $this->getRequiredTargets() !== []);
-        $this->mutateDehydratedStateUsing($this->dehydrateMapping(...));
         $this->rules(fn () => [
             'bail',
-            Rule::array(['constants', 'sources', 'targets']),
+            'array',
+            'list',
             $this->validateMapping(...),
         ]);
         $this->registerActions([
@@ -625,14 +606,18 @@ class FieldMapping extends Field
                 }
                 $this->sourcePresentationsBeforeUpdate ??= $this->getSourcePresentations();
                 $this->shouldRenderStaticSources = true;
-                /** @var array{constants: array<string, array{static: mixed}>, sources: array<string, array<string, mixed>>, targets: Targets} $state */
-                $state = $this->getRawState();
-                $source = $this->nextConstantName($this->getConstants());
-                $state['constants'][$source] = ['static' => ''];
-                $this->rawState($state);
+                /** @var State $rows */
+                $rows = $this->getRawState() ?? [];
+                $rows[] = ['kind' => 'static', 'target' => null, 'static' => '', 'options' => []];
+                $this->rawState($rows);
                 $this->clearCachedChildSchemas();
+                /** @var non-empty-array<string, array{static: mixed}> $constants */
+                $constants = $this->getConstants();
+                $source = array_key_last($constants);
                 $this->getChildSchemas()['constant_' . $source]->fill();
-                $this->fillSourceSettingsDefaults($state['sources']);
+                if ($this->hasSourceSettings()) {
+                    $this->getChildSchemas()['settings_' . $this->getSourceStateKeys()[$source]]->fill();
+                }
                 $this->callAfterStateUpdated();
             });
     }
@@ -659,10 +644,10 @@ class FieldMapping extends Field
                 }
                 $this->sourcePresentationsBeforeUpdate ??= $this->getSourcePresentations();
                 $this->shouldRenderStaticSources = true;
-                /** @var array{constants: array<string, array{static: mixed}>, sources: array<string, array<string, mixed>>, targets: Targets} $state */
-                $state = $this->getRawState();
-                unset($state['constants'][$source], $state['sources'][$this->getSourceStateKeys()[$source]]);
-                $this->rawState($state);
+                /** @var State $rows */
+                $rows = $this->getRawState();
+                unset($rows[$this->getSourceRowIndexes()[$source]]);
+                $this->rawState(array_values($rows));
                 $this->clearCachedChildSchemas();
                 $this->callAfterStateUpdated();
             });
@@ -701,7 +686,16 @@ class FieldMapping extends Field
 
     private function renderMappingUpdates(): void
     {
-        if ($this->sourceSchema instanceof Closure || $this->targetSchema instanceof Closure) {
+        /** @var State $oldRows */
+        $oldRows = $this->getOldRawState() ?? [];
+        /** @var State $rows */
+        $rows = $this->getRawState() ?? [];
+        if (
+            $this->hasStaticForms()
+            || $this->sourceSchema instanceof Closure
+            || $this->targetSchema instanceof Closure
+            || array_column($oldRows, 'source') !== array_column($rows, 'source')
+        ) {
             $this->partiallyRender();
 
             return;
@@ -745,21 +739,6 @@ class FieldMapping extends Field
         $this->shouldRenderStaticSources = false;
     }
 
-    /** @param array<string, array{static: mixed}> $constants */
-    private function nextConstantName(array $constants): string
-    {
-        $properties = $this->evaluate($this->sourceSchema)['properties'] ?? [];
-        $number = 1;
-        while (
-            array_key_exists('static_' . $number, $properties)
-            || array_key_exists('static_' . $number, $constants)
-        ) {
-            $number++;
-        }
-
-        return 'static_' . $number;
-    }
-
     /** @param Closure(string): PotentiallyTranslatedString $fail */
     private function validateStaticValue(string $attribute, mixed $value, Closure $fail): void
     {
@@ -769,98 +748,99 @@ class FieldMapping extends Field
     }
 
     /** @param Closure(string): PotentiallyTranslatedString $fail */
-    private function validateConstantNames(string $attribute, mixed $constants, Closure $fail): void
-    {
-        if (!is_array($constants)) {
-            return;
-        }
-        $properties = $this->evaluate($this->sourceSchema)['properties'] ?? [];
-        foreach (array_keys($constants) as $source) {
-            if (!preg_match('/^static_[1-9][0-9]*$/', (string) $source) || array_key_exists($source, $properties)) {
-                $fail('The :attribute field contains an invalid static source.')->translate();
-
-                return;
-            }
-        }
-    }
-
-    /** @param Closure(string): PotentiallyTranslatedString $fail */
     private function validateMapping(string $attribute, mixed $value, Closure $fail): void
     {
         if (!is_array($value)) {
             return;
         }
-
-        $validator = Validator::make($value, [
-            'constants' => [$this->hasStaticValues() ? 'array' : 'prohibited', $this->validateConstantNames(...)],
-            'constants.*' => ['array:static'],
-            'constants.*.static' => ['present'],
-            'sources' => ['array', Rule::array(array_values($this->getSourceStateKeys()))],
-            'sources.*' => ['array'],
-            'targets' => ['array', Rule::array(array_values($this->getStateKeys()))],
+        $validator = Validator::make(['rows' => $value], [
+            'rows' => ['array', 'list'],
+            'rows.*' => Rule::forEach(fn (mixed $row) => [Rule::array(
+                is_array($row) && ($row['kind'] ?? null) === 'source'
+                    ? ['kind', 'source', 'target', 'options']
+                    : ['kind', 'target', 'static', 'options'],
+            )]),
+            'rows.*.kind' => ['required', Rule::in(['source', 'static'])],
+            'rows.*.target' => ['present', 'nullable', 'string', Rule::in(array_column($this->getTargets(), 'id'))],
+            'rows.*.options' => ['present', 'array'],
+            'rows.*.source' => [
+                'required_if:rows.*.kind,source',
+                'string',
+                Rule::in(array_column($this->getSources(), 'id')),
+            ],
+            'rows.*.static' => ['present_if:rows.*.kind,static'],
         ]);
         if ($validator->fails()) {
             $fail($validator->errors()->first())->translate();
 
             return;
         }
-        /** @var array{targets?: array<string, mixed>} $validated */
+        /** @var array{rows: State} $validated */
         $validated = $validator->validated();
-        $value = self::rekey($validated['targets'] ?? [], array_flip($this->getStateKeys()));
-
+        $value = $validated['rows'];
         $modes = $this->getConnectionModes();
-        $targets = array_column($this->getTargets(), null, 'id');
-        $multiple = $this->getMultipleTargets();
         $usedSources = [];
         $usedTargets = [];
-
-        foreach ($value as $target => $mapped) {
-            $collection = is_array($mapped) && array_is_list($mapped);
-            if (!is_array($mapped) || $mapped === [] || $collection && !in_array((string) $target, $multiple, true)) {
-                $fail('The :attribute field contains an invalid mapping value.')->translate();
-
-                return;
-            }
-            foreach ($collection ? $mapped : [$mapped] as $entry) {
-                if (!is_array($entry) || !$this->isValidEntry($entry)) {
-                    $fail('The :attribute field contains an invalid mapping value.')->translate();
+        foreach ($value as $index => $row) {
+            if ($row['kind'] === 'source') {
+                $source = $row['source'];
+                if (
+                    isset($usedSources[$source])
+                ) {
+                    $fail('The :attribute field contains an invalid source.')->translate();
 
                     return;
                 }
-                if ($entry['kind'] === 'value') {
-                    if (
-                        $collection
-                        || $this->makeStaticField((string) $target) === null
-                        && (!is_scalar($entry['value'])
-                        || $entry['value'] === '')
-                    ) {
-                        $fail('The :attribute field contains an invalid mapping value.')->translate();
+                $usedSources[$source] = true;
+                if ($row['target'] !== null && !isset($modes[$source][$row['target']])) {
+                    $fail('The :attribute field contains incompatible source and destination schemas.')->translate();
 
-                        return;
-                    }
-                } else {
-                    $source = $entry['source'];
-                    $mode = $modes[$source][$target] ?? null;
-                    if ($mode === null || $collection !== ($mode === 'item')) {
-                        $fail(
-                            'The :attribute field contains incompatible source and destination schemas.',
-                        )->translate();
-
-                        return;
-                    }
-                    if ($usedSources[$source] ?? false) {
-                        $fail('The :attribute field reuses a source that only permits one connection.')->translate();
-
-                        return;
-                    }
-                    $usedSources[$source] = true;
+                    return;
                 }
-                $usedTargets[$target] = true;
-            }
-        }
+                $mode = $row['target'] === null ? null : $modes[$source][$row['target']];
+            } else {
+                if (
+                    !$this->hasStaticValues()
+                    && $row['target'] === null
+                ) {
+                    $fail('The :attribute field contains an invalid static value.')->translate();
 
+                    return;
+                }
+                if (
+                    $row['target'] !== null
+                    && ($this->hasStaticValues()
+                    || $this->makeStaticField($row['target']) === null)
+                    && (!is_scalar($row['static'])
+                    || $row['static'] === '')
+                ) {
+                    $fail('The :attribute field contains an invalid static value.')->translate();
+
+                    return;
+                }
+                $mode = 'whole';
+                if ($this->hasStaticValues() && $row['target'] !== null) {
+                    $mode = $modes[array_search($index, $this->getSourceRowIndexes(), true)][$row['target']] ?? null;
+                }
+            }
+            if ($row['target'] === null) {
+                continue;
+            }
+            if ($mode === null) {
+                $fail('The :attribute field contains incompatible source and destination schemas.')->translate();
+
+                return;
+            }
+            if (isset($usedTargets[$row['target']]) && ($mode !== 'item' || $usedTargets[$row['target']] !== 'item')) {
+                $fail('The :attribute field reuses a destination that only permits one connection.')->translate();
+
+                return;
+            }
+            $usedTargets[$row['target']] = $mode;
+        }
+        $targets = array_column($this->getTargets(), null, 'id');
         foreach ($this->getRequiredTargets() as $target) {
-            if (!($usedTargets[$target] ?? false)) {
+            if (!array_key_exists($target, $usedTargets)) {
                 $fail(
                     'Connect the required destination: ' . strip_tags($targets[$target]['label'] ?? $target) . '.',
                 )->translate();
@@ -868,73 +848,27 @@ class FieldMapping extends Field
         }
     }
 
-    /**
-     * @param array<array-key, mixed> $entry
-     * @phpstan-assert-if-true Entry $entry
-     */
-    private function isValidEntry(array $entry): bool
-    {
-        $kind = $entry['kind'] ?? null;
-        if (!in_array($kind, ['source', 'value'], true)) {
-            return false;
-        }
-
-        return Validator::make(['entry' => $entry], [
-            'entry' => ['array:kind,' . $kind],
-            'entry.' . $kind => $kind === 'source' ? ['required', 'string'] : ['present'],
-        ])->passes();
-    }
-
     public function isSourceUsed(string $source): bool
     {
-        /** @var array{targets?: mixed}|null $state */
-        $state = $this->getRawState();
-        $targets = $state['targets'] ?? [];
-        if (!is_array($targets)) {
-            return false;
-        }
-        foreach ($targets as $mapped) {
-            if (!is_array($mapped)) {
-                continue;
-            }
-            foreach (array_is_list($mapped) ? $mapped : [$mapped] as $entry) {
-                if (
-                    is_array($entry)
-                    && ($entry['kind'] ?? null) === 'source'
-                    && ($entry['source'] ?? null) === $source
-                ) {
-                    return true;
-                }
-            }
-        }
+        $index = $this->getSourceRowIndex($source);
 
-        return false;
+        /** @var State $rows */
+        $rows = $this->getRawState() ?? [];
+
+        return $index !== null && $rows[$index]['target'] !== null;
     }
 
     /** @return list<string> */
     private function getStaticTargets(): array
     {
-        /** @var array{targets?: array<string, mixed>} $rawState */
-        $rawState = $this->getRawState() ?? [];
-        $state = $rawState['targets'] ?? null;
-        if (!is_array($state) || !$this->hasStaticForms()) {
-            return [];
-        }
-
-        return array_values(array_filter(array_column($this->getTargets(), 'id'), function (string $target) use (
-            $state,
-        ) {
-            $key = self::stateKey($target);
-
-            return (
-                (
-                    !array_key_exists($key, $state)
-                    || is_array($state[$key])
-                    && ($state[$key]['kind'] ?? null) === 'value'
-                )
-                && $this->makeStaticField($target) !== null
-            );
-        }));
+        return (
+            !$this->hasStaticForms()
+                ? []
+                : array_values(array_filter(
+                    array_column($this->getTargets(), 'id'),
+                    fn (string $target) => $this->getStaticRowIndex($target) !== null,
+                ))
+        );
     }
 
     private static function stateKey(string $target): string
@@ -952,18 +886,5 @@ class FieldMapping extends Field
 
         /** @var Field|null */
         return $this->evaluate($this->staticForms, ['target' => $target, 'property' => $property]);
-    }
-
-    /**
-     * @param array<string, mixed> $state
-     * @param array<string, string> $keys
-     * @return array<string, mixed>
-     */
-    private static function rekey(array $state, array $keys): array
-    {
-        return array_combine(
-            array_map(fn (int|string $key) => $keys[$key] ?? $key, array_keys($state)),
-            array_values($state),
-        );
     }
 }

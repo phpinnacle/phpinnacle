@@ -203,10 +203,6 @@
     box-shadow: 0 0 0 2px color-mix(in oklab, var(--primary-500) 20%, transparent);
 }
 
-.field-mapping-row.is-required-missing {
-    border-color: var(--warning-300);
-}
-
 .field-mapping-row.is-compatible {
     border-color: var(--primary-500);
     background: var(--primary-50);
@@ -360,10 +356,6 @@
 .dark .field-mapping-row.is-selected {
     border-color: var(--primary-500);
     background: color-mix(in oklab, var(--primary-500) 10%, transparent);
-}
-
-.dark .field-mapping-row.is-required-missing {
-    border-color: var(--warning-600);
 }
 
 .dark .field-mapping-row.has-warning {
@@ -719,10 +711,15 @@
 .eidos-mapping-filter span {
     display: block;
     border-radius: 0.375rem;
-    padding: 0.25rem 0.625rem;
+    padding: 0.375rem 0.75rem;
     color: var(--gray-600);
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     line-height: 1.25rem;
+}
+
+.fi-dense .eidos-mapping-filter span {
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
 }
 
 .eidos-mapping-filter input:checked + span {

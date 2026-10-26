@@ -21,8 +21,13 @@ trait HasSourceSettings
     /** @var array<string, string>|null */
     private ?array $cachedSourceSettingsKeys = null;
 
+    /** @var array<string, int>|null */
+    private ?array $cachedSourceRowIndexes = null;
+
     /** @return list<MappingItem> */
     abstract public function getSources(): array;
+
+    abstract public function getSourceRowIndex(string $source): ?int;
 
     /** @param array<Component>|Closure $schema */
     public function sourceSettings(array|Closure $schema): static
@@ -48,24 +53,47 @@ trait HasSourceSettings
         return $keys;
     }
 
+    /** @return array<string, int> */
+    public function getSourceRowIndexes(): array
+    {
+        $indexes = [];
+        foreach ($this->getSources() as $source) {
+            $index = $this->getSourceRowIndex($source['id']);
+            if ($index !== null) {
+                $indexes[$source['id']] = $index;
+            }
+        }
+
+        return $indexes;
+    }
+
     /** @return array<string, array<string, mixed>> */
     public function getSourceSettings(): array
     {
-        /** @var array{sources?: array<string, array<string, mixed>>} $state */
-        $state = $this->getRawState() ?? [];
+        /** @var array<int, array{options: array<string, mixed>}> $rows */
+        $rows = $this->getRawState() ?? [];
+        $settings = [];
+        foreach ($this->getSourceRowIndexes() as $source => $index) {
+            $settings[$source] = $rows[$index]['options'];
+        }
 
-        return $this->decodeSourceSettings($state['sources'] ?? []);
+        return $settings;
     }
 
     /** @return array<string, Schema> */
     protected function makeSourceSettingsSchemas(): array
     {
         $schemas = [];
-        $this->cachedSourceSettingsKeys = $this->hasSourceSettings() ? $this->getSourceStateKeys() : [];
-        foreach ($this->cachedSourceSettingsKeys as $source => $key) {
+        $this->cachedSourceSettingsKeys = $this->getSourceStateKeys();
+        $this->cachedSourceRowIndexes = $this->getSourceRowIndexes();
+        if (!$this->hasSourceSettings()) {
+            return [];
+        }
+        foreach ($this->cachedSourceRowIndexes as $source => $index) {
+            $key = $this->cachedSourceSettingsKeys[$source];
             $schemas['settings_' . $key] = $this
                 ->makeChildSchema('settings_' . $key)
-                ->statePath('sources.' . $key)
+                ->statePath($index . '.options')
                 ->components([
                     Group::make($this->getSourceSettingsComponents((string) $source)),
                 ])
@@ -83,50 +111,24 @@ trait HasSourceSettings
 
     protected function areSourceSettingsSchemasFresh(): bool
     {
-        return $this->cachedSourceSettingsKeys === ($this->hasSourceSettings() ? $this->getSourceStateKeys() : []);
+        return (
+            $this->cachedSourceSettingsKeys === $this->getSourceStateKeys()
+            && $this->cachedSourceRowIndexes === $this->getSourceRowIndexes()
+        );
     }
 
-    /** @param array<string, array<string, mixed>> $provided */
-    protected function fillSourceSettingsDefaults(array $provided): void
+    protected function initializeSourceRows(): void
     {
-        if (!$this->hasSourceSettings()) {
+        $rows = $this->getRawState() ?? [];
+        if (!is_array($rows) || !array_is_list($rows)) {
             return;
         }
-        foreach ($this->getSourceStateKeys() as $key) {
-            if (!array_key_exists($key, $provided)) {
-                $this->getChildSchemas()['settings_' . $key]->fill(
-                    shouldCallHydrationHooks: false,
-                    shouldApplyStateCasts: false,
-                );
+        $sources = array_column($this->getSources(), 'id');
+        foreach ($sources as $source) {
+            if ($this->getSourceRowIndex($source) === null) {
+                $rows[] = ['kind' => 'source', 'source' => $source, 'target' => null, 'options' => []];
             }
         }
-    }
-
-    /**
-     * @param array<string, array<string, mixed>> $settings
-     * @return array<string, array<string, mixed>>
-     */
-    protected function encodeSourceSettings(array $settings): array
-    {
-        $keys = $this->getSourceStateKeys();
-
-        return array_combine(
-            array_map(fn (int|string $key) => $keys[$key] ?? $key, array_keys($settings)),
-            array_values($settings),
-        );
-    }
-
-    /**
-     * @param array<string, array<string, mixed>> $settings
-     * @return array<string, array<string, mixed>>
-     */
-    protected function decodeSourceSettings(array $settings): array
-    {
-        $keys = array_flip($this->getSourceStateKeys());
-
-        return array_combine(
-            array_map(fn (int|string $key) => $keys[$key] ?? $key, array_keys($settings)),
-            array_values($settings),
-        );
+        $this->rawState($rows);
     }
 }

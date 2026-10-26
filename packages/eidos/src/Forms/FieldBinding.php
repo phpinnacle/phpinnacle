@@ -5,6 +5,7 @@ namespace PHPinnacle\Eidos\Forms;
 use Closure;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Field;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Concerns\CanBeCompact;
@@ -12,21 +13,21 @@ use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Support\Concerns\CanBeContained;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Js;
 use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use PHPinnacle\Eidos\Forms\Concerns\HasColumnSpans;
+use PHPinnacle\Eidos\Forms\Concerns\HasHeaderActions;
 use PHPinnacle\Eidos\Forms\Concerns\HasSourceSettings;
 use PHPinnacle\Eidos\Forms\Concerns\Searchable;
 
 /**
  * @phpstan-import-type MappingItem from JsonSchema
  * @phpstan-import-type Definition from JsonSchema
- * @phpstan-type SourceState array{kind: 'source', source: string, target: mixed}&array<string, mixed>
- * @phpstan-type StaticState array{kind: 'static', target: mixed, static: mixed}&array<string, mixed>
+ * @phpstan-type SourceState array{kind: 'source', source: string, target: mixed, options: array<string, mixed>}
+ * @phpstan-type StaticState array{kind: 'static', target: mixed, static: mixed, options: array<string, mixed>}
  * @phpstan-type State list<SourceState|StaticState>
  */
 class FieldBinding extends Field
@@ -34,6 +35,7 @@ class FieldBinding extends Field
     use CanBeCompact;
     use CanBeContained;
     use HasColumnSpans;
+    use HasHeaderActions;
     use HasSourceSettings;
     use Searchable;
 
@@ -55,9 +57,6 @@ class FieldBinding extends Field
 
     protected bool $hasStaticValues = false;
 
-    /** @var list<string>|null */
-    protected ?array $cachedBoundKeys = null;
-
     /** @var array<string, string>|Closure(): array<string, string> */
     protected array|Closure $warnings = [];
 
@@ -66,6 +65,9 @@ class FieldBinding extends Field
 
     /** @var list<MappingItem> */
     private array $cachedSources = [];
+
+    /** @var list<int> */
+    private array $boundRowsBeforeDehydration = [];
 
     /** @param array<string, string>|Closure(): array<string, string> $warnings */
     public function warnings(array|Closure $warnings): static
@@ -111,10 +113,16 @@ class FieldBinding extends Field
         return $this->evaluate($this->targetLabel);
     }
 
+    /** @return Definition */
+    public function getSourceSchema(): array
+    {
+        return $this->evaluate($this->jsonSchema);
+    }
+
     /** @return list<MappingItem> */
     public function getSources(): array
     {
-        $definition = $this->evaluate($this->jsonSchema);
+        $definition = $this->getSourceSchema();
         if ($this->cachedSourceDefinition !== $definition) {
             $this->cachedSources = JsonSchema::fromArray($definition)->toMappingItems();
             $this->cachedSourceDefinition = $definition;
@@ -159,47 +167,48 @@ class FieldBinding extends Field
     {
         return array_filter(
             $this->getCachedDefaultChildSchemas(),
-            static fn (string $key) => !str_starts_with($key, 'settings_'),
+            static fn (string $key) => !str_starts_with($key, 'settings_') && !str_starts_with($key, 'row_'),
             ARRAY_FILTER_USE_KEY,
         );
     }
 
     public function getBindingSchema(string $source): Schema
     {
-        $key = $this->getBindingKey($source);
-        $bindings = $this->getBindings();
-        if (array_key_exists($key, $bindings)) {
-            return $bindings[$key];
-        }
-
-        $schema = $this->makeBindingSchema($source, 'bindings.' . $key);
-
-        /** @var array{bound: array<string, bool>, bindings: array<string, array<string, mixed>>, previews: array<string, array<string, mixed>>} $state */
-        $state = $this->getRawState();
-        if (!($state['bound'][$key] ?? false) && !array_key_exists($key, $state['bindings'])) {
-            $schema->rawState([])->fill();
-            /** @var array{bindings: array<string, array<string, mixed>>, previews: array<string, array<string, mixed>>} $state */
-            $state = $this->getRawState();
-            $state['previews'][$key] = $state['bindings'][$key];
-            $this->rawState($state);
-        }
-
-        return $schema;
+        return (
+            $this->getBindings()[$this->getBindingKey($source)] ?? $this->makeBindingSchema(
+                $source,
+                $this->getSourceRowIndexes()[$source],
+            )
+        );
     }
 
-    /** @return list<array<string, mixed>> */
+    /** @return State */
     public function getBindingValues(): array
     {
-        /** @var array{sources?: array<string, array<string, mixed>>, bindings?: array<string, mixed>, bound?: array<string, bool>, previews?: array<string, mixed>}|null $state */
-        $state = $this->getRawState();
+        /** @var State $rows */
+        $rows = $this->getState() ?? [];
 
-        return $this->dehydrateBindings($state, validateTargets: false);
+        return $rows;
     }
 
     /** @return array<Schema> */
     public function getConstants(): array
     {
         return array_filter($this->getBindings(), self::isConstantKey(...), ARRAY_FILTER_USE_KEY);
+    }
+
+    public function getSourceRowIndex(string $source): ?int
+    {
+        foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
+            if (!is_array($row) || !isset($row['kind'])) {
+                continue;
+            }
+            if ($row['kind'] === 'source' && $row['source'] === $source) {
+                return $index;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -213,48 +222,22 @@ class FieldBinding extends Field
         array &$appliedStateCastPaths = [],
     ): void {
         $this->hydrateDefaultState($hydratedDefaultState);
-
-        $bindings = $this->getHydratedBindings();
-        /** @var State $state */
-        $state = $this->getRawState() ?? [];
-        $sources = [];
-        foreach ($state as $entry) {
-            if ($entry['kind'] === 'source') {
-                /** @var array<string, mixed> $settings */
-                $settings = Arr::except($entry, ['kind', 'source', 'target']);
-                if ($settings !== []) {
-                    $sources[$entry['source']] = $settings;
-                }
-            }
-        }
-        $sources = $this->encodeSourceSettings($sources);
-        $bound = array_fill_keys(
-            array_filter(array_keys($bindings), fn (string $key) => !self::isConstantKey($key)),
-            true,
-        );
-        $this->rawState(['sources' => $sources, 'bindings' => $bindings, 'bound' => $bound, 'previews' => []]);
-        $this->clearCachedChildSchemas();
-        $this->fillSourceSettingsDefaults($sources);
-
+        /** @var State $rows */
+        $rows = $this->getRawState() ?? [];
+        $sources = array_column(array_filter($rows, fn (array $row) => $row['kind'] === 'source'), 'source');
         foreach ($this->getSources() as $source) {
-            $key = $this->getBindingKey($source['id']);
-            if (array_key_exists($key, $bound)) {
-                $this
-                    ->makeBindingSchema($source['id'], 'previews.' . $key)
-                    ->rawState([])
-                    ->fill();
-            } else {
-                $this->getBindingSchema($source['id']);
+            if (!in_array($source['id'], $sources, true)) {
+                $rows[] = ['kind' => 'source', 'source' => $source['id'], 'target' => null, 'options' => []];
             }
         }
-
-        if ($hydratedDefaultState !== null) {
-            $defaults = $hydratedDefaultState;
-            Arr::set($defaults, $this->getStatePath(), $this->getRawState());
-            /** @var array<string, mixed> $defaults */
-            $hydratedDefaultState = $defaults;
+        $this->rawState($rows);
+        $this->clearCachedChildSchemas();
+        foreach ($this->getSources() as $source) {
+            $index = $this->getSourceRowIndex($source['id']);
+            if ($this->hasSourceSettings() && $index !== null && ($rows[$index]['options'] ?? []) === []) {
+                $this->getChildSchemas()['settings_' . $this->getSourceStateKeys()[$source['id']]]->fill();
+            }
         }
-
         parent::hydrateState(
             $hydratedDefaultState,
             $shouldCallHydrationHooks,
@@ -266,39 +249,62 @@ class FieldBinding extends Field
     /** @return array<Schema> */
     public function getDefaultChildSchemas(): array
     {
-        $this->cachedBoundKeys = $this->getBoundKeys();
-        $bindings = $this->makeSourceSettingsSchemas();
-        $sources = array_column($this->getSources(), 'id');
-        $sourcesByKey = array_combine(array_map($this->getBindingKey(...), $sources), $sources);
-
-        foreach ($this->cachedBoundKeys as $key) {
-            if (!self::isConstantKey($key)) {
-                $bindings[$key] = $this->makeBindingSchema($sourcesByKey[$key], 'bindings.' . $key);
-
+        $state = $this->getRawState();
+        if ($state !== null && (!is_array($state) || !array_is_list($state))) {
+            return [];
+        }
+        $this->initializeSourceRows();
+        $schemas = [];
+        foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
+            if (!is_array($row) || !isset($row['kind'])) {
                 continue;
             }
-            $bindings[$key] = $this
-                ->getConstantSchema($key)
-                ->statePath('bindings.' . $key)
-                ->inlineLabel(false)
-                ->getClone();
+            $schemas['row_' . $index] = $this
+                ->makeChildSchema('row_' . $index)
+                ->statePath((string) $index)
+                ->components(array_map(
+                    fn (string $name) => Hidden::make($name)->default($row[$name])->rules(['present']),
+                    array_keys($row),
+                ));
+        }
+        $schemas += $this->makeSourceSettingsSchemas();
+        foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
+            if (!is_array($row) || !isset($row['kind'])) {
+                continue;
+            }
+            if (
+                $row['kind'] === 'source'
+                && $row['target'] !== null
+                && in_array($row['source'], array_column($this->getSources(), 'id'), true)
+            ) {
+                $schemas[$this->getBindingKey($row['source'])] = $this->makeBindingSchema($row['source'], $index);
+            } elseif ($row['kind'] === 'static' && $this->hasStaticValues()) {
+                $key = self::CONSTANT_PREFIX . $index;
+                $schemas[$key] = $this
+                    ->getConstantSchema($key)
+                    ->statePath((string) $index)
+                    ->getClone();
+            }
         }
 
-        return $bindings;
+        return $schemas;
     }
 
-    private function makeBindingSchema(string $source, string $statePath): Schema
+    private function makeBindingSchema(string $source, int $index): Schema
     {
         /** @var Schema $schema The default child schema always exists. */
         $schema = $this->getChildSchema();
-        $schema = $schema->getClone()->statePath($statePath)->inlineLabel(false);
-
+        $schema = $schema->getClone()->inlineLabel(false);
         if ($this->simpleField !== null) {
             /** @var Field $field */
             $field = $schema->getComponents()[0];
+            $field->statePath('target')->key($field->getName());
             if (!$field->hasDefaultState()) {
                 $field->default($source);
             }
+            $schema->statePath((string) $index);
+        } else {
+            $schema->statePath($index . '.target');
         }
 
         return $schema;
@@ -306,12 +312,18 @@ class FieldBinding extends Field
 
     protected function areCachedDefaultChildSchemasFresh(): bool
     {
-        return $this->cachedBoundKeys === $this->getBoundKeys() && $this->areSourceSettingsSchemasFresh();
+        return (
+            array_keys(array_filter(
+                $this->cachedDefaultChildSchemas ?? [],
+                fn (string $key) => str_starts_with($key, 'source_') || self::isConstantKey($key),
+                ARRAY_FILTER_USE_KEY,
+            )) === $this->getBoundKeys()
+            && $this->areSourceSettingsSchemasFresh()
+        );
     }
 
     private function getConstantSchema(string $key, ?string $defaultTarget = null): Schema
     {
-        /** @var array<Component> $fields */
         $fields = $this->evaluate($this->sourceSettingsSchema, [
             'source' => $key,
             'inputSchema' => fn () => fn () => $this->getConstantInputSchema($key),
@@ -319,12 +331,21 @@ class FieldBinding extends Field
         /** @var Schema $output The default child schema always exists. */
         $output = $this->getChildSchema();
         $output = $output->getClone()->inlineLabel(false);
-        if ($defaultTarget !== null && $this->simpleField !== null) {
+        if ($this->simpleField !== null) {
             /** @var Field $target */
             $target = $output->getComponents()[0];
-            if (!$target->hasDefaultState()) {
+            $target->statePath('target')->key($target->getName());
+            if ($defaultTarget !== null && !$target->hasDefaultState()) {
                 $target->default($defaultTarget);
             }
+        }
+
+        $outputGroup = Group::make()->schema($output)->key('output');
+        if ($this->simpleField === null) {
+            $outputGroup
+                ->statePath('target')
+                ->default([])
+                ->dehydrateStateUsing(fn (?array $state) => $state ?? []);
         }
 
         return $this->makeChildSchema('constants')->components([
@@ -337,24 +358,19 @@ class FieldBinding extends Field
                     ->default('')
                     ->required()
                     ->rule(fn () => $this->validateStaticValue(...)),
-                ...$fields,
-            ])
-                ->key('input')
-                ->statePath('input')
-                ->dense(),
-            Group::make()
-                ->schema($output)
-                ->key('output')
-                ->statePath('output')
-                ->default([])
-                // Native validation omits empty containers, which still represent an empty form.
-                ->dehydrateStateUsing(fn (?array $state) => $state ?? []),
+                Group::make($fields)->statePath('options')->default([]),
+            ])->key('input')->dense(),
+            $outputGroup,
         ]);
     }
 
     public function getConstantInputSchema(string $constant): JsonSchema
     {
-        $value = data_get($this->getBindingState(), $constant . '.input.static');
+        /** @var State $rows */
+        $rows = $this->getRawState();
+        /** @var StaticState $row */
+        $row = $rows[$this->constantIndex($constant)];
+        $value = $row['static'];
 
         return JsonSchema::fromArray(['type' => match (true) {
             is_bool($value) => 'boolean',
@@ -368,10 +384,15 @@ class FieldBinding extends Field
 
     public function getConstantTarget(string $constant): mixed
     {
-        $simple = $this->getSimpleField();
-        $output = data_get($this->getBindingState(), $constant . '.output');
+        /** @var State $rows */
+        $rows = $this->getRawState();
 
-        return $simple !== null ? data_get($output, $simple->getName()) : $output;
+        return $rows[$this->constantIndex($constant)]['target'];
+    }
+
+    private function constantIndex(string $constant): int
+    {
+        return (int) substr($constant, strlen(self::CONSTANT_PREFIX));
     }
 
     public function getBindAction(): Action
@@ -382,7 +403,14 @@ class FieldBinding extends Field
             ->iconButton()
             ->size('lg')
             ->tooltip(__('phpinnacle-eidos::schema-forms.binding.bind'))
-            ->alpineClickHandler($this->bindClickHandler(...))
+            ->alpineClickHandler(
+                fn (Action $action, array $arguments) => (
+                    'edit('
+                    . Js::from($arguments['source'])->toHtml()
+                    . '); $wire.'
+                    . $action->getLivewireClickHandler()
+                ),
+            )
             ->disabled(fn (self $component) => $component->isDisabled())
             ->action(fn (array $arguments, self $component) => $component->bindSource($arguments));
     }
@@ -391,21 +419,8 @@ class FieldBinding extends Field
     {
         return Action::make('unbind')
             ->label(__('phpinnacle-eidos::schema-forms.binding.unbind'))
-            ->alpineClickHandler($this->unbindClickHandler(...))
             ->disabled(fn (self $component) => $component->isDisabled())
             ->action(fn (array $arguments, self $component) => $component->unbindSource($arguments));
-    }
-
-    /** @param array{source: string} $arguments */
-    private function bindClickHandler(array $arguments): string
-    {
-        return 'bind(' . Js::from($this->getBindingKey($arguments['source']))->toHtml() . ')';
-    }
-
-    /** @param array{source: string} $arguments */
-    private function unbindClickHandler(array $arguments): string
-    {
-        return 'unbind(' . Js::from($this->getBindingKey($arguments['source']))->toHtml() . ')';
     }
 
     public function getAddConstantAction(): Action
@@ -441,6 +456,32 @@ class FieldBinding extends Field
             View::make('phpinnacle-eidos::forms.field-binding-static-values')->key('staticValues'),
         ], 'staticValues');
         $this->default([]);
+        $this->beforeStateDehydrated(function () {
+            $this->boundRowsBeforeDehydration = [];
+            /** @var State $rows */
+            $rows = $this->getRawState() ?? [];
+            foreach ($rows as $index => $row) {
+                if ($row['target'] !== null) {
+                    $this->boundRowsBeforeDehydration[] = $index;
+                }
+            }
+        });
+        $this->mutateDehydratedStateUsing(function (?array $state) {
+            /** @var State $state */
+            if ($this->simpleField !== null) {
+                foreach ($this->boundRowsBeforeDehydration as $index) {
+                    if ($state[$index]['target'] === null) {
+                        throw ValidationException::withMessages([
+                            $this->getStatePath() ?? $this->getName() => __(
+                                'A bound field must have a non-null value.',
+                            ),
+                        ]);
+                    }
+                }
+            }
+
+            return $state;
+        });
         $this->rules(fn (self $component) => ['bail', 'array', $component->validateBindings(...)]);
         $this->registerActions([
             fn (self $component) => $component->getBindAction(),
@@ -448,7 +489,6 @@ class FieldBinding extends Field
             fn (self $component) => $component->getAddConstantAction(),
             fn (self $component) => $component->getRemoveConstantAction(),
         ]);
-        $this->mutateDehydratedStateUsing($this->dehydrateBindings(...));
     }
 
     private function renderStaticValues(): void
@@ -458,73 +498,25 @@ class FieldBinding extends Field
         $component->partiallyRender();
     }
 
-    /**
-     * @param array{sources?: array<string, array<string, mixed>>, bindings?: array<string, mixed>, bound?: array<string, bool>, previews?: array<string, mixed>}|null $state
-     * @return list<array<string, mixed>>
-     */
-    private function dehydrateBindings(?array $state, bool $validateTargets = true): array
-    {
-        $sources = $this->decodeSourceSettings($state['sources'] ?? []);
-        $bindings = $state['bindings'] ?? [];
-        $simple = $this->getSimpleField();
-        $boundKeys = $this->getBoundKeys();
-        $rows = [];
-        foreach ($this->getSources() as $source) {
-            $id = $source['id'];
-            $key = $this->getBindingKey($id);
-            $target = null;
-            if (in_array($key, $boundKeys, true)) {
-                $target = $simple !== null ? data_get($bindings[$key], $simple->getName()) : $bindings[$key] ?? [];
-                if ($validateTargets && $simple !== null) {
-                    $this->assertNonNullTarget($target);
-                }
-            }
-            $rows[] = ['kind' => 'source', 'source' => $id, 'target' => $target] + ($sources[$id] ?? []);
-        }
-        foreach ($state['bindings'] ?? [] as $key => $data) {
-            if (self::isConstantKey((string) $key)) {
-                /** @var array{input: array<string, mixed>, output: array<string, mixed>} $data */
-                $target = $simple !== null ? data_get($data['output'], $simple->getName()) : $data['output'];
-                if ($validateTargets && $simple !== null) {
-                    $this->assertNonNullTarget($target);
-                }
-                $rows[] = ['kind' => 'static', 'target' => $target] + $data['input'];
-            }
-        }
-
-        return $rows;
-    }
-
-    private function assertNonNullTarget(mixed $target): void
-    {
-        if ($target === null) {
-            throw ValidationException::withMessages([
-                $this->getStatePath() ?? $this->getName() => __('A bound field must have a non-null value.'),
-            ]);
-        }
-    }
-
     /** @param array<array-key, mixed> $arguments */
     private function bindSource(array $arguments): void
     {
         if ($this->isDisabled()) {
             return;
         }
-
-        $key = $this->getBindingKey($this->validateSource($arguments));
-        $bindings = $this->getBindingState();
-
-        if (in_array($key, $this->getBoundKeys(), true)) {
+        $source = $this->validateSource($arguments);
+        if ($this->isSourceUsed($source)) {
             return;
         }
-
-        $bindings[$key] = [];
-        $this->writeBindingState($bindings);
-        /** @var array{bound: array<string, bool>} $state */
-        $state = $this->getRawState();
-        $state['bound'][$key] = true;
-        $this->rawState($state);
-        $this->getBindings()[$key]->fill();
+        $index = $this->getSourceRowIndexes()[$source];
+        if ($this->simpleField === null) {
+            /** @var State $rows */
+            $rows = $this->getRawState();
+            $rows[$index]['target'] = [];
+            $this->rawState($rows);
+        }
+        $this->getBindingSchema($source)->fill();
+        $this->clearCachedChildSchemas();
         $this->callAfterStateUpdated();
     }
 
@@ -534,13 +526,12 @@ class FieldBinding extends Field
         if ($this->isDisabled()) {
             return;
         }
-
-        $key = $this->getBindingKey($this->validateSource($arguments));
-        /** @var array{bound: array<string, bool>, bindings: array<string, mixed>, previews: array<string, mixed>} $state */
-        $state = $this->getRawState();
-        unset($state['bound'][$key]);
-        $state['bindings'][$key] = $state['previews'][$key];
-        $this->rawState($state);
+        $source = $this->validateSource($arguments);
+        /** @var State $rows */
+        $rows = $this->getRawState();
+        $rows[$this->getSourceRowIndexes()[$source]]['target'] = null;
+        $this->rawState($rows);
+        $this->clearCachedChildSchemas();
         $this->callAfterStateUpdated();
     }
 
@@ -549,20 +540,20 @@ class FieldBinding extends Field
         if ($this->isDisabled() || !$this->hasStaticValues()) {
             return;
         }
-
         $targets = array_column($this->getBindingValues(), 'target');
         $number = 1;
         while (in_array('static_' . $number, $targets, true)) {
             $number++;
         }
-        $key = self::CONSTANT_PREFIX . bin2hex(random_bytes(6));
-        $bindings = $this->getBindingState();
-        $bindings[$key] = [];
-        $this->writeBindingState($bindings);
+        /** @var State $rows */
+        $rows = $this->getRawState() ?? [];
+        $index = count($rows);
+        $rows[] = ['kind' => 'static', 'target' => null, 'static' => '', 'options' => []];
+        $this->rawState($rows);
+        $this->clearCachedChildSchemas();
         $this
-            ->getConstantSchema($key, 'static_' . $number)
-            ->statePath('bindings.' . $key)
-            ->getClone()
+            ->getConstantSchema(self::CONSTANT_PREFIX . $index, 'static_' . $number)
+            ->statePath((string) $index)
             ->fill();
         $this->callAfterStateUpdated();
     }
@@ -573,97 +564,44 @@ class FieldBinding extends Field
         if ($this->isDisabled() || !$this->hasStaticValues()) {
             return;
         }
-
         /** @var array{constant: string} $validated */
         $validated = Validator::make($arguments, [
-            'constant' => ['required', 'string', 'starts_with:' . self::CONSTANT_PREFIX],
+            'constant' => ['required', 'string', Rule::in(array_keys($this->getConstants()))],
         ])->validate();
-        $bindings = $this->getBindingState();
-        unset($bindings[$validated['constant']]);
-        $this->writeBindingState($bindings);
+        /** @var State $rows */
+        $rows = $this->getRawState();
+        unset($rows[$this->constantIndex($validated['constant'])]);
+        $this->rawState(array_values($rows));
+        $this->clearCachedChildSchemas();
         $this->callAfterStateUpdated();
-    }
-
-    /** @return array<string, mixed> */
-    private function getBindingState(): array
-    {
-        /** @var array{bindings?: array<string, mixed>} $state */
-        $state = $this->getRawState() ?? [];
-
-        return $state['bindings'] ?? [];
-    }
-
-    /** @param array<string, mixed> $bindings */
-    private function writeBindingState(array $bindings): void
-    {
-        /** @var array<string, mixed> $state */
-        $state = $this->getRawState() ?? [];
-        $this->rawState([...$state, 'bindings' => $bindings]);
-    }
-
-    /** @return array<string, mixed> */
-    private function getHydratedBindings(): array
-    {
-        $bindings = [];
-        $simple = $this->getSimpleField();
-
-        /** @var State $state */
-        $state = $this->getRawState() ?? [];
-
-        foreach ($state as $entry) {
-            if ($entry['kind'] === 'source' && $entry['target'] === null) {
-                continue;
-            }
-
-            $data = $entry['target'];
-            if ($simple !== null) {
-                $data = [];
-                data_set($data, $simple->getName(), $entry['target']);
-            }
-
-            if ($entry['kind'] === 'static') {
-                $bindings[self::CONSTANT_PREFIX . bin2hex(random_bytes(6))] = [
-                    'input' => Arr::except($entry, ['kind', 'target']),
-                    'output' => $data,
-                ];
-
-                continue;
-            }
-
-            $bindings[$this->getBindingKey($entry['source'])] = $data;
-        }
-
-        return $bindings;
     }
 
     public function isSourceUsed(string $source): bool
     {
-        return in_array($this->getBindingKey($source), $this->getBoundKeys(), true);
+        $index = $this->getSourceRowIndex($source);
+
+        /** @var State $rows */
+        $rows = $this->getRawState() ?? [];
+
+        return $index !== null && $rows[$index]['target'] !== null;
     }
 
     /** @return list<string> */
     private function getBoundKeys(): array
     {
-        $state = $this->getBindingState();
-        /** @var array{bound?: array<string, bool>}|null $rawState */
-        $rawState = $this->getRawState();
-        $bound = $rawState['bound'] ?? [];
-
         $keys = [];
-
-        foreach ($this->getSources() as $source) {
-            $key = $this->getBindingKey($source['id']);
-
-            if (($bound[$key] ?? false) === true && is_array($state[$key] ?? null)) {
-                $keys[] = $key;
+        foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
+            if (!is_array($row) || !isset($row['kind'])) {
+                continue;
             }
-        }
-
-        if ($this->hasStaticValues()) {
-            foreach ($state as $key => $data) {
-                if (self::isConstantKey((string) $key) && is_array($data)) {
-                    $keys[] = (string) $key;
-                }
+            if (
+                $row['kind'] === 'source'
+                && $row['target'] !== null
+                && in_array($row['source'], array_column($this->getSources(), 'id'), true)
+            ) {
+                $keys[] = $this->getBindingKey($row['source']);
+            } elseif ($row['kind'] === 'static' && $this->hasStaticValues()) {
+                $keys[] = self::CONSTANT_PREFIX . $index;
             }
         }
 
@@ -701,89 +639,57 @@ class FieldBinding extends Field
             return;
         }
 
-        $validator = Validator::make(['state' => $value], [
-            'state' => ['array:sources,bindings,bound,previews'],
-            'state.sources' => ['array', Rule::array(array_values($this->getSourceStateKeys()))],
-            'state.sources.*' => ['array'],
-            'state.bindings' => ['array'],
-            'state.previews' => ['array'],
-            'state.bound' => ['present', 'array', Rule::array(array_values($this->getSourceStateKeys()))],
-            'state.bound.*' => ['boolean:strict'],
+        $validator = Validator::make(['rows' => $value], [
+            'rows' => ['array', 'list'],
+            'rows.*' => Rule::forEach(fn (mixed $row) => [Rule::array(
+                is_array($row) && ($row['kind'] ?? null) === 'source'
+                    ? ['kind', 'source', 'target', 'options']
+                    : ['kind', 'target', 'static', 'options'],
+            )]),
+            'rows.*.kind' => ['required', Rule::in($this->hasStaticValues() ? ['source', 'static'] : ['source'])],
+            'rows.*.target' => ['present'],
+            'rows.*.options' => ['present', 'array'],
+            'rows.*.source' => [
+                'required_if:rows.*.kind,source',
+                'string',
+                Rule::in(array_column($this->getSources(), 'id')),
+            ],
+            'rows.*.static' => ['present_if:rows.*.kind,static'],
         ]);
         if ($validator->fails()) {
             $fail($validator->errors()->first())->translate();
 
             return;
         }
-        /** @var array{state: array{bindings?: array<string, mixed>, bound?: array<string, bool>}} $validated */
+        /** @var array{rows: State} $validated */
         $validated = $validator->validated();
-        $value = $validated['state']['bindings'] ?? [];
-        $bound = $validated['state']['bound'] ?? [];
-
-        foreach ($bound as $key => $isBound) {
-            if ($isBound && !array_key_exists($key, $value)) {
-                $fail('The :attribute field contains an invalid binding value.')->translate();
-
-                return;
-            }
-        }
-        $value = array_filter(
-            $value,
-            fn (string $key) => self::isConstantKey($key) || ($bound[$key] ?? false),
-            ARRAY_FILTER_USE_KEY,
-        );
-
-        $sourceKeys = $this->getSourceStateKeys();
-        $keys = array_values($sourceKeys);
-        $outputTargets = [];
-        $simple = $this->getSimpleField();
-
-        foreach ($value as $key => $binding) {
-            $isConstant = $this->hasStaticValues() && self::isConstantKey((string) $key);
-
-            if (!$isConstant && !in_array($key, $keys, true)) {
-                $fail('The :attribute field contains an unknown source.')->translate();
-
-                return;
-            }
-
-            if (!is_array($binding)) {
-                $fail('The :attribute field contains an invalid binding value.')->translate();
-
-                return;
-            }
-
-            if ($isConstant) {
-                $validator = Validator::make([
-                    'input' => $binding['input'] ?? null,
-                    'output' => $binding['output'] ?? null,
-                ], [
-                    'input' => ['required', 'array'],
-                    'output' => ['present', 'array'],
-                ]);
-                if ($validator->fails()) {
-                    $fail($validator->errors()->first())->translate();
+        $value = $validated['rows'];
+        $sources = [];
+        $staticTargets = [];
+        foreach ($value as $row) {
+            if ($row['kind'] === 'source') {
+                $source = $row['source'];
+                if (
+                    isset($sources[$source])
+                ) {
+                    $fail('The :attribute field contains an unknown or duplicate source.')->translate();
 
                     return;
                 }
+                $sources[$source] = true;
             }
-
-            if ($simple !== null) {
-                $destination = data_get($isConstant ? $binding['output'] : $binding, $simple->getName());
-
-                if ($destination === null) {
-                    $fail('A bound field must have a non-null value.')->translate();
+            if ($row['kind'] === 'static' && $this->simpleField !== null) {
+                if ($row['target'] === null || in_array($row['target'], $staticTargets, true)) {
+                    $fail('The :attribute field contains duplicate or null static targets.')->translate();
 
                     return;
                 }
-                if ($isConstant) {
-                    if (in_array($destination, $outputTargets, true)) {
-                        $fail('The :attribute field contains duplicate static targets.')->translate();
+                $staticTargets[] = $row['target'];
+            }
+            if ($row['target'] !== null && $this->simpleField === null && !is_array($row['target'])) {
+                $fail('The :attribute field contains an invalid binding value.')->translate();
 
-                        return;
-                    }
-                    $outputTargets[] = $destination;
-                }
+                return;
             }
         }
     }

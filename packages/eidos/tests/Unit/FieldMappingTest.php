@@ -18,21 +18,30 @@ uses(TestCase::class);
 
 dataset('field mapping mappingValues', [
     'empty mapping' => [[], true],
-    'source entry must declare its kind' => [['title' => 'name'], false],
-    'missing kind' => [['title' => ['source' => 'name']], false],
-    'unknown kind' => [['title' => ['kind' => 'other', 'source' => 'name']], false],
-    'unexpected value on source' => [['title' => [...MappingState::source('name'), 'value' => 'x']], false],
-    'valid mapping' => [['title' => MappingState::source('name')], true],
-    'source reused without permission' => [
-        ['title' => MappingState::source('name'), 'contact' => MappingState::source('name')],
+    'source row must be an array' => [['name'], false],
+    'missing kind' => [[['source' => 'name', 'target' => 'title', 'options' => []]], false],
+    'unknown kind' => [[['kind' => 'other', 'target' => 'title', 'options' => []]], false],
+    'unexpected value on source' => [
+        [[
+            'kind' => 'source',
+            'source' => 'name',
+            'target' => 'title',
+            'options' => [],
+            'value' => 'x',
+        ]],
         false,
     ],
-    'unknown target' => [['missing' => MappingState::source('name')], false],
-    'unknown source' => [['title' => MappingState::source('missing')], false],
-    'numeric source' => [['title' => 0], false],
-    'nested value' => [['title' => ['name']], false],
+    'valid mapping' => [MappingState::mapping(['title' => MappingState::source('name')]), true],
+    'source reused without permission' => [
+        MappingState::mapping(['title' => MappingState::source('name'), 'contact' => MappingState::source('name')]),
+        false,
+    ],
+    'unknown target' => [MappingState::mapping(['missing' => MappingState::source('name')]), false],
+    'unknown source' => [MappingState::mapping(['title' => MappingState::source('missing')]), false],
+    'numeric source' => [[['kind' => 'source', 'source' => 0, 'target' => 'title', 'options' => []]], false],
+    'nested target' => [[['kind' => 'source', 'source' => 'name', 'target' => ['title'], 'options' => []]], false],
     'scalar mapping' => ['name', false],
-    'sequential mapping' => [['name', 'email'], false],
+    'associative mapping' => [['title' => MappingState::source('name')], false],
 ]);
 
 dataset('field mapping typePairs', [
@@ -46,48 +55,63 @@ dataset('field mapping typePairs', [
 dataset('field mapping orientedMappingValues', [
     'forward multiple sources' => [
         false,
-        ['payload' => [MappingState::source('id'), MappingState::source('name')]],
+        MappingState::mapping(['payload' => [MappingState::source('id'), MappingState::source('name')]]),
         true,
     ],
-    'forward one source still uses a list' => [false, ['payload' => [MappingState::source('id')]], true],
-    'forward single destination' => [false, ['enabled' => MappingState::source('active')], true],
-    'forward whole value for item-only source' => [false, ['payload' => MappingState::source('id')], false],
-    'forward list for single destination' => [false, ['enabled' => [MappingState::source('active')]], false],
-    'forward empty list' => [false, ['payload' => []], false],
-    'forward associative list' => [false, ['payload' => ['field' => 'id']], false],
-    'forward nested list' => [false, ['payload' => [[MappingState::source('id')]]], false],
+    'forward one array item' => [false, MappingState::mapping(['payload' => MappingState::source('id')]), true],
+    'forward single destination' => [false, MappingState::mapping(['enabled' => MappingState::source('active')]), true],
+    'forward unbound source' => [false, MappingState::mapping([], [], ['id']), true],
+    'forward missing target' => [false, [['kind' => 'source', 'source' => 'id', 'options' => []]], false],
+    'forward missing options' => [false, [['kind' => 'source', 'source' => 'id', 'target' => 'payload']], false],
+    'forward non-array options' => [
+        false,
+        [['kind' => 'source', 'source' => 'id', 'target' => 'payload', 'options' => 'invalid']],
+        false,
+    ],
+    'forward nested row' => [
+        false,
+        [[['kind' => 'source', 'source' => 'id', 'target' => 'payload', 'options' => []]]],
+        false,
+    ],
     'forward numeric source' => [
         false,
-        ['payload' => [['kind' => 'source', 'source' => 42]]],
+        [['kind' => 'source', 'source' => 42, 'target' => 'payload', 'options' => []]],
         false,
     ],
     'forward duplicate within list' => [
         false,
-        ['payload' => [MappingState::source('id'), MappingState::source('id')]],
+        MappingState::mapping(['payload' => [MappingState::source('id'), MappingState::source('id')]]),
         false,
     ],
     'forward reused source across destinations' => [
         false,
-        ['payload' => [MappingState::source('id')], 'enabled' => MappingState::source('id')],
+        MappingState::mapping(['payload' => MappingState::source('id'), 'enabled' => MappingState::source('id')]),
         false,
     ],
-    'forward unknown source in list' => [false, ['payload' => [MappingState::source('unknown')]], false],
+    'forward unknown source' => [false, MappingState::mapping(['payload' => MappingState::source('unknown')]), false],
     'inverse multiple sources' => [
         true,
-        ['payload' => [MappingState::source('id'), MappingState::source('name')]],
+        MappingState::mapping(['payload' => [MappingState::source('id'), MappingState::source('name')]]),
         true,
     ],
-    'inverse one source' => [true, ['payload' => [MappingState::source('id')]], true],
-    'inverse single destination' => [true, ['enabled' => MappingState::source('active')], true],
+    'inverse one source' => [true, MappingState::mapping(['payload' => MappingState::source('id')]), true],
+    'inverse single destination' => [true, MappingState::mapping(['enabled' => MappingState::source('active')]), true],
     'inverse reused source' => [
         true,
-        ['payload' => [MappingState::source('active')], 'enabled' => MappingState::source('active')],
+        MappingState::mapping([
+            'payload' => MappingState::source('active'),
+            'enabled' => MappingState::source('active'),
+        ]),
         false,
     ],
-    'inverse list for single destination' => [true, ['enabled' => [MappingState::source('active')]], false],
-    'inverse numeric source' => [true, ['enabled' => ['kind' => 'source', 'source' => 42]], false],
-    'inverse unknown source' => [true, ['enabled' => MappingState::source('unknown')], false],
-    'inverse unknown destination' => [true, ['unknown' => MappingState::source('id')], false],
+    'inverse unbound source' => [true, MappingState::mapping([], [], ['id']), true],
+    'inverse numeric source' => [
+        true,
+        [['kind' => 'source', 'source' => 42, 'target' => 'enabled', 'options' => []]],
+        false,
+    ],
+    'inverse unknown source' => [true, MappingState::mapping(['enabled' => MappingState::source('unknown')]), false],
+    'inverse unknown destination' => [true, MappingState::mapping(['unknown' => MappingState::source('id')]), false],
     'inverse scalar state' => [true, 'payload', false],
 ]);
 it('oriented state preserves cardinality and rejects malformed values', function (
@@ -105,7 +129,7 @@ it('oriented state preserves cardinality and rejects malformed values', function
 
     expect(
         $validator
-            ->make(['mapping' => MappingState::encode($field, $value)], ['mapping' => $field->getValidationRules()])
+            ->make(['mapping' => $value], ['mapping' => $field->getValidationRules()])
             ->passes(),
     )
         ->toBe($valid);
@@ -120,18 +144,18 @@ it('required destinations come from the schema in both orientations', function (
         ->inverse($inverse);
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
     $valid = ['payload' => [MappingState::source('id'), MappingState::source('name')]];
-    $missing = ['optional' => MappingState::source('id')];
+    $missing = MappingState::mapping(['optional' => MappingState::source('id')]);
 
     expect($field->getRequiredTargets())->toBe(['payload']);
     expect(
         $validator
-            ->make(['mapping' => MappingState::encode($field, $valid)], ['mapping' => $field->getValidationRules()])
+            ->make(['mapping' => MappingState::mapping($valid)], ['mapping' => $field->getValidationRules()])
             ->passes(),
     )->toBeTrue();
     foreach ([null, [], $missing] as $value) {
         expect(
             $validator
-                ->make(['mapping' => MappingState::encode($field, $value)], ['mapping' => $field->getValidationRules()])
+                ->make(['mapping' => $value], ['mapping' => $field->getValidationRules()])
                 ->passes(),
         )->toBeFalse();
     }
@@ -167,7 +191,7 @@ it('mapping validation rejects unknown identifiers and malformed values', functi
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
     expect(
         $validator
-            ->make(['mapping' => MappingState::encode($field, $value)], ['mapping' => $field->getValidationRules()])
+            ->make(['mapping' => $value], ['mapping' => $field->getValidationRules()])
             ->passes(),
     )
         ->toBe($valid);
@@ -182,7 +206,7 @@ it('schema callbacks change available array destinations reactively', function (
         },
     );
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
-    $state = ['mapping' => MappingState::encode($field, ['title' => [
+    $state = ['mapping' => MappingState::mapping(['title' => [
         MappingState::source('name'),
         MappingState::source('email'),
     ]])];
@@ -206,7 +230,7 @@ it('type compatibility is validated on the server', function (?string $sourceTyp
             $value = ['target' => $multiple ? [MappingState::source('source')] : MappingState::source('source')];
             expect(
                 $validator
-                    ->make(['mapping' => MappingState::encode($field, $value)], [
+                    ->make(['mapping' => MappingState::mapping($value)], [
                         'mapping' => $field->getValidationRules(),
                     ])
                     ->passes(),
@@ -227,14 +251,14 @@ it('validates the output schema without changing the source schema', function ()
     expect($field->getSources()[0]['type'])->toBe('boolean');
     expect(
         $validator
-            ->make(['mapping' => MappingState::encode($field, ['name' => MappingState::source('active')])], [
+            ->make(['mapping' => MappingState::mapping(['name' => MappingState::source('active')])], [
                 'mapping' => $field->getValidationRules(),
             ])
             ->passes(),
     )->toBeTrue();
     expect(
         $validator
-            ->make(['mapping' => MappingState::encode($field, ['enabled' => MappingState::source('active')])], [
+            ->make(['mapping' => MappingState::mapping(['enabled' => MappingState::source('active')])], [
                 'mapping' => $field->getValidationRules(),
             ])
             ->passes(),
@@ -262,7 +286,7 @@ it('uses configured schema constraints for connection modes and server validatio
         expect($field->getConnectionModes()['source']['target'] ?? null)->toBe($allowed ? $mode : null);
         expect(
             $validator
-                ->make(['mapping' => MappingState::encode($field, $value)], [
+                ->make(['mapping' => MappingState::mapping($value)], [
                     'mapping' => $field->getValidationRules(),
                 ])
                 ->passes(),
@@ -341,7 +365,7 @@ it('adds application restrictions to whole and item connections without overridi
     foreach (['allowed' => true, 'blocked' => false, 'wrong_type' => false] as $target => $allowed) {
         expect(
             $validator
-                ->make(['mapping' => MappingState::encode($field, [
+                ->make(['mapping' => MappingState::mapping([
                     $target => MappingState::source('source'),
                 ])], ['mapping' => $field->getValidationRules()])
                 ->passes(),
@@ -387,7 +411,7 @@ it('passes literal field names to connection restrictions for whole and item map
             expect(
                 $validator
                     ->make(
-                        ['mapping' => MappingState::encode($field, [$target => $entry])],
+                        ['mapping' => MappingState::mapping([$target => $entry])],
                         ['mapping' => $field->getValidationRules()],
                     )
                     ->passes(),
@@ -418,12 +442,11 @@ it('accepts an array as a whole value or individual items without mixing them', 
         [['contacts' => MappingState::source('list')], true],
         [['contacts' => [MappingState::source('name'), MappingState::source('email')]], true],
         [['contacts' => [MappingState::source('list'), MappingState::source('name')]], false],
-        [['contacts' => [MappingState::source('list')]], false],
     ];
     foreach ($values as [$value, $valid]) {
         expect(
             $validator
-                ->make(['mapping' => MappingState::encode($field, $value)], ['mapping' => $field->getValidationRules()])
+                ->make(['mapping' => MappingState::mapping($value)], ['mapping' => $field->getValidationRules()])
                 ->passes(),
         )
             ->toBe($valid);
@@ -442,18 +465,11 @@ it('accepts array sources as items only when the destination items are arrays', 
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
     expect(
         $validator
-            ->make(['mapping' => MappingState::encode($field, ['matrix' => [MappingState::source('list')]])], [
+            ->make(['mapping' => MappingState::mapping(['matrix' => MappingState::source('list')])], [
                 'mapping' => $field->getValidationRules(),
             ])
             ->passes(),
     )->toBeTrue();
-    expect(
-        $validator
-            ->make(['mapping' => MappingState::encode($field, ['matrix' => MappingState::source('list')])], [
-                'mapping' => $field->getValidationRules(),
-            ])
-            ->passes(),
-    )->toBeFalse();
 });
 
 it('static values are accepted for every known destination and retain string form validation', function (
@@ -465,17 +481,26 @@ it('static values are accepted for every known destination and retain string for
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
     expect(
         $validator
-            ->make(['mapping' => MappingState::encode($field, $value)], ['mapping' => $field->getValidationRules()])
+            ->make(['mapping' => $value], ['mapping' => $field->getValidationRules()])
             ->passes(),
     )
         ->toBe($valid);
 })->with([
-    [['enabled' => MappingState::value('true')], true],
-    [['enabled' => MappingState::value('')], false],
-    [['enabled' => MappingState::value(true)], true],
-    [['enabled' => []], false],
-    [['enabled' => [...MappingState::value('true'), 'type' => 'boolean']], false],
-    [['other' => MappingState::value('true')], false],
+    'string boolean' => [MappingState::mapping(['enabled' => MappingState::value('true')]), true],
+    'empty value' => [MappingState::mapping(['enabled' => MappingState::value('')]), false],
+    'native boolean' => [MappingState::mapping(['enabled' => MappingState::value(true)]), true],
+    'missing static value' => [[['kind' => 'static', 'target' => 'enabled', 'options' => []]], false],
+    'unexpected type on static' => [
+        [[
+            'kind' => 'static',
+            'target' => 'enabled',
+            'static' => 'true',
+            'options' => [],
+            'type' => 'boolean',
+        ]],
+        false,
+    ],
+    'unknown destination' => [MappingState::mapping(['other' => MappingState::value('true')]), false],
 ]);
 
 it('rejects source settings for identifiers outside the source schema', function () {
@@ -484,7 +509,7 @@ it('rejects source settings for identifiers outside the source schema', function
 
     expect(
         $validator
-            ->make(['mapping' => MappingState::encode($field, [], ['missing' => ['alias' => 'Unknown']])], [
+            ->make(['mapping' => MappingState::mapping([], ['missing' => ['alias' => 'Unknown']])], [
                 'mapping' => $field->getValidationRules(),
             ])
             ->passes(),
@@ -512,7 +537,7 @@ it('uses enum compatibility for connection availability and submitted mappings i
         expect(
             $validator
                 ->make(
-                    ['mapping' => MappingState::encode($field, ['status' => MappingState::source($source)])],
+                    ['mapping' => MappingState::mapping(['status' => MappingState::source($source)])],
                     ['mapping' => $field->getValidationRules()],
                 )
                 ->passes(),

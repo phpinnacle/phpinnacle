@@ -6,61 +6,62 @@ function editor(disabled = false) {
     return fieldBinding({
         disabled,
         sourceKeys: ['name', 'email'],
-        state: {
-            sources: { name: { transforms: [] } },
-            bindings: { name: { destination: 'customer.name' }, email: { destination: '', replacements: [] }, constant_1: { column: 'status', value: 'active' } },
-            bound: { name: true },
-            previews: { name: { destination: '' }, email: { destination: '', replacements: [] } },
-        },
+        state: [
+            { kind: 'source', source: 'name', target: { destination: 'customer.name' }, options: { transforms: [] } },
+            { kind: 'source', source: 'email', target: null, options: {} },
+            { kind: 'static', target: 'status', static: 'active', options: {} },
+        ],
     });
 }
 
-test('binds and unbinds locally while retaining unrelated bindings, settings, and constants', () => {
-    const component = editor();
-    assert.equal(component.boundCount(), 1);
-    component.bind('email');
-    assert.equal(component.boundCount(), 2);
-    assert.equal(component.isBound('email'), true);
-    component.state.bindings.email.destination = 'contact.email';
-    component.state.bindings.email.replacements.push({ search: 'old', replace: 'new' });
-    component.unbind('email');
-    assert.equal(component.boundCount(), 1);
-    assert.deepEqual(component.state.bindings.email, { destination: '', replacements: [] });
-    assert.deepEqual(component.state.bindings.name, { destination: 'customer.name' });
-    assert.deepEqual(component.state.bindings.constant_1, { column: 'status', value: 'active' });
-    assert.deepEqual(component.state.sources, { name: { transforms: [] } });
-    component.bind('email');
-    component.state.bindings.email.replacements.push({ search: 'next', replace: 'value' });
-    assert.deepEqual(component.state.previews.email.replacements, []);
-});
-
-test('repeated bind and unbind operations are idempotent', () => {
-    const component = editor();
-    const original = structuredClone(component.state);
-    component.bind('name');
-    component.unbind('email');
-    assert.deepEqual(component.state, original);
-});
-
-test('unbind restores defaults held in a reactive proxy', () => {
-    const component = editor();
-    component.state.previews.name = new Proxy({ destination: '' }, {});
-    component.unbind('name');
-    assert.deepEqual(component.state.bindings.name, { destination: '' });
-});
-
-test('disabled bindings cannot be bound or unbound', () => {
-    const component = editor(true);
-    const original = structuredClone(component.state);
-    component.bind('email');
-    component.unbind('name');
-    assert.deepEqual(component.state, original);
-});
-
-test('all, bound and unbound filters combine with search without changing editors or constants', () => {
+test('opening a native editor preserves null until a value is entered', () => {
     const component = editor();
     const state = structuredClone(component.state);
-    assert.equal(component.visibilityFilter, 'all');
+    component.edit('email');
+    assert.equal(component.isEditing('email'), true);
+    assert.equal(component.isBound('email'), false);
+    assert.equal(component.boundCount(), 1);
+    assert.deepEqual(component.state, state);
+    component.state[1].target = 'contact.email';
+    assert.equal(component.boundCount(), 2);
+    component.unbind('email');
+    component.closeEditor('email');
+    assert.equal(component.isEditing('email'), false);
+    assert.deepEqual(component.state, state);
+});
+
+test('unbind resets only the native target and keeps settings and static rows', () => {
+    const component = editor();
+    const settings = component.state[0].options;
+    const constant = structuredClone(component.state[2]);
+    component.unbind('name');
+    component.unbind('name');
+    assert.equal(component.state[0].target, null);
+    assert.equal(component.state[0].options, settings);
+    assert.deepEqual(component.state[2], constant);
+});
+
+for (const target of [false, 0, '', [], {}]) {
+    test(`native ${JSON.stringify(target)} is a bound value`, () => {
+        const component = editor();
+        component.state[1].target = target;
+        assert.equal(component.isBound('email'), true);
+        assert.equal(component.boundCount(), 2);
+    });
+}
+
+test('disabled bindings cannot open editors or unbind', () => {
+    const component = editor(true);
+    const original = structuredClone(component.state);
+    component.edit('email');
+    component.unbind('name');
+    assert.equal(component.isEditing('email'), false);
+    assert.deepEqual(component.state, original);
+});
+
+test('filters combine with search without changing native rows', () => {
+    const component = editor();
+    const state = structuredClone(component.state);
     for (const [filter, boundVisible, unboundVisible] of [
         ['all', true, true], ['bound', true, false], ['unbound', false, true],
     ]) {
@@ -76,16 +77,15 @@ test('all, bound and unbound filters combine with search without changing editor
     assert.deepEqual(component.state, state);
 });
 
-test('binding and unbinding immediately update visibility under the active filter', () => {
+test('connection visibility follows the native target after editing', () => {
     const component = editor();
     component.visibilityFilter = 'unbound';
+    component.edit('email');
     assert.equal(component.isVisible('email', 'Email'), true);
-    component.bind('email');
+    component.state[1].target = 'contact.email';
     assert.equal(component.isVisible('email', 'Email'), false);
     component.visibilityFilter = 'bound';
     assert.equal(component.isVisible('email', 'Email'), true);
     component.unbind('email');
     assert.equal(component.isVisible('email', 'Email'), false);
-    component.visibilityFilter = 'all';
-    assert.equal(component.isVisible('email', 'Email'), true);
 });

@@ -1,4 +1,5 @@
 @php
+    use Filament\Support\Enums\Size;
     use Filament\Support\Facades\FilamentAsset;
 
     $sources = $getSources();
@@ -36,27 +37,41 @@
         wire:key="{{ $getId() }}-{{ $configurationKey }}"
         x-load
         x-load-src="{{ FilamentAsset::getAlpineComponentSrc('field-binding', 'phpinnacle/eidos') }}"
-        x-data="fieldBinding({ state: $wire.$entangle('{{ $statePath }}'), disabled: @js($disabled), sourceKeys: @js(array_values($sourceStateKeys)) })"
+        x-data="fieldBinding({ state: $wire.$entangle('{{ $statePath }}'), disabled: @js($disabled), sourceKeys: @js(array_column($sources, 'id')) })"
     >
-        @if ($contained)
-            <div @class(['flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 dark:border-white/10', 'px-3 py-2' => $dense, 'px-5 py-4' => ! $dense])>
-                <fieldset class="eidos-mapping-filter">
-                    <legend class="sr-only">{{ __('phpinnacle-eidos::schema-forms.binding.filter.label') }}</legend>
-                    @foreach (['all', 'bound', 'unbound'] as $filter)
-                        <label>
-                            <input
-                                type="radio"
-                                name="{{ $getId() }}-visibility-filter"
-                                value="{{ $filter }}"
-                                x-model="visibilityFilter"
-                                class="sr-only"
-                                @checked($filter === 'all')
-                            />
-                            <span>{{ __('phpinnacle-eidos::schema-forms.binding.filter.'.$filter) }}</span>
-                        </label>
-                    @endforeach
-                </fieldset>
-                <span class="text-sm text-gray-500 dark:text-gray-400" x-text="@js(__('phpinnacle-eidos::schema-forms.binding.bound_count', ['bound' => '__bound__', 'total' => count($sources)])).replace('__bound__', boundCount())">{{ __('phpinnacle-eidos::schema-forms.binding.bound_count', ['bound' => count($bindings) - count($constants), 'total' => count($sources)]) }}</span>
+        @if ($contained || $getHeaderActions() !== [])
+            <div @class(['eidos-mapping-toolbar flex flex-wrap items-center gap-3', 'border-b border-gray-200 dark:border-white/10' => $contained, 'px-3 py-2' => $dense, 'px-5 py-4' => ! $dense])>
+                @if ($headerActions = $getHeaderActions())
+                    <div class="flex flex-wrap items-center gap-2">
+                        @foreach ($headerActions as $action)
+                            @if ($action->isVisible())
+                                {{ $action->defaultSize($dense ? Size::Small : Size::Medium) }}
+                            @endif
+                        @endforeach
+                    </div>
+                @endif
+
+                @if ($contained)
+                    <div class="ms-auto flex flex-wrap items-center justify-end gap-3">
+                        <span class="text-sm text-gray-500 dark:text-gray-400" x-text="@js(__('phpinnacle-eidos::schema-forms.binding.bound_count', ['bound' => '__bound__', 'total' => count($sources)])).replace('__bound__', boundCount())">{{ __('phpinnacle-eidos::schema-forms.binding.bound_count', ['bound' => count($bindings) - count($constants), 'total' => count($sources)]) }}</span>
+                        <fieldset class="eidos-mapping-filter">
+                            <legend class="sr-only">{{ __('phpinnacle-eidos::schema-forms.binding.filter.label') }}</legend>
+                            @foreach (['all', 'bound', 'unbound'] as $filter)
+                                <label>
+                                    <input
+                                        type="radio"
+                                        name="{{ $getId() }}-visibility-filter"
+                                        value="{{ $filter }}"
+                                        x-model="visibilityFilter"
+                                        class="sr-only"
+                                        @checked($filter === 'all')
+                                    />
+                                    <span>{{ __('phpinnacle-eidos::schema-forms.binding.filter.'.$filter) }}</span>
+                                </label>
+                            @endforeach
+                        </fieldset>
+                    </div>
+                @endif
             </div>
         @endif
 
@@ -96,10 +111,10 @@
                     @endphp
                     <div
                         class="field-binding-columns grid grid-cols-1 items-stretch md:gap-0"
-                        :class="{ 'gap-2': @js($dense) && !isBound(@js($key)), 'gap-3': @js(! $dense) && !isBound(@js($key)) }"
+                        :class="{ 'gap-2': @js($dense) && !isBound(@js($source['id'])), 'gap-3': @js(! $dense) && !isBound(@js($source['id'])) }"
                         wire:key="{{ $getId() }}-{{ $key }}"
                         data-binding-source="{{ $source['id'] }}"
-                        x-show="isVisible(@js($key), @js($searchable ? $searchText : ''))"
+                        x-show="isVisible(@js($source['id']), @js($searchable ? $searchText : ''))"
                     >
                         <div @class([
                             'field-mapping-row relative flex min-w-0 flex-wrap items-start rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900',
@@ -107,7 +122,7 @@
                             'min-h-20 gap-3 px-4 py-3' => ! $dense,
                             'is-mapped' => $binding !== null,
                             'has-warning' => $warning !== null,
-                        ]) :class="{ 'is-mapped': isBound(@js($key)) }">
+                        ]) :class="{ 'is-mapped': isBound(@js($source['id'])) }">
                             <div class="flex w-full items-start gap-2">
                                 <x-phpinnacle-eidos::mapping-item :compact="$compact" :item="$source" :warning="$warning" />
                             </div>
@@ -126,8 +141,8 @@
                             class="field-binding-connection field-connection-control relative flex h-8 w-full items-center justify-center self-center md:col-start-2"
                             aria-label="{{ $unbindLabel }}"
                             title="{{ $unbindLabel }}"
-                            x-show="isBound(@js($key))"
-                            x-on:click="{{ $unbind->getAlpineClickHandler() }}"
+                            x-show="isBound(@js($source['id']))"
+                            x-on:click="closeEditor(@js($source['id'])); $wire.{{ $unbind->getLivewireClickHandler() }}"
                             @if ($binding === null) x-cloak @endif
                             @disabled($unbind->isDisabled())
                         >
@@ -144,10 +159,10 @@
                             </span>
                         </button>
                         <div @class(['relative flex min-w-0 items-start rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900 md:col-start-3', 'min-h-14 gap-2 px-3 py-2' => $dense, 'min-h-20 gap-3 px-4 py-3' => ! $dense])>
-                            <fieldset class="min-w-0 flex-1" :inert="!isBound(@js($key))" :disabled="disabled || !isBound(@js($key))" @if ($binding === null) inert disabled @endif>
+                            <fieldset class="min-w-0 flex-1" :inert="!isEditing(@js($source['id']))" :disabled="disabled || !isEditing(@js($source['id']))" @if ($binding === null) inert disabled @endif>
                                 {{ $getBindingSchema($source['id']) }}
                             </fieldset>
-                            <div class="field-binding-overlay" x-show="!isBound(@js($key))" @if ($binding !== null) x-cloak @endif>
+                            <div class="field-binding-overlay" x-show="!isEditing(@js($source['id']))" @if ($binding !== null) x-cloak @endif>
                                 {{ ($getAction('bind'))(['source' => $source['id']]) }}
                             </div>
                         </div>

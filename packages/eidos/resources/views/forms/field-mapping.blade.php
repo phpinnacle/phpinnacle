@@ -1,4 +1,5 @@
 @php
+    use Filament\Support\Enums\Size;
     use Filament\Support\Facades\FilamentAsset;
 
     $sources = $getSources();
@@ -46,19 +47,19 @@
             '--eidos-right-column: '.$columnSpans[$inverse ? 'source' : 'target'].'fr',
         ]) }}
         wire:key="{{ $getId() }}-{{ $configurationKey }}"
-        @if (! $hasStaticForms() && ! $hasSourceSettings() && ! $hasStaticValues())
+        @if (! $hasStaticForms() && ! $hasSourceSettings() && ! $hasStaticValues() && $getHeaderActions() === [])
             wire:ignore
         @endif
         x-load
         x-load-src="{{ FilamentAsset::getAlpineComponentSrc('field-mapping', 'phpinnacle/eidos') }}"
         x-data="fieldMapping({
             element: $el,
-            state: $wire.{{ $applyStateBindingModifiers("\$entangle('{$statePath}')") }},
+            state: $wire.{{ $hasStaticForms() || $hasSourceSettings() ? "\$entangle('{$statePath}').live" : $applyStateBindingModifiers("\$entangle('{$statePath}')") }},
             disabled: @js($disabled),
             inverse: @js($inverse),
             requiredTargets: @js($requiredTargets),
             connectionModes: @js($connectionModes),
-            stateKeys: @js((object) $stateKeys),
+            sourceRowIndexes: @js((object) $getSourceRowIndexes()),
             staticDefaults: @js((object) $staticDefaults),
         })"
         x-on:keydown.escape.window="cancel()"
@@ -66,32 +67,41 @@
     >
         {!! $staticSchemas['mappingUi']->getComponent('configuration')->toSchemaHtml() !!}
 
-        @if ($contained)
-            <div @class(['flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 dark:border-white/10', 'px-3 py-2' => $dense, 'px-5 py-4' => ! $dense])>
-                <fieldset class="eidos-mapping-filter">
-                    <legend class="sr-only">{{ __('phpinnacle-eidos::schema-forms.mapping.filter.label') }}</legend>
-                    @foreach (['all', 'mapped', 'unmapped'] as $filter)
-                        <label>
-                            <input
-                                type="radio"
-                                name="{{ $getId() }}-visibility-filter"
-                                value="{{ $filter }}"
-                                x-model="visibilityFilter"
-                                class="sr-only"
-                                @checked($filter === 'all')
-                            />
-                            <span>{{ __('phpinnacle-eidos::schema-forms.mapping.filter.'.$filter) }}</span>
-                        </label>
-                    @endforeach
-                </fieldset>
-                <span class="text-sm text-gray-500 dark:text-gray-400">
-                    {!! __('phpinnacle-eidos::schema-forms.mapping.mapped_count', ['mapped' => '<span x-text="mappedTargetCount()"></span>', 'total' => count($targets)]) !!}
-                    @if ($requiredTargets !== [])
-                        <span class="ml-3 text-warning-600 dark:text-warning-400" x-show="missingRequired().length" x-cloak>
-                            {!! __('phpinnacle-eidos::schema-forms.mapping.required_remaining', ['count' => '<span x-text="missingRequired().length"></span>']) !!}
+        @if ($contained || $getHeaderActions() !== [])
+            <div @class(['eidos-mapping-toolbar flex flex-wrap items-center gap-3', 'border-b border-gray-200 dark:border-white/10' => $contained, 'px-3 py-2' => $dense, 'px-5 py-4' => ! $dense])>
+                @if ($headerActions = $getHeaderActions())
+                    <div class="flex flex-wrap items-center gap-2">
+                        @foreach ($headerActions as $action)
+                            @if ($action->isVisible())
+                                {{ $action->defaultSize($dense ? Size::Small : Size::Medium) }}
+                            @endif
+                        @endforeach
+                    </div>
+                @endif
+
+                @if ($contained)
+                    <div class="ms-auto flex flex-wrap items-center justify-end gap-3">
+                        <span class="text-sm" :class="missingRequired().length ? 'text-warning-600 dark:text-warning-400' : 'text-gray-500 dark:text-gray-400'">
+                            {!! __('phpinnacle-eidos::schema-forms.mapping.mapped_count', ['mapped' => '<span x-text="mappedTargetCount()"></span>', 'total' => count($targets)]) !!}
                         </span>
-                    @endif
-                </span>
+                        <fieldset class="eidos-mapping-filter">
+                            <legend class="sr-only">{{ __('phpinnacle-eidos::schema-forms.mapping.filter.label') }}</legend>
+                            @foreach (['all', 'mapped', 'unmapped'] as $filter)
+                                <label>
+                                    <input
+                                        type="radio"
+                                        name="{{ $getId() }}-visibility-filter"
+                                        value="{{ $filter }}"
+                                        x-model="visibilityFilter"
+                                        class="sr-only"
+                                        @checked($filter === 'all')
+                                    />
+                                    <span>{{ __('phpinnacle-eidos::schema-forms.mapping.filter.'.$filter) }}</span>
+                                </label>
+                            @endforeach
+                        </fieldset>
+                    </div>
+                @endif
             </div>
         @endif
 

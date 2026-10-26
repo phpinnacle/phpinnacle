@@ -21,7 +21,18 @@ function editor(state = {}, disabled = false, options = {}) {
     }));
     const connectionModes = structuredClone(options.connectionModes ?? scalarModes);
     const element = { querySelectorAll: (selector) => selector === '[data-mapping-port]' ? ports : [] };
-    const component = fieldMapping({ element, state: { sources: options.sourceSettings ?? {}, targets: state }, disabled, connectionModes, requiredTargets: options.requiredTargets, inverse: options.inverse, stateKeys: options.stateKeys, staticDefaults: options.staticDefaults });
+    const rows = [];
+    for (const [target, mapped] of Object.entries(state ?? {})) {
+        for (const entry of Array.isArray(mapped) ? mapped : [mapped]) {
+            rows.push(entry.kind === 'value'
+                ? { kind: 'static', target, static: entry.value, options: {} }
+                : { kind: 'source', source: entry.source, target, options: structuredClone(options.sourceSettings?.[entry.source] ?? {}) });
+        }
+    }
+    for (const source of ['title', 'email', ...Object.keys(options.sourceSettings ?? {})]) {
+        if (!rows.some(row => row.kind === 'source' && row.source === source)) rows.push({ kind: 'source', source, target: null, options: structuredClone(options.sourceSettings?.[source] ?? {}) });
+    }
+    const component = fieldMapping({ element, state: rows, disabled, connectionModes, requiredTargets: options.requiredTargets, inverse: options.inverse, staticDefaults: options.staticDefaults });
     component.$root = element;
     component.$refs = { canvas: { getBoundingClientRect: () => ({ left: 20, top: 40, width: 500, height: 300 }) } };
     component.$nextTick = (callback) => callback();
@@ -64,15 +75,15 @@ test('native static editors switch modes locally and preserve typed defaults', (
         stateKeys: { name: 'encoded_name', contact: 'encoded_contact' },
         staticDefaults: { name: false },
     });
-    component.setMappings({});
-    assert.deepEqual(component.state.targets, { encoded_name: value(false) });
-    component.state.targets.encoded_name.value = true;
+    component.restoreStaticDefault('name');
+    assert.deepEqual(component.mappings(), { name: value(false) });
+    component.state.find(row => row.kind === 'static' && row.target === 'name').static = true;
     component.connect('title', 'name');
-    assert.deepEqual(component.state.targets, { encoded_name: sourceEntry('title') });
+    assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
     component.refresh();
     assert.deepEqual(component.connections.map(({ source, target }) => ({ source, target })), [{ source: 'title', target: 'name' }]);
     component.remove('name');
-    assert.deepEqual(component.state.targets, { encoded_name: value(false) });
+    assert.deepEqual(component.mappings(), { name: value(false) });
 });
 
 for (const [type, initial, edit] of [
@@ -83,14 +94,14 @@ for (const [type, initial, edit] of [
         const expected = structuredClone(initial);
         const defaults = { name: new Proxy(initial, {}) };
         const component = editor({}, false, { staticDefaults: defaults });
-        component.setMappings({});
+        component.restoreStaticDefault('name');
 
         for (let cycle = 0; cycle < 2; cycle++) {
-            edit(component.state.targets.name.value);
+            edit(component.state.find(row => row.kind === 'static' && row.target === 'name').static);
             assert.deepEqual(defaults.name, expected);
             component.connect('title', 'name');
             component.remove('name');
-            assert.deepEqual(component.state.targets.name, value(expected));
+            assert.deepEqual(component.mappings().name, value(expected));
         }
     });
 }
@@ -101,7 +112,7 @@ for (const value of [null, '', false, 0, []]) {
             staticDefaults: { name: value }, requiredTargets: ['name'],
         });
         component.remove('name', 'title');
-        assert.deepEqual(component.state.targets, { name: { kind: 'value', value } });
+        assert.deepEqual(component.mappings(), { name: { kind: 'value', value } });
         assert.equal(component.isMapped('target', 'name'), true);
         assert.equal(component.mappedTargetCount(), 1);
         assert.deepEqual(component.missingRequired(), []);
@@ -117,11 +128,11 @@ test('connects by selecting fields in either order and appends sources to a mult
     component.select('target', 'name');
     component.select('target', 'name');
     component.select('source', 'email');
-    assert.deepEqual(component.state.targets, { name: [sourceEntry('title'), sourceEntry('email')] });
+    assert.deepEqual(component.mappings(), { name: [sourceEntry('title'), sourceEntry('email')] });
     component.remove('name', 'email');
     component.select('source', 'email');
     component.select('target', 'contact');
-    assert.deepEqual(component.state.targets, { name: [sourceEntry('title')], contact: sourceEntry('email') });
+    assert.deepEqual(component.mappings(), { name: [sourceEntry('title')], contact: sourceEntry('email') });
     assert.equal(component.selected, null);
 });
 
@@ -131,7 +142,7 @@ test('removing a connection frees a source and connecting the same pair is allow
     component.remove('name');
     assert.equal(component.isDisabled('source', 'title'), false);
     component.connect('title', 'contact');
-    assert.deepEqual(component.state.targets, { contact: sourceEntry('title') });
+    assert.deepEqual(component.mappings(), { contact: sourceEntry('title') });
 });
 
 for (const inverse of [false, true]) {
@@ -155,7 +166,7 @@ for (const inverse of [false, true]) {
         component.select('source', 'email');
         assert.equal(component.rowClasses('target', 'name', false)['is-incompatible'], true);
         assert.equal(component.rowClasses('target', 'contact', false)['is-incompatible'], true);
-        assert.deepEqual(component.state.targets, state);
+        assert.deepEqual(component.mappings(), state);
     });
 }
 
@@ -163,18 +174,18 @@ test('multiple permission applies only to listed destinations and still enforces
     const component = editor({}, false, { connectionModes: itemModes });
     component.connect('title', 'name');
     component.connect('email', 'name');
-    assert.deepEqual(component.state.targets, { name: [sourceEntry('title'), sourceEntry('email')] });
+    assert.deepEqual(component.mappings(), { name: [sourceEntry('title'), sourceEntry('email')] });
     assert.equal(component.isDisabled('source', 'title'), true);
     component.connect('title', 'contact');
-    assert.deepEqual(component.state.targets, { name: [sourceEntry('title'), sourceEntry('email')] });
+    assert.deepEqual(component.mappings(), { name: [sourceEntry('title'), sourceEntry('email')] });
     component.remove('name');
     component.connect('title', 'contact');
     component.connect('email', 'contact');
-    assert.deepEqual(component.state.targets, { contact: sourceEntry('email') });
+    assert.deepEqual(component.mappings(), { contact: sourceEntry('email') });
 
     delete component.connectionModes.title.name;
     component.connect('title', 'name');
-    assert.deepEqual(component.state.targets, { contact: sourceEntry('email') });
+    assert.deepEqual(component.mappings(), { contact: sourceEntry('email') });
 });
 
 test('occupied source ports cannot be selected or connected from a destination port', () => {
@@ -184,7 +195,7 @@ test('occupied source ports cannot be selected or connected from a destination p
         component.fieldBindings(side, id)['@click']();
         if (side === 'source') assert.equal(component.selected, null);
         component.fieldBindings(side === 'source' ? 'target' : 'source', side === 'source' ? 'contact' : 'title')['@click']();
-        assert.deepEqual(component.state.targets, { name: sourceEntry('title') });
+        assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
     }
 });
 
@@ -204,7 +215,7 @@ test('field controls track source locks, selection, and read-only state after cr
     source['@click']();
     assert.equal(source[':aria-pressed'](), true);
     target['@click']();
-    assert.deepEqual(component.state.targets, { contact: sourceEntry('title') });
+    assert.deepEqual(component.mappings(), { contact: sourceEntry('title') });
     assert.equal(source[':disabled'](), true);
     assert.equal(source[':aria-pressed'](), false);
 
@@ -230,14 +241,14 @@ for (const inverse of [false, true]) {
             assert.equal(candidate[':aria-disabled'](), true);
             candidate['@click']();
             candidate['@click']();
-            assert.deepEqual(component.state.targets, {});
+            assert.deepEqual(component.mappings(), {});
             assert.deepEqual(component.selected, { side: firstSide, id: firstId });
             assert.equal(component.announcement, announcement);
             assert.equal(component.rowClasses('source', 'title', false)['has-type-conflict'], false);
 
             component.connectionModes.title.name = 'whole';
             candidate['@click']();
-            assert.deepEqual(component.state.targets, { name: sourceEntry('title') });
+            assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
             assert.equal(component.selected, null);
         });
     }
@@ -255,8 +266,8 @@ test('separate editors keep their state and port geometry independent', () => {
     assert.equal(first.connections.length, 0);
     assert.equal(second.connections.length, 1);
     first.remove('name');
-    assert.deepEqual(first.state.targets, {});
-    assert.deepEqual(second.state.targets, { name: sourceEntry('title') });
+    assert.deepEqual(first.mappings(), {});
+    assert.deepEqual(second.mappings(), { name: sourceEntry('title') });
 });
 
 test('read-only fields do not change state through selection, port clicks, or removal', () => {
@@ -266,7 +277,7 @@ test('read-only fields do not change state through selection, port clicks, or re
     component.remove('name');
     component.fieldBindings('source', 'email')['@click']();
     component.fieldBindings('target', 'name')['@click']();
-    assert.deepEqual(component.state.targets, { name: sourceEntry('title') });
+    assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
     assert.equal(component.selected, null);
 });
 
@@ -290,7 +301,7 @@ for (const inverse of [false, true]) {
                 component[side === 'source' ? 'sourceSearch' : 'targetSearch'] = '';
             }
         }
-        assert.deepEqual(component.state.targets, state);
+        assert.deepEqual(component.mappings(), state);
         component.visibilityFilter = 'all';
         assert.equal(component.isVisible('source', 'email', 'Other field'), true);
     });
@@ -308,7 +319,7 @@ test('static target values count as mapped and follow changes without modifying 
     assert.equal(component.isVisible('source', 'title', 'Title'), false);
     component.remove('name');
     assert.equal(component.isVisible('source', 'title', 'Title'), true);
-    assert.deepEqual(component.state.targets, {});
+    assert.deepEqual(component.mappings(), {});
 });
 
 test('line endpoints follow the actual ports and hidden ports do not produce lines', () => {
@@ -319,7 +330,7 @@ test('line endpoints follow the actual ports and hidden ports do not produce lin
     component.port('target', 'name').getBoundingClientRect = () => ({ left: 0, top: 0, width: 0, height: 0 });
     component.refresh();
     assert.deepEqual(component.connections.map((connection) => connection.target), ['contact']);
-    assert.deepEqual(component.state.targets, { name: sourceEntry('title'), contact: sourceEntry('email') });
+    assert.deepEqual(component.mappings(), { name: sourceEntry('title'), contact: sourceEntry('email') });
 });
 
 test('line endpoints follow visible anchors when their centers differ from the port buttons', () => {
@@ -346,7 +357,7 @@ test('unknown identifiers cannot replace existing connections', () => {
     component.connect('unknown', 'name');
     component.connect('title', 'unknown');
     component.refresh();
-    assert.deepEqual(component.state.targets, { name: sourceEntry('title') });
+    assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
     assert.equal(component.connections.length, 1);
 });
 
@@ -355,11 +366,11 @@ test('port clicks draw a connection only after both endpoints are selected', () 
     component.fieldBindings('source', 'title')['@click']();
     component.refresh();
     assert.deepEqual(component.selected, { side: 'source', id: 'title' });
-    assert.deepEqual(component.state.targets, {});
+    assert.deepEqual(component.mappings(), {});
     assert.deepEqual(component.connections, []);
     component.fieldBindings('target', 'name')['@click']();
     component.refresh();
-    assert.deepEqual(component.state.targets, { name: sourceEntry('title') });
+    assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
     assert.equal(component.selected, null);
     assert.equal(component.connections.length, 1);
     assert.match(component.connections[0].path, /^M 88 48 .*388 48$/);
@@ -369,12 +380,12 @@ test('destination port clicks also connect and a repeated click cancels selectio
     const component = editor();
     component.fieldBindings('target', 'name')['@click']();
     component.fieldBindings('source', 'title')['@click']();
-    assert.deepEqual(component.state.targets, { name: sourceEntry('title') });
+    assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
     component.fieldBindings('target', 'name')['@click']();
     assert.deepEqual(component.selected, { side: 'target', id: 'name' });
     component.fieldBindings('target', 'name')['@click']();
     assert.equal(component.selected, null);
-    assert.deepEqual(component.state.targets, { name: sourceEntry('title') });
+    assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
 });
 
 test('Escape cancels selection and ignores incompatible clicks without changing mappings', () => {
@@ -386,7 +397,7 @@ test('Escape cancels selection and ignores incompatible clicks without changing 
     component.cancel();
     assert.equal(component.selected, null);
     assert.equal(component.isIncompatible('target', 'name'), false);
-    assert.deepEqual(component.state.targets, {});
+    assert.deepEqual(component.mappings(), {});
 });
 
 test('required destination progress follows connections and removal', () => {
@@ -406,9 +417,9 @@ test('incompatible selections are ignored without replacing an existing connecti
     assert.equal(component.isIncompatible('target', 'name'), false);
     assert.equal(component.isIncompatible('target', 'contact'), true);
     component.select('target', 'contact');
-    assert.deepEqual(component.state.targets, { contact: sourceEntry('email') });
+    assert.deepEqual(component.mappings(), { contact: sourceEntry('email') });
     component.select('target', 'name');
-    assert.deepEqual(component.state.targets, { contact: sourceEntry('email'), name: sourceEntry('title') });
+    assert.deepEqual(component.mappings(), { contact: sourceEntry('email'), name: sourceEntry('title') });
 });
 
 test('server connection modes identify existing conflicts and allow compatible replacements', () => {
@@ -418,7 +429,7 @@ test('server connection modes identify existing conflicts and allow compatible r
     assert.equal(component.hasTypeConflict('name'), true);
     component.connect('email', 'name');
     component.connect('title', 'contact');
-    assert.deepEqual(component.state.targets, { name: sourceEntry('email'), contact: sourceEntry('title') });
+    assert.deepEqual(component.mappings(), { name: sourceEntry('email'), contact: sourceEntry('title') });
     assert.equal(component.hasTypeConflict('name'), false);
 });
 
@@ -435,16 +446,16 @@ for (const inverse of [false, true]) {
         assert.equal(component.mappedTargetCount(), 1);
         assert.deepEqual(component.missingRequired(), []);
         component.connect('title', 'name');
-        assert.deepEqual(component.state.targets, state);
+        assert.deepEqual(component.mappings(), state);
         component.remove('name', 'title');
-        assert.deepEqual(component.state.targets, { name: [sourceEntry('email')] });
+        assert.deepEqual(component.mappings(), { name: [sourceEntry('email')] });
         assert.equal(component.isDisabled('source', 'title'), false);
         assert.equal(component.isDisabled('source', 'email'), true);
         assert.deepEqual(component.missingRequired(), []);
 
         component.connect('title', 'contact');
         component.remove('name');
-        assert.deepEqual(component.state.targets, { contact: sourceEntry('title') });
+        assert.deepEqual(component.mappings(), { contact: sourceEntry('title') });
         assert.deepEqual(component.missingRequired(), ['name']);
     });
 
@@ -454,7 +465,7 @@ for (const inverse of [false, true]) {
         component.refresh();
         assert.equal(component.connections.length, 1);
         component.fieldBindings('source', 'email')['@click']();
-        assert.deepEqual(component.state.targets, { name: [sourceEntry('title'), sourceEntry('email')] });
+        assert.deepEqual(component.mappings(), { name: [sourceEntry('title'), sourceEntry('email')] });
         component.refresh();
         assert.equal(component.connections.length, 2);
         const connection = component.connections.find(({ source }) => source === 'email');
@@ -471,7 +482,7 @@ for (const inverse of [false, true]) {
         component.remove('name', 'email');
         assert.equal(component.hasTypeConflict('name'), false);
         component.connect('email', 'name');
-        assert.deepEqual(component.state.targets, { name: [sourceEntry('title')] });
+        assert.deepEqual(component.mappings(), { name: [sourceEntry('title')] });
     });
 
     test(`${mode}: removing the final line removes its state key and read-only mode preserves all lines`, () => {
@@ -479,10 +490,10 @@ for (const inverse of [false, true]) {
         const component = editor(state, true, { inverse, connectionModes: itemModes });
         component.connect('email', 'name');
         component.remove('name', 'title');
-        assert.deepEqual(component.state.targets, state);
+        assert.deepEqual(component.mappings(), state);
         component.disabled = false;
         component.remove('name', 'title');
-        assert.deepEqual(component.state.targets, {});
+        assert.deepEqual(component.mappings(), {});
         assert.equal(component.isMapped('target', 'name'), false);
     });
 }
@@ -499,7 +510,7 @@ test('inverse: destination selection follows the same rules as the forward layou
     assert.equal(component.isDisabled('target', 'contact'), false);
     component.select('target', 'name');
     component.select('source', 'email');
-    assert.deepEqual(component.state.targets, { name: [sourceEntry('title'), sourceEntry('email')] });
+    assert.deepEqual(component.mappings(), { name: [sourceEntry('title'), sourceEntry('email')] });
 });
 
 test('empty Livewire state can be connected in either orientation', () => {
@@ -509,7 +520,7 @@ test('empty Livewire state can be connected in either orientation', () => {
             component.refresh();
             assert.deepEqual(component.connections, []);
             component.connect('title', 'name');
-            assert.deepEqual(component.state.targets, { name: [sourceEntry('title')] });
+            assert.deepEqual(component.mappings(), { name: [sourceEntry('title')] });
         }
     }
 });
@@ -529,12 +540,13 @@ test('a static value occupies a destination without drawing a line or locking a 
 
 test('inline static edits are reflected in mappings and connections replace their editor', () => {
     const component = editor({ contact: sourceEntry('email'), name: value('') });
-    component.state.targets.contact = value('x');
+    component.state.find(row => row.kind === 'source' && row.source === 'email').target = null;
+    component.state.push({ kind: 'static', target: 'contact', static: 'x', options: {} });
 
     component.connect('title', 'name');
-    assert.deepEqual(component.state.targets, { contact: value('x'), name: sourceEntry('title') });
+    assert.deepEqual(component.mappings(), { contact: value('x'), name: sourceEntry('title') });
     component.remove('contact');
-    assert.deepEqual(component.state.targets, { name: sourceEntry('title') });
+    assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
 });
 
 for (const inverse of [false, true]) {
@@ -542,7 +554,7 @@ for (const inverse of [false, true]) {
         const component = editor({ name: value('Customer') }, true, { inverse });
         component.connect('title', 'name');
         component.remove('name');
-        assert.deepEqual(component.state.targets, { name: value('Customer') });
+        assert.deepEqual(component.mappings(), { name: value('Customer') });
     });
 }
 
@@ -552,19 +564,19 @@ for (const inverse of [false, true]) {
             title: { name: 'whole' }, email: { name: 'item' },
         } });
         component.connect('email', 'name');
-        assert.deepEqual(component.state.targets, { name: [sourceEntry('email')] });
+        assert.deepEqual(component.mappings(), { name: [sourceEntry('email')] });
         assert.equal(component.targetMode('name'), 'item');
         component.connect('title', 'name');
-        assert.deepEqual(component.state.targets, { name: sourceEntry('title') });
+        assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
         assert.equal(component.targetMode('name'), 'whole');
         assert.equal(component.isDisabled('source', 'email'), false);
         assert.equal(component.isDisabled('target', 'name'), false);
         component.refresh();
         assert.equal(component.connections.length, 1);
         component.remove('name', 'title');
-        assert.deepEqual(component.state.targets, {});
+        assert.deepEqual(component.mappings(), {});
         component.connect('email', 'name');
-        assert.deepEqual(component.state.targets, { name: [sourceEntry('email')] });
+        assert.deepEqual(component.mappings(), { name: [sourceEntry('email')] });
     });
 }
 
@@ -577,8 +589,8 @@ for (const inverse of [false, true]) {
         component.remove('name', 'email');
         component.connect('email', 'contact');
         component.remove('name');
-        assert.deepEqual(component.state.sources, sourceSettings);
-        assert.deepEqual(component.state.targets, { contact: sourceEntry('email') });
+        assert.deepEqual(Object.fromEntries(component.state.filter(row => row.kind === 'source').map(row => [row.source, row.options])), sourceSettings);
+        assert.deepEqual(component.mappings(), { contact: sourceEntry('email') });
     });
 }
 
@@ -596,9 +608,9 @@ for (const inverse of [false, true]) {
             assert.equal(component.fieldBindings('target', 'name')[':aria-disabled'](), true);
             assert.equal(component.rowClasses('target', 'contact', false)['is-compatible'], true);
             component.select('target', 'name');
-            assert.deepEqual(component.state.targets, state);
+            assert.deepEqual(component.mappings(), state);
             component.select('target', 'contact');
-            assert.deepEqual(component.state.targets, { name: occupied, contact: sourceEntry('email') });
+            assert.deepEqual(component.mappings(), { name: occupied, contact: sourceEntry('email') });
             assert.equal(component.rowClasses('target', 'name', false)['is-incompatible'], false);
             assert.equal(component.rowClasses('target', 'contact', false)['is-compatible'], false);
         });
@@ -655,10 +667,10 @@ for (const inverse of [false, true]) {
             assert.deepEqual(component.selected, { side: firstSide, id: firstId });
             component.selectFromCard(control, secondSide, secondId);
             assert.deepEqual(component.selected, { side: firstSide, id: firstId });
-            assert.deepEqual(component.state.targets, {});
+            assert.deepEqual(component.mappings(), {});
             component.selectFromCard(emptySpace, secondSide, secondId);
             assert.equal(component.selected, null);
-            assert.deepEqual(component.state.targets, { contact: sourceEntry('email') });
+            assert.deepEqual(component.mappings(), { contact: sourceEntry('email') });
         });
     }
 }
@@ -676,7 +688,7 @@ test('custom interactive areas preserve a pending connection without knowing the
     component.select('source', 'email');
     component.selectFromCard(event, 'target', 'contact');
     assert.deepEqual(component.selected, { side: 'source', id: 'email' });
-    assert.deepEqual(component.state.targets, {});
+    assert.deepEqual(component.mappings(), {});
 });
 
 test('an interactive group outside the card does not block empty card clicks', () => {
@@ -688,16 +700,48 @@ test('an interactive group outside the card does not block empty card clicks', (
     assert.deepEqual(component.selected, { side: 'source', id: 'email' });
 });
 
-test('static source cards use local connections and retain their values and settings after disconnecting', () => {
-    const component = editor({}, false, { sourceSettings: { encoded_static: { transforms: [] } } });
-    component.state.constants = { title: { static: 'Customer' } };
+test('static source rows keep native values and settings when connecting and disconnecting', () => {
+    const component = editor();
+    component.state = [
+        { kind: 'static', target: null, static: 'Customer', options: { transforms: [] } },
+        { kind: 'source', source: 'email', target: null, options: {} },
+    ];
+    component.sourceRowIndexes = { title: 0, email: 1 };
     component.connect('title', 'name');
-    assert.deepEqual(component.state.targets, { name: sourceEntry('title') });
-    assert.deepEqual(component.state.constants, { title: { static: 'Customer' } });
-    component.remove('name', 'title');
-    assert.deepEqual(component.state.targets, {});
-    assert.deepEqual(component.state.constants, { title: { static: 'Customer' } });
-    assert.deepEqual(component.state.sources, { encoded_static: { transforms: [] } });
+    assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
+    assert.deepEqual(component.state[0], { kind: 'static', target: 'name', static: 'Customer', options: { transforms: [] } });
+    component.remove('name');
+    assert.deepEqual(component.mappings(), {});
+    assert.deepEqual(component.state[0], { kind: 'static', target: null, static: 'Customer', options: { transforms: [] } });
     component.connect('title', 'contact');
-    assert.deepEqual(component.state.targets, { contact: sourceEntry('title') });
+    assert.deepEqual(component.mappings(), { contact: sourceEntry('title') });
+});
+
+test('static source identities follow row removal and item connection order', () => {
+    const component = editor({}, false, { connectionModes: itemModes, staticDefaults: { name: false } });
+    const constant = { kind: 'static', target: null, static: false, options: { transforms: [{ type: 'cast' }] } };
+    const email = { kind: 'source', source: 'email', target: null, options: { alias: 'Contact' } };
+    component.state = [
+        { kind: 'static', target: 'name', static: false, options: {} },
+        constant,
+        email,
+    ];
+    component.sourceRowIndexes = { title: 1, email: 2 };
+
+    component.connect('title', 'name');
+    assert.deepEqual(component.state, [email, { ...constant, target: 'name' }]);
+    component.connect('email', 'name');
+    assert.deepEqual(component.mappings(), { name: [sourceEntry('title'), sourceEntry('email')] });
+
+    component.remove('name', 'title');
+    assert.deepEqual(component.mappings(), { name: [sourceEntry('email')] });
+    component.connect('title', 'name');
+    assert.deepEqual(component.mappings(), { name: [sourceEntry('email'), sourceEntry('title')] });
+    component.remove('name');
+    assert.deepEqual(component.state, [
+        { kind: 'source', source: 'email', target: null, options: { alias: 'Contact' } },
+        { kind: 'static', target: null, static: false, options: { transforms: [{ type: 'cast' }] } },
+        { kind: 'static', target: 'name', static: false, options: {} },
+    ]);
+    assert.deepEqual(component.mappings(), { name: value(false) });
 });

@@ -53,15 +53,10 @@ it('applies matching column spans to binding headings and rows without changing 
 it('renders unbound forms without submitting their editor drafts', function (bool $complex) {
     $page = Livewire::test(FieldBindingForm::class, ['complex' => $complex]);
     $field = $page->instance()->form->getComponent('bindings');
-    $key = $field->getBindingKey('name');
 
     expect(substr_count($page->html(), 'class="field-binding-overlay"'))->toBe(6);
     expect(substr_count($page->html(), 'type="text"'))->toBe(6);
     expect($page->html())->not->toContain('heroicon-m-arrow-right');
-
-    if ($complex) {
-        expect($field->getBindingSchema('name')->getComponent('trim')->getState())->toBeTrue();
-    }
 
     $page
         ->call('submit')
@@ -69,8 +64,11 @@ it('renders unbound forms without submitting their editor drafts', function (boo
         ->assertSet('saved.bindings', MappingState::binding([], [], array_column($field->getSources(), 'id')));
     $page->callAction(TestAction::make('bind')->schemaComponent('bindings', 'form')->arguments(['source' => 'name']));
 
-    $page->assertSet("data.bindings.bound.{$key}", true);
-    $page->set("data.bindings.bindings.{$key}.destination", '')->call('submit')->assertHasErrors();
+    $page->assertSet('data.bindings.0.target', $complex ? ['destination' => null, 'trim' => true] : 'name');
+    $page
+        ->set('data.bindings.0.target' . ($complex ? '.destination' : ''), '')
+        ->call('submit')
+        ->assertHasErrors();
 
     $page
         ->callAction(TestAction::make('unbind')->schemaComponent('bindings', 'form')->arguments(['source' => 'name']))
@@ -86,7 +84,6 @@ it('binds, edits, validates, and unbinds across Livewire requests', function (bo
     $binding = $complex ? ['destination' => 'profile.name', 'trim' => true] : 'profile.name';
 
     $page = Livewire::test(FieldBindingForm::class, ['complex' => $complex]);
-    $key = $page->instance()->form->getComponent('bindings')->getBindingKey('name');
 
     $page
         ->assertSee('aria-label="Bind"', false)
@@ -94,10 +91,10 @@ it('binds, edits, validates, and unbinds across Livewire requests', function (bo
         ->assertSee('1 of 6 sources bound')
         ->assertSee('aria-label="Unbind Customer name"', false)
         ->assertSee('field-binding-connection')
-        ->set("data.bindings.bindings.{$key}.destination", '')
+        ->set('data.bindings.0.target' . ($complex ? '.destination' : ''), '')
         ->call('submit')
         ->assertHasErrors()
-        ->set("data.bindings.bindings.{$key}.destination", 'profile.name')
+        ->set('data.bindings.0.target' . ($complex ? '.destination' : ''), 'profile.name')
         ->call('submit')
         ->assertHasNoErrors()
         ->assertSet('saved.bindings', MappingState::binding(
@@ -122,12 +119,9 @@ it('validates deferred bindings and submits only bound forms', function (bool $c
 
     $page = Livewire::test(FieldBindingForm::class, ['complex' => $complex]);
     $field = $page->instance()->form->getComponent('bindings');
-    $nameKey = $field->getBindingKey('name');
-    $emailKey = $field->getBindingKey('email');
 
     $page
-        ->set("data.bindings.bindings.{$nameKey}.destination", 'profile.name')
-        ->set("data.bindings.bound.{$nameKey}", true)
+        ->set('data.bindings.0.target', $name)
         ->call('submit')
         ->assertHasNoErrors()
         ->assertSet('saved.bindings', MappingState::binding(
@@ -135,12 +129,11 @@ it('validates deferred bindings and submits only bound forms', function (bool $c
             [],
             array_column($field->getSources(), 'id'),
         ))
-        ->set("data.bindings.bound.{$emailKey}", true)
-        ->set("data.bindings.bindings.{$emailKey}.destination", '')
+        ->set('data.bindings.2.target' . ($complex ? '.destination' : ''), '')
         ->call('submit')
         ->assertHasErrors()
-        ->set("data.bindings.bindings.{$emailKey}.destination", 'contact.email')
-        ->set("data.bindings.bound.{$nameKey}", false)
+        ->set('data.bindings.2.target', $email)
+        ->set('data.bindings.0.target', null)
         ->call('submit')
         ->assertHasNoErrors()
         ->assertSet('saved.bindings', MappingState::binding(
@@ -155,11 +148,10 @@ it('loads existing bindings and edits them across Livewire requests', function (
     $edited = $complex ? ['destination' => 'customer.name', 'trim' => false] : 'customer.name';
 
     $page = Livewire::test(FieldBindingForm::class, ['complex' => $complex, 'bindings' => ['name' => $original]]);
-    $key = $page->instance()->form->getComponent('bindings')->getBindingKey('name');
 
     $page
         ->assertSee('1 of 6 sources bound')
-        ->set("data.bindings.bindings.{$key}.destination", 'customer.name')
+        ->set('data.bindings.0.target' . ($complex ? '.destination' : ''), 'customer.name')
         ->call('submit')
         ->assertHasNoErrors()
         ->assertSet('saved.bindings', MappingState::binding(
@@ -195,8 +187,8 @@ it('round trips native non-null simple values and restores field defaults after 
         ->simple($input);
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $rows = [
-        ['kind' => 'source', 'source' => 'name', 'target' => $value],
-        ['kind' => 'source', 'source' => 'email', 'target' => null],
+        ['kind' => 'source', 'source' => 'name', 'target' => $value, 'options' => []],
+        ['kind' => 'source', 'source' => 'email', 'target' => null, 'options' => []],
     ];
     $schema->fill(['bindings' => $rows]);
     expect($schema->getState()['bindings'])->toBe($rows);
@@ -212,14 +204,16 @@ it('round trips native non-null simple values and restores field defaults after 
     'object values' => ['object', ['value' => 'literal', 'other' => 'entry']],
 ]);
 
-it('rejects a null value only while its simple binding is bound', function () {
+it('leaves a native null default unbound until the editor receives a value', function () {
     $field = FieldBinding::make('bindings')
         ->jsonSchema(['properties' => ['name' => []]])
         ->simple(Select::make('value')->options(['a' => 'A'])->default(null));
     $schema = field_binding_schema($field);
     expect($schema->getState()['bindings'][0]['target'])->toBeNull();
     $field->getAction('bind')(['source' => 'name'])->call();
-    expect($schema->getState(...))->toThrow(ValidationException::class);
+    expect($schema->getState()['bindings'][0]['target'])->toBeNull();
+    $field->getBindingSchema('name')->getComponent('value')->state('a');
+    expect($schema->getState()['bindings'][0]['target'])->toBe('a');
 });
 
 it('rejects null produced by native simple field dehydration', function () {
@@ -253,7 +247,7 @@ it('renders accessible local connection controls for every source', function (bo
     preg_match('/<button[^>]*aria-label="Unbind Customer name"[^>]*>/s', $html, $matches);
     expect($matches)->toHaveCount(1);
     expect((bool) preg_match('/\sdisabled(?:\s|=|>)/', $matches[0]))->toBe($disabled);
-    expect($matches[0])->toContain('x-on:click="unbind(')->not->toContain('wire:click');
+    expect($matches[0])->toContain('x-on:click="closeEditor(');
 })->with([false, true]);
 
 it('only filters bindings by search when enabled, including closure configuration', function () {
@@ -286,10 +280,9 @@ it('supports partial updates to a child binding field', function () {
         ->simple(TextInput::make('destination')->required());
     $schema = field_binding_schema($field, ['name' => 'profile.name']);
 
-    $key = $field->getBindingKey('name');
     $schema->fillPartially(
-        ['bindings' => ['bindings' => [$key => ['destination' => 'customer.name']]]],
-        ["bindings.bindings.{$key}.destination"],
+        ['bindings' => [['target' => 'customer.name']]],
+        ['bindings.0.target'],
     );
 
     expect($schema->getState()['bindings'])
@@ -401,7 +394,7 @@ it('refreshes available sources without discarding a binding that became unavail
     expect($schema->getState(...))->toThrow(ValidationException::class);
 });
 
-it('does not submit drafts for sources that are no longer available', function () {
+it('rejects native rows whose source is no longer available', function () {
     $sources = ['name', 'email'];
     $field = FieldBinding::make('bindings')
         ->jsonSchema(function () use (&$sources) {
@@ -411,8 +404,7 @@ it('does not submit drafts for sources that are no longer available', function (
     $schema = field_binding_schema($field);
     $sources = ['email'];
 
-    expect($schema->getState()['bindings'])
-        ->toBe(MappingState::binding([], [], array_column($field->getSources(), 'id')));
+    expect($schema->getState(...))->toThrow(ValidationException::class);
 });
 
 it('prepares defaults for newly available source forms without binding them', function () {
@@ -427,7 +419,7 @@ it('prepares defaults for newly available source forms without binding them', fu
     view()->share('errors', new ViewErrorBag);
     $schema->toHtml();
 
-    expect($field->getBindingSchema('email')->getComponent('destination')->getState())->toBe('profile.email');
+    expect($field->isSourceUsed('email'))->toBeFalse();
     expect($schema->getState()['bindings'])
         ->toBe(MappingState::binding([], [], array_column($field->getSources(), 'id')));
 
@@ -439,7 +431,7 @@ it('prepares defaults for newly available source forms without binding them', fu
     $field->getBindingSchema('email')->getComponent('destination')->state('edited.email');
     $field->getAction('unbind')(['source' => 'email'])->call();
 
-    expect($field->getBindingSchema('email')->getComponent('destination')->getState())->toBe('profile.email');
+    expect($field->isSourceUsed('email'))->toBeFalse();
     expect($schema->getState()['bindings'])
         ->toBe(MappingState::binding([], [], array_column($field->getSources(), 'id')));
 });
@@ -457,7 +449,6 @@ it('defaults simple bindings to source property keys while preserving saved valu
     $schema = field_binding_schema($field);
 
     foreach (['name', 'customer.email', '0'] as $source) {
-        expect($field->getBindingSchema($source)->getComponent('routing.path')->getState())->toBe($source);
         $field->getAction('bind')(['source' => $source])->call();
         expect($field->getBindingSchema($source)->getComponent('routing.path')->getDefaultState())->toBe($source);
     }
@@ -481,6 +472,7 @@ it('preserves explicit defaults for simple binding fields', function (mixed $def
         ->jsonSchema(['properties' => ['name' => []]])
         ->simple(TextInput::make('destination')->default($default));
     field_binding_schema($field);
+    $field->getAction('bind')(['source' => 'name'])->call();
 
     expect($field->getBindingSchema('name')->getComponent('destination')->getState())->toBe($expected);
 })->with([
@@ -676,38 +668,15 @@ it('rejects forged binding values and unknown sources on submission', function (
     expect($schema->getState()['bindings'])
         ->toBe(MappingState::binding(['name' => 'profile.name'], [], array_column($field->getSources(), 'id')));
 
-    $field->rawState([
-        'sources' => [],
-        'bindings' => [$field->getBindingKey($source) => $binding],
-        'bound' => [$field->getBindingKey($source) => true],
-    ]);
+    $field->rawState([['kind' => 'source', 'source' => $source, 'target' => $binding, 'options' => []]]);
 
     expect($schema->getState(...))->toThrow(ValidationException::class);
 })->with([
     'unknown source' => ['unknown', ['destination' => 'profile.name']],
     'dotted unknown source' => ['name.destination', ['destination' => 'profile.name']],
-    'scalar binding' => ['name', 'profile.name'],
+    'scalar binding' => ['name', 42],
     'nested simple value' => ['name', ['destination' => ['path' => 'profile.name']]],
     'empty simple value' => ['name', ['destination' => '']],
-]);
-
-it('rejects forged bound state on submission', function (string $source, mixed $bound, bool $removeBinding) {
-    $field = FieldBinding::make('bindings')
-        ->jsonSchema(['properties' => ['name' => []]])
-        ->simple(TextInput::make('destination'));
-    $schema = field_binding_schema($field);
-    $state = $field->getRawState();
-    $state['bound'] = [$field->getBindingKey($source) => $bound];
-    if ($removeBinding) {
-        $state['bindings'] = [];
-    }
-    $field->rawState($state);
-
-    expect($schema->getState(...))->toThrow(ValidationException::class);
-})->with([
-    'unknown source' => ['unknown', true, false],
-    'non-boolean flag' => ['name', 'true', false],
-    'missing binding' => ['name', true, true],
 ]);
 
 it('preserves binding metadata and values across presentation options', function (
@@ -808,7 +777,7 @@ it('adds, edits, restores, and removes static values with a complete binding sch
     $constant->getComponent('output.replacements')->state([['search' => 'old', 'replace' => 'new']]);
     expect($field->getBindingValues()[1]['target']['topic'])->toBe('audit');
     $expected = [
-        ['kind' => 'source', 'source' => 'name', 'target' => null, 'flag' => false],
+        ['kind' => 'source', 'source' => 'name', 'target' => null, 'options' => ['flag' => false]],
         [
             'kind' => 'static',
             'target' => [
@@ -817,7 +786,7 @@ it('adds, edits, restores, and removes static values with a complete binding sch
                 'replacements' => [['search' => 'old', 'replace' => 'new']],
             ],
             'static' => 'literal',
-            'flag' => false,
+            'options' => ['flag' => false],
         ],
     ];
     expect($schema->getState()['bindings'])->toBe($expected);
@@ -843,7 +812,7 @@ it('validates native fields in a static binding schema', function () {
         $schema->getState();
         test()->fail('The required child field should fail validation.');
     } catch (ValidationException $exception) {
-        expect($exception->errors())->toHaveKey("data.bindings.bindings.{$key}.output.topic");
+        expect($exception->errors())->toHaveKey('data.bindings.1.target.topic');
     }
 });
 
@@ -880,8 +849,8 @@ it('preserves an empty static binding schema as an array', function () {
     $field->getConstants()[$key]->getComponent('input.static')->state('literal');
     expect($field->getConstantTarget($key))->toBe([]);
     $expected = [
-        ['kind' => 'source', 'source' => 'name', 'target' => null],
-        ['kind' => 'static', 'target' => [], 'static' => 'literal'],
+        ['kind' => 'source', 'source' => 'name', 'target' => null, 'options' => []],
+        ['kind' => 'static', 'target' => [], 'static' => 'literal', 'options' => []],
     ];
     expect($schema->getState()['bindings'])->toBe($expected);
     $schema->fill(['bindings' => $expected]);
@@ -907,8 +876,8 @@ it('adds and restores static pairs with native non-string targets', function (st
     expect($field->getConstantTarget($key))->toBe($target);
     $field->getConstants()[$key]->getComponent('input.static')->state('literal');
     $expected = [
-        ['kind' => 'source', 'source' => 'name', 'target' => null],
-        ['kind' => 'static', 'target' => $target, 'static' => 'literal'],
+        ['kind' => 'source', 'source' => 'name', 'target' => null, 'options' => []],
+        ['kind' => 'static', 'target' => $target, 'static' => 'literal', 'options' => []],
     ];
     expect($schema->getState()['bindings'])->toBe($expected);
     $schema->fill(['bindings' => $expected]);
@@ -1067,33 +1036,30 @@ it('highlights warned sources and preserves warnings for missing source identifi
 
 it('keeps source settings available before binding and after unbinding across Livewire requests', function (bool $complex) {
     $page = Livewire::test(FieldBindingForm::class, ['complex' => $complex, 'sourceSettings' => true]);
-    $field = $page->instance()->form->getComponent('bindings');
-    $settingsKey = $field->getSourceStateKeys()['name'];
-    $bindingKey = $field->getBindingKey('name');
     $page
-        ->assertSet("data.bindings.sources.{$settingsKey}.alias", 'name')
-        ->set("data.bindings.sources.{$settingsKey}.alias", 'Customer')
-        ->set("data.bindings.sources.{$settingsKey}.enabled", false)
+        ->assertSet('data.bindings.0.options.alias', 'name')
+        ->set('data.bindings.0.options.alias', 'Customer')
+        ->set('data.bindings.0.options.enabled', false)
         ->callAction(TestAction::make('bind')->schemaComponent('bindings', 'form')->arguments(['source' => 'name']))
-        ->set("data.bindings.bindings.{$bindingKey}.destination", 'profile.name')
+        ->set('data.bindings.0.target' . ($complex ? '.destination' : ''), 'profile.name')
         ->call('submit')
         ->assertHasNoErrors()
-        ->assertSet('saved.bindings.0.alias', 'Customer')
-        ->assertSet('saved.bindings.0.enabled', false)
+        ->assertSet('saved.bindings.0.options.alias', 'Customer')
+        ->assertSet('saved.bindings.0.options.enabled', false)
         ->callAction(TestAction::make('unbind')->schemaComponent('bindings', 'form')->arguments(['source' => 'name']))
         ->call('submit')
         ->assertHasNoErrors()
         ->assertSet('saved.bindings.0.target', null)
-        ->assertSet('saved.bindings.0.alias', 'Customer')
-        ->assertSet('saved.bindings.0.enabled', false)
-        ->assertSet("data.bindings.sources.{$settingsKey}.alias", 'Customer')
-        ->set("data.bindings.sources.{$settingsKey}.alias", '')
+        ->assertSet('saved.bindings.0.options.alias', 'Customer')
+        ->assertSet('saved.bindings.0.options.enabled', false)
+        ->assertSet('data.bindings.0.options.alias', 'Customer')
+        ->set('data.bindings.0.options.alias', '')
         ->call('submit')
-        ->assertHasErrors(["data.bindings.sources.{$settingsKey}.alias" => 'required'])
+        ->assertHasErrors(['data.bindings.0.options.alias' => 'required'])
         ->callAction(TestAction::make('bind')->schemaComponent('bindings', 'form')->arguments(['source' => 'name']))
-        ->set("data.bindings.bindings.{$bindingKey}.destination", 'profile.name')
+        ->set('data.bindings.0.target' . ($complex ? '.destination' : ''), 'profile.name')
         ->call('submit')
-        ->assertHasErrors(["data.bindings.sources.{$settingsKey}.alias" => 'required']);
+        ->assertHasErrors(['data.bindings.0.options.alias' => 'required']);
 })->with([false, true]);
 
 it('keeps a static target that shares a source identifier as a separate row', function () {
@@ -1105,9 +1071,9 @@ it('keeps a static target that shares a source identifier as a separate row', fu
     $constant->getComponent('input.static')->state('fixed');
 
     expect($schema->getState()['bindings'])->toBe([
-        ['kind' => 'source', 'source' => 'name', 'target' => 'profile.name'],
-        ['kind' => 'source', 'source' => 'email', 'target' => null],
-        ['kind' => 'static', 'target' => 'name', 'static' => 'fixed'],
+        ['kind' => 'source', 'source' => 'name', 'target' => 'profile.name', 'options' => []],
+        ['kind' => 'source', 'source' => 'email', 'target' => null, 'options' => []],
+        ['kind' => 'static', 'target' => 'name', 'static' => 'fixed', 'options' => []],
     ]);
 });
 
@@ -1132,8 +1098,8 @@ it('creates connected static pairs with unused names and preserves native settin
     $field->getConstants()[$first]->getComponent('output.routing.path')->state('discount');
     expect(array_slice($schema->getState()['bindings'], -2))
         ->toBe([
-            ['kind' => 'static', 'target' => 'discount', 'static' => '10', 'note' => 'native setting'],
-            ['kind' => 'static', 'target' => 'static_3', 'static' => '20', 'note' => 'native setting'],
+            ['kind' => 'static', 'target' => 'discount', 'static' => '10', 'options' => ['note' => 'native setting']],
+            ['kind' => 'static', 'target' => 'static_3', 'static' => '20', 'options' => ['note' => 'native setting']],
         ])
         ->and(array_key_first($field->getConstants()))
         ->toBe($first);
