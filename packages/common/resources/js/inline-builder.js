@@ -31,7 +31,7 @@ export default function inlineBuilder({ action, context, disabled }) {
             if (this.$refs.items.children.length === 0 && !event.target.closest('.inline-builder-placeholder')) return;
             event.stopPropagation();
             const button = this.$refs.add.querySelector('button');
-            if (button.disabled) return;
+            if (!button || button.disabled) return;
             button.focus();
             // Follow native pointer activation so the dropdown owns opening and focus.
             button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));

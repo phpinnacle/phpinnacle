@@ -265,6 +265,17 @@ it('rejects editing or removing a different block instance', function (array $ar
     'different type' => [['block' => 'stop', 'index' => 0]],
 ]);
 
+it('hides adding controls when additions are unavailable and keeps existing items removable', function () {
+    $this->field->addable(false)->placeholder('Step');
+    expect($this->field->toHtml())->not->toContain('inline-builder-add-button', 'inline-builder-placeholder');
+
+    $this->field->state([['type' => 'stop']]);
+    expect($this->field->toHtml())
+        ->not
+        ->toContain('inline-builder-add-button', 'inline-builder-placeholder')
+        ->toContain('Remove Stop');
+});
+
 it('honors addable, deletable, reorderable and disabled controls', function () {
     $this->field
         ->state([['type' => 'stop']])

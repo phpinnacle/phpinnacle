@@ -44,19 +44,9 @@
                         @endforeach
                     </x-filament::dropdown.list>
                 </x-filament::dropdown>
-            @else
-                <x-filament::icon-button
-                    :icon="$action->getIcon()"
-                    :label="$action->getLabel()"
-                    title=""
-                    disabled
-                    color="gray"
-                    size="sm"
-                    class="inline-builder-add-button"
-                />
             @endif
         </div>
-        @if ($settings === [])
+        @if ($settings === [] && $addable !== [])
             <span class="inline-builder-placeholder" aria-hidden="true">{{ $action->getSchemaComponent()->getPlaceholder() ?? __('phpinnacle-common::inline-builder.placeholder') }}</span>
         @endif
         <div

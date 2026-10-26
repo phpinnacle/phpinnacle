@@ -75,6 +75,14 @@ test('empty footer space does not open the catalog', () => {
     assert.deepEqual(calls, []);
 });
 
+test('filled input space does nothing when the add button is absent', () => {
+    const { component, calls, activations } = editor(['0']);
+    component.$refs.add.querySelector = () => null;
+    component.openFromSpace({ stopPropagation() {}, target: { closest: () => null } });
+    assert.deepEqual(activations, []);
+    assert.deepEqual(calls, []);
+});
+
 test('chip controls, prevented clicks and disabled inputs keep their own behavior', () => {
     for (const [disabled, prevented, control, unavailable] of [
         [true, false, false, false],
