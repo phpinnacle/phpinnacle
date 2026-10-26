@@ -23,7 +23,11 @@
 ## Scope and Compatibility
 
 - Keep changes inside the package and its declared dependency boundaries. Consume another package through its public API; do not create reverse or cyclic dependencies.
-- Preserve observable behavior and public contracts unless the task or package-specific instructions explicitly permit a breaking change.
+- All PHPinnacle packages are currently development-only. There are no stability or backward-compatibility guarantees for public APIs, configuration, serialized formats, database schemas, or other package contracts.
+- Breaking changes needed for the requested task are allowed. Change the current contract directly and update affected consumers, tests, fixtures, demos, and documentation together. Preserve behavior outside the requested scope.
+- Do not add backward-compatibility layers, legacy aliases, deprecation shims, obsolete-format fallbacks, or data upgrade paths unless explicitly requested.
+- Maintain package migrations for fresh installations: edit or consolidate existing migrations into the current schema instead of preserving intermediate schema changes or adding data conversion migrations.
+- Rewriting migration files does not authorize resetting databases or deleting existing data; those actions require explicit user instruction.
 - Do not add dependencies or new top-level directories without approval.
 - Keep Laravel package wiring in the service provider and panel wiring in the Filament plugin. These are composition roots, not homes for runtime domain behavior.
 
