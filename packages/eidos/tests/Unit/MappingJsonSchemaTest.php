@@ -3,6 +3,23 @@
 use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Eidos\Forms\SchemaCompatibility;
 
+it('compares schema definitions using JSON value equality', function (array $left, array $right, bool $equal) {
+    $source = JsonSchema::fromArray($left);
+    $other = JsonSchema::fromArray($right);
+
+    expect($source->equals($other))->toBe($equal)->and($other->equals($source))->toBe($equal);
+})->with([
+    'nested object key order' => [
+        ['type' => 'array', 'items' => ['type' => 'string', 'maxLength' => 36]],
+        ['items' => ['maxLength' => 36, 'type' => 'string'], 'type' => 'array'],
+        true,
+    ],
+    'changed constraint' => [['type' => 'string', 'maxLength' => 36], ['type' => 'string', 'maxLength' => 35], false],
+    'JSON scalar types' => [['enum' => [1]], ['enum' => ['1']], false],
+    'array element order' => [['default' => [1, 2]], ['default' => [2, 1]], false],
+    'JSON number equality' => [['enum' => [1]], ['enum' => [1.0]], true],
+]);
+
 it('collects each declared badge once across conjunctive branches', function () {
     $first = ['label' => 'First', 'color' => 'success'];
     $second = ['label' => 'Second', 'color' => 'warning'];

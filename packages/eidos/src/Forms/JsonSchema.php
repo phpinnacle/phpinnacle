@@ -407,6 +407,11 @@ final readonly class JsonSchema
         return $this->definition;
     }
 
+    public function equals(self $other): bool
+    {
+        return self::sameJsonValue($this->definition, $other->definition);
+    }
+
     public function compatible(self $target, ?SchemaCompatibility $compatibility = null): bool
     {
         $compatibility ??= SchemaCompatibility::make();
@@ -432,7 +437,7 @@ final readonly class JsonSchema
                 $sourceValues === null
                 || !array_all($sourceValues, fn (mixed $value) => array_any(
                     $targetValues,
-                    fn (mixed $allowed) => self::sameEnumValue($value, $allowed),
+                    fn (mixed $allowed) => self::sameJsonValue($value, $allowed),
                 ))
             ) {
                 return false;
@@ -466,7 +471,7 @@ final readonly class JsonSchema
                     ? $allowed
                     : array_values(array_filter(
                         $values,
-                        fn (mixed $value) => array_any($allowed, fn (mixed $candidate) => self::sameEnumValue(
+                        fn (mixed $value) => array_any($allowed, fn (mixed $candidate) => self::sameJsonValue(
                             $value,
                             $candidate,
                         )),
@@ -477,13 +482,13 @@ final readonly class JsonSchema
         return $values;
     }
 
-    private static function sameEnumValue(mixed $left, mixed $right): bool
+    private static function sameJsonValue(mixed $left, mixed $right): bool
     {
         return match (true) {
             is_int($left) && is_float($right) => $left === (int) $right && (float) $left === $right,
-            is_float($left) && is_int($right) => self::sameEnumValue($right, $left),
+            is_float($left) && is_int($right) => self::sameJsonValue($right, $left),
             (is_array($left) || $left instanceof stdClass) && (is_array($right) || $right instanceof stdClass)
-                => self::sameEnumStructure($left, $right),
+                => self::sameJsonStructure($left, $right),
             default => $left === $right,
         };
     }
@@ -492,7 +497,7 @@ final readonly class JsonSchema
      * @param array<array-key, mixed>|stdClass $left
      * @param array<array-key, mixed>|stdClass $right
      */
-    private static function sameEnumStructure(array|stdClass $left, array|stdClass $right): bool
+    private static function sameJsonStructure(array|stdClass $left, array|stdClass $right): bool
     {
         $leftIsList = is_array($left) && array_is_list($left);
         $rightIsList = is_array($right) && array_is_list($right);
@@ -505,7 +510,7 @@ final readonly class JsonSchema
         return array_all(
             $left,
             fn (mixed $value, int|string $key) => (
-                array_key_exists($key, $right) && self::sameEnumValue($value, $right[$key])
+                array_key_exists($key, $right) && self::sameJsonValue($value, $right[$key])
             ),
         );
     }

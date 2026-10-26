@@ -406,6 +406,8 @@ icon markup must be trusted server output.
 
 The `Forms\JsonSchema` adapter uses [Jason](https://github.com/phpinnacle/jason) for schema values and local JSON Pointer `$ref` resolution. Serialized definitions retain their original references; property views resolve them. Mapping fields require schema object definitions; Boolean schemas are rejected by this adapter.
 
+`JsonSchema::equals($other)` compares serialized definitions using JSON value equality: object key order is ignored, array element order and scalar types are preserved, and numbers compare by value. It does not prove equivalence between differently expressed schemas.
+
 ```php
 use PHPinnacle\Eidos\Forms\FieldMapping;
 
