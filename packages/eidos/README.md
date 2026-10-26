@@ -473,7 +473,7 @@ use PHPinnacle\Eidos\Forms\JsonSchema;
 )
 ```
 
-The callback receives effective source and destination property schemas, or the destination item schema for an item connection. It runs only after the configured checks pass and cannot override their rejection. `toArray()` exposes each inline definition, including application metadata. The same server-computed connection modes drive client availability and form validation.
+The callback receives `(JsonSchema $source, JsonSchema $target, string $sourceName, string $targetName)`: the effective source and destination property schemas, followed by their literal property names. For an item connection, `$target` is the destination item schema and `$targetName` remains the name of the destination array property. It runs only after the configured checks pass and cannot override their rejection. `toArray()` exposes each inline definition, including application metadata. The same server-computed connection modes drive client availability and form validation.
 
 The component projects `type`, `format`, `minLength`, `maxLength`, `enum`, `items`, `required`, `properties`, `allOf`, `anyOf`, and `oneOf` definitions after resolving local references. An enum destination requires an explicit source enum whose values are a subset of its allowed values; an unrestricted string or date cannot connect to a Status enum. `allOf` intersects enum constraints and types, treating `number` intersected with `integer` as `integer`; array items use the same checks. Enum equality preserves JSON value types, compares numbers by value, and ignores object property order. These are the component’s compatibility rules; they do not validate runtime payloads or prove arbitrary JSON Schema containment. Other constraints such as `pattern`, numeric bounds, item counts, and uniqueness are displayed as metadata but are not enforced by connection compatibility; native static editors remain responsible for their value validation.
 
@@ -519,25 +519,38 @@ FieldMapping::make('mapping')
 | Other arrays, nullable arrays, `object` | No built-in editor; register a custom `staticForms()` factory |
 | `null` | Read-only null value |
 
-The built-in fields follow destination `required` and nullable types, string length limits, and numeric minimum/maximum bounds. Dates serialize as `Y-m-d`, times as `H:i:s`, and date-times as `Y-m-d\TH:i:sP`. Repeaters use `items` to select and validate each field, apply `minItems` and `maxItems`, and use Filament's distinct validation for string and numeric `uniqueItems`. Boolean items use a Select. Empty arrays are allowed unless `minItems` requires entries. Existing custom type factories take precedence when `withBuiltinStaticForms()` is called after `staticForms()`.
+The built-in fields follow destination `required` and nullable types, string length limits, and numeric minimum/maximum bounds. Dates serialize as `Y-m-d`, times as `H:i:s`, and date-times as `Y-m-d\TH:i:sP`. Repeaters use `items` to select and validate each field, apply `minItems` and `maxItems`, and use Filament's distinct validation for string and numeric `uniqueItems`. Boolean items use a Select. Empty arrays are allowed unless `minItems` requires entries. `withBuiltinStaticForms()` sets the factory to the standard editors; a later `staticForms()` call replaces it.
 
 There are no built-in JSON editors. Objects, arrays without a supported scalar item type, and nullable arrays offer connections only unless a custom factory is registered. The installed Filament simple repeater cannot hydrate composite items without changing their values or preserve `null` separately from `[]`.
 
-Use `staticForms()` to assign custom inline Filament editors to JSON Schema types:
+Use `staticForms()` to select a custom inline Filament editor for each destination:
 
 ```php
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use PHPinnacle\Eidos\Forms\JsonSchema;
 
 FieldMapping::make('mapping')
     ->jsonSchema(source: $sourceSchema, dest: $destinationSchema)
-    ->staticForms([
-        'string' => fn () => TextInput::make('value')->hiddenLabel()->required()->maxLength(120),
-        'boolean' => fn () => Toggle::make('value')->label('Enabled')->default(false),
-    ]);
+    ->staticForms(fn (string $target, JsonSchema $property) => match ($target) {
+        'name' => TextInput::make('value')->hiddenLabel()->required()->maxLength($property->maxLength()),
+        'is_active' => Toggle::make('value')->label('Enabled')->default(false),
+        default => null,
+    });
 ```
 
-Each factory returns a fresh field named `value`, or `null` when the property is unsupported. It can receive the destination identifier as `$target`, the matched schema type as `$type`, and the `FieldMapping` as `$component`. The component selects the non-null type of a nullable property; a null-only property matches the `null` factory. Every destination whose factory returns a field shows an editor; unavailable factories, unregistered types, and unions with several non-null types offer connections only. There is no fallback text editor or static-value checkbox.
+The factory returns a fresh field named `value`, or `null` to omit the editor. It receives the literal destination identifier as `$target`, its `JsonSchema` as `$property`, and can use other Filament-injected arguments such as the `FieldMapping` as `$component`. It runs for every destination, including untyped properties, objects and unions. Returning `null` controls editor visibility; it does not prohibit submitted scalar values. There is no fallback text editor or static-value checkbox.
+
+Reuse the standard editors for other destinations without repeating their type selection:
+
+```php
+use PHPinnacle\Eidos\Forms\BuiltinStaticForms;
+
+->staticForms(fn (FieldMapping $component, string $target, JsonSchema $property) => $target === 'id'
+    ? null
+    : BuiltinStaticForms::make($property, in_array($target, $component->getRequiredTargets(), true))
+)
+```
 
 An unconnected destination immediately shows its configured editor and becomes a static value initialized with the field's default. Every visible editor counts as mapped, including an empty one. Its native validation, state casts, and dehydration callbacks run on submission; `required()` can reject an empty editor. Values retain their field's type, including `false`, zero, arrays, and `null` when allowed. Custom factories must declare their own value validation.
 

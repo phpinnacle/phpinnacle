@@ -11,7 +11,9 @@ use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
+use PHPinnacle\Eidos\Forms\BuiltinStaticForms;
 use PHPinnacle\Eidos\Forms\FieldMapping;
+use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Eidos\Tests\Fixtures\MappingState;
 use PHPinnacle\Eidos\Tests\Fixtures\SchemaHost;
 use Tests\TestCase;
@@ -198,14 +200,35 @@ it('leaves unsupported built-in static types available for connections', functio
     'nullable array' => [['type' => ['array', 'null'], 'items' => ['type' => 'string']]],
 ]);
 
-it('preserves custom factories when adding built-in static forms', function (string $type) {
+it('replaces built-in static forms with a target factory', function (string $type) {
     $schema = builtin_static_schema(['type' => $type], 'custom');
     $field = $schema->getComponent('mapping');
-    $field->staticForms([$type => fn () => TextInput::make('value')->maxLength(2)])->withBuiltinStaticForms();
+    $field->staticForms(fn () => TextInput::make('value')->maxLength(2));
 
     expect($field->getStaticFormSchema('target')->getComponent('value')->getMaxLength())->toBe(2);
     expect($schema->getState(...))->toThrow(ValidationException::class);
 })->with(['string', 'array', 'object']);
+
+it('reuses built-in editors inside a target factory', function () {
+    $field = FieldMapping::make('mapping')
+        ->jsonSchema(dest: [
+            'properties' => [
+                'id' => ['type' => 'string'],
+                'active' => ['type' => 'boolean'],
+            ],
+        ])
+        ->staticForms(fn (string $target, JsonSchema $property) => $target === 'id'
+            ? null
+            : BuiltinStaticForms::make($property, false));
+    Schema::make(SchemaHost::make())->statePath('data')->components([$field])->fill(['mapping' => []]);
+
+    expect($field->getStaticFormSchema('id'))
+        ->toBeNull()
+        ->and($field->getStaticFormSchema('active')->getComponent('value'))
+        ->toBeInstanceOf(Toggle::class)
+        ->and($field->getStaticDefaults())
+        ->toBe(['active' => false]);
+});
 
 it('renders destination static forms without source fields', function () {
     $field = FieldMapping::make('mapping')

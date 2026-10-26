@@ -16,6 +16,7 @@ use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use PHPinnacle\Eidos\Forms\FieldBinding;
 use PHPinnacle\Eidos\Forms\FieldMapping;
+use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Eidos\Tests\Fixtures\MappingState;
 use PHPinnacle\Eidos\Tests\Fixtures\SchemaHost;
 use Tests\TestCase;
@@ -95,16 +96,17 @@ function static_mapping_schema(array $mapping, array $targets = []): Schema
                 array_fill_keys([...array_keys($mapping), ...$targets], true),
             ),
         ])
-        ->staticForms([
-            'string' => fn (string $target) => TextInput::make('value')
+        ->staticForms(fn (string $target, JsonSchema $property) => match ($property->singleType()) {
+            'string' => TextInput::make('value')
                 ->label($target)
                 ->required()
                 ->maxLength(5)
                 ->dehydrateStateUsing(fn (string $state) => strtoupper($state)),
-            'boolean' => fn () => Toggle::make('value')->default(false),
-            'number' => fn () => TextInput::make('value')->numeric()->required()->minValue(0),
-            'array' => fn () => TagsInput::make('value')->required()->nestedRecursiveRules(['string']),
-        ])
+            'boolean' => Toggle::make('value')->default(false),
+            'number' => TextInput::make('value')->numeric()->required()->minValue(0),
+            'array' => TagsInput::make('value')->required()->nestedRecursiveRules(['string']),
+            default => null,
+        })
         ->dehydrateStateUsing(fn (array $state) => $state);
 
     $schema = Schema::make($livewire)->statePath('data')->components([$field]);
@@ -112,6 +114,35 @@ function static_mapping_schema(array $mapping, array $targets = []): Schema
 
     return $schema;
 }
+
+it('selects static editors by target without prohibiting submitted scalar values', function () {
+    $field = FieldMapping::make('mapping')
+        ->jsonSchema(dest: [
+            'properties' => [
+                'id' => ['type' => 'string'],
+                'name' => ['type' => 'string', 'maxLength' => 5],
+            ],
+        ])
+        ->staticForms(fn (string $target, JsonSchema $property) => $target === 'id'
+            ? null
+            : TextInput::make('value')->maxLength($property->annotation('maxLength')));
+    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $mapping = MappingState::mapping([
+        'id' => MappingState::value('record-1'),
+        'name' => MappingState::value('Alice'),
+    ]);
+    $schema->fill(['mapping' => $mapping]);
+    view()->share('errors', new ViewErrorBag);
+
+    expect($field->getStaticFormSchema('id'))
+        ->toBeNull()
+        ->and($field->getStaticDefaults())
+        ->not->toHaveKey('id')->and($schema->toHtml())->toContain('data-mapping-static-form="name"')
+        ->not->toContain('data-mapping-static-form="id"')->and($schema->getState()['mapping'])->toBe($mapping);
+
+    $field->getStaticFormSchema('name')->getComponent('value')->state('Too long');
+    expect($schema->getState(...))->toThrow(ValidationException::class);
+});
 
 it('offers registered static editors for every destination and validates their defaults', function () {
     $schema = static_mapping_schema([], ['name.part', 'enabled', 'raw']);
@@ -125,10 +156,11 @@ it('offers registered static editors for every destination and validates their d
 
     $schema
         ->getComponent('mapping')
-        ->staticForms([
-            'string' => fn () => TextInput::make('value')->nullable(),
-            'boolean' => fn () => Toggle::make('value')->default(false),
-        ]);
+        ->staticForms(fn (string $target, JsonSchema $property) => match ($property->singleType()) {
+            'string' => TextInput::make('value')->nullable(),
+            'boolean' => Toggle::make('value')->default(false),
+            default => null,
+        });
     $schema->fill(['mapping' => MappingState::mapping([])]);
     expect($schema->getState()['mapping'])
         ->toEqualCanonicalizing(MappingState::mapping(

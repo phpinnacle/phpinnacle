@@ -56,7 +56,7 @@ class FieldMapping extends Field
 
     protected ?SchemaCompatibility $compatibility = null;
 
-    /** @var Closure(JsonSchema, JsonSchema): bool|null */
+    /** @var Closure(JsonSchema, JsonSchema, string, string): bool|null */
     protected ?Closure $canConnectUsing = null;
 
     /** @var string|Closure(): string */
@@ -65,8 +65,7 @@ class FieldMapping extends Field
     /** @var string|Closure(): string */
     protected string|Closure $targetLabel = 'Destination';
 
-    /** @var array<string, Closure> */
-    protected array $staticForms = [];
+    protected ?Closure $staticForms = null;
 
     protected bool $hasStaticValues = false;
 
@@ -135,8 +134,8 @@ class FieldMapping extends Field
         ));
     }
 
-    /** @param array<string, Closure> $forms Factories returning a Field named value or null when unavailable, with Filament-injected arguments. */
-    public function staticForms(array $forms): static
+    /** @param Closure $forms Factory returning a Field named value or null, with target, property and other Filament-injected arguments. */
+    public function staticForms(Closure $forms): static
     {
         $this->staticForms = $forms;
         $this->schema([]);
@@ -146,21 +145,19 @@ class FieldMapping extends Field
 
     public function withBuiltinStaticForms(): static
     {
-        $forms = $this->staticForms;
-        foreach (['string', 'integer', 'number', 'boolean', 'array', 'null'] as $type) {
-            $forms[$type] ??= fn (FieldMapping $component, string $target) => BuiltinStaticForms::make(
-                JsonSchema::fromArray($component->getTargetSchema())->properties()[$target],
-                $type,
-                in_array($target, $component->getRequiredTargets(), true),
-            );
-        }
-
-        return $this->staticForms($forms);
+        return $this->staticForms(fn (
+            FieldMapping $component,
+            string $target,
+            JsonSchema $property,
+        ) => BuiltinStaticForms::make(
+            $property,
+            in_array($target, $component->getRequiredTargets(), true),
+        ));
     }
 
     public function hasStaticForms(): bool
     {
-        return !$this->hasStaticValues() && $this->staticForms !== [];
+        return !$this->hasStaticValues() && $this->staticForms !== null;
     }
 
     public function staticValues(bool $condition = true): static
@@ -505,7 +502,7 @@ class FieldMapping extends Field
         return $this;
     }
 
-    /** @param Closure(JsonSchema, JsonSchema): bool $callback */
+    /** @param Closure(JsonSchema, JsonSchema, string, string): bool $callback */
     public function canConnectUsing(Closure $callback): static
     {
         $this->canConnectUsing = $callback;
@@ -513,11 +510,15 @@ class FieldMapping extends Field
         return $this;
     }
 
-    private function canConnect(JsonSchema $source, JsonSchema $target): bool
-    {
+    private function canConnect(
+        JsonSchema $source,
+        JsonSchema $target,
+        string $sourceName,
+        string $targetName,
+    ): bool {
         return (
             $source->compatible($target, $this->compatibility)
-            && ($this->canConnectUsing === null || ($this->canConnectUsing)($source, $target))
+            && ($this->canConnectUsing === null || ($this->canConnectUsing)($source, $target, $sourceName, $targetName))
         );
     }
 
@@ -534,10 +535,10 @@ class FieldMapping extends Field
                 if (
                     ($items === null
                     || $output->items() !== null)
-                    && $this->canConnect($output, $destination)
+                    && $this->canConnect($output, $destination, $source, $target)
                 ) {
                     $modes[$source][$target] = 'whole';
-                } elseif ($items !== null && $this->canConnect($output, $items)) {
+                } elseif ($items !== null && $this->canConnect($output, $items, $source, $target)) {
                     $modes[$source][$target] = 'item';
                 }
             }
@@ -948,14 +949,9 @@ class FieldMapping extends Field
         }
 
         $property = JsonSchema::fromArray($this->getTargetSchema())->properties()[$target];
-        $type = $property->singleType();
-
-        if ($type === null || !array_key_exists($type, $this->staticForms)) {
-            return null;
-        }
 
         /** @var Field|null */
-        return $this->evaluate($this->staticForms[$type], ['target' => $target, 'type' => $type]);
+        return $this->evaluate($this->staticForms, ['target' => $target, 'property' => $property]);
     }
 
     /**

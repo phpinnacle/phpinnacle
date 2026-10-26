@@ -350,6 +350,53 @@ it('adds application restrictions to whole and item connections without overridi
     }
 });
 
+it('passes literal field names to connection restrictions for whole and item mappings', function () {
+    $field = FieldMapping::make('mapping')
+        ->jsonSchema(
+            source: [
+                'properties' => [
+                    'record.id' => ['type' => 'string'],
+                    'other.id' => ['type' => 'string'],
+                ],
+            ],
+            dest: [
+                'properties' => [
+                    'key.id' => ['type' => 'string'],
+                    'label' => ['type' => 'string'],
+                    'key.parts' => ['type' => 'array', 'items' => ['type' => 'string']],
+                ],
+            ],
+        )
+        ->canConnectUsing(
+            fn (JsonSchema $source, JsonSchema $target, string $sourceName, string $targetName) => (
+                $targetName === 'label'
+                || $sourceName === 'record.id'
+            ),
+        );
+    $validator = new Factory(new Translator(new ArrayLoader, 'en'));
+
+    expect($field->getConnectionModes())->toBe([
+        'record.id' => ['key.id' => 'whole', 'label' => 'whole', 'key.parts' => 'item'],
+        'other.id' => ['label' => 'whole'],
+    ]);
+    foreach (['record.id' => true, 'other.id' => false] as $source => $allowed) {
+        foreach ([
+            'key.id' => MappingState::source($source),
+            'key.parts' => [MappingState::source($source)],
+        ] as $target => $entry) {
+            expect(
+                $validator
+                    ->make(
+                        ['mapping' => MappingState::encode($field, [$target => $entry])],
+                        ['mapping' => $field->getValidationRules()],
+                    )
+                    ->passes(),
+            )
+                ->toBe($allowed);
+        }
+    }
+});
+
 it('accepts an array as a whole value or individual items without mixing them', function (bool $inverse) {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(

@@ -16,14 +16,10 @@ use Illuminate\Translation\PotentiallyTranslatedString;
 
 final class BuiltinStaticForms
 {
-    /**
-     * @param 'string'|'integer'|'number'|'boolean'|'array'|'null' $type
-     * @return ($type is 'array' ? Field|null : Field)
-     */
-    public static function make(JsonSchema $property, string $type, bool $required): ?Field
+    public static function make(JsonSchema $property, bool $required): ?Field
     {
         $definition = $property->toArray();
-        $field = match ($type) {
+        $field = match ($property->singleType()) {
             'string' => self::string($property),
             'integer' => TextInput::make('value')
                 ->integer()
@@ -42,6 +38,7 @@ final class BuiltinStaticForms
                 ->readOnly()
                 ->placeholder('null')
                 ->rules(fn () => [self::validateNull(...)]),
+            default => null,
         };
 
         if ($field === null) {
@@ -67,11 +64,12 @@ final class BuiltinStaticForms
         }
 
         $definition = $property->toArray();
+        /** @var Field $item */
         $item = $type === 'boolean'
             ? Select::make('value')
                 ->boolean()
                 ->required(!in_array('null', $items->types(), true))
-            : self::make($items, $type, true);
+            : self::make($items, true);
 
         return Repeater::make('value')
             ->defaultItems(0)
