@@ -64,6 +64,15 @@ composer test
 
 CI runs on pushes to any branch. A new run cancels any unfinished CI run for the same branch.
 
+Run the **Update Agent Skills** workflow manually to refresh the generated Laravel,
+Filament, Livewire, Tailwind, and testing skills in `.agents/skills`. It creates a
+temporary Laravel application using the framework, Filament, Livewire, and Pest
+versions from this repository's `composer.lock`, installs Boost 2, and generates the skills through
+`boost:install --skills`. The workflow commits and pushes changed skills to the
+selected branch using `GITHUB_TOKEN`; branch protection must permit that push.
+These pushes do not trigger the push-based CI workflow. Keep repository-specific
+rules in `AGENTS.md` because the generated skill directories are replaced on update.
+
 Run `composer format` to apply the repository's Mago formatting rules.
 Run `composer phpstan` to run PHPStan level 6 static analysis across all package sources.
 

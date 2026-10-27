@@ -2,6 +2,7 @@
 
 - You MUST activate the `engineering-discipline` skill before every repository task that may modify files or public behavior, including implementation, bug fixes, refactors, tests, configuration, assets, documentation, cleanup, and code review.
 - `engineering-discipline` is additive: activate every other skill required by the task's domain.
+- When available, activate the generated Laravel, Filament, Livewire, Tailwind, and testing skills for relevant work. Repository rules take precedence over upstream examples; run application-specific commands only in a suitable Laravel application.
 
 </required-skills>
 
@@ -10,6 +11,7 @@
 ## Scope and Instruction Precedence
 
 - These instructions apply to the monorepo root and every package below it.
+- Before repository work, read `AGENTS.local.md` at the monorepo root when present for local environment and integration instructions. Keep private paths and local workflow details in that ignored file.
 - Each package under `packages/` is independently releasable. A package's own `AGENTS.md` adds to or overrides these rules for files inside that package.
 - Before changing a package, read its `AGENTS.md` when present, the relevant README sections, and `composer.json`. Inspect implementation, tests, entry points, configuration, migrations, assets, and static-analysis setup as relevant to the change.
 - Keep shared rules here and package-specific additions in package instructions; avoid copying shared rules into each package.
@@ -102,7 +104,7 @@
 - Do not invoke the other language's runtime to generate test inputs or expected results. Define explicit fixtures in the test suite's own language.
 - For PHP changes, run `composer format`, focused package tests, and repository-wide `composer lint`. Also run `composer lint` when changing Composer or PHP analysis configuration. Use the package's declared test runner.
 - For frontend behavior changes, run relevant JavaScript and integration checks and rebuild affected committed assets as required by the package.
-- For component changes demonstrated in `../playground`, update the affected demos, tests, and README in the same task, following that repository's `AGENTS.md`. Republish its package assets with `php artisan filament:assets` when package JavaScript or CSS changes.
+- When changing custom Filament fields or nested schemas, verify the affected hydration, formatting, validation, and dehydration lifecycle through the component's public API. Check state independence between repeated instances when applicable. For browser interaction changes, verify the affected interaction after initial rendering and subsequent Livewire updates.
 - For documentation or instruction-only changes, check consistency, referenced commands and links, and skill metadata where applicable; runtime suites are needed only when executable examples or behavior are affected.
 - Start with the narrowest relevant checks and complete required checks. Broaden or repeat them only for new changes, failures, or unresolved risks; finish once the requested outcome and verification are complete.
 - Finish by inspecting the diff for scope drift, hidden behavior changes, unnecessary complexity, and incomplete cleanup, and run `git diff --check`.

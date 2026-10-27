@@ -68,7 +68,7 @@ Fix the cause in the component that owns the behavior and consume its public API
 
 Run this stage only when the functional scope includes affected JavaScript/TypeScript code or its tests, fixtures, build configuration, assets, or frontend integration (including PHP and Blade). The mere presence of JavaScript/TypeScript in an affected package is not enough.
 
-Apply the same ownership and simplification criteria throughout the JavaScript/TypeScript functional scope, including unchanged owners and consumers. Inspect PHP integration, component lifecycle, and affected user interactions. Complete relevant tests, integration checks, committed asset builds, and playground updates required by the affected packages.
+Apply the same ownership and simplification criteria throughout the JavaScript/TypeScript functional scope, including unchanged owners and consumers. Inspect PHP integration, component lifecycle, and affected user interactions. Complete relevant tests, integration checks, committed asset builds, and consuming application updates required by the affected packages and local instructions.
 
 ### 3. Tests
 

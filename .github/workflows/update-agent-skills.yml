@@ -1,0 +1,109 @@
+name: Update Agent Skills
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-agent-skills-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: startsWith(github.ref, 'refs/heads/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: intl, mbstring
+          coverage: none
+
+      - name: Create generation application
+        run: |
+          framework_version="$(jq -r '
+            (.packages + .["packages-dev"])[]
+            | select(.name == "laravel/framework") | .version
+          ' composer.lock)"
+          framework_major="${framework_version#v}"
+          framework_major="${framework_major%%.*}"
+
+          composer create-project laravel/laravel "$RUNNER_TEMP/boost-app" "^$framework_major.0" \
+            --no-install --no-scripts --no-interaction --prefer-dist
+
+          mapfile -t packages < <(jq -r '
+            (.packages + .["packages-dev"])[]
+            | select(.name == "laravel/framework" or .name == "filament/filament" or .name == "livewire/livewire")
+            | "\(.name):\(.version)"
+          ' composer.lock)
+          pest_version="$(jq -r '
+            (.packages + .["packages-dev"])[]
+            | select(.name == "pestphp/pest") | .version
+          ' composer.lock)"
+
+          cd "$RUNNER_TEMP/boost-app"
+          cp .env.example .env
+          composer require "${packages[@]}" --no-update --no-scripts --no-interaction
+          composer require --dev 'laravel/boost:^2.4' "pestphp/pest:$pest_version" \
+            --no-scripts --no-interaction --no-progress --prefer-dist
+          php artisan package:discover
+
+      - name: Generate skills
+        working-directory: ${{ runner.temp }}/boost-app
+        run: |
+          cat > boost.json <<'JSON'
+          {
+            "agents": ["codex"],
+            "packages": ["filament/filament"],
+            "cloud": false,
+            "nightwatch": false,
+            "sail": false
+          }
+          JSON
+
+          php artisan boost:install --skills --no-interaction
+
+      - name: Update and push generated skills
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          skills=(
+            filament-development
+            laravel-best-practices
+            livewire-development
+            tailwindcss-development
+            testing-best-practices
+          )
+          source="$RUNNER_TEMP/boost-app/.agents/skills"
+
+          for skill in "${skills[@]}"; do
+            test -s "$source/$skill/SKILL.md"
+          done
+
+          for skill in "${skills[@]}"; do
+            mkdir -p ".agents/skills/$skill"
+            rsync -a --delete "$source/$skill/" ".agents/skills/$skill/"
+            git add -- ".agents/skills/$skill"
+          done
+
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'Agent skills are already up to date.'
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Update Laravel ecosystem agent skills'
+          gh auth setup-git
+          git push origin "HEAD:$GITHUB_REF"
