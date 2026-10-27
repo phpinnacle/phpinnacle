@@ -3,13 +3,12 @@
     use Filament\Support\Facades\FilamentAsset;
 
     $sources = $getSources();
-    $constants = $getConstants();
     $targets = $getTargets();
     $outputPresentation = $getSourcePresentations();
     $connectionModes = $getConnectionModes();
     $sourceLabel = $getSourceLabel();
     $targetLabel = $getTargetLabel();
-    $hasFields = ($sources !== [] || $hasStaticValues() || $hasStaticForms()) && $targets !== [];
+    $hasFields = ($sources !== [] || $hasStaticForms()) && $targets !== [];
     $sourceWarnings = $getSourceWarnings();
     $targetWarnings = $getTargetWarnings();
     $requiredTargets = array_column(array_filter($targets, fn (array $target) => $target['required']), 'id');
@@ -47,7 +46,7 @@
             '--eidos-right-column: '.$columnSpans[$inverse ? 'source' : 'target'].'fr',
         ]) }}
         wire:key="{{ $getId() }}-{{ $configurationKey }}"
-        @if (! $hasStaticForms() && ! $hasSourceSettings() && ! $hasStaticValues() && $getHeaderActions() === [])
+        @if (! $hasStaticForms() && ! $hasSourceSettings() && $getHeaderActions() === [])
             wire:ignore
         @endif
         x-load
@@ -59,7 +58,6 @@
             inverse: @js($inverse),
             requiredTargets: @js($requiredTargets),
             connectionModes: @js($connectionModes),
-            sourceRowIndexes: @js((object) $getSourceRowIndexes()),
             staticDefaults: @js((object) $staticDefaults),
         })"
         x-on:keydown.escape.window="cancel()"
@@ -84,6 +82,18 @@
                         <span class="text-sm" :class="missingRequired().length ? 'text-warning-600 dark:text-warning-400' : 'text-gray-500 dark:text-gray-400'">
                             {!! __('phpinnacle-eidos::schema-forms.mapping.mapped_count', ['mapped' => '<span x-text="mappedTargetCount()"></span>', 'total' => count($targets)]) !!}
                         </span>
+                        @if ($searchable && $hasFields)
+                            <div class="eidos-mapping-search">
+                                <x-filament::input.wrapper prefix-icon="heroicon-m-magnifying-glass">
+                                    <x-filament::input
+                                        type="search"
+                                        x-model="search"
+                                        placeholder="{{ __('phpinnacle-eidos::schema-forms.search_placeholder') }}"
+                                        aria-label="{{ __('phpinnacle-eidos::schema-forms.search_label') }}"
+                                    />
+                                </x-filament::input.wrapper>
+                            </div>
+                        @endif
                         <fieldset class="eidos-mapping-filter">
                             <legend class="sr-only">{{ __('phpinnacle-eidos::schema-forms.mapping.filter.label') }}</legend>
                             @foreach (['all', 'mapped', 'unmapped'] as $filter)
@@ -130,30 +140,14 @@
                         @endphp
                         <section class="{{ $isLeft ? 'col-start-1' : 'col-start-3' }} row-start-1 min-w-0" aria-label="{{ $panel['label'] }}" wire:key="{{ $getId() }}-{{ $side }}">
                             <h3 class="eidos-mapping-label eidos-mapping-panel-label">{{ $panel['label'] }}</h3>
-                            @if ($searchable)
-                                <x-filament::input.wrapper prefix-icon="heroicon-m-magnifying-glass">
-                                    <x-filament::input
-                                        type="search"
-                                        x-model="{{ $side }}Search"
-                                        placeholder="{{ __('phpinnacle-eidos::schema-forms.mapping.search_placeholder') }}"
-                                        aria-label="{{ 'Search '.$panel['label'] }}"
-                                    />
-                                </x-filament::input.wrapper>
-                            @endif
-
                             <div class="eidos-mapping-items">
                                 @foreach ($panel['items'] as $item)
                                     @if ($side === 'source')
-                                        @if (! isset($constants[$item['id']]))
-                                            {!! $staticSchemas['sourceCards']->getComponent('card_'.$sourceStateKeys[$item['id']])->toSchemaHtml() !!}
-                                        @endif
+                                        {!! $staticSchemas['sourceCards']->getComponent('card_'.$sourceStateKeys[$item['id']])->toSchemaHtml() !!}
                                     @else
                                         @include('phpinnacle-eidos::forms.field-mapping-row', ['field' => $field, 'presentation' => $item['presentation']])
                                     @endif
                                 @endforeach
-                                @if ($side === 'source' && $hasStaticValues())
-                                    {!! $staticSchemas['mappingUi']->getComponent('staticSources')->toSchemaHtml() !!}
-                                @endif
                             </div>
                         </section>
                     @endforeach

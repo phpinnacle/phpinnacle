@@ -3,7 +3,6 @@
 use Filament\Actions\Action;
 use Filament\Forms\Components\Builder;
 use Filament\Forms\Components\Builder\Block;
-use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
@@ -339,7 +338,7 @@ it('validates static values through their registered Filament fields', function 
     'empty static value without an editor' => [['raw' => MappingState::value('')]],
 ]);
 
-it('only renders mapping search inputs when enabled, including closure configuration', function () {
+it('only renders one mapping search input when enabled, including closure configuration', function () {
     $livewire = SchemaHost::make();
 
     $field = FieldMapping::make('mapping')->jsonSchema(source: ['properties' => ['title' => []]], dest: [
@@ -351,7 +350,7 @@ it('only renders mapping search inputs when enabled, including closure configura
 
     expect($schema->toHtml())->not->toContain('type="search"');
     $field->searchable();
-    expect(substr_count($schema->toHtml(), 'type="search"'))->toBe(2);
+    expect(substr_count($schema->toHtml(), 'type="search"'))->toBe(1);
     $field->searchable(false);
     expect($schema->toHtml())->not->toContain('type="search"');
 
@@ -359,7 +358,7 @@ it('only renders mapping search inputs when enabled, including closure configura
     $field->searchable(function () use (&$enabled) {
         return $enabled;
     });
-    expect(substr_count($schema->toHtml(), 'type="search"'))->toBe(2);
+    expect(substr_count($schema->toHtml(), 'type="search"'))->toBe(1);
     $enabled = false;
     expect($schema->toHtml())->not->toContain('type="search"');
     expect($schema->getState()['mapping'])
@@ -370,18 +369,82 @@ it('only renders mapping search inputs when enabled, including closure configura
         ));
 });
 
-it('filters complete source card containers including static cards', function (bool $inverse) {
+it('places one shared search before the toolbar filter for mapping and binding', function (
+    bool $binding,
+    bool $contained,
+    bool $dense,
+) {
+    $source = ['properties' => ['name' => ['type' => 'string']]];
+    $field = $binding
+        ? FieldBinding::make('mapping')->jsonSchema($source)->simple(TextInput::make('destination'))
+        : FieldMapping::make('mapping')->jsonSchema(source: $source, dest: $source);
+    $field->searchable()->contained($contained)->dense($dense);
+    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema->fill();
+    $state = $schema->getState();
+    view()->share('errors', new ViewErrorBag);
+    $document = new DOMDocument;
+    $document->loadHTML($schema->toHtml(), LIBXML_NOERROR | LIBXML_NOWARNING);
+    $xpath = new DOMXPath($document);
+    $searches = $xpath->query('//input[@type="search"]');
+
+    expect($searches)->toHaveCount($contained ? 1 : 0);
+    if (!$contained) {
+        expect($xpath->query('//div[contains(@class, "eidos-mapping-toolbar")]'))->toHaveCount(0);
+        expect($schema->getState())->toBe($state);
+
+        return;
+    }
+    $search = $searches->item(0);
+    expect($search->getAttribute('x-model'))
+        ->toBe('search')
+        ->and($search->getAttribute('aria-label'))
+        ->toBe('Search fields');
+    expect($xpath->query('ancestor::div[contains(@class, "eidos-mapping-toolbar")]', $search))->toHaveCount(1);
+    expect($xpath->query('following::fieldset[contains(@class, "eidos-mapping-filter")]', $search))
+        ->toHaveCount($contained ? 1 : 0);
+    expect($schema->getState())->toBe($state);
+})->with([false, true])->with([false, true])->with([false, true]);
+
+it('keeps static values in destination editors without creating source cards', function (bool $inverse) {
+    $sourceSchema = ['properties' => ['name' => ['type' => 'string']]];
+    $field = FieldMapping::make('mapping')
+        ->jsonSchema(source: $sourceSchema, dest: ['properties' => ['label' => ['type' => 'string']]])
+        ->withBuiltinStaticForms()
+        ->inverse($inverse);
+    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema->fill([
+        'mapping' => [
+            ['kind' => 'static', 'target' => 'label', 'static' => 'Customer', 'options' => []],
+        ],
+    ]);
+    view()->share('errors', new ViewErrorBag);
+
+    expect($field->getSourceSchema())
+        ->toBe($sourceSchema)
+        ->and(array_column($field->getSources(), 'id'))
+        ->toBe(['name'])
+        ->and($field->getSourceRowIndexes())
+        ->toBe(['name' => 1])
+        ->and($schema->toHtml())
+        ->toContain('data-mapping-static-form="label"')
+        ->not->toContain('data-mapping-static-source', 'Add static value', 'removeConstant');
+    expect($schema->getState()['mapping'])->toBe([
+        ['kind' => 'static', 'target' => 'label', 'static' => 'Customer', 'options' => []],
+        ['kind' => 'source', 'source' => 'name', 'target' => null, 'options' => []],
+    ]);
+})->with([false, true]);
+
+it('filters complete source card containers', function (bool $inverse) {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(source: ['properties' => ['title' => ['type' => 'string']]], dest: [
             'properties' => ['name' => ['type' => 'string']],
         ])
-        ->staticValues()
         ->inverse($inverse);
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill([
         'mapping' => [
             ['kind' => 'source', 'source' => 'title', 'target' => null, 'options' => []],
-            ['kind' => 'static', 'target' => 'name', 'static' => 'Example', 'options' => []],
         ],
     ]);
     view()->share('errors', new ViewErrorBag);
@@ -391,14 +454,13 @@ it('filters complete source card containers including static cards', function (b
     $xpath = new DOMXPath($document);
     $sourceCards = $xpath->query('//fieldset[div/div[@data-mapping-row]]');
 
-    expect($sourceCards)->toHaveCount(2);
+    expect($sourceCards)->toHaveCount(1);
     foreach ($sourceCards as $card) {
         expect($card->getAttribute('x-bind:class'))->toContain('fi-hidden', "isVisible('source',");
         expect($xpath->query('./div/div[@data-mapping-row and @x-show]', $card))->toHaveCount(0);
     }
     expect($schema->getState()['mapping'])->toBe([
         ['kind' => 'source', 'source' => 'title', 'target' => null, 'options' => []],
-        ['kind' => 'static', 'target' => 'name', 'static' => 'Example', 'options' => []],
     ]);
 })->with([false, true]);
 
@@ -813,119 +875,6 @@ it('shows the property key separately from its title and preserves mapping state
     expect($field->getSources()[0]['label'])->toBe('Email');
     expect($schema->getState()['widget'])->toBe($state);
 })->with([false, true]);
-
-/** @param list<array<string, mixed>> $rows */
-function static_source_mapping_schema(array $rows = [], bool $disabled = false): Schema
-{
-    $field = FieldMapping::make('mapping')
-        ->staticValues()
-        ->disabled($disabled)
-        ->jsonSchema(source: ['properties' => ['static_1' => ['type' => 'string']]], dest: [
-            'properties' => [
-                'name.part' => ['type' => 'string'],
-                'count' => ['type' => 'integer'],
-                'tags' => ['type' => 'array', 'items' => ['type' => 'string']],
-            ],
-        ])
-        ->sourceSettings([
-            TextInput::make('alias')->default('default'),
-            KeyValue::make('options')->default([]),
-        ]);
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
-    $schema->fill(['mapping' => $rows]);
-
-    return $schema;
-}
-
-it('adds unconnected static source drafts and connects them without changing the public row format', function () {
-    $schema = static_source_mapping_schema();
-    $field = $schema->getComponent('mapping');
-    $field->getAction('addConstant')->call();
-    $field->getAction('addConstant')->call();
-    expect(array_keys($field->getConstants()))->toBe(['static_2', 'static_3']);
-    expect($schema->getState()['mapping'])->toBe([
-        [
-            'kind' => 'source',
-            'source' => 'static_1',
-            'target' => null,
-            'options' => ['alias' => 'default', 'options' => []],
-        ],
-        ['kind' => 'static', 'target' => null, 'static' => null, 'options' => ['alias' => 'default', 'options' => []]],
-        ['kind' => 'static', 'target' => null, 'static' => null, 'options' => ['alias' => 'default', 'options' => []]],
-    ]);
-    view()->share('errors', new ViewErrorBag);
-    expect($schema->toHtml())->toContain('Static 2', 'data-mapping-static-source="static_2"');
-
-    $field->getConstantValueSchema('static_2')->getComponent('static')->state('Customer');
-    $state = $field->getRawState();
-    $state[$field->getSourceRowIndex('static_2')]['target'] = 'name.part';
-    $field->rawState($state);
-    expect($schema->getState()['mapping'])->toContain([
-        'kind' => 'static',
-        'target' => 'name.part',
-        'static' => 'Customer',
-        'options' => ['alias' => 'default', 'options' => []],
-    ]);
-
-    $field->getAction('removeConstant')(['constant' => 'static_2'])->call();
-    expect(array_keys($field->getConstants()))->toBe(['static_2', 'static_3']);
-    $state = $field->getRawState();
-    $state[$field->getSourceRowIndex('static_2')]['target'] = null;
-    $field->rawState($state);
-    $field->getAction('removeConstant')(['constant' => 'static_2'])->call();
-    expect(array_keys($field->getConstants()))->toBe(['static_2']);
-    expect($field->isSourceUsed('static_2'))->toBeFalse();
-    expect($schema->getState()['mapping'])->toHaveCount(2);
-});
-
-it('round trips typed static sources and their settings', function (mixed $value, string $target) {
-    $rows = [[
-        'kind' => 'static',
-        'target' => $target,
-        'static' => $value,
-        'options' => ['alias' => 'saved', 'options' => []],
-    ]];
-    $schema = static_source_mapping_schema($rows);
-    expect($schema->getState()['mapping'][0])->toBe($rows[0]);
-})->with([
-    'string' => ['Customer', 'name.part'],
-    'integer' => [0, 'count'],
-    'array item' => ['priority', 'tags'],
-]);
-
-it('keeps static source actions disabled when unavailable', function (bool $enabled, bool $disabled) {
-    $schema = static_source_mapping_schema([], $disabled);
-    $field = $schema->getComponent('mapping')->staticValues($enabled);
-    $field->getAction('addConstant')->call();
-    expect($field->getConstants())->toBe([]);
-    expect($field->getAction('addConstant')->isDisabled())->toBeTrue();
-})->with([[false, false], [true, true]]);
-
-it('rejects non-scalar or empty values only after a static source is connected', function (mixed $value) {
-    $schema = static_source_mapping_schema();
-    $field = $schema->getComponent('mapping');
-    $field->getAction('addConstant')->call();
-    $field->getConstantValueSchema('static_2')->getComponent('static')->state($value);
-    $state = $field->getRawState();
-    $state[$field->getSourceRowIndex('static_2')]['target'] = 'name.part';
-    $field->rawState($state);
-    expect($schema->getState(...))->toThrow(ValidationException::class);
-})->with([[''], [null], [['invalid']]]);
-
-it('fills settings defaults when loading a static row without settings', function () {
-    $schema = static_source_mapping_schema([[
-        'kind' => 'static',
-        'target' => 'name.part',
-        'static' => 'Customer',
-        'options' => [],
-    ]]);
-    expect($schema->getState()['mapping'][0])->toBe([
-        'kind' => 'static',
-        'target' => 'name.part',
-        'static' => 'Customer',
-        'options' => ['alias' => 'default', 'options' => []],
-    ]);
-});
 
 it('keeps header actions and the trailing filter in one toolbar with density defaults', function (
     bool $binding,

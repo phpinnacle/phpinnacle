@@ -20,6 +20,15 @@ dataset('field mapping mappingValues', [
     'empty mapping' => [[], true],
     'source row must be an array' => [['name'], false],
     'missing kind' => [[['source' => 'name', 'target' => 'title', 'options' => []]], false],
+    'disconnected static source' => [
+        [[
+            'kind' => 'static',
+            'target' => null,
+            'static' => 'Customer',
+            'options' => [],
+        ]],
+        false,
+    ],
     'unknown kind' => [[['kind' => 'other', 'target' => 'title', 'options' => []]], false],
     'unexpected value on source' => [
         [[

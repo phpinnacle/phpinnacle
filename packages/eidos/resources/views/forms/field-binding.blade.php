@@ -54,6 +54,18 @@
                 @if ($contained)
                     <div class="eidos-mapping-status">
                         <span class="text-sm text-gray-500 dark:text-gray-400" x-text="@js(__('phpinnacle-eidos::schema-forms.binding.bound_count', ['bound' => '__bound__', 'total' => count($sources)])).replace('__bound__', boundCount())">{{ __('phpinnacle-eidos::schema-forms.binding.bound_count', ['bound' => count($bindings) - count($constants), 'total' => count($sources)]) }}</span>
+                        @if ($searchable && $hasFields)
+                            <div class="eidos-mapping-search">
+                                <x-filament::input.wrapper prefix-icon="heroicon-m-magnifying-glass">
+                                    <x-filament::input
+                                        type="search"
+                                        x-model="search"
+                                        placeholder="{{ __('phpinnacle-eidos::schema-forms.search_placeholder') }}"
+                                        aria-label="{{ __('phpinnacle-eidos::schema-forms.search_label') }}"
+                                    />
+                                </x-filament::input.wrapper>
+                            </div>
+                        @endif
                         <fieldset class="eidos-mapping-filter">
                             <legend class="sr-only">{{ __('phpinnacle-eidos::schema-forms.binding.filter.label') }}</legend>
                             @foreach (['all', 'bound', 'unbound'] as $filter)
@@ -90,15 +102,8 @@
                     :contained="false"
                 />
             @else
-                <div @class(['field-binding-columns', 'gap-y-3' => $dense, 'gap-y-5' => ! $dense, 'pb-1' => $searchable && $dense, 'pb-2' => $searchable && ! $dense])>
-                    <div class="min-w-0">
-                        <h3 @class(['eidos-mapping-label', 'mb-2' => $searchable && $dense, 'mb-3' => $searchable && ! $dense])>{{ $sourceLabel }}</h3>
-                        @if ($searchable)
-                            <x-filament::input.wrapper prefix-icon="heroicon-m-magnifying-glass">
-                                <x-filament::input type="search" x-model="search" placeholder="{{ __('phpinnacle-eidos::schema-forms.binding.search_placeholder') }}" aria-label="{{ __('phpinnacle-eidos::schema-forms.binding.search_label', ['label' => $sourceLabel]) }}" />
-                            </x-filament::input.wrapper>
-                        @endif
-                    </div>
+                <div class="field-binding-columns">
+                    <h3 class="eidos-mapping-label">{{ $sourceLabel }}</h3>
                     <h3 class="eidos-mapping-label field-binding-target">{{ $targetLabel }}</h3>
                 </div>
 

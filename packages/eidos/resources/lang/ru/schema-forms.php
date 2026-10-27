@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'search_placeholder' => 'Поиск полей…',
+    'search_label' => 'Поиск полей',
     'value' => 'Значение',
     'binding' => [
         'bind' => 'Привязать',
@@ -12,8 +14,6 @@ return [
             'unbound' => 'Непривязанные',
         ],
         'bound_count' => 'Привязано полей: :bound из :total',
-        'search_placeholder' => 'Поиск полей…',
-        'search_label' => 'Поиск: :label',
         'empty' => 'Нет доступных полей.',
         'add_constant' => 'Добавить статическое значение',
         'static_value' => 'Статическое значение',
@@ -27,7 +27,6 @@ return [
             'unmapped' => 'Несопоставленные',
         ],
         'mapped_count' => 'Сопоставлено назначений: :mapped из :total',
-        'search_placeholder' => 'Поиск полей…',
         'required' => 'Обязательное',
         'allowed_values' => 'Допустимые значения',
         'show_item_types' => 'Показать тип элементов: :field',

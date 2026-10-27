@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'search_placeholder' => 'Search fields…',
+    'search_label' => 'Search fields',
     'value' => 'Value',
     'binding' => [
         'bind' => 'Bind',
@@ -12,8 +14,6 @@ return [
             'unbound' => 'Unbound',
         ],
         'bound_count' => ':bound of :total sources bound',
-        'search_placeholder' => 'Search fields…',
-        'search_label' => 'Search :label',
         'empty' => 'No fields available.',
         'add_constant' => 'Add static value',
         'static_value' => 'Static value',
@@ -27,7 +27,6 @@ return [
             'unmapped' => 'Unmapped',
         ],
         'mapped_count' => ':mapped of :total destinations mapped',
-        'search_placeholder' => 'Search fields…',
         'required' => 'Required',
         'allowed_values' => 'Allowed values',
         'show_item_types' => 'Show item types for :field',

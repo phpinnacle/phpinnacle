@@ -6,6 +6,8 @@
     --eidos-card-padding-y: 0.75rem;
     --eidos-card-height: 5rem;
     --eidos-toolbar-padding-y: 1rem;
+    --eidos-toolbar-control-height: 2rem;
+    --eidos-toolbar-font-size: 0.875rem;
     --eidos-columns: minmax(0, var(--eidos-left-column)) minmax(0, var(--eidos-gap-column)) minmax(0, var(--eidos-right-column));
     --eidos-connection-danger: var(--danger-600);
     isolation: isolate;
@@ -19,6 +21,8 @@
     --eidos-card-padding-y: 0.5rem;
     --eidos-card-height: 3.5rem;
     --eidos-toolbar-padding-y: 0.5rem;
+    --eidos-toolbar-control-height: 1.75rem;
+    --eidos-toolbar-font-size: 0.75rem;
 }
 
 .eidos-mapping-contained,
@@ -70,7 +74,21 @@
 
 .eidos-mapping-status {
     margin-inline-start: auto;
+    max-width: 100%;
     justify-content: end;
+}
+
+.eidos-mapping-search {
+    width: 16rem;
+    max-width: 100%;
+}
+
+.eidos-mapping-search .fi-input {
+    /* Include the filter padding and leave room for the input wrapper's 1 px ring. */
+    height: calc(var(--eidos-toolbar-control-height) + 0.25rem - 2px);
+    padding-block: 0;
+    font-size: var(--eidos-toolbar-font-size);
+    line-height: 1.25rem;
 }
 
 .eidos-mapping-alert {
@@ -100,10 +118,6 @@
 
 .eidos-mapping-items > .fi-hidden {
     display: none;
-}
-
-.fi-input-wrp + .eidos-mapping-items {
-    margin-top: var(--eidos-padding);
 }
 
 .dark .field-mapping,
@@ -223,26 +237,6 @@
 
 .field-connection-control {
     cursor: pointer;
-}
-
-.field-mapping-static-remove {
-    margin-inline-end: -0.25rem;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 180ms ease-out;
-}
-
-.field-mapping-row:is(:hover, :focus-within) > .field-mapping-source-footer > .field-mapping-static-remove {
-    opacity: 1;
-    pointer-events: auto;
-    transition-delay: 100ms;
-}
-
-@media (hover: none) {
-    .field-mapping-static-remove {
-        opacity: 1;
-        pointer-events: auto;
-    }
 }
 
 .field-connection-control:focus {
@@ -661,7 +655,6 @@
     }
 
     .field-connection-indicator,
-    .field-mapping-static-remove,
     .field-binding-connection::before,
     .field-binding-connection::after,
     .field-mapping-line,
@@ -954,16 +947,16 @@
 
 .eidos-mapping-filter span {
     display: block;
+    height: var(--eidos-toolbar-control-height);
     border-radius: 0.375rem;
     padding: 0.375rem 0.75rem;
     color: var(--gray-600);
-    font-size: 0.875rem;
+    font-size: var(--eidos-toolbar-font-size);
     line-height: 1.25rem;
 }
 
 .fi-dense .eidos-mapping-filter span {
     padding: 0.25rem 0.625rem;
-    font-size: 0.75rem;
 }
 
 .eidos-mapping-filter input:checked + span {

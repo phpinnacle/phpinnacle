@@ -488,19 +488,7 @@ format. Enum display labels leave compatibility checks and saved values unchange
 
 ### Static values
 
-Use `FieldMapping::staticValues()` to add static source cards and connect them manually to existing destinations. The default is disabled; `staticValues(false)` disables the mode. **Add static value** creates an unconnected `static_N` card titled `Static N`, with a full-width string input, Value placeholder, and accessible hidden label. Existing scalar values retain their native types. These cards use the usual compatibility checks, support Inverse mode, and accept the configured `sourceSettings()` schema.
-
-Disconnecting retains the card as a draft. While disconnected, a gray trash action on the right of the footer removes it; the action is hidden while connected. It aligns with the first row of source settings, reserving space so settings do not shift or overlap it. It appears on card hover or keyboard focus and stays visible on devices without hover. Disconnected cards remain native rows with `target: null`, so an empty unconnected Value does not require validation. Connected values must be non-empty scalars.
-
-```php
-FieldMapping::make('mapping')
-    ->jsonSchema(source: $sourceSchema, dest: $destinationSchema)
-    ->staticValues();
-```
-
-Static source settings receive the generated identifier as `$source` and a `Closure(): JsonSchema` as `$inputSchema`; normal source settings receive `null` for `$inputSchema`. An `outputSchema()` callback should start from `$component->getSourceSchema()`, which includes the static cards, and apply the supplied settings to determine compatibility. The field does not compute output values. Submitted static rows retain `kind`, `target`, and `static`, and their validated source settings under `options`; there is no extra source identifier or rename in the public row.
-
-The static-source mode replaces destination-side `staticForms()` editors while enabled. Without `staticValues()`, static values use rows such as `['kind' => 'static', 'target' => 'contact', 'static' => 'Customer', 'options' => []]`. Without a matching `staticForms()` editor, non-empty scalar values are accepted. With an editor, its native rules and casts define accepted values. These destination-side static values count as mapped without a source or line in either orientation; the consumer owns domain validation.
+`FieldMapping` edits static values inside destination cards through `staticForms()`. Separate static source cards are available only in `FieldBinding`. Static values use rows such as `['kind' => 'static', 'target' => 'contact', 'static' => 'Customer', 'options' => []]`. Without a matching `staticForms()` editor, non-empty scalar values are accepted. With an editor, its native rules and casts define accepted values. Static destination values count as mapped without a source or line in either orientation; the consumer owns domain validation.
 
 Use `withBuiltinStaticForms()` to register standard Filament editors. Destination static forms also render when the source schema has no fields:
 
@@ -573,7 +561,7 @@ Both `FieldMapping` and `FieldBinding` accept `sourceSettings(array|Closure)`: a
 
 Settings are validated and submitted for every source, including sources with `target: null`. Removing a connection preserves its source settings. Configured settings are submitted inside each row’s `options` array; `kind`, `source`, `target`, and `static` describe the row itself. `getSourceSettings()` reads all current source-keyed settings for callbacks such as `outputSchema()`, before native child dehydration. The components do not interpret the settings.
 
-`FieldBinding` adds and removes static pairs by rendering its static section, preserving other valid bindings and source settings. With array-defined source and destination schemas, `FieldMapping` updates affected source cards, its static section when needed, and the server-calculated connection matrix. Live source-setting updates can also refresh type headings without rebuilding other editors. Search, visibility filters, mappings and other drafts remain in place. Source or destination schema callbacks retain full component rendering because they can change the set of fields.
+`FieldBinding` adds and removes static pairs by rendering its static section, preserving other valid bindings and source settings. With array-defined source and destination schemas, `FieldMapping` updates affected source cards and the server-calculated connection matrix. Live source-setting updates can also refresh type headings without rebuilding other editors. Search, visibility filters, mappings and other drafts remain in place. Source or destination schema callbacks retain full component rendering because they can change the set of fields.
 
 ### Presentation and assets
 
@@ -599,7 +587,7 @@ use Filament\Schemas\Components\Actions;
 
 Capture `$source` in your callback or pass it through `arguments()`. Native action visibility, icons and tooltips remain available. Use the same schema for source settings fields and actions; there is no separate source-action registry.
 
-Both fields accept `headerActions([...])` with native Filament actions. Actions appear on the left of the toolbar, with counters and the visibility switch at the right. Toolbar padding, action defaults, and switch sizing follow `dense()`; an explicit action `size()` takes precedence. Actions receive the owning field as `$component`, including when there are no source cards or `contained(false)` is configured. Updating only `jsonSchema(source: $schema)` preserves the destination schema. For a schema change that must survive later Livewire requests, save it through native `Set` and read that form state in the next schema declaration:
+Both fields accept `headerActions([...])` with native Filament actions. Actions appear on the left of the toolbar, with counters, one optional search input, and the visibility switch at the right. Toolbar padding, action defaults, and switch sizing follow `dense()`; an explicit action `size()` takes precedence. Actions receive the owning field as `$component`, including when there are no source cards or `contained(false)` is configured. Updating only `jsonSchema(source: $schema)` preserves the destination schema. For a schema change that must survive later Livewire requests, save it through native `Set` and read that form state in the next schema declaration:
 
 ```php
 use Filament\Actions\Action;
@@ -643,14 +631,14 @@ Both components support these presentation options:
 | --- | --- | --- |
 | `labels(source: ..., dest: ...)` | Source / Destination or Binding | Set the column headings. |
 | `columnSpans(source: ..., target: ..., gap: ...)` | `5, 5, 2` | Set relative widths for sources, targets, and the connection area between them. |
-| `searchable()` | `false` | Show field search inputs. |
-| `contained()` | `true` | Show the outer border, background, and toolbar with its filter and counters. |
+| `searchable()` | `false` | Show one shared search input in the toolbar before the visibility switch. |
+| `contained()` | `true` | Show the outer border, background, and toolbar with its search, filter, and counters. |
 | `dense()` | `false` | Reduce padding and gaps; use 56 px minimum cards instead of 80 px. |
 | `compact()` | `false` | Hide field descriptions and show them in title tooltips on hover or focus. |
 
 Labels accept strings or closures; the switches accept booleans or closures. Column spans are positive integers. For example, `->columnSpans(source: 4, target: 7, gap: 1)` gives the target more space while narrowing the connection area. In `FieldMapping::inverse()`, each width follows its source or target side. `FieldBinding` uses the same proportions for headings and rows, and still stacks them on narrow screens. Filament's `columnSpan()` continues to control the whole field's span in its parent form.
 
-`dense()` and `compact()` work independently. Dense source cards use a 4 px gap before source settings. Compact descriptions reserve no layout space. `contained(false)` preserves column headings, optional search, and editors. All combinations preserve form values. The FieldMapping toolbar has an All / Mapped / Unmapped switch, defaulting to All. It filters both sides, combines with search, and preserves all mappings and static values. Filtered cards leave no empty rows; visible cards align at the top of each column. Static destination values count as mapped. Changing the filter cancels a pending connection and refreshes visible lines; it makes no server request.
+`dense()` and `compact()` work independently. Dense source cards use a 4 px gap before source settings. Compact descriptions reserve no layout space. `contained(false)` preserves column headings and editors while hiding search, counters, and the visibility switch, even with `searchable(true)`. Header actions can still render their toolbar. All combinations preserve form values. The FieldMapping toolbar has an All / Mapped / Unmapped switch, defaulting to All. It filters both sides, combines with one query shared by both columns, and preserves all mappings and static values. Filtered cards leave no empty rows; visible cards align at the top of each column. Static destination values count as mapped. Changing the filter cancels a pending connection and refreshes visible lines; it makes no server request.
 
 Use `warnings(source: [...], dest: [...])` on `FieldMapping` or `warnings([...])` on `FieldBinding` to highlight fields. Both accept closures and retain warnings for unavailable identifiers. Escape cancels mapping selection; keyboard controls and dark mode are supported.
 

@@ -3,7 +3,6 @@
     $isLeft = $side === ($inverse ? 'target' : 'source');
     $compact = $field->isCompact();
     $disabled = $field->isDisabled();
-    $constants = $field->getConstants();
     $multipleTargets = $side === 'target' ? $field->getMultipleTargets() : [];
     $staticDefaults = $side === 'target' ? $field->getStaticDefaults() : [];
     $stateKeys = $side === 'target' ? $field->getStateKeys() : [];
@@ -19,7 +18,7 @@
     $staticSchema = $side === 'target' && array_key_exists($item['id'], $staticDefaults)
         ? ($staticSchemas[$stateKeys[$item['id']]] ?? $field->getStaticFormSchema($item['id']))
         : null;
-    $hasSourceFooter = $side === 'source' && (isset($staticSchemas['settings_'.$sourceStateKeys[$item['id']]]) || isset($constants[$item['id']]));
+    $hasSourceFooter = $side === 'source' && isset($staticSchemas['settings_'.$sourceStateKeys[$item['id']]]);
 @endphp
 <div
     @class([
@@ -80,21 +79,11 @@
             </span>
         </button>
     </div>
-    @if ($side === 'source' && isset($constants[$item['id']]))
-        <div class="field-mapping-row-footer" data-mapping-static-source="{{ $item['id'] }}">
-            {{ $staticSchemas['constant_'.$item['id']] }}
-        </div>
-    @endif
     @if ($hasSourceFooter)
         <div class="field-mapping-row-footer field-mapping-source-footer">
             <div class="min-w-0 flex-1" data-mapping-source-settings="{{ $item['id'] }}">
                 {{ $staticSchemas['settings_'.$sourceStateKeys[$item['id']]] ?? null }}
             </div>
-            @if (isset($constants[$item['id']]))
-                <div class="field-mapping-static-remove shrink-0 p-2" :class="{ 'invisible': isMapped('source', @js($item['id'])) }">
-                    {{ ($field->getAction('removeConstant'))(['constant' => $item['id']])->label(__('phpinnacle-eidos::schema-forms.binding.remove_constant').' '.$item['id']) }}
-                </div>
-            @endif
         </div>
     @endif
     @if ($staticSchema !== null)

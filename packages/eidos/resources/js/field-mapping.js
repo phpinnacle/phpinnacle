@@ -1,4 +1,4 @@
-export default function fieldMapping({ element, state, disabled, inverse = false, requiredTargets = [], connectionModes, sourceRowIndexes = {}, staticDefaults = {} }) {
+export default function fieldMapping({ element, state, disabled, inverse = false, requiredTargets = [], connectionModes, staticDefaults = {} }) {
     let ports;
     const isStaticValue = (entry) => entry?.kind === 'value';
 
@@ -8,10 +8,8 @@ export default function fieldMapping({ element, state, disabled, inverse = false
         inverse,
         requiredTargets,
         connectionModes,
-        sourceRowIndexes,
         sourceTypes: {},
-        sourceSearch: '',
-        targetSearch: '',
+        search: '',
         visibilityFilter: 'all',
         selected: null,
         connections: [],
@@ -26,7 +24,7 @@ export default function fieldMapping({ element, state, disabled, inverse = false
             this.observer = new ResizeObserver(() => this.refresh());
             this.observer.observe(this.$refs.canvas);
             element.querySelectorAll('[data-mapping-row], [data-mapping-anchor]').forEach((element) => this.observer.observe(element));
-            ['state', 'sourceSearch', 'targetSearch', 'visibilityFilter'].forEach((property) => {
+            ['state', 'search', 'visibilityFilter'].forEach((property) => {
                 this.$watch(property, () => {
                     if (property !== 'state') this.cancel();
                     this.$nextTick(() => this.refresh());
@@ -39,9 +37,8 @@ export default function fieldMapping({ element, state, disabled, inverse = false
             this.observer?.disconnect();
         },
 
-        updateConfiguration(connectionModes, sourceIds, sourceTypes, sourceRowIndexes = this.sourceRowIndexes) {
+        updateConfiguration(connectionModes, sourceIds, sourceTypes) {
             this.connectionModes = connectionModes;
-            this.sourceRowIndexes = sourceRowIndexes;
             this.sourceTypes = sourceTypes;
             if (this.selected?.side === 'source' && !sourceIds.includes(this.selected.id)) this.cancel();
             ports = undefined;
@@ -53,18 +50,14 @@ export default function fieldMapping({ element, state, disabled, inverse = false
             });
         },
 
-        sourceId(row, index) {
-            return row.kind === 'source' ? row.source : Object.keys(this.sourceRowIndexes).find(source => this.sourceRowIndexes[source] === index);
-        },
-
         mappings() {
             const mappings = new Map();
             this.state.map((row, index) => ({ row, index }))
                 .sort((a, b) => (a.row.position ?? a.index) - (b.row.position ?? b.index))
-                .forEach(({ row, index }) => {
+                .forEach(({ row }) => {
                     if (row.target === null) return;
-                    const source = this.sourceId(row, index);
-                    if (row.kind === 'static' && source === undefined) {
+                    const source = row.source;
+                    if (row.kind === 'static') {
                         mappings.set(row.target, { kind: 'value', value: row.static });
                         return;
                     }
@@ -97,9 +90,9 @@ export default function fieldMapping({ element, state, disabled, inverse = false
         },
 
         pairs() {
-            return this.state.flatMap((row, index) => {
-                const source = this.sourceId(row, index);
-                return row.target !== null && source !== undefined ? [{ source, target: row.target }] : [];
+            return this.state.flatMap(row => {
+                const source = row.source;
+                return row.target !== null && row.kind === 'source' ? [{ source, target: row.target }] : [];
             });
         },
 
@@ -155,10 +148,9 @@ export default function fieldMapping({ element, state, disabled, inverse = false
         },
 
         targetMode(target) {
-            const rows = this.state.flatMap((row, index) => row.target === target ? [{ row, index }] : []);
+            const rows = this.state.filter(row => row.target === target);
             if (rows.length > 1) return 'item';
-            const entry = rows[0];
-            return entry ? this.connectionModes[this.sourceId(entry.row, entry.index)]?.[target] ?? 'whole' : 'whole';
+            return this.connectionModes[rows[0]?.source]?.[target] ?? 'whole';
         },
 
         isIncompatible(side, id) {
@@ -179,9 +171,8 @@ export default function fieldMapping({ element, state, disabled, inverse = false
         },
 
         isVisible(side, id, text) {
-            const search = side === 'source' ? this.sourceSearch : this.targetSearch;
             const searchableText = side === 'source' ? `${text} ${this.sourceTypes[id] ?? ''}` : text;
-            return searchableText.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())
+            return searchableText.toLocaleLowerCase().includes(this.search.trim().toLocaleLowerCase())
                 && (this.visibilityFilter === 'all' || this.isMapped(side, id) === (this.visibilityFilter === 'mapped'));
         },
 
@@ -211,18 +202,17 @@ export default function fieldMapping({ element, state, disabled, inverse = false
             if (this.disabled || !this.canConnect(source, target) || !this.isSourceAvailable(source, target)) return;
 
             const multiple = this.connectionModes[source][target] === 'item';
-            this.state.forEach((row, index) => {
+            this.state.forEach(row => {
                 if (row.target !== target) return;
-                const rowSource = this.sourceId(row, index);
+                const rowSource = row.source;
                 if (rowSource === source || multiple && this.connectionModes[rowSource]?.[target] === 'item') return;
-                if (row.kind === 'static' && rowSource === undefined) row.draftTarget = target;
+                if (row.kind === 'static') row.draftTarget = target;
                 row.target = null;
             });
-            let row = this.state.find((row, index) => this.sourceId(row, index) === source);
+            let row = this.state.find(row => row.kind === 'source' && row.source === source);
             if (!row) {
                 row = { kind: 'source', source, target: null, options: {} };
                 this.state.push(row);
-                this.sourceRowIndexes[source] = this.state.length - 1;
             }
             if (multiple && row.target !== target) {
                 row.position = Math.max(this.state.length - 1, ...this.state.map(row => row.position ?? 0)) + 1;
@@ -236,11 +226,11 @@ export default function fieldMapping({ element, state, disabled, inverse = false
         remove(target, source = null) {
             if (this.disabled) return;
 
-            this.state.forEach((row, index) => {
+            this.state.forEach(row => {
                 if (row.target !== target) return;
-                const rowSource = this.sourceId(row, index);
+                const rowSource = row.source;
                 if (source !== null && rowSource !== source) return;
-                if (row.kind === 'static' && rowSource === undefined) row.draftTarget = target;
+                if (row.kind === 'static') row.draftTarget = target;
                 row.target = null;
             });
             this.restoreStaticDefault(target);

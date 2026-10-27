@@ -41,7 +41,7 @@ function editor(state = {}, disabled = false, options = {}) {
 
 test('partial configuration updates refresh compatibility and ports while keeping drafts and filters', () => {
     const component = editor({ name: sourceEntry('title') }, false, { sourceSettings: { title: { transforms: [{ type: 'trim' }] } } });
-    component.sourceSearch = 'title';
+    component.search = 'title';
     component.visibilityFilter = 'mapped';
     component.refresh();
     const state = structuredClone(component.state);
@@ -52,12 +52,12 @@ test('partial configuration updates refresh compatibility and ports while keepin
     component.updateConfiguration({ title: { contact: 'whole' }, static_1: { name: 'whole' } }, ['title', 'email', 'static_1'], { title: 'boolean' });
     assert.equal(component.hasTypeConflict('name'), true);
     assert.equal(component.canConnect('static_1', 'name'), true);
-    assert.equal(component.sourceSearch, 'title');
+    assert.equal(component.search, 'title');
     assert.equal(component.visibilityFilter, 'mapped');
     assert.deepEqual(component.selected, { side: 'source', id: 'title' });
-    component.sourceSearch = 'boolean';
+    component.search = 'boolean';
     assert.equal(component.isVisible('source', 'title', 'Title'), true);
-    component.sourceSearch = 'string';
+    component.search = 'string';
     assert.equal(component.isVisible('source', 'title', 'Title'), false);
     assert.deepEqual(component.state, state);
     component.selected = { side: 'source', id: 'static_1' };
@@ -295,15 +295,31 @@ for (const inverse of [false, true]) {
                 component.visibilityFilter = filter;
                 assert.equal(component.isVisible(side, mapped, 'Mapped field'), mappedVisible);
                 assert.equal(component.isVisible(side, unmapped, 'Other field'), unmappedVisible);
-                component[side === 'source' ? 'sourceSearch' : 'targetSearch'] = ' MAPPED ';
+                component.search = ' MAPPED ';
                 assert.equal(component.isVisible(side, mapped, 'Mapped field'), mappedVisible);
                 assert.equal(component.isVisible(side, unmapped, 'Other field'), false);
-                component[side === 'source' ? 'sourceSearch' : 'targetSearch'] = '';
+                component.search = '';
             }
         }
         assert.deepEqual(component.mappings(), state);
         component.visibilityFilter = 'all';
         assert.equal(component.isVisible('source', 'email', 'Other field'), true);
+    });
+}
+
+for (const inverse of [false, true]) {
+    test(`${inverse ? 'inverse' : 'forward'}: one query searches both columns and keeps mappings intact`, () => {
+        const component = editor({ name: sourceEntry('title'), contact: sourceEntry('email') }, false, { inverse });
+        const state = structuredClone(component.state);
+        component.search = ' NAME ';
+        assert.equal(component.isVisible('source', 'title', 'Display name'), true);
+        assert.equal(component.isVisible('target', 'name', 'Customer name'), true);
+        assert.equal(component.isVisible('source', 'email', 'Email address'), false);
+        assert.equal(component.isVisible('target', 'contact', 'Contact email'), false);
+        component.search = '';
+        assert.equal(component.isVisible('source', 'email', 'Email address'), true);
+        assert.equal(component.isVisible('target', 'contact', 'Contact email'), true);
+        assert.deepEqual(component.state, state);
     });
 }
 
@@ -700,38 +716,19 @@ test('an interactive group outside the card does not block empty card clicks', (
     assert.deepEqual(component.selected, { side: 'source', id: 'email' });
 });
 
-test('static source rows keep native values and settings when connecting and disconnecting', () => {
-    const component = editor();
-    component.state = [
-        { kind: 'static', target: null, static: 'Customer', options: { transforms: [] } },
-        { kind: 'source', source: 'email', target: null, options: {} },
-    ];
-    component.sourceRowIndexes = { title: 0, email: 1 };
-    component.connect('title', 'name');
-    assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
-    assert.deepEqual(component.state[0], { kind: 'static', target: 'name', static: 'Customer', options: { transforms: [] } });
-    component.remove('name');
-    assert.deepEqual(component.mappings(), {});
-    assert.deepEqual(component.state[0], { kind: 'static', target: null, static: 'Customer', options: { transforms: [] } });
-    component.connect('title', 'contact');
-    assert.deepEqual(component.mappings(), { contact: sourceEntry('title') });
-});
-
 test('native editor rows keep their addresses while item connections preserve selection order', () => {
     const component = editor({}, false, { connectionModes: itemModes, staticDefaults: { name: false } });
-    const constant = { kind: 'static', target: null, static: false, options: { transforms: [{ type: 'cast' }] } };
+    const title = { kind: 'source', source: 'title', target: null, options: { transforms: [{ type: 'cast' }] } };
     const email = { kind: 'source', source: 'email', target: null, options: { alias: 'Contact' } };
     component.state = [
         { kind: 'static', target: 'name', static: false, options: {} },
-        constant,
+        title,
         email,
     ];
-    component.sourceRowIndexes = { title: 1, email: 2 };
 
     component.connect('title', 'name');
-    assert.equal(component.state[1], constant);
+    assert.equal(component.state[1], title);
     assert.equal(component.state[2], email);
-    assert.deepEqual(component.sourceRowIndexes, { title: 1, email: 2 });
     component.connect('email', 'name');
     assert.deepEqual(component.mappings(), { name: [sourceEntry('title'), sourceEntry('email')] });
 
@@ -741,11 +738,10 @@ test('native editor rows keep their addresses while item connections preserve se
     assert.deepEqual(component.mappings(), { name: [sourceEntry('email'), sourceEntry('title')] });
     component.remove('name');
     assert.equal(component.state.length, 3);
-    assert.equal(component.state[1], constant);
+    assert.equal(component.state[1], title);
     assert.equal(component.state[2], email);
     assert.equal(component.state[0].target, 'name');
-    assert.equal(constant.target, null);
+    assert.equal(title.target, null);
     assert.equal(email.target, null);
-    assert.deepEqual(component.sourceRowIndexes, { title: 1, email: 2 });
     assert.deepEqual(component.mappings(), { name: value(false) });
 });

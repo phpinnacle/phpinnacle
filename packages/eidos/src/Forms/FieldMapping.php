@@ -3,10 +3,8 @@
 namespace PHPinnacle\Eidos\Forms;
 
 use Closure;
-use Filament\Actions\Action;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Concerns\CanBeCompact;
 use Filament\Schemas\Components\Group;
@@ -15,7 +13,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Concerns\CanBeContained;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Js;
-use Illuminate\Support\Str;
 use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\Rule;
 use PHPinnacle\Eidos\Forms\Concerns\HasColumnSpans;
@@ -69,8 +66,6 @@ class FieldMapping extends Field
 
     protected ?Closure $staticForms = null;
 
-    protected bool $hasStaticValues = false;
-
     /** @var bool|Closure(): bool */
     protected bool|Closure $isInverse = false;
 
@@ -91,8 +86,6 @@ class FieldMapping extends Field
 
     /** @var array<string, true> */
     private array $updatedSources = [];
-
-    private bool $shouldRenderStaticSources = false;
 
     /** @var list<string> */
     private array $cachedStaticTargets = [];
@@ -159,62 +152,16 @@ class FieldMapping extends Field
 
     public function hasStaticForms(): bool
     {
-        return !$this->hasStaticValues() && $this->staticForms !== null;
-    }
-
-    public function staticValues(bool $condition = true): static
-    {
-        $this->hasStaticValues = $condition;
-
-        return $this;
-    }
-
-    public function hasStaticValues(): bool
-    {
-        return $this->hasStaticValues;
-    }
-
-    /** @return array<string, array{static: mixed}> */
-    public function getConstants(): array
-    {
-        if (!$this->hasStaticValues()) {
-            return [];
-        }
-
-        $constants = [];
-        $names = $this->evaluate($this->sourceSchema)['properties'] ?? [];
-        foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
-            if (!is_array($row) || !isset($row['kind'])) {
-                continue;
-            }
-            if ($row['kind'] === 'static') {
-                $number = $index + 1;
-                while (array_key_exists('static_' . $number, $names)) {
-                    $number++;
-                }
-                $name = 'static_' . $number;
-                $names[$name] = true;
-                $constants[$name] = ['static' => $row['static']];
-            }
-        }
-
-        return $constants;
+        return $this->staticForms !== null;
     }
 
     public function getSourceRowIndex(string $source): ?int
     {
-        $constantNames = array_keys($this->getConstants());
-        $constant = 0;
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
             if (!is_array($row) || !isset($row['kind'])) {
                 continue;
             }
-            if (
-                $row['kind'] === 'source'
-                && $row['source'] === $source
-                || $row['kind'] === 'static'
-                && $source === ($constantNames[$constant++] ?? null)
-            ) {
+            if ($row['kind'] === 'source' && $row['source'] === $source) {
                 return $index;
             }
         }
@@ -222,31 +169,12 @@ class FieldMapping extends Field
         return null;
     }
 
-    public function getConstantValueSchema(string $source): Schema
-    {
-        return $this
-            ->makeChildSchema('constant_' . $source)
-            ->statePath((string) $this->getSourceRowIndex($source))
-            ->components([
-                TextInput::make('static')
-                    ->label(__('phpinnacle-eidos::schema-forms.value'))
-                    ->hiddenLabel()
-                    ->inlineLabel(false)
-                    ->placeholder(__('phpinnacle-eidos::schema-forms.value'))
-                    ->default('')
-                    ->required(fn () => $this->isSourceUsed($source))
-                    ->rule(fn () => $this->validateStaticValue(...)),
-            ]);
-    }
-
     /** @return array<Component> */
     protected function getSourceSettingsComponents(string $source): array
     {
         $components = $this->evaluate($this->sourceSettingsSchema, [
             'source' => $source,
-            'inputSchema' => array_key_exists($source, $this->getConstants())
-                ? fn () => fn () => JsonSchema::fromArray($this->getSourceSchema())->properties()[$source]
-                : null,
+            'inputSchema' => null,
         ]);
 
         return [Group::make($components)->afterStateUpdated(function () use ($source) {
@@ -327,9 +255,6 @@ class FieldMapping extends Field
                 ));
         }
         $schemas += $this->makeSourceSettingsSchemas();
-        foreach (array_keys($this->getConstants()) as $source) {
-            $schemas['constant_' . $source] = $this->getConstantValueSchema($source);
-        }
         foreach ($this->cachedStaticTargets as $target) {
             $schema = $this->getStaticFormSchema($target);
             if ($schema !== null) {
@@ -458,20 +383,7 @@ class FieldMapping extends Field
     /** @return Definition */
     public function getSourceSchema(): array
     {
-        $schema = $this->evaluate($this->sourceSchema);
-        foreach ($this->getConstants() as $source => $constant) {
-            $schema['properties'][$source] = [
-                'title' => Str::headline($source),
-                'type' => match (true) {
-                    is_bool($constant['static']) => 'boolean',
-                    is_int($constant['static']) => 'integer',
-                    is_float($constant['static']) => 'number',
-                    default => 'string',
-                },
-            ];
-        }
-
-        return $schema;
+        return $this->evaluate($this->sourceSchema);
     }
 
     /** @return Definition */
@@ -585,7 +497,6 @@ class FieldMapping extends Field
         $this->schema([]);
         $this->childComponents([
             View::make('phpinnacle-eidos::forms.field-mapping-configuration')->key('configuration'),
-            View::make('phpinnacle-eidos::forms.field-mapping-static-sources')->key('staticSources'),
         ], 'mappingUi');
         $this->default([]);
         $this->mutateDehydratedStateUsing(function (array $state) {
@@ -618,71 +529,6 @@ class FieldMapping extends Field
             'list',
             $this->validateMapping(...),
         ]);
-        $this->registerActions([
-            fn (self $component) => $component->getAddConstantAction(),
-            fn (self $component) => $component->getRemoveConstantAction(),
-        ]);
-    }
-
-    public function getAddConstantAction(): Action
-    {
-        return Action::make('addConstant')
-            ->label(__('phpinnacle-eidos::schema-forms.binding.add_constant'))
-            ->icon('heroicon-m-plus')
-            ->color('gray')
-            ->button()
-            ->disabled(fn () => $this->isDisabled() || !$this->hasStaticValues())
-            ->action(function () {
-                if ($this->isDisabled() || !$this->hasStaticValues()) {
-                    return;
-                }
-                $this->sourcePresentationsBeforeUpdate ??= $this->getSourcePresentations();
-                $this->shouldRenderStaticSources = true;
-                /** @var State $rows */
-                $rows = $this->getRawState() ?? [];
-                $rows[] = ['kind' => 'static', 'target' => null, 'static' => '', 'options' => []];
-                $this->rawState($rows);
-                $this->clearCachedChildSchemas();
-                /** @var non-empty-array<string, array{static: mixed}> $constants */
-                $constants = $this->getConstants();
-                $source = array_key_last($constants);
-                $this->getChildSchemas()['constant_' . $source]->fill();
-                if ($this->hasSourceSettings()) {
-                    $this->getChildSchemas()['settings_' . $this->getSourceStateKeys()[$source]]->fill();
-                }
-                $this->callAfterStateUpdated();
-            });
-    }
-
-    public function getRemoveConstantAction(): Action
-    {
-        return Action::make('removeConstant')
-            ->label(__('phpinnacle-eidos::schema-forms.binding.remove_constant'))
-            ->icon('heroicon-m-trash')
-            ->color('gray')
-            ->iconButton()
-            ->disabled(fn () => $this->isDisabled() || !$this->hasStaticValues())
-            ->action(function (array $arguments) {
-                if ($this->isDisabled() || !$this->hasStaticValues()) {
-                    return;
-                }
-                /** @var array{constant: string} $validated */
-                $validated = Validator::make($arguments, [
-                    'constant' => ['required', 'string', Rule::in(array_keys($this->getConstants()))],
-                ])->validate();
-                $source = $validated['constant'];
-                if ($this->isSourceUsed($source)) {
-                    return;
-                }
-                $this->sourcePresentationsBeforeUpdate ??= $this->getSourcePresentations();
-                $this->shouldRenderStaticSources = true;
-                /** @var State $rows */
-                $rows = $this->getRawState();
-                unset($rows[$this->getSourceRowIndexes()[$source]]);
-                $this->rawState(array_values($rows));
-                $this->clearCachedChildSchemas();
-                $this->callAfterStateUpdated();
-            });
     }
 
     /** @return array<string, Presentation> */
@@ -747,13 +593,9 @@ class FieldMapping extends Field
         $presentations = $this->getSourcePresentations();
         $schemas = $this->getChildSchemas();
         $keys = $this->getSourceStateKeys();
-        $constants = $this->getConstants();
         foreach ($this->getSources() as $item) {
             $source = $item['id'];
             $presentation = $presentations[$source] ?? JsonSchema::fromArray([])->presentation();
-            if ($this->shouldRenderStaticSources && array_key_exists($source, $constants)) {
-                continue;
-            }
             if (
                 !array_key_exists($source, $this->updatedSources)
                 && $presentation === ($this->sourcePresentationsBeforeUpdate[$source] ?? null)
@@ -768,25 +610,11 @@ class FieldMapping extends Field
             $card = $schemas['sourceCards']->getComponent(($refreshHeadings ? 'heading_' : 'card_') . $keys[$source]);
             $card->viewData(['item' => $item, 'presentation' => $presentation])->partiallyRender();
         }
-        if ($this->shouldRenderStaticSources) {
-            /** @var View $staticSources */
-            $staticSources = $schemas['mappingUi']->getComponent('staticSources');
-            $staticSources->partiallyRender();
-        }
         /** @var View $configuration */
         $configuration = $schemas['mappingUi']->getComponent('configuration');
         $configuration->partiallyRender();
         $this->sourcePresentationsBeforeUpdate = $presentations;
         $this->updatedSources = [];
-        $this->shouldRenderStaticSources = false;
-    }
-
-    /** @param Closure(string): PotentiallyTranslatedString $fail */
-    private function validateStaticValue(string $attribute, mixed $value, Closure $fail): void
-    {
-        if (!is_scalar($value)) {
-            $fail('The :attribute field must be a scalar value.')->translate();
-        }
     }
 
     /** @param Closure(string): PotentiallyTranslatedString $fail */
@@ -809,7 +637,6 @@ class FieldMapping extends Field
             'rows.*.draftTarget' => [
                 'sometimes',
                 'string',
-                Rule::prohibitedIf($this->hasStaticValues()),
                 Rule::in(array_column($this->getTargets(), 'id')),
             ],
             'rows.*.source' => [
@@ -830,7 +657,7 @@ class FieldMapping extends Field
         $modes = $this->getConnectionModes();
         $usedSources = [];
         $usedTargets = [];
-        foreach ($value as $index => $row) {
+        foreach ($value as $row) {
             if ($row['kind'] === 'source') {
                 $source = $row['source'];
                 if (
@@ -849,8 +676,7 @@ class FieldMapping extends Field
                 $mode = $row['target'] === null ? null : $modes[$source][$row['target']];
             } else {
                 if (
-                    !$this->hasStaticValues()
-                    && $row['target'] === null
+                    $row['target'] === null
                     && !array_key_exists('draftTarget', $row)
                 ) {
                     $fail('The :attribute field contains an invalid static value.')->translate();
@@ -859,8 +685,7 @@ class FieldMapping extends Field
                 }
                 if (
                     $row['target'] !== null
-                    && ($this->hasStaticValues()
-                    || $this->makeStaticField($row['target']) === null)
+                    && $this->makeStaticField($row['target']) === null
                     && (!is_scalar($row['static'])
                     || $row['static'] === '')
                 ) {
@@ -869,17 +694,9 @@ class FieldMapping extends Field
                     return;
                 }
                 $mode = 'whole';
-                if ($this->hasStaticValues() && $row['target'] !== null) {
-                    $mode = $modes[array_search($index, $this->getSourceRowIndexes(), true)][$row['target']] ?? null;
-                }
             }
             if ($row['target'] === null) {
                 continue;
-            }
-            if ($mode === null) {
-                $fail('The :attribute field contains incompatible source and destination schemas.')->translate();
-
-                return;
             }
             if (isset($usedTargets[$row['target']]) && ($mode !== 'item' || $usedTargets[$row['target']] !== 'item')) {
                 $fail('The :attribute field reuses a destination that only permits one connection.')->translate();
