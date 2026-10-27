@@ -1,0 +1,177 @@
+.tabbed-builder {
+    --tabbed-border: var(--gray-200);
+    --tabbed-muted: var(--gray-500);
+    --tabbed-accent: var(--primary-600);
+    border: 1px solid var(--tabbed-border);
+    border-radius: 0.75rem;
+    background: white;
+    overflow: clip;
+}
+
+.tabbed-builder-header {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    border-bottom: 1px solid var(--tabbed-border);
+}
+
+.tabbed-builder-tabs {
+    display: flex;
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.tabbed-builder-tab {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    border-inline-end: 1px solid var(--tabbed-border);
+    border-bottom: 2px solid transparent;
+    color: var(--gray-600);
+}
+
+.tabbed-builder-tab.is-active {
+    border-bottom-color: var(--tabbed-accent);
+    background: var(--primary-50);
+    color: var(--gray-950);
+}
+
+.tabbed-builder-tab-button {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1rem;
+    text-align: start;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.tabbed-builder-tab-button[x-sortable-handle] {
+    cursor: grab;
+}
+
+.tabbed-builder-tab-button:active {
+    cursor: grabbing;
+}
+
+.tabbed-builder-tab-button .fi-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex-shrink: 0;
+}
+
+.tabbed-builder-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 14rem;
+}
+
+.tabbed-builder-drag {
+    color: var(--tabbed-muted);
+}
+
+.tabbed-builder-error {
+    color: var(--danger-600);
+}
+
+.tabbed-builder-tab .tabbed-builder-remove {
+    margin-inline-end: 0.5rem;
+    flex-shrink: 0;
+}
+
+.tabbed-builder-add {
+    flex-shrink: 0;
+    padding: 0.5rem;
+}
+
+.tabbed-builder-panels {
+    min-width: 0;
+    flex: 1;
+}
+
+.tabbed-builder-panel {
+    padding: clamp(0.75rem, 2vw, 1.5rem);
+}
+
+.tabbed-builder-empty {
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    color: var(--tabbed-muted);
+    font-size: 0.875rem;
+}
+
+.tabbed-builder-hint {
+    border-top: 1px solid var(--tabbed-border);
+    padding: 0.75rem 1rem;
+    color: var(--tabbed-muted);
+    font-size: 0.75rem;
+}
+
+.tabbed-builder-tab-button:focus-visible, .tabbed-builder-panel:focus-visible {
+    outline: 2px solid var(--tabbed-accent);
+    outline-offset: -3px;
+}
+
+.tabbed-builder.is-vertical .tabbed-builder-header {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+}
+
+.tabbed-builder.is-vertical .tabbed-builder-tabs {
+    flex-direction: column;
+    overflow-x: hidden;
+}
+
+.tabbed-builder.is-vertical .tabbed-builder-tab {
+    border: 0;
+    border-inline-start: 3px solid transparent;
+}
+
+.tabbed-builder.is-vertical .tabbed-builder-tab.is-active {
+    border-inline-start-color: var(--tabbed-accent);
+}
+
+.tabbed-builder.is-vertical .tabbed-builder-add .fi-btn {
+    width: 100%;
+}
+
+.tabbed-builder.is-vertical .tabbed-builder-hint {
+    grid-column: 1 / -1;
+}
+
+@media (min-width: 48rem) {
+    .tabbed-builder.is-vertical {
+        display: grid;
+        grid-template-columns: clamp(8rem, 25%, 16rem) minmax(0, 1fr);
+    }
+
+    .tabbed-builder.is-vertical .tabbed-builder-header {
+        border-bottom: 0;
+        border-inline-end: 1px solid var(--tabbed-border);
+    }
+}
+
+.dark .tabbed-builder {
+    --tabbed-border: var(--gray-700);
+    --tabbed-muted: var(--gray-400);
+    --tabbed-accent: var(--primary-400);
+    background: var(--gray-900);
+}
+
+.dark .tabbed-builder-tab {
+    color: var(--gray-300);
+}
+
+.dark .tabbed-builder-tab.is-active {
+    background: color-mix(in oklab, var(--primary-400) 10%, transparent);
+    color: white;
+}
+
+.dark .tabbed-builder-error {
+    color: var(--danger-400);
+}

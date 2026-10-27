@@ -20,6 +20,8 @@ class CommonServiceProvider extends PackageServiceProvider
     public function packageBooted(): void
     {
         FilamentAsset::register([
+            AlpineComponent::make('tabbed-builder', __DIR__ . '/../resources/js/tabbed-builder.js'),
+            Css::make('tabbed-builder', __DIR__ . '/../resources/css/tabbed-builder.css'),
             AlpineComponent::make('inline-builder', __DIR__ . '/../resources/js/inline-builder.js'),
             Css::make('inline-builder', __DIR__ . '/../resources/css/inline-builder.css'),
             AlpineComponent::make('item-picker', __DIR__ . '/../resources/js/item-picker.js'),

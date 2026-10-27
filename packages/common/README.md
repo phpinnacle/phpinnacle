@@ -8,6 +8,7 @@ Common provides reusable Filament fields, table filters and columns, range match
 ## Features
 
 - InlineBuilder fields with repeatable blocks, compact chips, modal forms, and constrained drag or keyboard ordering.
+- TabbedBuilder fields with independent blocks, horizontal or vertical tabs, inline forms, and drag or keyboard ordering.
 - ItemPicker form fields with inline or custom dropdown layouts, grouped trees, server search, scroll loading, multiple selection, badges and images.
 - Inclusive, strict and open-ended range matching.
 - Range, active and combined table filters.
@@ -66,6 +67,43 @@ Click the plus button to choose a block. Blocks without a schema are added immed
 Use `reorderableUsing(fn (array $items) => ...)` for application-specific ordering constraints. Its `$items` argument contains the complete proposed sequence, including each instance's data. The same callback builds allowed positions for the browser and checks the current sequence again before a server mutation. Drag hovering and rejected moves make no request, rejected drops restore the original order, and keyboard moves use the same permissions. Allowed positions refresh on rendering after changes to data or surrounding form state. Submitted orders must be complete permutations without missing, duplicated or unknown items. Application-specific validation of the full value belongs in the consuming field's Laravel rules.
 
 Actions partially render their editor by default; use `partiallyRenderAfterStateUpdated(false)` when the containing form needs a full refresh. No domain registry, JSON Schema definition, panel plugin, or other PHPinnacle package is required.
+
+### Tabbed builder
+
+`TabbedBuilder` edits repeatable blocks in horizontal tabs, or vertical tabs with `vertical()`. It extends Filament's Builder and uses its native schema lifecycle. Its own `Block` extends Filament's Builder block; neither class depends on InlineBuilder.
+
+```php
+use Filament\Forms\Components\RichEditor;
+use Filament\Forms\Components\TextInput;
+use PHPinnacle\Common\Forms\TabbedBuilder;
+use PHPinnacle\Common\Forms\TabbedBuilder\Block;
+
+TabbedBuilder::make('content')
+    ->label('Content blocks')
+    ->vertical() // Omit for horizontal tabs.
+    ->addActionLabel('Add block')
+    ->minItems(1)
+    ->maxItems(10)
+    ->blocks([
+        Block::make('heading')
+            ->label('Heading')
+            ->icon('heroicon-o-h1')
+            ->schema([TextInput::make('text')->required()]),
+        Block::make('text')
+            ->label(fn (?array $state) => $state !== null && filled($state['title']) ? $state['title'] : 'Text')
+            ->icon('heroicon-o-document-text')
+            ->schema([
+                TextInput::make('title')->live(onBlur: true),
+                RichEditor::make('body')->required(),
+            ]),
+    ]);
+```
+
+`blocks()` accepts an array or closure. Block schemas support native Filament components, deferred closures, defaults, `columns()`, and field utility injections. A block's `label()` closure receives `null` as `$state` in the catalog and the instance's data in its tab. Use `live()` on fields that update tab labels. Block `addable(bool|Closure)` controls catalog availability while existing instances remain editable. Builder `addable()`, `deletable()`, `reorderable()`, and `vertical()` accept booleans or closures. Disabled fields prevent mutations; `minItems()` and `maxItems()` validate the total count and constrain deletion and addition respectively.
+
+The plus button opens the catalog and adds a block immediately with native field defaults. The first tab is selected initially; adding selects the new instance, reordering preserves the selected instance, and deleting the active tab selects its next neighbor or the preceding one when it was last. Drag a tab to reorder it, or use Alt+Left/Right (Alt+Up/Down vertically). Arrow keys navigate tabs, and Home/End select the first/last tab. Horizontal tabs scroll when space is limited; vertical tabs keep a separate column on wider screens and stack above the editor on narrow screens. Error indicators identify invalid blocks, and submission reveals the first invalid block through Filament's form validation events. All tab schemas remain mounted and participate in hydration, validation, and dehydration, including inactive tabs.
+
+Saved state is an ordered list of `['type' => 'text', 'data' => [...]]` items. Filament's temporary instance keys and the active tab are not serialized. No database model, panel plugin, or other PHPinnacle package is required. Assets register automatically through Common's service provider; publish them in the consuming application with `php artisan filament:assets`.
 
 ### Item picker
 
