@@ -1,8 +1,9 @@
-export default function tabbedBuilder({ context, reorderAction, reorderable, vertical }) {
+export default function tabbedBuilder({ context, reorderAction, reorderable }) {
     return {
         active: null,
         keys: [],
         observer: null,
+        vertical: false,
 
         init() {
             this.sync();
@@ -11,6 +12,7 @@ export default function tabbedBuilder({ context, reorderAction, reorderable, ver
         },
 
         sync() {
+            this.vertical = this.$refs.metadata.dataset.vertical === 'true';
             const keys = JSON.parse(this.$refs.metadata.dataset.keys);
             const added = keys.filter(key => !this.keys.includes(key));
             if (this.keys.length && added.length) {
@@ -34,8 +36,8 @@ export default function tabbedBuilder({ context, reorderAction, reorderable, ver
         },
 
         keydown(event, key) {
-            const previous = vertical ? 'ArrowUp' : 'ArrowLeft';
-            const next = vertical ? 'ArrowDown' : 'ArrowRight';
+            const previous = this.vertical ? 'ArrowUp' : 'ArrowLeft';
+            const next = this.vertical ? 'ArrowDown' : 'ArrowRight';
             const offset = event.key === previous ? -1 : event.key === next ? 1 : 0;
             if (event.altKey && offset) {
                 event.preventDefault();

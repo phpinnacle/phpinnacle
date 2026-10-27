@@ -8,7 +8,7 @@ Common provides reusable Filament fields, table filters and columns, range match
 ## Features
 
 - InlineBuilder fields with repeatable blocks, compact chips, modal forms, and constrained drag or keyboard ordering.
-- TabbedBuilder fields with independent blocks, horizontal or vertical tabs, inline forms, and drag or keyboard ordering.
+- TabbedBuilder fields with independent blocks, tabs on any side, inline forms, and drag or keyboard ordering.
 - ItemPicker form fields with inline or custom dropdown layouts, grouped trees, server search, scroll loading, multiple selection, badges and images.
 - Inclusive, strict and open-ended range matching.
 - Range, active and combined table filters.
@@ -70,17 +70,18 @@ Actions partially render their editor by default; use `partiallyRenderAfterState
 
 ### Tabbed builder
 
-`TabbedBuilder` edits repeatable blocks in horizontal tabs, or vertical tabs with `vertical()`. It extends Filament's Builder and uses its native schema lifecycle. Its own `Block` extends Filament's Builder block; neither class depends on InlineBuilder.
+`TabbedBuilder` edits repeatable blocks with tabs above, below, or on either side of their content. It extends Filament's Builder and uses its native schema lifecycle. Its own `Block` extends Filament's Builder block; neither class depends on InlineBuilder.
 
 ```php
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\TextInput;
+use PHPinnacle\Common\Enums\TabPosition;
 use PHPinnacle\Common\Forms\TabbedBuilder;
 use PHPinnacle\Common\Forms\TabbedBuilder\Block;
 
 TabbedBuilder::make('content')
     ->label('Content blocks')
-    ->vertical() // Omit for horizontal tabs.
+    ->tabsPosition(TabPosition::Start) // Defaults to TabPosition::Top.
     ->addActionLabel('Add block')
     ->minItems(1)
     ->maxItems(10)
@@ -99,9 +100,33 @@ TabbedBuilder::make('content')
     ]);
 ```
 
-`blocks()` accepts an array or closure. Block schemas support native Filament components, deferred closures, defaults, `columns()`, and field utility injections. A block's `label()` closure receives `null` as `$state` in the catalog and the instance's data in its tab. Use `live()` on fields that update tab labels. Block `addable(bool|Closure)` controls catalog availability while existing instances remain editable. Builder `addable()`, `deletable()`, `reorderable()`, and `vertical()` accept booleans or closures. Disabled fields prevent mutations; `minItems()` and `maxItems()` validate the total count and constrain deletion and addition respectively.
+`blocks()` accepts an array or closure. Block schemas support native Filament components, deferred closures, defaults, `columns()`, and field utility injections. A block's `label()` closure receives `null` as `$state` in the catalog and the instance's data in its tab. Use `live()` on fields that update tab labels. Block `addable(bool|Closure)` controls catalog availability while existing instances remain editable. Builder `addable()`, `deletable()`, and `reorderable()` accept booleans or closures. Disabled fields prevent mutations; `minItems()` and `maxItems()` validate the total count and constrain deletion and addition respectively.
 
-The plus button opens the catalog and adds a block immediately with native field defaults. The first tab is selected initially; adding selects the new instance, reordering preserves the selected instance, and deleting the active tab selects its next neighbor or the preceding one when it was last. Drag a tab to reorder it, or use Alt+Left/Right (Alt+Up/Down vertically). Arrow keys navigate tabs, and Home/End select the first/last tab. Horizontal tabs scroll when space is limited; vertical tabs keep a separate column on wider screens and stack above the editor on narrow screens. Error indicators identify invalid blocks, and submission reveals the first invalid block through Filament's form validation events. All tab schemas remain mounted and participate in hydration, validation, and dehydration, including inactive tabs.
+`tabsPosition(TabPosition|Closure $position)` accepts `TabPosition::Top` (the default), `Bottom`, `Start`, or `End`. Start and End follow the text direction: left and right in LTR, right and left in RTL. Top and Bottom use horizontal tabs; Start and End use vertical tabs that stack above the editor on narrow screens. Position callbacks support the usual Filament utility injections and are reevaluated on rendering. Changing position preserves the active tab and updates its keyboard navigation. Position affects presentation only and is not serialized in the block state.
+
+Empty builders use Filament's empty state component. Customize it with `emptyStateIcon()`, `emptyStateHeading()`, and `emptyStateDescription()`:
+
+```php
+TabbedBuilder::make('content')
+    ->emptyStateIcon('heroicon-o-document-text')
+    ->emptyStateHeading('No content yet')
+    ->emptyStateDescription('Choose a block to get started.')
+    ->blocks([Block::make('text')->schema([TextInput::make('body')])]);
+```
+
+All three settings accept closures with the usual Filament utility injections. Headings and descriptions accept strings or `Htmlable` values; icons accept icon names, backed enums such as `Heroicon`, or `Htmlable` values. The default heading is the translated "Add a block to get started." message, with no icon or description. Passing `null` resets the heading to its default or removes the icon or description.
+
+Customize the removal icon through Filament's native `deleteAction()` callback. The default is a gray cross; callback settings are applied after these defaults:
+
+```php
+use Filament\Actions\Action;
+use Filament\Support\Icons\Heroicon;
+
+TabbedBuilder::make('content')
+    ->deleteAction(fn (Action $action) => $action->icon(Heroicon::Trash));
+```
+
+Tabs use Filament's native tab styling without a drag-handle icon. The plus button opens the catalog and adds a block immediately with native field defaults. The first tab is selected initially; adding selects the new instance, reordering preserves the selected instance, and deleting the active tab selects its next neighbor or the preceding one when it was last. Drag a tab's label to reorder it, or use Alt+Left/Right (Alt+Up/Down vertically). Arrow keys navigate tabs, and Home/End select the first/last tab. Horizontal tabs scroll when space is limited; vertical tabs keep a separate column on wider screens and stack above the editor on narrow screens. Error indicators identify invalid blocks, and submission reveals the first invalid block through Filament's form validation events. All tab schemas remain mounted and participate in hydration, validation, and dehydration, including inactive tabs.
 
 Saved state is an ordered list of `['type' => 'text', 'data' => [...]]` items. Filament's temporary instance keys and the active tab are not serialized. No database model, panel plugin, or other PHPinnacle package is required. Assets register automatically through Common's service provider; publish them in the consuming application with `php artisan filament:assets`.
 

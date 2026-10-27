@@ -4,8 +4,8 @@ import tabbedBuilder from '../resources/js/tabbed-builder.js';
 
 function editor(keys = [], options = {}) {
     const calls = [];
-    const component = tabbedBuilder({ context: { schemaComponent: 'form.content' }, reorderAction: 'reorder', reorderable: true, vertical: false, ...options });
-    component.$refs = { metadata: { dataset: { keys: JSON.stringify(keys) } }, tabs: { children: keys.map(key => ({ getAttribute: () => key })) } };
+    const component = tabbedBuilder({ context: { schemaComponent: 'form.content' }, reorderAction: 'reorder', reorderable: true, ...options });
+    component.$refs = { metadata: { dataset: { keys: JSON.stringify(keys), vertical: String(options.vertical ?? false) } }, tabs: { children: keys.map(key => ({ getAttribute: () => key })) } };
     component.$nextTick = callback => callback();
     component.$wire = { mountAction: (...args) => calls.push(args) };
     component.sync();
@@ -71,4 +71,21 @@ test('tab navigation wraps and supports Home and End without a server request', 
     assert.equal(component.active, 'b');
     assert.deepEqual(focused, ['b', 'a', 'b']);
     assert.deepEqual(calls, []);
+});
+
+test('position changes update keyboard navigation and ordering without resetting selection', () => {
+    const { component, calls } = editor(['a', 'b']);
+    component.$refs.tabs.querySelectorAll = () => ['a', 'b'].map(() => ({ focus() {}, scrollIntoView() {} }));
+    component.select('b');
+    component.$refs.metadata.dataset.vertical = 'true';
+    component.sync();
+    assert.equal(component.active, 'b');
+    component.keydown({ key: 'ArrowUp', preventDefault() {} }, 'b');
+    assert.equal(component.active, 'a');
+    component.keydown({ key: 'ArrowDown', altKey: true, preventDefault() {} }, 'a');
+    assert.deepEqual(calls[0][1], { items: ['b', 'a'] });
+    component.$refs.metadata.dataset.vertical = 'false';
+    component.sync();
+    component.keydown({ key: 'ArrowRight', preventDefault() {} }, 'a');
+    assert.equal(component.active, 'b');
 });

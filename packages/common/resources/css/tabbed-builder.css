@@ -2,38 +2,35 @@
     --tabbed-border: var(--gray-200);
     --tabbed-muted: var(--gray-500);
     --tabbed-accent: var(--primary-600);
-    border: 1px solid var(--tabbed-border);
-    border-radius: 0.75rem;
-    background: white;
+    display: grid;
+    grid-template-areas: "header" "panels" "hint";
     overflow: clip;
 }
 
 .tabbed-builder-header {
+    grid-area: header;
     display: flex;
     min-width: 0;
     align-items: center;
+    gap: 0.25rem;
+    padding: 0.625rem 0.75rem;
     border-bottom: 1px solid var(--tabbed-border);
 }
 
 .tabbed-builder-tabs {
     display: flex;
     min-width: 0;
+    gap: 0.25rem;
     overflow-x: auto;
 }
 
 .tabbed-builder-tab {
-    display: flex;
     flex-shrink: 0;
-    align-items: center;
-    border-inline-end: 1px solid var(--tabbed-border);
-    border-bottom: 2px solid transparent;
-    color: var(--gray-600);
+    padding: 0;
 }
 
-.tabbed-builder-tab.is-active {
-    border-bottom-color: var(--tabbed-accent);
-    background: var(--primary-50);
-    color: var(--gray-950);
+.tabbed-builder-tab > .fi-tabs-item-label {
+    display: contents;
 }
 
 .tabbed-builder-tab-button {
@@ -42,7 +39,7 @@
     flex: 1;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.875rem 1rem;
+    padding: 0.5rem 0.75rem;
     text-align: start;
     font-size: 0.875rem;
     font-weight: 500;
@@ -53,7 +50,7 @@
     cursor: grab;
 }
 
-.tabbed-builder-tab-button:active {
+.tabbed-builder-tab-button[x-sortable-handle]:active {
     cursor: grabbing;
 }
 
@@ -70,10 +67,6 @@
     max-width: 14rem;
 }
 
-.tabbed-builder-drag {
-    color: var(--tabbed-muted);
-}
-
 .tabbed-builder-error {
     color: var(--danger-600);
 }
@@ -85,26 +78,19 @@
 
 .tabbed-builder-add {
     flex-shrink: 0;
-    padding: 0.5rem;
 }
 
 .tabbed-builder-panels {
+    grid-area: panels;
     min-width: 0;
-    flex: 1;
 }
 
 .tabbed-builder-panel {
     padding: clamp(0.75rem, 2vw, 1.5rem);
 }
 
-.tabbed-builder-empty {
-    padding: 2.5rem 1.5rem;
-    text-align: center;
-    color: var(--tabbed-muted);
-    font-size: 0.875rem;
-}
-
 .tabbed-builder-hint {
+    grid-area: hint;
     border-top: 1px solid var(--tabbed-border);
     padding: 0.75rem 1rem;
     color: var(--tabbed-muted);
@@ -127,49 +113,45 @@
     overflow-x: hidden;
 }
 
-.tabbed-builder.is-vertical .tabbed-builder-tab {
-    border: 0;
-    border-inline-start: 3px solid transparent;
-}
-
-.tabbed-builder.is-vertical .tabbed-builder-tab.is-active {
-    border-inline-start-color: var(--tabbed-accent);
-}
-
 .tabbed-builder.is-vertical .tabbed-builder-add .fi-btn {
     width: 100%;
 }
 
-.tabbed-builder.is-vertical .tabbed-builder-hint {
-    grid-column: 1 / -1;
+.tabbed-builder.tabs-position-bottom {
+    grid-template-areas: "panels" "header" "hint";
+}
+
+.tabbed-builder.tabs-position-bottom .tabbed-builder-header {
+    border-top: 1px solid var(--tabbed-border);
+    border-bottom: 0;
 }
 
 @media (min-width: 48rem) {
     .tabbed-builder.is-vertical {
-        display: grid;
         grid-template-columns: clamp(8rem, 25%, 16rem) minmax(0, 1fr);
+        grid-template-areas: "header panels" "hint hint";
     }
 
     .tabbed-builder.is-vertical .tabbed-builder-header {
         border-bottom: 0;
         border-inline-end: 1px solid var(--tabbed-border);
     }
+
+    .tabbed-builder.tabs-position-end {
+        grid-template-columns: minmax(0, 1fr) clamp(8rem, 25%, 16rem);
+        grid-template-areas: "panels header" "hint hint";
+    }
+
+    .tabbed-builder.tabs-position-end .tabbed-builder-header {
+        border-inline-start: 1px solid var(--tabbed-border);
+        border-inline-end: 0;
+    }
 }
 
 .dark .tabbed-builder {
-    --tabbed-border: var(--gray-700);
+    --tabbed-border: color-mix(in oklab, white 10%, transparent);
     --tabbed-muted: var(--gray-400);
     --tabbed-accent: var(--primary-400);
-    background: var(--gray-900);
-}
-
-.dark .tabbed-builder-tab {
-    color: var(--gray-300);
-}
-
-.dark .tabbed-builder-tab.is-active {
-    background: color-mix(in oklab, var(--primary-400) 10%, transparent);
-    color: white;
 }
 
 .dark .tabbed-builder-error {

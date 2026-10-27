@@ -2,6 +2,8 @@
     use Filament\Support\Facades\FilamentAsset;
 
     $items = $getItems();
+    $tabsPosition = $getTabsPosition();
+    $isVertical = $tabsPosition->isVertical();
     $id = $getId();
     $add = $getAction($getAddActionName());
     $delete = $getAction($getDeleteActionName());
@@ -17,21 +19,21 @@
 
 <x-dynamic-component :component="$getFieldWrapperView()" :field="$field">
     <div
-        {{ $getExtraAttributeBag()->class(['tabbed-builder', 'is-vertical' => $isVertical()]) }}
+        {{ $getExtraAttributeBag()->class(['fi-sc-tabs fi-contained tabbed-builder', 'tabs-position-' . $tabsPosition->value, 'is-vertical' => $isVertical]) }}
         data-field-interactive
         data-tabbed-builder
         x-load
         x-load-src="{{ FilamentAsset::getAlpineComponentSrc('tabbed-builder', 'phpinnacle/common') }}"
-        x-data="tabbedBuilder(@js(['context' => $reorder->getContext(), 'reorderAction' => $getReorderActionName(), 'reorderable' => $isReorderable(), 'vertical' => $isVertical()]))"
+        x-data="tabbedBuilder(@js(['context' => $reorder->getContext(), 'reorderAction' => $getReorderActionName(), 'reorderable' => $isReorderable()]))"
     >
-        <span hidden x-ref="metadata" data-keys="{{ json_encode(array_map('strval', array_keys($items))) }}"></span>
+        <span hidden x-ref="metadata" data-keys="{{ json_encode(array_map('strval', array_keys($items))) }}" data-vertical="{{ $isVertical ? 'true' : 'false' }}"></span>
         <div class="tabbed-builder-header">
             <div
                 class="tabbed-builder-tabs"
                 x-ref="tabs"
                 role="tablist"
                 aria-label="{{ $getLabel() }}"
-                aria-orientation="{{ $isVertical() ? 'vertical' : 'horizontal' }}"
+                aria-orientation="{{ $isVertical ? 'vertical' : 'horizontal' }}"
                 @if ($isReorderable())
                     x-sortable
                     x-on:end.stop="reorder($event)"
@@ -42,9 +44,10 @@
                         $block = $item->getParentComponent();
                         $label = $block->getLabel($item->getRawState(), (string) $key, $loop->index);
                     @endphp
-                    <div
+                    <x-filament::tabs.item
+                        tag="div"
                         class="tabbed-builder-tab"
-                        x-bind:class="{ 'is-active': active === @js((string) $key) }"
+                        :alpine-active="'active === ' . \Illuminate\Support\Js::from((string) $key)"
                         x-sortable-item="{{ $key }}"
                         wire:key="{{ $id }}-tab-{{ $key }}"
                         role="presentation"
@@ -62,9 +65,6 @@
                             x-on:keydown="keydown($event, @js((string) $key))"
                             @if ($isReorderable()) x-sortable-handle @endif
                         >
-                            @if ($isReorderable())
-                                <x-filament::icon icon="heroicon-m-bars-3" class="tabbed-builder-drag" />
-                            @endif
                             @if ($icon = $block->getIcon())
                                 <x-filament::icon :icon="$icon" />
                             @endif
@@ -76,7 +76,7 @@
                         @if ($isDeletable())
                             {{ $delete(['item' => (string) $key])->label(__('phpinnacle-common::tabbed-builder.remove', ['block' => $label]))->extraAttributes(['class' => 'tabbed-builder-remove']) }}
                         @endif
-                    </div>
+                    </x-filament::tabs.item>
                 @endforeach
             </div>
             @if ($available !== [])
@@ -84,7 +84,7 @@
                     <x-filament::dropdown placement="bottom-start" teleport>
                         <x-slot name="trigger">
                             <x-filament::button color="gray" icon="heroicon-m-plus" size="sm" :aria-label="$getAddActionLabel()">
-                                @if ($isVertical() || $items === [])
+                                @if ($isVertical || $items === [])
                                     {{ $getAddActionLabel() }}
                                 @endif
                             </x-filament::button>
@@ -114,7 +114,15 @@
                     {{ $item }}
                 </div>
             @empty
-                <p class="tabbed-builder-empty">{{ __('phpinnacle-common::tabbed-builder.empty') }}</p>
+                <x-filament::empty-state
+                    class="tabbed-builder-empty"
+                    role="status"
+                    :contained="false"
+                    :icon="$getEmptyStateIcon()"
+                    icon-color="gray"
+                    :heading="$getEmptyStateHeading()"
+                    :description="$getEmptyStateDescription()"
+                />
             @endforelse
         </div>
         @if ($isReorderable() && count($items) > 1)
