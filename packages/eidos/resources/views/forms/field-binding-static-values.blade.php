@@ -4,9 +4,8 @@
 
     /** @var FieldBinding $field */
     $field = $getContainer()->getParentComponent();
-    $dense = $field->isDense();
 @endphp
-<div @class(['space-y-2' => $dense, 'space-y-3' => ! $dense]) data-binding-constants>
+<div class="field-binding-static-values" data-binding-constants>
     @foreach ($field->getConstants() as $key => $constant)
         @php
             $target = $field->getConstantTarget($key);
@@ -15,8 +14,8 @@
             $remove = ($field->getAction('removeConstant'))(['constant' => $key]);
             $removeLabel = $remove->getLabel().' '.($property ?? $title);
         @endphp
-        <div class="field-binding-columns grid grid-cols-1 items-stretch gap-y-2 md:gap-0" wire:key="{{ $field->getId() }}-{{ $key }}" data-binding-constant="{{ $key }}" x-show="matchesFilter(true)">
-            <div @class(['field-mapping-row is-mapped relative min-w-0 space-y-2 rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900', 'px-3 py-2' => $dense, 'px-4 py-3' => ! $dense])>
+        <div class="field-binding-columns gap-y-2" wire:key="{{ $field->getId() }}-{{ $key }}" data-binding-constant="{{ $key }}" x-show="matchesFilter(true)">
+            <div class="eidos-mapping-card field-mapping-row is-mapped space-y-2">
                 <div class="eidos-mapping-heading">
                     <span class="eidos-mapping-names">
                         <span class="eidos-mapping-name has-title">{{ $title }}</span>
@@ -32,7 +31,7 @@
             </div>
             <button
                 type="button"
-                class="field-binding-connection field-connection-control relative flex h-8 w-full items-center justify-center self-center md:col-start-2"
+                class="field-binding-connection field-connection-control"
                 aria-label="{{ $removeLabel }}"
                 title="{{ $removeLabel }}"
                 wire:click="{{ $remove->getLivewireClickHandler() }}"
@@ -40,13 +39,13 @@
                 wire:target="{{ $remove->getLivewireClickHandler() }}"
                 @disabled($remove->isDisabled())
             >
-                <svg class="hidden h-4 w-full md:block" viewBox="0 0 100 16" preserveAspectRatio="none" aria-hidden="true"><path class="field-mapping-line" d="M 0 8 H 100" vector-effect="non-scaling-stroke" /></svg>
-                <svg class="h-8 w-4 md:hidden" viewBox="0 0 16 100" preserveAspectRatio="none" aria-hidden="true"><path class="field-mapping-line" d="M 8 0 V 100" vector-effect="non-scaling-stroke" /></svg>
+                <svg class="field-binding-line-horizontal" viewBox="0 0 100 16" preserveAspectRatio="none" aria-hidden="true"><path class="field-mapping-line" d="M 0 8 H 100" vector-effect="non-scaling-stroke" /></svg>
+                <svg class="field-binding-line-vertical" viewBox="0 0 16 100" preserveAspectRatio="none" aria-hidden="true"><path class="field-mapping-line" d="M 8 0 V 100" vector-effect="non-scaling-stroke" /></svg>
                 <span class="field-connection-indicator" aria-hidden="true">
                     <x-filament::icon :icon="$remove->getIcon()" />
                 </span>
             </button>
-            <div @class(['flex min-w-0 items-start rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900 md:col-start-3', 'gap-2 px-3 py-2' => $dense, 'gap-3 px-4 py-3' => ! $dense])>
+            <div class="eidos-mapping-card field-binding-target">
                 <div class="min-w-0 flex-1">{{ $constant->getComponent('output') }}</div>
             </div>
         </div>

@@ -14,6 +14,7 @@ use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Support\Concerns\CanBeContained;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Js;
 use Illuminate\Support\Str;
 use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\Rule;
@@ -30,8 +31,8 @@ use PHPinnacle\Eidos\Forms\Concerns\Searchable;
  * @phpstan-type ValueEntry array{kind: 'value', value: mixed}
  * @phpstan-type Entry SourceEntry|ValueEntry
  * @phpstan-type Targets array<string, Entry|non-empty-list<SourceEntry>>
- * @phpstan-type SourceState array{kind: 'source', source: string, target: string|null, options: array<string, mixed>}
- * @phpstan-type StaticState array{kind: 'static', target: string|null, static: mixed, options: array<string, mixed>}
+ * @phpstan-type SourceState array{kind: 'source', source: string, target: string|null, options: array<string, mixed>, position?: int}
+ * @phpstan-type StaticState array{kind: 'static', target: string|null, static: mixed, options: array<string, mixed>, position?: int, draftTarget?: string}
  * @phpstan-type State list<SourceState|StaticState>
  */
 // @mago-expect lint:too-many-properties
@@ -273,7 +274,7 @@ class FieldMapping extends Field
 
         return $this
             ->makeChildSchema(self::stateKey($target))
-            ->statePath((string) $this->getStaticRowIndex($target))
+            ->statePath((string) $this->getStaticRowIndex($target, includeDrafts: true))
             ->partiallyRender()
             ->components([
                 Group::make([
@@ -366,8 +367,13 @@ class FieldMapping extends Field
         }
         $this->rawState($rows);
         foreach ($this->getStaticDefaults() as $target => $value) {
-            if ($this->getStaticRowIndex((string) $target) === null && !$this->isTargetUsed((string) $target)) {
-                $rows[] = ['kind' => 'static', 'target' => (string) $target, 'static' => $value, 'options' => []];
+            if ($this->getStaticRowIndex((string) $target, includeDrafts: true) === null) {
+                $row = ['kind' => 'static', 'target' => (string) $target, 'static' => $value, 'options' => []];
+                if ($this->isTargetUsed((string) $target)) {
+                    $row['target'] = null;
+                    $row['draftTarget'] = (string) $target;
+                }
+                $rows[] = $row;
             }
         }
         $this->rawState($rows);
@@ -386,18 +392,22 @@ class FieldMapping extends Field
         );
     }
 
-    public function getStaticRowIndex(string $target): ?int
+    public function getStaticRowIndex(string $target, bool $includeDrafts = false): ?int
     {
+        $draftIndex = null;
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
-            if (!is_array($row) || !isset($row['kind'])) {
+            if (!is_int($index) || !is_array($row) || !isset($row['kind'])) {
                 continue;
             }
             if ($row['kind'] === 'static' && $row['target'] === $target) {
                 return $index;
             }
+            if ($includeDrafts && $row['kind'] === 'static' && ($row['draftTarget'] ?? null) === $target) {
+                $draftIndex = $index;
+            }
         }
 
-        return null;
+        return $draftIndex;
     }
 
     private function isTargetUsed(string $target): bool
@@ -578,6 +588,28 @@ class FieldMapping extends Field
             View::make('phpinnacle-eidos::forms.field-mapping-static-sources')->key('staticSources'),
         ], 'mappingUi');
         $this->default([]);
+        $this->mutateDehydratedStateUsing(function (array $state) {
+            /** @var State $state */
+            foreach ($state as $index => &$row) {
+                $row['position'] ??= $index;
+            }
+            unset($row);
+            usort($state, fn (array $a, array $b) => $a['position'] <=> $b['position']);
+
+            return array_values(array_map(
+                function (array $row) {
+                    unset($row['position'], $row['draftTarget']);
+
+                    return $row;
+                },
+                array_filter(
+                    $state,
+                    fn (array $row) => $row['kind'] !== 'static'
+                    || $row['target'] !== null
+                    || !array_key_exists('draftTarget', $row),
+                ),
+            ));
+        });
         $this->afterStateUpdated(fn (self $component) => $component->renderMappingUpdates());
         $this->required(fn () => $this->getRequiredTargets() !== []);
         $this->rules(fn () => [
@@ -670,12 +702,22 @@ class FieldMapping extends Field
 
         $components = [];
         foreach ($this->getSources() as $item) {
+            $searchText =
+                strip_tags($item['label'] . ' ' . ($item['description'] ?? ''))
+                . ' '
+                . $item['id']
+                . ' '
+                . $item['name']
+                . ' '
+                . implode(' ', array_column($item['badges'], 'label'));
             $data = [
                 'item' => $item,
                 'presentation' => $presentations[$item['id']] ?? JsonSchema::fromArray([])->presentation(),
             ];
             $components[] = View::make('phpinnacle-eidos::forms.field-mapping-source-card')
-                ->key('card_' . $keys[$item['id']])->viewData($data);
+                ->key('card_' . $keys[$item['id']])
+                ->visibleJs('isVisible(\'source\', ' . Js::from($item['id']) . ', ' . Js::from($searchText) . ')')
+                ->viewData($data);
             $components[] = View::make('phpinnacle-eidos::forms.field-mapping-source-heading')
                 ->key('heading_' . $keys[$item['id']])
                 ->viewData($data);
@@ -757,12 +799,19 @@ class FieldMapping extends Field
             'rows' => ['array', 'list'],
             'rows.*' => Rule::forEach(fn (mixed $row) => [Rule::array(
                 is_array($row) && ($row['kind'] ?? null) === 'source'
-                    ? ['kind', 'source', 'target', 'options']
-                    : ['kind', 'target', 'static', 'options'],
+                    ? ['kind', 'source', 'target', 'options', 'position']
+                    : ['kind', 'target', 'static', 'options', 'position', 'draftTarget'],
             )]),
             'rows.*.kind' => ['required', Rule::in(['source', 'static'])],
             'rows.*.target' => ['present', 'nullable', 'string', Rule::in(array_column($this->getTargets(), 'id'))],
             'rows.*.options' => ['present', 'array'],
+            'rows.*.position' => ['sometimes', 'integer', 'min:0'],
+            'rows.*.draftTarget' => [
+                'sometimes',
+                'string',
+                Rule::prohibitedIf($this->hasStaticValues()),
+                Rule::in(array_column($this->getTargets(), 'id')),
+            ],
             'rows.*.source' => [
                 'required_if:rows.*.kind,source',
                 'string',
@@ -802,6 +851,7 @@ class FieldMapping extends Field
                 if (
                     !$this->hasStaticValues()
                     && $row['target'] === null
+                    && !array_key_exists('draftTarget', $row)
                 ) {
                     $fail('The :attribute field contains an invalid static value.')->translate();
 

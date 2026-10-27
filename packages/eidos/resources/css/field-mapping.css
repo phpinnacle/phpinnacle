@@ -1,7 +1,109 @@
 .field-mapping,
 .field-binding {
+    --eidos-padding: 1.25rem;
+    --eidos-gap: 0.75rem;
+    --eidos-card-padding-x: 1rem;
+    --eidos-card-padding-y: 0.75rem;
+    --eidos-card-height: 5rem;
+    --eidos-toolbar-padding-y: 1rem;
     --eidos-columns: minmax(0, var(--eidos-left-column)) minmax(0, var(--eidos-gap-column)) minmax(0, var(--eidos-right-column));
     --eidos-connection-danger: var(--danger-600);
+    isolation: isolate;
+}
+
+.field-mapping.fi-dense,
+.field-binding.fi-dense {
+    --eidos-padding: 0.75rem;
+    --eidos-gap: 0.5rem;
+    --eidos-card-padding-x: 0.75rem;
+    --eidos-card-padding-y: 0.5rem;
+    --eidos-card-height: 3.5rem;
+    --eidos-toolbar-padding-y: 0.5rem;
+}
+
+.eidos-mapping-contained,
+.eidos-mapping-card {
+    border: 1px solid var(--gray-200);
+    background: white;
+}
+
+.eidos-mapping-contained {
+    border-radius: 0.75rem;
+}
+
+.eidos-mapping-card {
+    position: relative;
+    min-width: 0;
+    border-radius: 0.5rem;
+}
+
+.dark .eidos-mapping-contained,
+.dark .eidos-mapping-card {
+    border-color: color-mix(in oklab, white 10%, transparent);
+    background: var(--gray-900);
+}
+
+.eidos-mapping-toolbar,
+.eidos-mapping-actions,
+.eidos-mapping-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.eidos-mapping-toolbar {
+    padding: var(--eidos-toolbar-padding-y) var(--eidos-padding);
+}
+
+.eidos-mapping-contained > .eidos-mapping-toolbar {
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.dark .eidos-mapping-contained > .eidos-mapping-toolbar {
+    border-color: color-mix(in oklab, white 10%, transparent);
+}
+
+.eidos-mapping-actions {
+    gap: 0.5rem;
+}
+
+.eidos-mapping-status {
+    margin-inline-start: auto;
+    justify-content: end;
+}
+
+.eidos-mapping-alert {
+    padding: var(--eidos-toolbar-padding-y) var(--eidos-padding) 0;
+}
+
+.eidos-mapping-label {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-weight: 600;
+    color: var(--gray-950);
+}
+
+.dark .eidos-mapping-label {
+    color: white;
+}
+
+.eidos-mapping-panel-label {
+    margin-bottom: var(--eidos-gap);
+}
+
+.eidos-mapping-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--eidos-gap);
+}
+
+.eidos-mapping-items > .fi-hidden {
+    display: none;
+}
+
+.fi-input-wrp + .eidos-mapping-items {
+    margin-top: var(--eidos-padding);
 }
 
 .dark .field-mapping,
@@ -10,13 +112,97 @@
 }
 
 .field-mapping-canvas {
+    position: relative;
+    display: grid;
     min-width: 560px;
     grid-template-columns: var(--eidos-columns);
+    gap: 0;
+    padding: var(--eidos-padding);
+}
+
+.field-binding-content {
+    padding: var(--eidos-padding);
+}
+
+.field-binding-content > :not(:last-child),
+.field-binding-static-values > :not(:last-child) {
+    margin-bottom: var(--eidos-gap);
+}
+
+.field-binding-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.field-binding .eidos-mapping-card {
+    padding: var(--eidos-card-padding-y) var(--eidos-card-padding-x);
+}
+
+.field-binding-source,
+.field-binding-target {
+    display: flex;
+    align-items: start;
+    gap: var(--eidos-gap);
+}
+
+.field-binding-source,
+[data-binding-source] > .field-binding-target {
+    min-height: var(--eidos-card-height);
+}
+
+.field-binding-source {
+    flex-wrap: wrap;
+}
+
+.field-binding-source > .eidos-mapping-item {
+    flex-basis: 100%;
+}
+
+.field-binding.fi-dense .field-binding-source {
+    gap: 0.25rem;
+}
+
+.field-binding-connection {
+    position: relative;
+    display: flex;
+    width: 100%;
+    height: 2rem;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+}
+
+.field-binding-line-horizontal {
+    display: none;
+    width: 100%;
+    height: 1rem;
+}
+
+.field-binding-line-vertical {
+    width: 1rem;
+    height: 2rem;
 }
 
 @media (min-width: 48rem) {
     .field-binding .field-binding-columns {
         grid-template-columns: var(--eidos-columns);
+        gap: 0;
+    }
+
+    .field-binding-connection {
+        grid-column-start: 2;
+    }
+
+    .field-binding-target {
+        grid-column-start: 3;
+    }
+
+    .field-binding-line-horizontal {
+        display: block;
+    }
+
+    .field-binding-line-vertical {
+        display: none;
     }
 }
 
@@ -187,6 +373,64 @@
 
 .field-mapping-row:has([aria-expanded="true"]) {
     z-index: 2;
+}
+
+.field-mapping .field-mapping-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: start;
+    min-height: var(--eidos-card-height);
+    gap: 0.5rem;
+}
+
+.field-mapping.fi-dense .field-mapping-row {
+    gap: 0.25rem;
+}
+
+.field-mapping-row-heading,
+.field-mapping-source-footer {
+    display: flex;
+    width: 100%;
+    align-items: start;
+}
+
+.field-mapping-row-content {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: start;
+    padding: var(--eidos-card-padding-y) var(--eidos-card-padding-x);
+}
+
+.field-mapping.fi-dense .field-mapping-row-content.has-footer {
+    padding-bottom: 0;
+}
+
+.field-mapping-row-footer {
+    width: 100%;
+    padding: 0 var(--eidos-card-padding-x) var(--eidos-card-padding-y);
+}
+
+.field-mapping-source-footer {
+    gap: 0.5rem;
+}
+
+.field-mapping-select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    border-radius: 0.5rem;
+    text-align: start;
+}
+
+.field-mapping-select:focus-visible {
+    outline: 2px solid var(--primary-500);
+    outline-offset: 2px;
+}
+
+.field-mapping-select:disabled {
+    cursor: default;
 }
 
 [data-binding-constant] .field-mapping-row .fi-fo-field {

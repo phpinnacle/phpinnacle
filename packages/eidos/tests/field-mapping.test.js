@@ -717,7 +717,7 @@ test('static source rows keep native values and settings when connecting and dis
     assert.deepEqual(component.mappings(), { contact: sourceEntry('title') });
 });
 
-test('static source identities follow row removal and item connection order', () => {
+test('native editor rows keep their addresses while item connections preserve selection order', () => {
     const component = editor({}, false, { connectionModes: itemModes, staticDefaults: { name: false } });
     const constant = { kind: 'static', target: null, static: false, options: { transforms: [{ type: 'cast' }] } };
     const email = { kind: 'source', source: 'email', target: null, options: { alias: 'Contact' } };
@@ -729,7 +729,9 @@ test('static source identities follow row removal and item connection order', ()
     component.sourceRowIndexes = { title: 1, email: 2 };
 
     component.connect('title', 'name');
-    assert.deepEqual(component.state, [email, { ...constant, target: 'name' }]);
+    assert.equal(component.state[1], constant);
+    assert.equal(component.state[2], email);
+    assert.deepEqual(component.sourceRowIndexes, { title: 1, email: 2 });
     component.connect('email', 'name');
     assert.deepEqual(component.mappings(), { name: [sourceEntry('title'), sourceEntry('email')] });
 
@@ -738,10 +740,12 @@ test('static source identities follow row removal and item connection order', ()
     component.connect('title', 'name');
     assert.deepEqual(component.mappings(), { name: [sourceEntry('email'), sourceEntry('title')] });
     component.remove('name');
-    assert.deepEqual(component.state, [
-        { kind: 'source', source: 'email', target: null, options: { alias: 'Contact' } },
-        { kind: 'static', target: null, static: false, options: { transforms: [{ type: 'cast' }] } },
-        { kind: 'static', target: 'name', static: false, options: {} },
-    ]);
+    assert.equal(component.state.length, 3);
+    assert.equal(component.state[1], constant);
+    assert.equal(component.state[2], email);
+    assert.equal(component.state[0].target, 'name');
+    assert.equal(constant.target, null);
+    assert.equal(email.target, null);
+    assert.deepEqual(component.sourceRowIndexes, { title: 1, email: 2 });
     assert.deepEqual(component.mappings(), { name: value(false) });
 });

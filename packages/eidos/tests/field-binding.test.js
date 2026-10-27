@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import fieldBinding from '../resources/js/field-binding.js';
 
-function editor(disabled = false) {
+function editor(disabled = false, setTarget = () => {}) {
     return fieldBinding({
         disabled,
         sourceKeys: ['name', 'email'],
+        setTarget,
         state: [
             { kind: 'source', source: 'name', target: { destination: 'customer.name' }, options: { transforms: [] } },
             { kind: 'source', source: 'email', target: null, options: {} },
@@ -17,7 +18,7 @@ function editor(disabled = false) {
 test('opening a native editor preserves null until a value is entered', () => {
     const component = editor();
     const state = structuredClone(component.state);
-    component.edit('email');
+    component.bind('email', null);
     assert.equal(component.isEditing('email'), true);
     assert.equal(component.isBound('email'), false);
     assert.equal(component.boundCount(), 1);
@@ -25,7 +26,6 @@ test('opening a native editor preserves null until a value is entered', () => {
     component.state[1].target = 'contact.email';
     assert.equal(component.boundCount(), 2);
     component.unbind('email');
-    component.closeEditor('email');
     assert.equal(component.isEditing('email'), false);
     assert.deepEqual(component.state, state);
 });
@@ -51,9 +51,9 @@ for (const target of [false, 0, '', [], {}]) {
 }
 
 test('disabled bindings cannot open editors or unbind', () => {
-    const component = editor(true);
+    const component = editor(true, () => assert.fail('disabled fields must not update Livewire state'));
     const original = structuredClone(component.state);
-    component.edit('email');
+    component.bind('email', null);
     component.unbind('name');
     assert.equal(component.isEditing('email'), false);
     assert.deepEqual(component.state, original);
@@ -80,7 +80,7 @@ test('filters combine with search without changing native rows', () => {
 test('connection visibility follows the native target after editing', () => {
     const component = editor();
     component.visibilityFilter = 'unbound';
-    component.edit('email');
+    component.bind('email', null);
     assert.equal(component.isVisible('email', 'Email'), true);
     component.state[1].target = 'contact.email';
     assert.equal(component.isVisible('email', 'Email'), false);
@@ -88,4 +88,36 @@ test('connection visibility follows the native target after editing', () => {
     assert.equal(component.isVisible('email', 'Email'), true);
     component.unbind('email');
     assert.equal(component.isVisible('email', 'Email'), false);
+});
+
+for (const defaultValue of ['email', false, 0, [], { destination: 'contact.email', rules: [{ trim: true }] }]) {
+    test(`local binding restores independent native defaults: ${JSON.stringify(defaultValue)}`, () => {
+        const component = editor();
+        const settings = component.state[1].options;
+        const expected = structuredClone(defaultValue);
+        component.bind('email', defaultValue);
+        assert.deepEqual(component.state[1].target, expected);
+        assert.equal(component.isEditing('email'), true);
+        assert.equal(component.isBound('email'), true);
+        component.state[1].target = 'edited';
+        component.bind('email', defaultValue);
+        assert.equal(component.state[1].target, 'edited');
+        component.unbind('email');
+        assert.equal(component.isEditing('email'), false);
+        assert.equal(component.state[1].target, null);
+        component.bind('email', defaultValue);
+        assert.deepEqual(component.state[1].target, expected);
+        assert.equal(component.state[1].options, settings);
+        assert.deepEqual(defaultValue, expected);
+    });
+}
+
+test('local targets reach deferred Livewire state before native editors mount', () => {
+    const calls = [];
+    const component = editor(false, (index, value) => {
+        calls.push([index, structuredClone(value)]);
+        assert.equal(component.state[index].target, null);
+    });
+    component.bind('email', { destination: 'contact.email', enabled: true });
+    assert.deepEqual(calls, [[1, { destination: 'contact.email', enabled: true }]]);
 });

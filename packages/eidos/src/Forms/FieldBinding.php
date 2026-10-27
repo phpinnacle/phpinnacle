@@ -182,6 +182,40 @@ class FieldBinding extends Field
         );
     }
 
+    public function getBindingDefault(string $source): mixed
+    {
+        /** @var State $state */
+        $state = $this->getRawState();
+        $index = $this->getSourceRowIndexes()[$source];
+
+        try {
+            $rows = $state;
+            $rows[$index]['target'] = $this->simpleField === null ? [] : null;
+            $this->rawState($rows);
+            $this->makeBindingSchema($source, $index)->fill();
+
+            return $this->getBindingValues()[$index]['target'];
+        } finally {
+            $this->rawState($state);
+        }
+    }
+
+    public function renderBindingSchema(string $source, mixed $default): string
+    {
+        $state = $this->getBindingValues();
+        $index = $this->getSourceRowIndexes()[$source];
+
+        try {
+            $rows = $state;
+            $rows[$index]['target'] ??= $default;
+            $this->rawState($rows);
+
+            return $this->getBindingSchema($source)->toHtml();
+        } finally {
+            $this->rawState($state);
+        }
+    }
+
     /** @return State */
     public function getBindingValues(): array
     {
@@ -404,23 +438,23 @@ class FieldBinding extends Field
             ->size('lg')
             ->tooltip(__('phpinnacle-eidos::schema-forms.binding.bind'))
             ->alpineClickHandler(
-                fn (Action $action, array $arguments) => (
-                    'edit('
+                fn (array $arguments) => (
+                    'bind('
                     . Js::from($arguments['source'])->toHtml()
-                    . '); $wire.'
-                    . $action->getLivewireClickHandler()
+                    . ', '
+                    . Js::from($arguments['default'])->toHtml()
+                    . ')'
                 ),
             )
-            ->disabled(fn (self $component) => $component->isDisabled())
-            ->action(fn (array $arguments, self $component) => $component->bindSource($arguments));
+            ->disabled(fn (self $component) => $component->isDisabled());
     }
 
     public function getUnbindAction(): Action
     {
         return Action::make('unbind')
             ->label(__('phpinnacle-eidos::schema-forms.binding.unbind'))
-            ->disabled(fn (self $component) => $component->isDisabled())
-            ->action(fn (array $arguments, self $component) => $component->unbindSource($arguments));
+            ->alpineClickHandler(fn (array $arguments) => 'unbind(' . Js::from($arguments['source'])->toHtml() . ')')
+            ->disabled(fn (self $component) => $component->isDisabled());
     }
 
     public function getAddConstantAction(): Action
@@ -496,43 +530,6 @@ class FieldBinding extends Field
         /** @var Component $component */
         $component = $this->getChildSchemas()['staticValues']->getComponent('staticValues');
         $component->partiallyRender();
-    }
-
-    /** @param array<array-key, mixed> $arguments */
-    private function bindSource(array $arguments): void
-    {
-        if ($this->isDisabled()) {
-            return;
-        }
-        $source = $this->validateSource($arguments);
-        if ($this->isSourceUsed($source)) {
-            return;
-        }
-        $index = $this->getSourceRowIndexes()[$source];
-        if ($this->simpleField === null) {
-            /** @var State $rows */
-            $rows = $this->getRawState();
-            $rows[$index]['target'] = [];
-            $this->rawState($rows);
-        }
-        $this->getBindingSchema($source)->fill();
-        $this->clearCachedChildSchemas();
-        $this->callAfterStateUpdated();
-    }
-
-    /** @param array<array-key, mixed> $arguments */
-    private function unbindSource(array $arguments): void
-    {
-        if ($this->isDisabled()) {
-            return;
-        }
-        $source = $this->validateSource($arguments);
-        /** @var State $rows */
-        $rows = $this->getRawState();
-        $rows[$this->getSourceRowIndexes()[$source]]['target'] = null;
-        $this->rawState($rows);
-        $this->clearCachedChildSchemas();
-        $this->callAfterStateUpdated();
     }
 
     private function addConstant(): void
@@ -611,17 +608,6 @@ class FieldBinding extends Field
     private static function isConstantKey(string $key): bool
     {
         return str_starts_with($key, self::CONSTANT_PREFIX);
-    }
-
-    /** @param array<array-key, mixed> $arguments */
-    private function validateSource(array $arguments): string
-    {
-        /** @var array{source: string} $validated */
-        $validated = Validator::make($arguments, [
-            'source' => ['required', 'string', Rule::in(array_column($this->getSources(), 'id'))],
-        ])->validate();
-
-        return $validated['source'];
     }
 
     /** @param Closure(string): PotentiallyTranslatedString $fail */

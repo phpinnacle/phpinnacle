@@ -59,34 +59,36 @@ export default function fieldMapping({ element, state, disabled, inverse = false
 
         mappings() {
             const mappings = new Map();
-            this.state.forEach((row, index) => {
-                if (row.target === null) return;
-                const source = this.sourceId(row, index);
-                if (row.kind === 'static' && source === undefined) {
-                    mappings.set(row.target, { kind: 'value', value: row.static });
-                    return;
-                }
-                const entry = { kind: 'source', source };
-                if (this.targetMode(row.target) === 'item') {
-                    if (!Array.isArray(mappings.get(row.target))) mappings.set(row.target, []);
-                    mappings.get(row.target).push(entry);
-                } else {
-                    mappings.set(row.target, entry);
-                }
-            });
+            this.state.map((row, index) => ({ row, index }))
+                .sort((a, b) => (a.row.position ?? a.index) - (b.row.position ?? b.index))
+                .forEach(({ row, index }) => {
+                    if (row.target === null) return;
+                    const source = this.sourceId(row, index);
+                    if (row.kind === 'static' && source === undefined) {
+                        mappings.set(row.target, { kind: 'value', value: row.static });
+                        return;
+                    }
+                    const entry = { kind: 'source', source };
+                    if (this.targetMode(row.target) === 'item') {
+                        if (!Array.isArray(mappings.get(row.target))) mappings.set(row.target, []);
+                        mappings.get(row.target).push(entry);
+                    } else {
+                        mappings.set(row.target, entry);
+                    }
+                });
             return Object.fromEntries(mappings);
-        },
-
-        updateRowIndexes(sources) {
-            this.sourceRowIndexes = Object.fromEntries([...sources]
-                .filter(([source]) => source !== undefined)
-                .map(([source, row]) => [source, this.state.indexOf(row)])
-                .filter(([, index]) => index !== -1));
         },
 
         restoreStaticDefault(target) {
             if (Object.hasOwn(staticDefaults, target) && !this.state.some(row => row.target === target)) {
-                this.state.push({ kind: 'static', target, static: JSON.parse(JSON.stringify(staticDefaults[target])), options: {} });
+                const draft = this.state.find(row => row.kind === 'static' && row.draftTarget === target);
+                const value = JSON.parse(JSON.stringify(staticDefaults[target]));
+                if (draft) {
+                    draft.target = target;
+                    draft.static = value;
+                } else {
+                    this.state.push({ kind: 'static', target, static: value, options: {} });
+                }
             }
         },
 
@@ -208,27 +210,24 @@ export default function fieldMapping({ element, state, disabled, inverse = false
         connect(source, target) {
             if (this.disabled || !this.canConnect(source, target) || !this.isSourceAvailable(source, target)) return;
 
-            const sources = new Map(this.state.map((row, index) => [this.sourceId(row, index), row]));
             const multiple = this.connectionModes[source][target] === 'item';
-            this.state = this.state.filter((row, index) => {
-                if (row.target !== target) return true;
+            this.state.forEach((row, index) => {
+                if (row.target !== target) return;
                 const rowSource = this.sourceId(row, index);
-                if (rowSource === source || multiple && this.connectionModes[rowSource]?.[target] === 'item') return true;
-                if (row.kind === 'static' && rowSource === undefined) return false;
+                if (rowSource === source || multiple && this.connectionModes[rowSource]?.[target] === 'item') return;
+                if (row.kind === 'static' && rowSource === undefined) row.draftTarget = target;
                 row.target = null;
-                return true;
             });
-            let row = sources.get(source);
+            let row = this.state.find((row, index) => this.sourceId(row, index) === source);
             if (!row) {
                 row = { kind: 'source', source, target: null, options: {} };
                 this.state.push(row);
+                this.sourceRowIndexes[source] = this.state.length - 1;
             }
             if (multiple && row.target !== target) {
-                this.state = this.state.filter(candidate => candidate !== row);
-                this.state.push(row);
+                row.position = Math.max(this.state.length - 1, ...this.state.map(row => row.position ?? 0)) + 1;
             }
             row.target = target;
-            this.updateRowIndexes(sources);
 
             this.selected = null;
             this.announcement = 'Fields connected.';
@@ -237,16 +236,13 @@ export default function fieldMapping({ element, state, disabled, inverse = false
         remove(target, source = null) {
             if (this.disabled) return;
 
-            const sources = new Map(this.state.map((row, index) => [this.sourceId(row, index), row]));
-            this.state = this.state.filter((row, index) => {
-                if (row.target !== target) return true;
+            this.state.forEach((row, index) => {
+                if (row.target !== target) return;
                 const rowSource = this.sourceId(row, index);
-                if (source !== null && rowSource !== source) return true;
-                if (row.kind === 'static' && rowSource === undefined) return false;
+                if (source !== null && rowSource !== source) return;
+                if (row.kind === 'static' && rowSource === undefined) row.draftTarget = target;
                 row.target = null;
-                return true;
             });
-            this.updateRowIndexes(sources);
             this.restoreStaticDefault(target);
             this.announcement = 'Connection removed.';
         },

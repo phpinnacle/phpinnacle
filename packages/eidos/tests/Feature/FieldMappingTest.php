@@ -28,6 +28,110 @@ require_once __DIR__ . '/../Fixtures/FieldMappingForm.php';
 
 uses(TestCase::class);
 
+it('defers mapping changes with native static forms and source settings', function () {
+    $field = FieldMapping::make('mapping')
+        ->jsonSchema(
+            source: ['properties' => ['name' => ['type' => 'string']]],
+            dest: ['properties' => ['name' => ['type' => 'string']]],
+        )
+        ->staticForms(fn () => TextInput::make('value'))
+        ->sourceSettings([TextInput::make('alias')]);
+    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema->fill();
+    view()->share('errors', new ViewErrorBag);
+
+    expect(html_entity_decode($schema->toHtml()))
+        ->toContain("state: \$wire.\$entangle('data.mapping', false),")
+        ->not->toContain("\$entangle('data.mapping').live");
+});
+
+it('keeps native editor addresses and submits ordered connections without inactive static drafts', function () {
+    $field = FieldMapping::make('mapping')
+        ->jsonSchema(
+            source: ['properties' => ['first' => ['type' => 'string'], 'second' => ['type' => 'string']]],
+            dest: [
+                'properties' => [
+                    'name' => ['type' => 'string'],
+                    'note' => ['type' => 'string'],
+                    'list' => ['type' => 'array', 'items' => ['type' => 'string']],
+                ],
+            ],
+        )
+        ->sourceSettings([TextInput::make('alias')->dehydrateStateUsing(fn (string $state) => strtoupper($state))])
+        ->staticForms(fn (JsonSchema $property) => $property->singleType() === 'string'
+            ? TextInput::make('value')->default('fallback')->required()->maxLength(10)
+            : null);
+    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema->fill([
+        'mapping' => [
+            ['kind' => 'static', 'target' => 'note', 'static' => 'saved', 'options' => []],
+            ['kind' => 'source', 'source' => 'first', 'target' => 'name', 'options' => ['alias' => 'first']],
+            ['kind' => 'source', 'source' => 'second', 'target' => null, 'options' => ['alias' => 'second']],
+        ],
+    ]);
+
+    expect($field->getStaticFormSchema('name')->getStatePath())->toBe('data.mapping.3');
+    $rows = $field->getRawState();
+    $rows[1]['target'] = 'list';
+    $rows[1]['position'] = 5;
+    $rows[2]['target'] = 'list';
+    $rows[2]['position'] = 4;
+    $field->rawState($rows);
+
+    expect($schema->getState()['mapping'])->toBe([
+        ['kind' => 'static', 'target' => 'note', 'static' => 'saved', 'options' => []],
+        ['kind' => 'source', 'source' => 'second', 'target' => 'list', 'options' => ['alias' => 'SECOND']],
+        ['kind' => 'source', 'source' => 'first', 'target' => 'list', 'options' => ['alias' => 'FIRST']],
+    ]);
+
+    $rows[3]['target'] = 'name';
+    $rows[3]['static'] = 'edited';
+    $field->rawState($rows);
+    expect($field->getStaticFormSchema('name')->getStatePath())->toBe('data.mapping.3');
+    expect(array_column($schema->getState()['mapping'], 'target'))->toBe(['note', 'name', 'list', 'list']);
+
+    $rows[3]['static'] = 'a value exceeding ten characters';
+    $field->rawState($rows);
+    expect($schema->getState(...))->toThrow(ValidationException::class);
+});
+
+it('validates client ordering and static draft identifiers before submission', function (array $metadata) {
+    $schema = static_mapping_schema([], ['name.part']);
+    $field = $schema->getComponent('mapping');
+    $rows = $field->getRawState();
+    $index = $field->getStaticRowIndex('name.part');
+    $rows[$index] = [...$rows[$index], ...$metadata];
+    $field->rawState($rows);
+
+    expect($schema->getState(...))->toThrow(ValidationException::class);
+})->with([
+    'negative position' => [['position' => -1]],
+    'nonnumeric position' => [['position' => 'first']],
+    'unknown static draft' => [['target' => null, 'draftTarget' => 'unknown']],
+]);
+
+it('replaces an existing static value even when its destination has no static editor', function () {
+    $field = FieldMapping::make('mapping')->jsonSchema(
+        source: ['properties' => ['name' => ['type' => 'string']]],
+        dest: ['properties' => ['name' => ['type' => 'string']]],
+    );
+    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema->fill([
+        'mapping' => [
+            ['kind' => 'static', 'target' => 'name', 'static' => 'saved', 'options' => []],
+        ],
+    ]);
+    $rows = $field->getRawState();
+    $rows[0]['target'] = null;
+    $rows[0]['draftTarget'] = 'name';
+    $rows[1]['target'] = 'name';
+    $field->rawState($rows);
+
+    expect($schema->getState()['mapping'])->toBe([
+        ['kind' => 'source', 'source' => 'name', 'target' => 'name', 'options' => []],
+    ]);
+});
+
 it('renders a malformed user row list so native validation can reject it', function () {
     Livewire::test(\PHPinnacle\Eidos\Tests\Fixtures\FieldMappingForm::class)
         ->set('data.mapping', ['unknown' => 'first'])
@@ -266,6 +370,38 @@ it('only renders mapping search inputs when enabled, including closure configura
         ));
 });
 
+it('filters complete source card containers including static cards', function (bool $inverse) {
+    $field = FieldMapping::make('mapping')
+        ->jsonSchema(source: ['properties' => ['title' => ['type' => 'string']]], dest: [
+            'properties' => ['name' => ['type' => 'string']],
+        ])
+        ->staticValues()
+        ->inverse($inverse);
+    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema->fill([
+        'mapping' => [
+            ['kind' => 'source', 'source' => 'title', 'target' => null, 'options' => []],
+            ['kind' => 'static', 'target' => 'name', 'static' => 'Example', 'options' => []],
+        ],
+    ]);
+    view()->share('errors', new ViewErrorBag);
+
+    $document = new DOMDocument;
+    $document->loadHTML($schema->toHtml(), LIBXML_NOERROR | LIBXML_NOWARNING);
+    $xpath = new DOMXPath($document);
+    $sourceCards = $xpath->query('//fieldset[div/div[@data-mapping-row]]');
+
+    expect($sourceCards)->toHaveCount(2);
+    foreach ($sourceCards as $card) {
+        expect($card->getAttribute('x-bind:class'))->toContain('fi-hidden', "isVisible('source',");
+        expect($xpath->query('./div/div[@data-mapping-row and @x-show]', $card))->toHaveCount(0);
+    }
+    expect($schema->getState()['mapping'])->toBe([
+        ['kind' => 'source', 'source' => 'title', 'target' => null, 'options' => []],
+        ['kind' => 'static', 'target' => 'name', 'static' => 'Example', 'options' => []],
+    ]);
+})->with([false, true]);
+
 it('applies column spans to their source and target sides without changing mappings', function (bool $inverse) {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(source: ['properties' => ['title' => ['type' => 'string']]], dest: [
@@ -340,8 +476,8 @@ it('preserves standalone mapping content and values across presentation options'
     expect($html)->toContain('The incoming display name.', 'The destination display name.');
     expect(str_contains($html, 'data-mapping-description'))->toBe(!$compact);
     expect(str_contains($html, 'x-tooltip="{ content:'))->toBe($compact);
-    expect($html)->toContain($dense ? 'min-h-14' : 'min-h-20');
-    expect($html)->not->toContain($dense ? 'min-h-20' : 'min-h-14');
+    expect(str_contains($html, 'fi-dense'))->toBe($dense);
+    expect($html)->toContain('eidos-mapping-card field-mapping-row');
     expect(str_contains($text, 'Field visibility'))->toBe($contained);
     expect(substr_count($html, 'type="radio"'))->toBe($contained ? 3 : 0);
     if ($contained) {
@@ -809,7 +945,7 @@ it('keeps header actions and the trailing filter in one toolbar with density def
     $toolbars = $xpath->query('//div[contains(@class, "eidos-mapping-toolbar")]');
     expect($toolbars)->toHaveCount(1);
     $toolbar = $toolbars->item(0);
-    expect($toolbar->getAttribute('class'))->toContain($dense ? 'px-3 py-2' : 'px-5 py-4');
+    expect(str_contains($toolbar->parentNode->getAttribute('class'), 'fi-dense'))->toBe($dense);
     expect($xpath->query('./div[1]//button', $toolbar))->toHaveCount(1);
     expect($xpath->query('./div[2]/fieldset[last()]', $toolbar))->toHaveCount($contained ? 1 : 0);
     expect($field->getAction('addSource')->getSize())

@@ -1,7 +1,6 @@
 @php
     $inverse = $field->isInverse();
     $isLeft = $side === ($inverse ? 'target' : 'source');
-    $dense = $field->isDense();
     $compact = $field->isCompact();
     $disabled = $field->isDisabled();
     $constants = $field->getConstants();
@@ -15,7 +14,7 @@
     $plainLabel = strip_tags($item['label']);
     $warning = $warnings[$item['id']] ?? null;
     $typeLabel = $presentation['type'];
-    $searchText = $plainLabel.' '.strip_tags($item['description'] ?? '').' '.$item['id'].' '.$item['name'].' '.($side === 'target' ? $typeLabel : '').' '.implode(' ', array_column($item['badges'], 'label'));
+    $searchText = $plainLabel.' '.strip_tags($item['description'] ?? '').' '.$item['id'].' '.$item['name'].' '.$typeLabel.' '.implode(' ', array_column($item['badges'], 'label'));
     $isMultiple = $side === 'target' && in_array($item['id'], $multipleTargets, true);
     $staticSchema = $side === 'target' && array_key_exists($item['id'], $staticDefaults)
         ? ($staticSchemas[$stateKeys[$item['id']]] ?? $field->getStaticFormSchema($item['id']))
@@ -24,24 +23,24 @@
 @endphp
 <div
     @class([
-        'field-mapping-row relative flex flex-wrap items-start rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900',
-        'min-h-14 gap-1' => $dense,
-        'min-h-20 gap-2' => ! $dense,
+        'eidos-mapping-card field-mapping-row',
         'has-warning' => $warning !== null,
     ])
     data-mapping-row
     x-on:click="selectFromCard($event, @js($side), @js($item['id']))"
     wire:key="{{ $field->getId() }}-{{ $side }}-{{ $item['id'] }}"
-    x-show="isVisible(@js($side), @js($item['id']), @js($searchText))"
+    @if ($side === 'target')
+        x-show="isVisible(@js($side), @js($item['id']), @js($searchText))"
+    @endif
     :class="rowClasses(@js($side), @js($item['id']), @js($item['required']))"
 >
-    <div class="flex w-full items-start">
+    <div class="field-mapping-row-heading">
         <div
-            @class(['relative flex min-w-0 flex-1 items-start', 'px-3 pt-2' => $dense, 'pb-2' => $dense && ! $hasSourceFooter, 'px-4 py-3' => ! $dense])
+            @class(['field-mapping-row-content', 'has-footer' => $hasSourceFooter])
         >
             <button
                 type="button"
-                class="absolute inset-0 w-full rounded-lg text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 disabled:cursor-default"
+                class="field-mapping-select"
                 x-bind="fieldBindings(@js($side), @js($item['id']))"
                 aria-label="{{ 'Select '.$plainLabel.' as '.$side }}"
                 @disabled($disabled)
@@ -82,12 +81,12 @@
         </button>
     </div>
     @if ($side === 'source' && isset($constants[$item['id']]))
-        <div @class(['w-full', 'px-3 pb-2' => $dense, 'px-4 pb-3' => ! $dense]) data-mapping-static-source="{{ $item['id'] }}">
+        <div class="field-mapping-row-footer" data-mapping-static-source="{{ $item['id'] }}">
             {{ $staticSchemas['constant_'.$item['id']] }}
         </div>
     @endif
     @if ($hasSourceFooter)
-        <div @class(['field-mapping-source-footer flex w-full items-start gap-2', 'px-3 pb-2' => $dense, 'px-4 pb-3' => ! $dense])>
+        <div class="field-mapping-row-footer field-mapping-source-footer">
             <div class="min-w-0 flex-1" data-mapping-source-settings="{{ $item['id'] }}">
                 {{ $staticSchemas['settings_'.$sourceStateKeys[$item['id']]] ?? null }}
             </div>
@@ -101,7 +100,7 @@
     @if ($staticSchema !== null)
         {{-- Mount against Livewire's client state so nested field entanglements see their value. --}}
         <template x-if="isConstant(@js($item['id']))">
-            <div @class(['w-full', 'px-3 pb-2' => $dense, 'px-4 pb-3' => ! $dense]) data-mapping-static-form="{{ $item['id'] }}">
+            <div class="field-mapping-row-footer" data-mapping-static-form="{{ $item['id'] }}">
                 {{ $staticSchema }}
             </div>
         </template>

@@ -37,8 +37,8 @@
 <x-dynamic-component :component="$getFieldWrapperView()" :field="$field">
     <div
         {{ $getExtraAttributeBag()->class([
-            'field-mapping isolate',
-            'rounded-xl border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900' => $contained,
+            'field-mapping',
+            'eidos-mapping-contained' => $contained,
             'fi-dense' => $dense,
             'fi-compact' => $compact,
         ])->style([
@@ -54,7 +54,7 @@
         x-load-src="{{ FilamentAsset::getAlpineComponentSrc('field-mapping', 'phpinnacle/eidos') }}"
         x-data="fieldMapping({
             element: $el,
-            state: $wire.{{ $hasStaticForms() || $hasSourceSettings() ? "\$entangle('{$statePath}').live" : $applyStateBindingModifiers("\$entangle('{$statePath}')") }},
+            state: $wire.{{ $applyStateBindingModifiers("\$entangle('{$statePath}')") }},
             disabled: @js($disabled),
             inverse: @js($inverse),
             requiredTargets: @js($requiredTargets),
@@ -68,9 +68,9 @@
         {!! $staticSchemas['mappingUi']->getComponent('configuration')->toSchemaHtml() !!}
 
         @if ($contained || $getHeaderActions() !== [])
-            <div @class(['eidos-mapping-toolbar flex flex-wrap items-center gap-3', 'border-b border-gray-200 dark:border-white/10' => $contained, 'px-3 py-2' => $dense, 'px-5 py-4' => ! $dense])>
+            <div class="eidos-mapping-toolbar">
                 @if ($headerActions = $getHeaderActions())
-                    <div class="flex flex-wrap items-center gap-2">
+                    <div class="eidos-mapping-actions">
                         @foreach ($headerActions as $action)
                             @if ($action->isVisible())
                                 {{ $action->defaultSize($dense ? Size::Small : Size::Medium) }}
@@ -80,7 +80,7 @@
                 @endif
 
                 @if ($contained)
-                    <div class="ms-auto flex flex-wrap items-center justify-end gap-3">
+                    <div class="eidos-mapping-status">
                         <span class="text-sm" :class="missingRequired().length ? 'text-warning-600 dark:text-warning-400' : 'text-gray-500 dark:text-gray-400'">
                             {!! __('phpinnacle-eidos::schema-forms.mapping.mapped_count', ['mapped' => '<span x-text="mappedTargetCount()"></span>', 'total' => count($targets)]) !!}
                         </span>
@@ -107,7 +107,7 @@
 
         @foreach ($panels as $panel)
             @foreach ($hasFields ? array_diff_key($panel['warnings'], array_column($panel['items'], null, 'id')) : $panel['warnings'] as $id => $warning)
-                <div @class(['field-mapping-warning', 'px-3 pt-2' => $dense, 'px-5 pt-4' => ! $dense]) role="alert">
+                <div class="field-mapping-warning eidos-mapping-alert" role="alert">
                     <x-filament::icon icon="heroicon-m-exclamation-triangle" />
                     <span>{{ $id }}: {{ $warning }}</span>
                 </div>
@@ -115,7 +115,7 @@
         @endforeach
 
         <div class="overflow-x-auto" x-on:scroll="refresh()">
-            <div @class(['field-mapping-canvas relative grid gap-0', 'p-3' => $dense, 'px-5 py-5' => ! $dense]) x-ref="canvas" :class="{ 'is-connecting': selected !== null }">
+            <div class="field-mapping-canvas" x-ref="canvas" :class="{ 'is-connecting': selected !== null }">
                 @if (! $hasFields)
                     <x-filament::empty-state
                         class="col-span-full"
@@ -129,7 +129,7 @@
                             $isLeft = $side === ($inverse ? 'target' : 'source');
                         @endphp
                         <section class="{{ $isLeft ? 'col-start-1' : 'col-start-3' }} row-start-1 min-w-0" aria-label="{{ $panel['label'] }}" wire:key="{{ $getId() }}-{{ $side }}">
-                            <h3 @class(['text-sm font-semibold text-gray-950 dark:text-white', 'mb-2' => $dense, 'mb-3' => ! $dense])>{{ $panel['label'] }}</h3>
+                            <h3 class="eidos-mapping-label eidos-mapping-panel-label">{{ $panel['label'] }}</h3>
                             @if ($searchable)
                                 <x-filament::input.wrapper prefix-icon="heroicon-m-magnifying-glass">
                                     <x-filament::input
@@ -141,7 +141,7 @@
                                 </x-filament::input.wrapper>
                             @endif
 
-                            <div @class(['flex flex-col', 'gap-2' => $dense, 'gap-3' => ! $dense, 'mt-3' => $searchable && $dense, 'mt-5' => $searchable && ! $dense])>
+                            <div class="eidos-mapping-items">
                                 @foreach ($panel['items'] as $item)
                                     @if ($side === 'source')
                                         @if (! isset($constants[$item['id']]))

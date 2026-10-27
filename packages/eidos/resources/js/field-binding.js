@@ -1,4 +1,4 @@
-export default function fieldBinding({ state, disabled, sourceKeys }) {
+export default function fieldBinding({ state, disabled, sourceKeys, setTarget }) {
     return {
         state,
         disabled,
@@ -6,12 +6,15 @@ export default function fieldBinding({ state, disabled, sourceKeys }) {
         visibilityFilter: 'all',
         openEditors: {},
 
-        edit(key) {
-            if (!this.disabled) this.openEditors[key] = true;
-        },
-
-        closeEditor(key) {
-            delete this.openEditors[key];
+        bind(key, defaultValue) {
+            if (this.disabled) return;
+            const index = this.state.findIndex(row => row.kind === 'source' && row.source === key);
+            if (this.state[index].target === null) {
+                const value = JSON.parse(JSON.stringify(defaultValue));
+                setTarget(index, value);
+                this.state[index].target = value;
+            }
+            this.openEditors[key] = true;
         },
 
         isEditing(key) {
@@ -37,8 +40,10 @@ export default function fieldBinding({ state, disabled, sourceKeys }) {
 
         unbind(key) {
             if (this.disabled) return;
-            const row = this.state.find(row => row.kind === 'source' && row.source === key);
-            if (row) row.target = null;
+            delete this.openEditors[key];
+            const index = this.state.findIndex(row => row.kind === 'source' && row.source === key);
+            setTarget(index, null);
+            this.state[index].target = null;
         },
     };
 }
