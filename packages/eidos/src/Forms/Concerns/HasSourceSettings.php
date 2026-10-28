@@ -7,6 +7,7 @@ use Filament\Forms\Components\Field;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Arr;
 use PHPinnacle\Eidos\Forms\JsonSchema;
 
 /**
@@ -70,10 +71,19 @@ trait HasSourceSettings
     /** @return array<string, array<string, mixed>> */
     public function getSourceSettings(): array
     {
-        /** @var array<int, array{options: array<string, mixed>}> $rows */
-        $rows = $this->getRawState() ?? [];
+        $state = [];
+        Arr::set($state, $this->getStatePath(), $this->getRawState() ?? []);
+        /** @var array<string, mixed> $state */
+        $keys = $this->getSourceStateKeys();
         $settings = [];
         foreach ($this->getSourceRowIndexes() as $source => $index) {
+            if ($this->hasSourceSettings()) {
+                $schema = $this->makeSourceSettingsSchema((string) $source, $index, $keys[$source]);
+                $schema->dehydrateState($state);
+                $schema->mutateDehydratedState($state);
+            }
+            /** @var array<int, array{options: array<string, mixed>}> $rows */
+            $rows = Arr::get($state, $this->getStatePath(), []);
             $settings[$source] = $rows[$index]['options'];
         }
 
@@ -91,16 +101,21 @@ trait HasSourceSettings
         }
         foreach ($this->cachedSourceRowIndexes as $source => $index) {
             $key = $this->cachedSourceSettingsKeys[$source];
-            $schemas['settings_' . $key] = $this
-                ->makeChildSchema('settings_' . $key)
-                ->statePath($index . '.options')
-                ->components([
-                    Group::make($this->getSourceSettingsComponents((string) $source)),
-                ])
-                ->getClone();
+            $schemas['settings_' . $key] = $this->makeSourceSettingsSchema((string) $source, $index, $key);
         }
 
         return $schemas;
+    }
+
+    private function makeSourceSettingsSchema(string $source, int $index, string $key): Schema
+    {
+        return $this
+            ->makeChildSchema('settings_' . $key)
+            ->statePath($index . '.options')
+            ->components([
+                Group::make($this->getSourceSettingsComponents($source)),
+            ])
+            ->getClone();
     }
 
     /** @return array<Component> */

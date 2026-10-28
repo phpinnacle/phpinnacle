@@ -404,7 +404,7 @@ icon markup must be trusted server output.
 
 `FieldMapping` connects the named properties of two inline JSON Schema objects. Configuration accepts arrays or Filament-evaluated closures. Property names are stable identifiers, including numeric names and names containing dots.
 
-The `Forms\JsonSchema` adapter uses [Jason](https://github.com/phpinnacle/jason) for schema values and local JSON Pointer `$ref` resolution. Serialized definitions retain their original references; property views resolve them. Read the declared format through `format(): ?string`; other metadata remains available through `annotation()`. Mapping fields require schema object definitions; Boolean schemas are rejected by this adapter.
+The `Forms\JsonSchema` adapter uses [Jason](https://github.com/phpinnacle/jason) for schema values and local JSON Pointer `$ref` resolution. Serialized definitions retain their original references; property views resolve them. Read the declared format through `format(): ?string` and effective enum restrictions (including intersected `allOf` values) through `enumValues(): ?array`; other metadata remains available through `annotation()`. Mapping fields require schema object definitions; Boolean schemas are rejected by this adapter.
 
 `JsonSchema::equals($other)` compares serialized definitions using JSON value equality: object key order is ignored, array element order and scalar types are preserved, and numbers compare by value. It does not prove equivalence between differently expressed schemas.
 
@@ -559,7 +559,7 @@ Both `FieldMapping` and `FieldBinding` accept `sourceSettings(array|Closure)`: a
 ])
 ```
 
-Settings are validated and submitted for every source, including sources with `target: null`. Removing a connection preserves its source settings. Configured settings are submitted inside each row’s `options` array; `kind`, `source`, `target`, and `static` describe the row itself. `getSourceSettings()` reads all current source-keyed settings for callbacks such as `outputSchema()`, before native child dehydration. The components do not interpret the settings.
+Settings are validated and submitted for every source, including sources with `target: null`. Removing a connection preserves its source settings. Configured settings are submitted inside each row’s `options` array; `kind`, `source`, `target`, and `static` describe the row itself. `getSourceSettings()` returns source-keyed settings with native field dehydration applied, so callbacks such as `outputSchema()` receive canonical values, including KeyValue dictionaries. Reading settings leaves editor state unchanged and does not run validation. The components do not interpret the settings.
 
 `FieldBinding` adds and removes static pairs by rendering its static section, preserving other valid bindings and source settings. With array-defined source and destination schemas, `FieldMapping` updates affected source cards and the server-calculated connection matrix. Live source-setting updates can also refresh type headings without rebuilding other editors. Search, visibility filters, mappings and other drafts remain in place. Source or destination schema callbacks retain full component rendering because they can change the set of fields.
 

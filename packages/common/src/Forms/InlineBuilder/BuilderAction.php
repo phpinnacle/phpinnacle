@@ -46,7 +46,10 @@ class BuilderAction
                 fn (Action $action, array $arguments) => (
                     $action->isDisabled()
                     || !self::hasForm($arguments)
-                    || $selected($arguments)->getSchema($field, self::position($field->getItems(), $arguments)) === []
+                    || $field->getItemComponents(
+                        $selected($arguments)->getName(),
+                        self::position($field->getItems(), $arguments),
+                    ) === []
                 ),
             )
             ->modalIcon(fn (array $arguments) => $selected($arguments)->getIcon())
@@ -83,12 +86,7 @@ class BuilderAction
                     ])->validate();
                 }
                 /** @var array{data?: array<string, mixed>} $data */
-                $settings = self::apply($component->getItems(), $arguments, $data, $available);
-                if (array_key_exists('order', $arguments) && !$component->isOrderAllowed($settings)) {
-                    throw ValidationException::withMessages([
-                        'order' => __('phpinnacle-common::inline-builder.order'),
-                    ]);
-                }
+                $settings = self::apply($component, $arguments, $data, $available);
                 $component->state($settings);
                 if (self::hasForm($arguments)) {
                     $index = self::position($settings, $arguments) ?? array_key_last($settings);
@@ -111,18 +109,18 @@ class BuilderAction
     }
 
     /**
-     * @param list<BuilderItem> $settings
      * @param array<array-key, mixed> $arguments
      * @param array{data?: array<string, mixed>} $data
      * @param array<string, Block> $available
      * @return list<BuilderItem>
      */
-    private static function apply(array $settings, array $arguments, array $data, array $available): array
+    private static function apply(InlineBuilder $component, array $arguments, array $data, array $available): array
     {
         if (array_key_exists('order', $arguments)) {
-            return self::reorder($settings, $arguments);
+            return self::reorder($component, $arguments);
         }
 
+        $settings = $component->getItems();
         $key = self::selected($arguments, $available)->getName();
 
         $position = self::position($settings, $arguments);
@@ -174,7 +172,7 @@ class BuilderAction
     /** @return list<Component> */
     private static function schema(Block $block, InlineBuilder $component, ?int $index): array
     {
-        $schema = $block->getSchema($component, $index);
+        $schema = $component->getItemComponents($block->getName(), $index);
 
         return (
             $schema === []
@@ -196,17 +194,27 @@ class BuilderAction
     }
 
     /**
-     * @param list<BuilderItem> $settings
      * @param array<array-key, mixed> $arguments
      * @return list<BuilderItem>
      */
-    private static function reorder(array $settings, array $arguments): array
+    private static function reorder(InlineBuilder $component, array $arguments): array
     {
+        $settings = $component->getItems();
         /** @var array{order: list<int|string>} $validated */
         $validated = Validator::make($arguments, [
             'order' => ['present', 'array', 'list', 'size:' . count($settings)],
             'order.*' => ['required', 'integer', 'distinct', Rule::in(array_keys($settings))],
         ])->validate();
+
+        $items = $component->getSettings();
+        if (!$component->isOrderAllowed(array_map(
+            static fn (int|string $index) => $items[(int) $index],
+            $validated['order'],
+        ))) {
+            throw ValidationException::withMessages([
+                'order' => __('phpinnacle-common::inline-builder.order'),
+            ]);
+        }
 
         return array_map(static fn (int|string $index) => $settings[(int) $index], $validated['order']);
     }

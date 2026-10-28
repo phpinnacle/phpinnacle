@@ -3,6 +3,7 @@
 use Filament\Actions\Action;
 use Filament\Forms\Components\Builder;
 use Filament\Forms\Components\Builder\Block;
+use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
@@ -792,26 +793,33 @@ it('persists and validates source settings independently of connections', functi
     expect($schema->getState(...))->toThrow(ValidationException::class);
 })->with([false, true]);
 
-it('submits native nested source settings after child dehydration', function (bool $binding) {
+it('reads and submits canonical nested source settings without changing editor state', function (bool $binding) {
     $sourceSchema = ['properties' => ['first.part' => ['type' => 'string'], '0' => ['type' => 'string']]];
     $field = $binding
         ? FieldBinding::make('widget')->jsonSchema($sourceSchema)->simple(TextInput::make('column'))
         : FieldMapping::make('widget')->jsonSchema(source: $sourceSchema, dest: [
             'properties' => ['first' => [], 'second' => []],
         ]);
-    $field->sourceSettings([
+    $field->sourceSettings(fn (string $source) => [
         Repeater::make('rules')->schema([TextInput::make('value')->dehydrateStateUsing(
             fn (string $state) => strtoupper($state),
         )]),
         Builder::make('blocks')->blocks([Block::make('replace')->schema([TextInput::make('value')])]),
+        KeyValue::make('mapping')->label('Mapping for ' . $source),
     ]);
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $settings = [
         'first.part' => [
             'rules' => [['value' => 'first']],
             'blocks' => [['type' => 'replace', 'data' => ['value' => 'One']]],
+            'mapping' => [' padded ' => '', '0' => '  '],
+            'custom' => ['keep' => 'as provided'],
         ],
-        '0' => ['rules' => [['value' => 'second']], 'blocks' => [['type' => 'replace', 'data' => ['value' => 'Two']]]],
+        '0' => [
+            'rules' => [['value' => 'second']],
+            'blocks' => [['type' => 'replace', 'data' => ['value' => 'Two']]],
+            'mapping' => ['second' => 'value'],
+        ],
     ];
     $entries = $binding
         ? MappingState::binding(['first.part' => 'first', '0' => 'second'], $settings)
@@ -820,8 +828,11 @@ it('submits native nested source settings after child dehydration', function (bo
             'second' => MappingState::source('0'),
         ], $settings);
     $schema->fill(['widget' => $entries]);
+    $editorState = $field->getRawState();
     $settings['first.part']['rules'][0]['value'] = 'FIRST';
     $settings['0']['rules'][0]['value'] = 'SECOND';
+    expect($field->getSourceSettings())->toBe($settings);
+    expect($field->getRawState())->toBe($editorState);
     $expected = $binding
         ? MappingState::binding(['first.part' => 'first', '0' => 'second'], $settings)
         : MappingState::mapping([
@@ -829,6 +840,9 @@ it('submits native nested source settings after child dehydration', function (bo
             'second' => MappingState::source('0'),
         ], $settings);
     expect($schema->getState()['widget'])->toBe($expected);
+    $field->rawState(array_reverse($editorState));
+    expect($field->getSourceSettings())->toBe($settings);
+    expect($schema->getComponentByStatePath('widget.0.options.mapping')->getLabel())->toBe('Mapping for 0');
 })->with([false, true]);
 
 it('shows settings for newly available sources without requiring a connection or binding', function (bool $binding) {

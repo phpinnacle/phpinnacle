@@ -67,12 +67,15 @@ class Block extends \Filament\Support\Components\Component
         return $this->schema !== [];
     }
 
-    /** @return array<Component> */
-    public function getSchema(InlineBuilder $component, ?int $index): array
+    /**
+     * @param array<string, mixed> $injections
+     * @return array<Component>
+     */
+    public function getSchema(InlineBuilder $component, ?int $index, array $injections = []): array
     {
         return array_map(
             static fn (Component $field) => $field->getClone(),
-            $component->evaluate($this->schema, ['index' => $index]),
+            $component->evaluate($this->schema, ['index' => $index, ...$injections]),
         );
     }
 

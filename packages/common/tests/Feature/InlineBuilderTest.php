@@ -1,6 +1,7 @@
 <?php
 
 use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -91,6 +92,18 @@ it('adds settings-free blocks immediately and keeps removal out of settings moda
     ($this->action)(['block' => 'stop'])->call();
     expect($this->field->getItems())->toBe([['type' => 'stop', 'data' => []]]);
     expect(($this->action)(['block' => 'notify'])->getExtraModalFooterActions())->toBe([]);
+});
+
+it('preserves the field dehydration callback before dehydrating item forms', function () {
+    $items = [
+        ['type' => 'notify', 'data' => ['message' => 'First']],
+        ['type' => 'notify', 'data' => ['message' => 'Second']],
+    ];
+    $this->field->dehydrateStateUsing(fn (array $state) => array_slice($state, offset: 0, length: 1));
+    $this->schema->fill(['steps' => $items]);
+
+    expect($this->schema->getState()['steps'])->toBe([$items[0]]);
+    expect($this->field->getItems())->toBe($items);
 });
 
 it('defers schema callbacks until settings are opened and supplies the instance index', function () {
@@ -207,6 +220,27 @@ it('validates user-controlled item structure', function (mixed $state) {
     'unexpected property' => [[['type' => 'stop', 'extra' => true]]],
     'not a list' => [['first' => ['type' => 'stop']]],
 ]);
+
+it('checks native canonical dictionaries when allowing and applying moves', function () {
+    $field = InlineBuilder::make('dictionaries')
+        ->blocks([Block::make('dictionary')->schema([KeyValue::make('mapping')])])
+        ->reorderableUsing(fn (array $items) => $items[0]['data']['mapping'] === ['first' => '']);
+    $schema = Schema::make($this->field->getLivewire())->statePath('data')->components([$field]);
+    $settings = [
+        ['type' => 'dictionary', 'data' => ['mapping' => ['first' => '']]],
+        ['type' => 'dictionary', 'data' => ['mapping' => ['second' => ' padded ']]],
+        ['type' => 'dictionary', 'data' => ['mapping' => ['third' => 'last']]],
+    ];
+    $schema->fill(['dictionaries' => $settings]);
+
+    expect($field->getSettings())->toBe($settings);
+    expect($field->getAllowedMoves())->toBe([[0], [1, 2], [1, 2]]);
+    $action = $field->getAction('inlineBuilder');
+    expect(fn () => $action(['order' => [1, 0, 2]])->call())->toThrow(ValidationException::class);
+    expect($field->getSettings())->toBe($settings);
+    $action(['order' => [0, 2, 1]])->call();
+    expect($schema->getState()['dictionaries'])->toBe([$settings[0], $settings[2], $settings[1]]);
+});
 
 it('uses current availability for additions while preserving editing and removal', function () {
     $available = true;

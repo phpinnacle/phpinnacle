@@ -466,7 +466,7 @@ final readonly class JsonSchema
     }
 
     /** @return list<mixed>|null */
-    private function enumValues(): ?array
+    public function enumValues(): ?array
     {
         $values = $this->resolved->keyword('enum') ?? null;
         foreach ($this->branches('allOf') as $branch) {

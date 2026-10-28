@@ -5,6 +5,7 @@ namespace PHPinnacle\Common\Forms;
 use Closure;
 use Filament\Forms\Components\Concerns\HasPlaceholder;
 use Filament\Forms\Components\Field;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
@@ -137,24 +138,43 @@ class InlineBuilder extends Field
         return $this->getRawState() ?? [];
     }
 
-    public function getItemSchema(string $type, ?int $index): Schema
+    /** @return list<array{type: string, data: array<string, mixed>}> */
+    public function getSettings(): array
+    {
+        return $this->dehydrateItems($this->getItems());
+    }
+
+    /**
+     * @param array<string, mixed> $injections
+     * @return array<Component>
+     */
+    public function getItemComponents(string $type, ?int $index, array $injections = []): array
+    {
+        return $this->getBlocks()[$type]->getSchema($this, $index, $injections);
+    }
+
+    /** @param array<string, mixed> $injections */
+    public function getItemSchema(string $type, ?int $index, array $injections = []): Schema
     {
         return $this
             ->makeChildSchema((string) $index)
             ->statePath(($index ?? count($this->getItems())) . '.data')
-            ->components($this->getBlocks()[$type]->getSchema($this, $index));
+            ->components($this->getItemComponents($type, $index, $injections));
     }
 
-    /** @return array<string, mixed> */
-    public function getItemData(int $index): array
+    /**
+     * @param array<string, mixed> $injections
+     * @return array<string, mixed>
+     */
+    public function getItemData(int $index, array $injections = []): array
     {
-        return $this->dehydrateItems([$index => $this->getItems()[$index]])[$index]['data'];
+        return $this->dehydrateItems([$index => $this->getItems()[$index]], $injections)[$index]['data'];
     }
 
     /** @return list<list<int>> */
     public function getAllowedMoves(): array
     {
-        $items = $this->getItems();
+        $items = $this->getSettings();
         $allowed = [];
         foreach ($items as $from => $item) {
             $positions = [];
@@ -184,7 +204,9 @@ class InlineBuilder extends Field
             }
         });
         $this->partiallyRenderAfterStateUpdated();
-        $this->mutateDehydratedStateUsing(fn (self $component, array $state) => $component->dehydrateItems($state));
+        $this->mutateDehydratedStateUsing(fn (self $component, ?array $state) => $component->dehydrateItems(
+            $state ?? [],
+        ));
         $this->rule('bail');
         $this->rules(fn (self $component) => [$component->validateItems(...)]);
         $this->registerActions([BuilderAction::make(...)]);
@@ -192,12 +214,13 @@ class InlineBuilder extends Field
 
     /**
      * @param array<int, BuilderItem> $state
+     * @param array<string, mixed> $injections
      * @return array<int, array{type: string, data: array<string, mixed>}>
      */
-    private function dehydrateItems(array $state): array
+    private function dehydrateItems(array $state, array $injections = []): array
     {
         foreach ($state as $index => $item) {
-            $parameters = $this->getItemSchema($item['type'], $index);
+            $parameters = $this->getItemSchema($item['type'], $index, $injections);
             $parametersState = [];
             Arr::set($parametersState, $parameters->getStatePath(), $item['data'] ?? []);
             $parameters->dehydrateState($parametersState);
