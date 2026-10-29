@@ -34,9 +34,6 @@ For an instance, it uses that model's table, connection, casts, and
 mass-assignment settings. Model discovery, caching, and cache refresh belong to
 the application consuming Eidos.
 
-Replace former `SchemaFactory::create()` calls with
-`SchemaIntrospector::introspect()`.
-
 Schemas describe column types, casts, backed enum values, dates, and nullability.
 The object-level JSON Schema `required` list contains writable, nonnullable
 columns without a database default, a declared model `$attributes` default, or
@@ -100,20 +97,24 @@ Return a `PHPinnacle\Jason\Schema` for each field. Jason schemas are immutable a
 
 Registered handlers take precedence over built-in cast mappings and apply to
 related models too. Column nullability and inferred `readOnly` still
-apply. Without a handler, Eidos uses its built-in cast mapping or database type.
-Container resolutions share these registrations. Each generated schema remains
-independent.
+apply. Boolean schema definitions (`true` or `false`) are wrapped in `allOf` to
+preserve their meaning when adding column metadata and defaults. Without a handler,
+Eidos uses its built-in cast mapping or database type.
 
 ## Laravel validation
 
 ```php
-use PHPinnacle\Jason\Schema;
+use PHPinnacle\Jason\SchemaBuilder;
 use PHPinnacle\Eidos\Validation\RuleFactory;
 
-$schema = Schema::object([
-    'email' => Schema::string()->format('email'),
-    'quantity' => Schema::integer()->min(1)->max(10),
-])->required(['email']);
+$schema = SchemaBuilder::make()
+    ->type('object')
+    ->properties([
+        'email' => SchemaBuilder::make()->type('string')->format('email')->build(),
+        'quantity' => SchemaBuilder::make()->type('integer')->min(1)->max(10)->build(),
+    ])
+    ->required(['email'])
+    ->build();
 
 $rules = app(RuleFactory::class)->make($schema, [
     'email' => ['unique:users,email'],
@@ -133,6 +134,11 @@ properties, and array items. Optional objects may be absent; their required keys
 are checked when supplied. A prefixed root remains optional unless application
 rules require it.
 
+Bounds apply to their corresponding declared types, including within unions:
+numeric limits do not constrain boolean or string branches. Null-only fields
+allow null and optional absence, but reject supplied non-null values, including
+empty strings and whitespace.
+
 `anyOf` accepts at least one matching branch; `oneOf` requires exactly one.
 Alternative validation requires an attribute prefix, including at the root.
 `allOf` applies all branch constraints and can be used without a root prefix.
@@ -146,11 +152,12 @@ for unsupported constraints such as patterns, multiples, and unique items.
 
 ## Schema composition and annotations
 
-Eidos consumes immutable `PHPinnacle\Jason\Schema` values for builders, compositions,
-local references, and arbitrary annotations:
+Eidos consumes immutable `PHPinnacle\Jason\Schema` values. Use Jason's mutable
+`SchemaBuilder` to configure them; call `build()` before passing them to Eidos:
 
 ```php
 use PHPinnacle\Jason\Schema;
+use PHPinnacle\Jason\SchemaBuilder;
 
 $payment = Schema::fromArray([
     'type' => 'object',
@@ -162,22 +169,21 @@ $payment = Schema::fromArray([
 ]);
 
 $quantity = Schema::allOf([
-    Schema::integer()->min(1),
-    Schema::integer()->max(10),
+    SchemaBuilder::make()->type('integer')->min(1)->build(),
+    SchemaBuilder::make()->type('integer')->max(10)->build(),
 ]);
 ```
 
 `Schema::oneOf()` and `Schema::allOf()` accept lists of Jason schemas.
-`nullable()` returns a new schema permitting null for the complete composition.
+Use `SchemaBuilder::make($schema)->nullable()->build()` to permit null for the complete composition.
 `Schema::fromArray()` preserves definitions and references; Eidos resolves local
 references when presenting paths or generating validation rules. `required([...])`
 belongs to the containing object. `Schema::union()` accepts several primitive
 types; use compositions when branches have independent constraints.
 
-Replace Laravel schema factories and `Type` signatures with `PHPinnacle\Jason\Schema`.
-The former Eidos schema wrapper, deserializer, and composition subclasses have
-been removed. UI annotation checks belong to Eidos presentation; Jason preserves
-`x-*` values without Filament-specific interpretation.
+See the [Jason README](https://github.com/phpinnacle/jason#build-a-schema) for
+builder methods and typed schema readers. UI annotation checks belong to Eidos
+presentation; Jason preserves `x-*` values without Filament-specific interpretation.
 
 ## JSON Schema extensions
 
@@ -244,12 +250,17 @@ built-in Eidos semantics.
 
 ```php
 use PHPinnacle\Jason\Schema;
+use PHPinnacle\Jason\SchemaBuilder;
 use PHPinnacle\Eidos\Forms\JsonSchemaPicker;
 use PHPinnacle\Eidos\Infolists\JsonSchemaEntry;
 
 $schema = Schema::object([
     'customer' => Schema::object([
-        'email' => Schema::string()->nullable()->description('Delivery address'),
+        'email' => SchemaBuilder::make()
+            ->type('string')
+            ->nullable()
+            ->description('Delivery address')
+            ->build(),
     ]),
 ]);
 
@@ -749,9 +760,17 @@ Use `sourceSettings(fn (string $source) => [Actions::make([...])])` for native s
 
 ## Testing
 
+From the package root:
+
 ```bash
 composer test
 npm test
+```
+
+From the monorepo root, check all Eidos source files at PHPStan level 10:
+
+```bash
+composer phpstan:level10
 ```
 
 Tests cover schema generation, shared cast registrations, validation outcomes,

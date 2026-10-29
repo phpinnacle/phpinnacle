@@ -9,34 +9,60 @@ composer require phpinnacle/jason
 
 ## Build a schema
 
+`Schema` is an immutable value. Configure schemas with `SchemaBuilder`, then call
+`build()` to obtain an independent snapshot:
+
 ```php
 use PHPinnacle\Jason\Schema;
+use PHPinnacle\Jason\SchemaBuilder;
 
-$email = Schema::string()->format('email');
-$schema = Schema::object([
-    'email' => $email->title('Email address'),
-    'tags' => Schema::array()->items(Schema::string())->max(10),
-])->required(['email'])->withoutAdditionalProperties();
+$schema = SchemaBuilder::make()
+    ->type('object')
+    ->properties([
+        'email' => SchemaBuilder::make()
+            ->type('string')
+            ->format('email')
+            ->title('Email address')
+            ->build(),
+        'tags' => SchemaBuilder::make()
+            ->type('array')
+            ->items(Schema::string())
+            ->maxItems(10)
+            ->build(),
+    ])
+    ->required(['email'])
+    ->withoutAdditionalProperties()
+    ->build();
 
 $definition = $schema->toArray();
 $json = $schema->toJson();
 ```
 
-Every fluent method returns a new schema. Reusing `$email` does not change it.
+Builder methods change that builder and return it. `$schema->builder()` or
+`SchemaBuilder::make($schema)` starts from an existing schema without changing it:
+
+```php
+$updated = $schema->builder()->title('Customer')->build();
+```
+
+Later builder changes and nested annotation mutations cannot change a schema
+already returned by `build()`.
 `required([...])` declares property names on the containing object; it is not a
 flag on a property's schema. `default(null)` remains distinct from no default.
-`with($keyword, $value)` retains arbitrary keywords and annotations without
-interpreting application-specific names such as `x-custom` or `x-metadata`.
+Use `with($keyword, $value)` for custom keywords and annotations such as `x-custom`.
 
-Factories include `object()`, `array()`, `string()`, `integer()`, `number()`,
-`boolean()`, `null()`, `union([...])`, `anyOf([...])`, `oneOf([...])`, and
-`allOf([...])`. Compositions accept lists of schemas. `nullable()` permits null
-for the complete schema, including enum and composition constraints;
-`nullable(false)` excludes null. When nullability requires wrapping the schema,
-local references are expanded first so their JSON Pointer paths remain valid.
-`min()` and `max()` set length, item count, or
-numeric bounds according to the builder's primitive type. Use `with()` for
-constraints on schemas without a single primitive type.
+Short value factories remain available on `Schema`: `object()`, `array()`,
+`string()`, `integer()`, `number()`, `boolean()`, `null()`, `union([...])`,
+`anyOf([...])`, `oneOf([...])`, and `allOf([...])`. They return immutable schemas;
+configuration methods belong to the builder. Schema maps and composition lists
+accept these `Schema` values.
+
+On the builder, `nullable()` permits null for the complete schema, including enum
+and composition constraints; `nullable(false)` excludes null. When nullability
+requires wrapping the schema, local references are expanded first so their JSON
+Pointer paths remain valid. `min()` and `max()` set length, item count, or numeric
+bounds according to a single primitive type. Explicit methods such as
+`minimum()`, `maxLength()` and `minItems()` set their named keywords directly.
 
 ## Read and preserve definitions
 
@@ -50,6 +76,9 @@ $schema = Schema::fromArray([
 $original = $schema->toArray();
 $view = $schema->resolveReferences();
 $name = $view->properties()['name'];
+$type = $name->type(); // 'string'
+$hasDefault = $name->hasKeyword('default'); // true
+$default = $name->default(); // null
 ```
 
 `fromArray()` accepts a trusted schema object definition or a boolean schema.
@@ -62,12 +91,37 @@ values inside defaults or enums. JSON objects supplied through `fromArray()`
 as annotation values use `stdClass`; PHP arrays represent JSON arrays or maps
 according to their keys. Schema-valued object positions always encode as objects.
 
-Use `keyword()` and `hasKeyword()` to read individual keywords, `keywords()`
-for an object's keywords, `properties()` for declared property schemas,
-`itemSchema()` for declared array items, and `branches($keyword)` for composition
-branches. These are structural queries, not a flattening or validation of the
-schema. Boolean schemas have no keywords; `toArray()` retains their boolean value.
-Object annotation values are copied at the input and output boundaries so callers
+Read standard keywords through typed methods:
+
+| Fields | Methods |
+| --- | --- |
+| Type and object requirements | `type()`, `required()`, `dependentRequired()` |
+| Annotations and values | `title()`, `description()`, `default()`, `const()`, `enum()`, `examples()`, `readOnly()`, `writeOnly()`, `deprecated()` |
+| Numeric bounds | `minimum()`, `maximum()`, `exclusiveMinimum()`, `exclusiveMaximum()`, `multipleOf()` |
+| String constraints | `minLength()`, `maxLength()`, `pattern()`, `format()` |
+| Collection constraints | `minItems()`, `maxItems()`, `uniqueItems()`, `minContains()`, `maxContains()`, `minProperties()`, `maxProperties()` |
+| Schema maps | `properties()`, `patternProperties()`, `dependentSchemas()`, `defs()` |
+| Nested schemas | `items()`, `prefixItems()`, `contains()`, `additionalProperties()`, `unevaluatedProperties()`, `unevaluatedItems()`, `propertyNames()`, `not()`, `if()`, `then()`, `else()` |
+| Identifiers and vocabulary | `schema()`, `id()`, `ref()`, `anchor()`, `dynamicRef()`, `dynamicAnchor()`, `vocabulary()`, `comment()` |
+| Content | `contentEncoding()`, `contentMediaType()`, `contentSchema()` |
+
+The builder has corresponding write methods; names for `$` keywords omit the `$`.
+Read composition lists with `branches('anyOf')`, `branches('oneOf')` or
+`branches('allOf')`; write them with the builder's `anyOf()`, `oneOf()` or `allOf()`.
+Maps and lists of nested schemas return `Schema` values. These are structural
+queries; they do not flatten compositions, infer types or validate instances.
+Absent scalar values return null; maps and lists return empty arrays, except
+`enum()` which returns null when absent. `hasKeyword()` distinguishes an absent
+keyword from an explicit null, false or empty value. `type()` retains the declared
+string or list form.
+
+`allowsAny()` identifies the literal schema `true`; `deniesAny()` identifies the
+literal schema `false`. Both return false for object schemas, including `{}` and
+`{"type":"boolean"}`. They do not attempt to prove schema equivalence.
+
+Use `keyword()` for extension values and `keywords()` for the complete keyword
+map. Boolean schemas have no keywords; `toArray()` retains their boolean value.
+Object annotation values are copied at input and output boundaries so callers
 cannot mutate a schema through a nested `stdClass`.
 
 Reference expansion returns a separate schema. It supports local JSON Pointer

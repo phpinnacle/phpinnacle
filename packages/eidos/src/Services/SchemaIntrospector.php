@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Str;
 use PHPinnacle\Jason\Schema;
+use PHPinnacle\Jason\SchemaBuilder;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -57,33 +58,82 @@ class SchemaIntrospector
     {
         $model = is_string($model) ? new $model : $model;
 
-        $definition = $this->modelSchema($model, $relationshipDepth);
-        $definition['title'] = $model::class;
-
-        return Schema::fromArray($definition);
+        return SchemaBuilder::make($this->modelSchema($model, $relationshipDepth))->title($model::class)->build();
     }
 
     /**
      * @param int<0, max> $relationshipDepth
-     * @return array{type: string, properties: array<string, array<string, mixed>>, required?: list<string>}
      */
-    private function modelSchema(Model $model, int $relationshipDepth): array
+    private function modelSchema(Model $model, int $relationshipDepth): Schema
     {
-        $definition = $this->columnSchema($model);
+        $columns = $this->columns($model);
+        $properties = [];
+        $required = [];
+        $casts = $model->getCasts();
+        $dates = $model->getDates();
+        /** @var array<string, mixed> $defaults */
+        $defaults = new ReflectionClass($model)->getDefaultProperties()['attributes'];
+        $driver = $model->getConnection()->getDriverName();
 
-        if ($relationshipDepth > 0) {
-            $definition['properties'] = array_replace(
-                $definition['properties'],
-                $this->relationSchemas($model, $relationshipDepth - 1),
+        foreach ($columns as $column) {
+            $name = $column['name'];
+            $cast = $casts[$name] ?? null;
+            $type = in_array($name, $dates, true) && $cast === null
+                ? SchemaBuilder::make()->type('string')->format('date-time')->build()
+                : $this->columnType($column['type_name'], $cast, $model, $name);
+            $type = $type->resolveReferences();
+
+            $schema = $column['nullable'] ? SchemaBuilder::make($type)->nullable()->build() : $type;
+            $builder = SchemaBuilder::make(
+                $schema->allowsAny() || $schema->deniesAny() ? Schema::allOf([$schema]) : $schema,
             );
+            $readOnly = $schema->readOnly() ?? false;
+
+            if ($column['generation'] !== null || !$model->isFillable($name)) {
+                $builder->readOnly(true);
+                $readOnly = true;
+            }
+
+            if (
+                !$readOnly
+                && !$column['nullable']
+                && $column['default'] === null
+                && !array_key_exists($name, $defaults)
+                && !$column['auto_increment']
+            ) {
+                $required[] = $name;
+            }
+
+            if ($column['generation'] === null) {
+                $default = match (true) {
+                    array_key_exists($name, $defaults) => ['default' => $defaults[$name]],
+                    $column['default_generated'] ?? false => [],
+                    default => $this->databaseDefault($column['default'], $driver, $column['type_name']),
+                };
+
+                if (array_key_exists('default', $default)) {
+                    $builder->default($this->defaultValue($default['default'], $type));
+                }
+            }
+
+            $properties[$name] = $builder->build();
         }
 
-        return $definition;
+        if ($relationshipDepth > 0) {
+            $properties = array_replace($properties, $this->relationSchemas($model, $relationshipDepth - 1));
+        }
+
+        $builder = SchemaBuilder::make()->type('object')->properties($properties);
+        if ($required !== []) {
+            $builder->required($required);
+        }
+
+        return $builder->build();
     }
 
     /**
      * @param int<0, max> $relationshipDepth
-     * @return array<string, array<string, mixed>>
+     * @return array<string, Schema>
      */
     private function relationSchemas(Model $model, int $relationshipDepth): array
     {
@@ -107,18 +157,20 @@ class SchemaIntrospector
             $relatedSchema = $this->modelSchema($relation->getRelated(), $relationshipDepth);
             $name = $model::$snakeAttributes ? Str::snake($method->getName()) : $method->getName();
 
-            $properties[$name] =
+            $builder =
                 $relation instanceof HasMany
                 || $relation instanceof MorphMany
                 || $relation instanceof BelongsToMany
                 || $relation instanceof HasManyThrough
-                    ? ['type' => 'array', 'items' => $relatedSchema, 'readOnly' => true]
-                    : array_replace($relatedSchema, ['type' => ['object', 'null'], 'readOnly' => true]);
-            $properties[$name]['x-relationship'] = $method->getName();
+                    ? SchemaBuilder::make()->type('array')->items($relatedSchema)
+                    : SchemaBuilder::make($relatedSchema)->nullable();
+            $builder->readOnly(true)->with('x-relationship', $method->getName());
 
             if ($relation instanceof BelongsTo) {
-                $properties[$name]['x-foreign-key'] = $relation->getForeignKeyName();
+                $builder->with('x-foreign-key', $relation->getForeignKeyName());
             }
+
+            $properties[$name] = $builder->build();
         }
 
         return $properties;
@@ -127,61 +179,10 @@ class SchemaIntrospector
     /** @return Relation<Model, Model, mixed> */
     private function relation(Model $model, ReflectionMethod $method): Relation
     {
-        return Relation::noConstraints(fn () => $method->invoke($model));
-    }
+        /** @var Closure(): Relation<Model, Model, mixed> $relationship */
+        $relationship = $method->getClosure($model);
 
-    /** @return array{type: string, properties: array<string, array<string, mixed>>, required?: list<string>} */
-    private function columnSchema(Model $model): array
-    {
-        $columns = $this->columns($model);
-        $properties = [];
-        $required = [];
-        $casts = $model->getCasts();
-        $dates = $model->getDates();
-        /** @var array<string, mixed> $defaults */
-        $defaults = new ReflectionClass($model)->getDefaultProperties()['attributes'];
-        $driver = $model->getConnection()->getDriverName();
-
-        foreach ($columns as $column) {
-            $name = $column['name'];
-            $cast = $casts[$name] ?? null;
-            $type = in_array($name, $dates, true) && $cast === null
-                ? Schema::string()->format('date-time')
-                : $this->columnType($column['type_name'], $cast, $model, $name);
-            $type = $type->resolveReferences();
-
-            $definition = ($column['nullable'] ? $type->nullable() : $type)->toArray();
-
-            if ($column['generation'] !== null || !$model->isFillable($name)) {
-                $definition['readOnly'] = true;
-            }
-
-            if (
-                !($definition['readOnly'] ?? false)
-                && !$column['nullable']
-                && $column['default'] === null
-                && !array_key_exists($name, $defaults)
-                && !$column['auto_increment']
-            ) {
-                $required[] = $name;
-            }
-
-            if ($column['generation'] === null) {
-                $default = match (true) {
-                    array_key_exists($name, $defaults) => ['default' => $defaults[$name]],
-                    $column['default_generated'] ?? false => [],
-                    default => $this->databaseDefault($column['default'], $driver, $column['type_name']),
-                };
-
-                if (array_key_exists('default', $default)) {
-                    $definition['default'] = $this->defaultValue($default['default'], $type->keywords());
-                }
-            }
-
-            $properties[$name] = $definition;
-        }
-
-        return ['type' => 'object', 'properties' => $properties] + ($required === [] ? [] : ['required' => $required]);
+        return Relation::noConstraints($relationship);
     }
 
     /** @return list<Column> */
@@ -197,15 +198,22 @@ class SchemaIntrospector
 
         // Laravel's MySQL processor discards EXTRA, which distinguishes expressions from literals.
         [$schema, $table] = $builder->parseSchemaAndTable($model->getTable());
-        $results = $connection->selectFromWriteConnection(
-            $connection->getSchemaGrammar()->compileColumns($schema, $connection->getTablePrefix() . $table),
+        /** @var list<array{extra: string, ...}> $results */
+        $results = array_map(
+            fn ($result) => (array) $result,
+            $connection->selectFromWriteConnection(
+                $connection->getSchemaGrammar()->compileColumns($schema, $connection->getTablePrefix() . $table),
+            ),
         );
 
         /** @var list<Column> */
         $columns = $connection->getPostProcessor()->processColumns($results);
 
-        foreach ($results as $index => $result) {
-            $columns[$index]['default_generated'] = str_contains($result->extra, 'DEFAULT_GENERATED');
+        foreach ($columns as $index => $column) {
+            $columns[$index] = [
+                ...$column,
+                'default_generated' => str_contains($results[$index]['extra'], 'DEFAULT_GENERATED'),
+            ];
         }
 
         return $columns;
@@ -235,8 +243,16 @@ class SchemaIntrospector
             $value = trim(substr($value, 1, -1));
         }
 
-        if ($driver === 'pgsql') {
-            $value = preg_replace('/::[a-zA-Z_][a-zA-Z0-9_ ."\[\]]*(?:\(\d+(?:,\s*\d+)?\))?$/D', '', $value);
+        if (
+            $driver === 'pgsql'
+            && preg_match(
+                '/::[a-zA-Z_][a-zA-Z0-9_ ."\[\]]*(?:\(\d+(?:,\s*\d+)?\))?$/D',
+                $value,
+                $matches,
+                PREG_OFFSET_CAPTURE,
+            )
+        ) {
+            $value = substr($value, 0, $matches[0][1]);
         }
 
         if (preg_match("/^(?:N)?'((?:[^']|'')*)'$/isD", $value, $matches)) {
@@ -252,18 +268,17 @@ class SchemaIntrospector
         };
     }
 
-    /** @param array<string, mixed> $definition */
-    private function defaultValue(mixed $value, array $definition): mixed
+    private function defaultValue(mixed $value, Schema $schema): mixed
     {
-        if ($value === null) {
-            return null;
-        }
-
         if ($value instanceof BackedEnum) {
             $value = $value->value;
         }
 
-        $types = (array) ($definition['type'] ?? []);
+        if (!is_scalar($value)) {
+            return $value;
+        }
+
+        $types = (array) ($schema->type() ?? []);
 
         return match (true) {
             in_array('integer', $types, true) => (int) $value,
@@ -301,7 +316,9 @@ class SchemaIntrospector
         if (is_subclass_of($castName, BackedEnum::class)) {
             $values = array_column($castName::cases(), 'value');
 
-            return (is_int($values[0]) ? Schema::integer() : Schema::string())->enum($values);
+            return SchemaBuilder::make(is_int($values[0]) ? Schema::integer() : Schema::string())
+                ->enum($values)
+                ->build();
         }
 
         if (is_a($castName, AsArrayObject::class, true) || is_a($castName, AsCollection::class, true)) {
@@ -313,8 +330,11 @@ class SchemaIntrospector
             'real', 'float', 'double' => Schema::number(),
             'bool', 'boolean' => Schema::boolean(),
             'array', 'json', 'object', 'collection' => Schema::union(['object', 'array']),
-            'date', 'immutable_date' => Schema::string()->format('date'),
-            'datetime', 'immutable_datetime', 'timestamp' => Schema::string()->format('date-time'),
+            'date', 'immutable_date' => SchemaBuilder::make()->type('string')->format('date')->build(),
+            'datetime', 'immutable_datetime', 'timestamp' => SchemaBuilder::make()
+                ->type('string')
+                ->format('date-time')
+                ->build(),
             'decimal', 'string', 'hashed' => Schema::string(),
             default => null,
         };

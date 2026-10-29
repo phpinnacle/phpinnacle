@@ -2,7 +2,6 @@
 
 namespace PHPinnacle\Eidos\Validation;
 
-use Closure;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
@@ -16,19 +15,19 @@ class RuleFactory
      */
     public function make(Schema $schema, array $rules = [], string $prefix = ''): array
     {
-        return $this->merge($rules, $this->schemaRules($schema->resolveReferences()->toArray(), $prefix));
+        return $this->merge($rules, $this->schemaRules($schema->resolveReferences(), $prefix));
     }
 
     /**
-     * @param array<string, mixed>|bool $schema
      * @return array<string, list<mixed>>
      */
-    private function schemaRules(array|bool $schema, string $prefix): array
+    private function schemaRules(Schema $schema, string $prefix): array
     {
-        if (is_bool($schema)) {
-            if ($schema) {
-                return [];
-            }
+        if ($schema->allowsAny()) {
+            return [];
+        }
+
+        if ($schema->deniesAny()) {
             if ($prefix === '') {
                 throw new InvalidArgumentException('A rejecting schema requires an attribute prefix.');
             }
@@ -38,22 +37,23 @@ class RuleFactory
 
         $rules = $prefix === '' ? [] : [$prefix => $this->fieldRules($schema)];
 
-        foreach ($schema['properties'] ?? [] as $name => $property) {
+        foreach ($schema->properties() as $name => $property) {
             $key = $prefix === '' ? (string) $name : $prefix . '.' . $name;
             $rules = $this->merge($rules, $this->schemaRules($property, $key));
         }
 
-        foreach ($schema['required'] ?? [] as $name) {
+        foreach ($schema->required() as $name) {
             $key = $prefix === '' ? $name : $prefix . '.' . $name;
             $rules[$key] = [$prefix === '' ? 'required' : 'required_with:' . $prefix, ...($rules[$key] ?? [])];
         }
 
-        if (array_key_exists('items', $schema)) {
-            $rules = $this->merge($rules, $this->schemaRules($schema['items'], $prefix === '' ? '*' : $prefix . '.*'));
+        $items = $schema->items();
+        if ($items !== null) {
+            $rules = $this->merge($rules, $this->schemaRules($items, $prefix === '' ? '*' : $prefix . '.*'));
         }
 
         foreach (['anyOf', 'oneOf'] as $keyword) {
-            if (!array_key_exists($keyword, $schema)) {
+            if (!$schema->hasKeyword($keyword)) {
                 continue;
             }
 
@@ -61,10 +61,10 @@ class RuleFactory
                 throw new InvalidArgumentException('Alternative schema validation requires an attribute prefix.');
             }
 
-            $rules[$prefix][] = $this->alternatives($schema[$keyword], $keyword === 'oneOf');
+            $rules[$prefix][] = $this->alternatives($schema->branches($keyword), $keyword === 'oneOf');
         }
 
-        foreach ($schema['allOf'] ?? [] as $branch) {
+        foreach ($schema->branches('allOf') as $branch) {
             $rules = $this->merge($rules, $this->schemaRules($branch, $prefix));
         }
 
@@ -72,45 +72,45 @@ class RuleFactory
     }
 
     /**
-     * @param array<string, mixed> $schema
      * @return list<mixed>
      */
-    private function fieldRules(array $schema): array
+    private function fieldRules(Schema $schema): array
     {
-        $allTypes = (array) ($schema['type'] ?? []);
+        $allTypes = (array) ($schema->type() ?? []);
         $types = array_values(array_diff($allTypes, ['null']));
-        $rules = [
-            ...(in_array('null', $allTypes, true) ? ['nullable'] : []),
-            ...$this->typeRules($schema, $types),
-        ];
+        $nullable = in_array('null', $allTypes, true);
+        $rules = $nullable ? ['nullable'] : [];
 
-        if ($types === [] && in_array('null', $allTypes, true)) {
-            $rules[] = function (string $attribute, mixed $value, Closure $fail) {
-                if ($value !== null) {
-                    $fail('validation.in')->translate();
-                }
-            };
+        if (count($types) > 1) {
+            $rules[] = new SchemaAlternatives(
+                fn (string $attribute) => array_map(fn (string $type) => [$attribute => [
+                    ...$this->typeRules($schema, $type),
+                    ...$this->constraintRules($schema, $type),
+                ]], $allTypes),
+                false,
+            );
+        } else {
+            $type = $types[0] ?? ($nullable ? 'null' : null);
+            $rules = [
+                ...$rules,
+                ...$this->typeRules($schema, $type),
+                ...$this->constraintRules($schema, $type),
+            ];
         }
 
-        return [...$rules, ...$this->constraintRules($schema), ...Arr::wrap($schema['x-validation'] ?? [])];
+        return array_values([
+            ...$rules,
+            ...Arr::wrap($schema->keyword('x-validation')),
+        ]);
     }
 
     /**
-     * @param array<string, mixed> $schema
-     * @param list<string> $types
      * @return list<mixed>
      */
-    private function typeRules(array $schema, array $types): array
+    private function typeRules(Schema $schema, ?string $type): array
     {
-        if (count($types) > 1) {
-            return [$this->alternatives(array_map(
-                fn (string $type) => array_replace($schema, ['type' => $type]),
-                $types,
-            ))];
-        }
-
-        return match ($types[0] ?? null) {
-            'string' => match ($schema['format'] ?? null) {
+        return match ($type) {
+            'string' => match ($schema->format()) {
                 'uuid' => ['uuid'],
                 'email' => ['email'],
                 'date', 'date-time' => ['date'],
@@ -119,48 +119,51 @@ class RuleFactory
             'integer' => ['integer'],
             'number' => ['numeric'],
             'boolean' => ['boolean'],
+            'null' => [new NullSchema],
             'array', 'object' => ['array'],
             default => [],
         };
     }
 
     /**
-     * @param array<string, mixed> $schema
      * @return list<mixed>
      */
-    private function constraintRules(array $schema): array
+    private function constraintRules(Schema $schema, ?string $type): array
     {
         $rules = [];
+        $boundType = $type === 'integer' ? 'number' : $type;
 
         foreach ([
-            'minLength' => 'min',
-            'maxLength' => 'max',
-            'minimum' => 'min',
-            'maximum' => 'max',
-            'minItems' => 'min',
-            'maxItems' => 'max',
-        ] as $constraint => $rule) {
-            if (array_key_exists($constraint, $schema)) {
-                $rules[] = $rule . ':' . $schema[$constraint];
+            [$schema->minLength(), 'min', 'string'],
+            [$schema->maxLength(), 'max', 'string'],
+            [$schema->minimum(), 'min', 'number'],
+            [$schema->maximum(), 'max', 'number'],
+            [$schema->minItems(), 'min', 'array'],
+            [$schema->maxItems(), 'max', 'array'],
+        ] as [$value, $rule, $constraintType]) {
+            if ($value !== null && ($boundType === null || $boundType === $constraintType)) {
+                $rules[] = $rule . ':' . $value;
             }
         }
 
-        if (array_key_exists('enum', $schema)) {
-            $rules[] = Rule::in($schema['enum']);
+        $enum = $schema->enum();
+        if ($enum !== null) {
+            $rules[] = Rule::in($enum);
         }
 
-        if (($schema['required'] ?? []) !== []) {
-            $rules[] = 'required_array_keys:' . implode(',', $schema['required']);
+        $required = $schema->required();
+        if ($required !== []) {
+            $rules[] = 'required_array_keys:' . implode(',', $required);
         }
 
         return $rules;
     }
 
-    /** @param list<array<string, mixed>|bool> $schemas */
+    /** @param list<Schema> $schemas */
     private function alternatives(array $schemas, bool $exactlyOne = false): SchemaAlternatives
     {
         return new SchemaAlternatives(
-            fn (string $attribute) => array_map(fn (array|bool $schema) => $this->schemaRules(
+            fn (string $attribute) => array_map(fn (Schema $schema) => $this->schemaRules(
                 $schema,
                 $attribute,
             ), $schemas),
@@ -169,9 +172,10 @@ class RuleFactory
     }
 
     /**
-     * @param array<string, mixed> $left
+     * @template TValue
+     * @param array<string, TValue> $left
      * @param array<string, list<mixed>> $right
-     * @return array<string, mixed>
+     * @return array<string, TValue|list<mixed>>
      */
     private function merge(array $left, array $right): array
     {

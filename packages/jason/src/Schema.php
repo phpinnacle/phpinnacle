@@ -2,9 +2,7 @@
 
 namespace PHPinnacle\Jason;
 
-use BackedEnum;
 use Closure;
-use InvalidArgumentException;
 use JsonSerializable;
 use stdClass;
 
@@ -12,10 +10,69 @@ use stdClass;
  * An immutable JSON Schema document or fragment. Unknown keywords remain intact.
  *
  * @phpstan-type Definition array<string, mixed>|bool
+ * @phpstan-type Keywords array{
+ *     type?: string|list<string>,
+ *     title?: string,
+ *     description?: string,
+ *     format?: string,
+ *     pattern?: string,
+ *     contentEncoding?: string,
+ *     contentMediaType?: string,
+ *     multipleOf?: int|float,
+ *     minimum?: int|float,
+ *     maximum?: int|float,
+ *     exclusiveMinimum?: int|float,
+ *     exclusiveMaximum?: int|float,
+ *     minLength?: int,
+ *     maxLength?: int,
+ *     minItems?: int,
+ *     maxItems?: int,
+ *     minContains?: int,
+ *     maxContains?: int,
+ *     minProperties?: int,
+ *     maxProperties?: int,
+ *     uniqueItems?: bool,
+ *     readOnly?: bool,
+ *     writeOnly?: bool,
+ *     deprecated?: bool,
+ *     default?: mixed,
+ *     const?: mixed,
+ *     enum?: list<mixed>,
+ *     required?: list<string>,
+ *     dependentRequired?: array<string, list<string>>,
+ *     examples?: list<mixed>,
+ *     '$vocabulary'?: array<string, bool>,
+ *     '$schema'?: string,
+ *     '$id'?: string,
+ *     '$ref'?: string,
+ *     '$anchor'?: string,
+ *     '$dynamicRef'?: string,
+ *     '$dynamicAnchor'?: string,
+ *     '$comment'?: string,
+ *     properties?: array<string, Definition>,
+ *     patternProperties?: array<string, Definition>,
+ *     dependentSchemas?: array<string, Definition>,
+ *     '$defs'?: array<string, Definition>,
+ *     items?: Definition,
+ *     additionalProperties?: Definition,
+ *     unevaluatedProperties?: Definition,
+ *     unevaluatedItems?: Definition,
+ *     contains?: Definition,
+ *     not?: Definition,
+ *     if?: Definition,
+ *     then?: Definition,
+ *     else?: Definition,
+ *     propertyNames?: Definition,
+ *     contentSchema?: Definition,
+ *     prefixItems?: list<Definition>,
+ *     allOf?: list<Definition>,
+ *     anyOf?: list<Definition>,
+ *     oneOf?: list<Definition>,
+ * }
  */
 final readonly class Schema implements JsonSerializable
 {
-    /** @param Definition $definition */
+    /** @param Keywords|bool $definition */
     private function __construct(
         private array|bool $definition,
     ) {}
@@ -23,7 +80,10 @@ final readonly class Schema implements JsonSerializable
     /** @param Definition $definition */
     public static function fromArray(array|bool $definition): self
     {
-        return new self(Codec::copy($definition));
+        /** @var Keywords|bool $copy */
+        $copy = Codec::copy($definition);
+
+        return new self($copy);
     }
 
     public static function fromJson(string $json): self
@@ -94,125 +154,326 @@ final readonly class Schema implements JsonSerializable
         return new self(['allOf' => array_map(fn (self $schema) => $schema->toArray(), $schemas)]);
     }
 
-    public function with(string $keyword, mixed $value): self
+    public function builder(): SchemaBuilder
     {
-        if (is_bool($this->definition)) {
-            throw new InvalidArgumentException('Boolean schemas cannot have keywords.');
-        }
-
-        return self::fromArray([...$this->definition, $keyword => $value]);
+        return SchemaBuilder::make($this);
     }
 
-    public function title(string $title): self
+    public function allowsAny(): bool
     {
-        return $this->with('title', $title);
+        return $this->definition === true;
     }
 
-    public function description(string $description): self
+    public function deniesAny(): bool
     {
-        return $this->with('description', $description);
+        return $this->definition === false;
     }
 
-    public function default(mixed $value): self
+    /** @return string|list<string>|null */
+    public function type(): string|array|null
     {
-        return $this->with('default', $value);
+        return $this->keywordVal('type');
     }
 
-    /** @param list<mixed>|class-string<BackedEnum> $values */
-    public function enum(array|string $values): self
+    public function title(): ?string
     {
-        return $this->with(
-            'enum',
-            is_string($values) ? array_map(fn (BackedEnum $case) => $case->value, $values::cases()) : $values,
-        );
+        return $this->keywordVal('title');
     }
 
-    /** @param list<string> $properties */
-    public function required(array $properties): self
+    public function description(): ?string
     {
-        return $this->with('required', $properties);
+        return $this->keywordVal('description');
     }
 
-    public function nullable(bool $nullable = true): self
+    public function format(): ?string
     {
-        $definition = $this->keywords();
-        /** @var string|list<string> $type */
-        $type = $definition['type'] ?? [];
-        $types = (array) $type;
-        if (
-            $types !== []
-            && !array_intersect([
-                'enum',
-                'const',
-                'anyOf',
-                'oneOf',
-                'allOf',
-                'not',
-                'if',
-                '$ref',
-            ], array_keys($definition))
-        ) {
-            $types = array_values(array_diff($types, ['null']));
-            if ($nullable) {
-                $types[] = 'null';
-            }
-
-            return $types === []
-                ? self::fromArray(false)
-                : $this->with('type', count($types) === 1 ? $types[0] : $types);
-        }
-
-        $schema = $this->resolveReferences();
-        if (!$nullable) {
-            return self::allOf([$schema, self::fromArray(['not' => ['type' => 'null']])]);
-        }
-
-        return self::anyOf([$schema, self::null()]);
+        return $this->keywordVal('format');
     }
 
-    public function items(self $items): self
+    public function pattern(): ?string
     {
-        return $this->with('items', $items->toArray());
+        return $this->keywordVal('pattern');
     }
 
-    public function withoutAdditionalProperties(): self
+    public function contentEncoding(): ?string
     {
-        return $this->with('additionalProperties', false);
+        return $this->keywordVal('contentEncoding');
     }
 
-    public function format(string $format): self
+    public function contentMediaType(): ?string
     {
-        return $this->with('format', $format);
+        return $this->keywordVal('contentMediaType');
     }
 
-    public function pattern(string $pattern): self
+    public function multipleOf(): int|float|null
     {
-        return $this->with('pattern', $pattern);
+        return $this->keywordVal('multipleOf');
     }
 
-    public function min(int|float $minimum): self
+    public function minimum(): int|float|null
     {
-        return $this->with(match ($this->keyword('type')) {
-            'string' => 'minLength',
-            'array' => 'minItems',
-            'integer', 'number' => 'minimum',
-            default => throw new InvalidArgumentException('min() requires a string, array, or numeric schema.'),
-        }, $minimum);
+        return $this->keywordVal('minimum');
     }
 
-    public function max(int|float $maximum): self
+    public function maximum(): int|float|null
     {
-        return $this->with(match ($this->keyword('type')) {
-            'string' => 'maxLength',
-            'array' => 'maxItems',
-            'integer', 'number' => 'maximum',
-            default => throw new InvalidArgumentException('max() requires a string, array, or numeric schema.'),
-        }, $maximum);
+        return $this->keywordVal('maximum');
     }
 
-    /**
-     * @return ($name is 'type' ? string|list<string>|null : ($name is 'required' ? list<string>|null : ($name is 'enum' ? list<mixed>|null : ($name is 'format'|'pattern'|'title'|'description'|'$ref' ? string|null : ($name is 'minimum'|'maximum'|'exclusiveMinimum'|'exclusiveMaximum'|'multipleOf' ? int|float|null : ($name is 'minLength'|'maxLength'|'minItems'|'maxItems' ? int|null : mixed))))))
-     */
+    public function exclusiveMinimum(): int|float|null
+    {
+        return $this->keywordVal('exclusiveMinimum');
+    }
+
+    public function exclusiveMaximum(): int|float|null
+    {
+        return $this->keywordVal('exclusiveMaximum');
+    }
+
+    public function minLength(): ?int
+    {
+        return $this->keywordVal('minLength');
+    }
+
+    public function maxLength(): ?int
+    {
+        return $this->keywordVal('maxLength');
+    }
+
+    public function minItems(): ?int
+    {
+        return $this->keywordVal('minItems');
+    }
+
+    public function maxItems(): ?int
+    {
+        return $this->keywordVal('maxItems');
+    }
+
+    public function minContains(): ?int
+    {
+        return $this->keywordVal('minContains');
+    }
+
+    public function maxContains(): ?int
+    {
+        return $this->keywordVal('maxContains');
+    }
+
+    public function minProperties(): ?int
+    {
+        return $this->keywordVal('minProperties');
+    }
+
+    public function maxProperties(): ?int
+    {
+        return $this->keywordVal('maxProperties');
+    }
+
+    public function uniqueItems(): ?bool
+    {
+        return $this->keywordVal('uniqueItems');
+    }
+
+    public function readOnly(): ?bool
+    {
+        return $this->keywordVal('readOnly');
+    }
+
+    public function writeOnly(): ?bool
+    {
+        return $this->keywordVal('writeOnly');
+    }
+
+    public function deprecated(): ?bool
+    {
+        return $this->keywordVal('deprecated');
+    }
+
+    public function default(): mixed
+    {
+        return Codec::copyValue($this->keywordVal('default'));
+    }
+
+    public function const(): mixed
+    {
+        return Codec::copyValue($this->keywordVal('const'));
+    }
+
+    /** @return list<mixed>|null */
+    public function enum(): ?array
+    {
+        $values = $this->keywordVal('enum');
+
+        return $values === null ? null : array_map(Codec::copyValue(...), $values);
+    }
+
+    /** @return list<string> */
+    public function required(): array
+    {
+        return $this->keywordVal('required') ?? [];
+    }
+
+    /** @return array<string, list<string>> */
+    public function dependentRequired(): array
+    {
+        return $this->keywordVal('dependentRequired') ?? [];
+    }
+
+    /** @return list<mixed> */
+    public function examples(): array
+    {
+        return array_map(Codec::copyValue(...), $this->keywordVal('examples') ?? []);
+    }
+
+    /** @return array<string, bool> */
+    public function vocabulary(): array
+    {
+        return $this->keywordVal('$vocabulary') ?? [];
+    }
+
+    public function schema(): ?string
+    {
+        return $this->keywordVal('$schema');
+    }
+
+    public function id(): ?string
+    {
+        return $this->keywordVal('$id');
+    }
+
+    public function ref(): ?string
+    {
+        return $this->keywordVal('$ref');
+    }
+
+    public function anchor(): ?string
+    {
+        return $this->keywordVal('$anchor');
+    }
+
+    public function dynamicRef(): ?string
+    {
+        return $this->keywordVal('$dynamicRef');
+    }
+
+    public function dynamicAnchor(): ?string
+    {
+        return $this->keywordVal('$dynamicAnchor');
+    }
+
+    public function comment(): ?string
+    {
+        return $this->keywordVal('$comment');
+    }
+
+    /** @return array<string, self> */
+    public function properties(): array
+    {
+        return array_map(self::fromArray(...), $this->keywordVal('properties') ?? []);
+    }
+
+    /** @return array<string, self> */
+    public function patternProperties(): array
+    {
+        return array_map(self::fromArray(...), $this->keywordVal('patternProperties') ?? []);
+    }
+
+    /** @return array<string, self> */
+    public function dependentSchemas(): array
+    {
+        return array_map(self::fromArray(...), $this->keywordVal('dependentSchemas') ?? []);
+    }
+
+    /** @return array<string, self> */
+    public function defs(): array
+    {
+        return array_map(self::fromArray(...), $this->keywordVal('$defs') ?? []);
+    }
+
+    public function items(): ?self
+    {
+        $definition = $this->keywordVal('items');
+
+        return $definition === null ? null : self::fromArray($definition);
+    }
+
+    public function additionalProperties(): ?self
+    {
+        $definition = $this->keywordVal('additionalProperties');
+
+        return $definition === null ? null : self::fromArray($definition);
+    }
+
+    public function unevaluatedProperties(): ?self
+    {
+        $definition = $this->keywordVal('unevaluatedProperties');
+
+        return $definition === null ? null : self::fromArray($definition);
+    }
+
+    public function unevaluatedItems(): ?self
+    {
+        $definition = $this->keywordVal('unevaluatedItems');
+
+        return $definition === null ? null : self::fromArray($definition);
+    }
+
+    public function contains(): ?self
+    {
+        $definition = $this->keywordVal('contains');
+
+        return $definition === null ? null : self::fromArray($definition);
+    }
+
+    public function not(): ?self
+    {
+        $definition = $this->keywordVal('not');
+
+        return $definition === null ? null : self::fromArray($definition);
+    }
+
+    public function if(): ?self
+    {
+        $definition = $this->keywordVal('if');
+
+        return $definition === null ? null : self::fromArray($definition);
+    }
+
+    public function then(): ?self
+    {
+        $definition = $this->keywordVal('then');
+
+        return $definition === null ? null : self::fromArray($definition);
+    }
+
+    public function else(): ?self
+    {
+        $definition = $this->keywordVal('else');
+
+        return $definition === null ? null : self::fromArray($definition);
+    }
+
+    public function propertyNames(): ?self
+    {
+        $definition = $this->keywordVal('propertyNames');
+
+        return $definition === null ? null : self::fromArray($definition);
+    }
+
+    public function contentSchema(): ?self
+    {
+        $definition = $this->keywordVal('contentSchema');
+
+        return $definition === null ? null : self::fromArray($definition);
+    }
+
+    /** @return list<self> */
+    public function prefixItems(): array
+    {
+        return array_map(self::fromArray(...), $this->keywordVal('prefixItems') ?? []);
+    }
+
     public function keyword(string $name): mixed
     {
         return is_array($this->definition) ? Codec::copyValue($this->definition[$name] ?? null) : null;
@@ -229,33 +490,25 @@ final readonly class Schema implements JsonSerializable
         return is_array($this->definition) ? array_map(Codec::copyValue(...), $this->definition) : [];
     }
 
-    /** @return array<string, self> */
-    public function properties(): array
-    {
-        /** @var array<string, Definition> $properties */
-        $properties = $this->keyword('properties') ?? [];
-
-        return array_map(self::fromArray(...), $properties);
-    }
-
-    public function itemSchema(): ?self
-    {
-        /** @var Definition|null $items */
-        $items = $this->keyword('items');
-
-        return $items === null ? null : self::fromArray($items);
-    }
-
     /**
      * @param 'anyOf'|'oneOf'|'allOf' $keyword
      * @return list<self>
      */
     public function branches(string $keyword): array
     {
-        /** @var list<Definition> $branches */
-        $branches = $this->keyword($keyword) ?? [];
+        $branches = $this->keywordVal($keyword) ?? [];
 
         return array_map(self::fromArray(...), $branches);
+    }
+
+    /**
+     * @template TKeyword of key-of<Keywords>
+     * @param TKeyword $keyword
+     * @return Keywords[TKeyword]|null
+     */
+    private function keywordVal(string $keyword): mixed
+    {
+        return is_array($this->definition) ? $this->definition[$keyword] ?? null : null;
     }
 
     /** @param Closure(self, ?string, string|int|null): void $visitor */
@@ -274,20 +527,21 @@ final readonly class Schema implements JsonSerializable
         }
 
         foreach ([...Codec::MAPS, ...Codec::LISTS] as $keyword) {
-            /** @var array<array-key, Definition> $children */
+            /** @var array<array-key, Keywords|bool> $children */
             $children = $this->definition[$keyword] ?? [];
             foreach ($children as $key => $child) {
-                new self($child)->walkAt(
-                    $visitor,
-                    $keyword,
-                    in_array($keyword, Codec::MAPS, true) ? (string) $key : $key,
-                );
+                self::fromArray($child)
+                    ->walkAt(
+                        $visitor,
+                        $keyword,
+                        in_array($keyword, Codec::MAPS, true) ? (string) $key : $key,
+                    );
             }
         }
 
         foreach (Codec::SCHEMAS as $keyword) {
             if (array_key_exists($keyword, $this->definition)) {
-                /** @var Definition $child */
+                /** @var Keywords|bool $child */
                 $child = $this->definition[$keyword];
                 new self($child)->walkAt($visitor, $keyword);
             }
@@ -310,7 +564,7 @@ final readonly class Schema implements JsonSerializable
         }
 
         $segment = $segments[0];
-        $child = is_string($segment) ? $this->properties()[$segment] ?? null : $this->itemSchema();
+        $child = is_string($segment) ? $this->properties()[$segment] ?? null : $this->items();
 
         return $child !== null && $child->hasDeclaredPath(array_slice($segments, 1));
     }

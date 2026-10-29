@@ -59,12 +59,11 @@ final readonly class JsonSchema
 
     private static function fromSchema(Schema $schema): self
     {
-        $definition = $schema->toArray();
-        if (is_bool($definition)) {
+        if ($schema->allowsAny() || $schema->deniesAny()) {
             throw new InvalidArgumentException('Boolean schemas cannot be used as mapping fields.');
         }
 
-        return new self($definition, $schema);
+        return new self($schema->keywords(), $schema);
     }
 
     /**
@@ -118,7 +117,7 @@ final readonly class JsonSchema
     /** @return list<string> */
     public function required(): array
     {
-        $required = $this->resolved->keyword('required') ?? [];
+        $required = $this->resolved->required();
         foreach ($this->branches('allOf') as $branch) {
             $required = array_merge($required, $branch->required());
         }
@@ -137,7 +136,7 @@ final readonly class JsonSchema
 
     private function itemSchema(): ?self
     {
-        $items = $this->resolved->itemSchema();
+        $items = $this->resolved->items();
         $constraints = $items === null ? [] : [self::fromSchema($items)];
         foreach ($this->branches('allOf') as $branch) {
             $items = $branch->itemSchema();
@@ -177,7 +176,7 @@ final readonly class JsonSchema
     {
         $types = $this->types();
         if ($formatted) {
-            if (($this->resolved->keyword('enum') ?? null) !== null) {
+            if (($this->resolved->enum() ?? null) !== null) {
                 return 'enum';
             }
             $alternatives = $this->alternatives();
@@ -232,7 +231,7 @@ final readonly class JsonSchema
                         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
                     )
                 ),
-                $this->resolved->keyword('enum') ?? [],
+                $this->resolved->enum() ?? [],
             ),
         ];
     }
@@ -275,11 +274,9 @@ final readonly class JsonSchema
     {
         $constraints = [];
         foreach ([
-            ['length', 'minLength', 'maxLength'],
-            ['items',  'minItems',  'maxItems'],
-        ] as [$kind, $minimum, $maximum]) {
-            $min = $this->resolved->keyword($minimum);
-            $max = $this->resolved->keyword($maximum);
+            ['length', $this->resolved->minLength(), $this->resolved->maxLength()],
+            ['items', $this->resolved->minItems(), $this->resolved->maxItems()],
+        ] as [$kind, $min, $max]) {
             if ($min !== null || $max !== null) {
                 $constraints[] = [
                     'kind' => $kind,
@@ -295,12 +292,12 @@ final readonly class JsonSchema
         }
         $range = [];
         foreach ([
-            'minimum' => '≥',
-            'maximum' => '≤',
-            'exclusiveMinimum' => '>',
-            'exclusiveMaximum' => '<',
-        ] as $key => $symbol) {
-            if (($value = $this->resolved->keyword($key)) !== null) {
+            [$this->resolved->minimum(), '≥'],
+            [$this->resolved->maximum(), '≤'],
+            [$this->resolved->exclusiveMinimum(), '>'],
+            [$this->resolved->exclusiveMaximum(), '<'],
+        ] as [$value, $symbol]) {
+            if ($value !== null) {
                 $range[] = $symbol . ' ' . $value;
             }
         }
@@ -310,18 +307,18 @@ final readonly class JsonSchema
         if ($this->resolved->hasKeyword('pattern')) {
             $constraints[] = [
                 'kind' => 'pattern',
-                'value' => '/' . $this->resolved->keyword('pattern') . '/',
+                'value' => '/' . $this->resolved->pattern() . '/',
                 'scope' => $scope,
             ];
         }
         if ($this->resolved->hasKeyword('multipleOf')) {
             $constraints[] = [
                 'kind' => 'multiple',
-                'value' => '× ' . $this->resolved->keyword('multipleOf'),
+                'value' => '× ' . $this->resolved->multipleOf(),
                 'scope' => $scope,
             ];
         }
-        if ($this->resolved->keyword('uniqueItems') ?? false) {
+        if ($this->resolved->uniqueItems() ?? false) {
             $constraints[] = ['kind' => 'unique', 'value' => '', 'scope' => $scope];
         }
         foreach ([
@@ -340,7 +337,7 @@ final readonly class JsonSchema
     /** @return list<string> */
     public function types(): array
     {
-        $types = (array) ($this->resolved->keyword('type') ?? []);
+        $types = (array) ($this->resolved->type() ?? []);
         foreach ([...$this->branches('anyOf'), ...$this->branches('oneOf')] as $branch) {
             $types = array_merge($types, $branch->types());
         }
@@ -468,7 +465,7 @@ final readonly class JsonSchema
     /** @return list<mixed>|null */
     public function enumValues(): ?array
     {
-        $values = $this->resolved->keyword('enum') ?? null;
+        $values = $this->resolved->enum() ?? null;
         foreach ($this->branches('allOf') as $branch) {
             $allowed = $branch->enumValues();
             if ($allowed !== null) {
@@ -567,7 +564,7 @@ final readonly class JsonSchema
     /** @param 'minLength'|'maxLength' $keyword */
     private function lengthBound(string $keyword): ?int
     {
-        $bound = $this->resolved->keyword($keyword) ?? null;
+        $bound = $keyword === 'minLength' ? $this->resolved->minLength() : $this->resolved->maxLength();
         foreach ($this->branches('allOf') as $branch) {
             $value = $branch->lengthBound($keyword);
             if ($value === null) {

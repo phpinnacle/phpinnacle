@@ -1,6 +1,7 @@
 <?php
 
 use PHPinnacle\Jason\Schema;
+use PHPinnacle\Jason\SchemaBuilder;
 
 it('preserves complete definitions without normalizing constraints or annotations', function () {
     $definition = [
@@ -17,12 +18,16 @@ it('preserves complete definitions without normalizing constraints or annotation
     expect(Schema::fromArray($definition)->toArray())->toBe($definition);
 });
 
-it('keeps builders immutable and required names on the containing object', function () {
-    $name = Schema::string()->min(1)->default(null);
-    $titled = $name->title('Name');
-    $schema = Schema::object(['name' => $titled, 'count' => Schema::integer()->min(0)])
+it('keeps built schemas immutable and required names on the containing object', function () {
+    $name = SchemaBuilder::make()->type('string')->min(1)->default(null)->build();
+    $titled = SchemaBuilder::make($name)->title('Name')->build();
+    $schema = SchemaBuilder::make(Schema::object([
+        'name' => $titled,
+        'count' => SchemaBuilder::make()->type('integer')->min(0)->build(),
+    ]))
         ->required(['name', 'undeclared'])
-        ->withoutAdditionalProperties();
+        ->withoutAdditionalProperties()
+        ->build();
     expect($name->hasKeyword('title'))
         ->toBeFalse()
         ->and($schema->keyword('required'))
@@ -35,7 +40,7 @@ it('keeps builders immutable and required names on the containing object', funct
 
 it('takes immutable snapshots of nested JSON objects at input and output boundaries', function () {
     $default = (object) ['nested' => (object) ['value' => 'original']];
-    $schema = Schema::object()->default($default);
+    $schema = SchemaBuilder::make(Schema::object())->default($default)->build();
     $default->nested->value = 'input changed';
     $output = $schema->toArray();
     $output['default']->nested->value = 'output changed';
@@ -128,25 +133,32 @@ it('can resolve a schema object stored outside a schema keyword', function () {
 });
 
 it('keeps nullability outside enum and composition constraints', function () {
-    $schema = Schema::string()->enum(['active']);
-    expect($schema->nullable()->toArray())
+    $schema = SchemaBuilder::make()->type('string')->enum(['active'])->build();
+    expect(SchemaBuilder::make($schema)->nullable()->build()->toArray())
         ->toBe(['anyOf' => [$schema->toArray(), ['type' => 'null']]])
         ->and($schema->toArray())
         ->toBe(['type' => 'string', 'enum' => ['active']])
-        ->and(Schema::integer()->nullable()->toArray())
+        ->and(SchemaBuilder::make()->type('integer')->nullable()->build()->toArray())
         ->toBe(['type' => ['integer', 'null']]);
 });
 
 it('composes nested schema builders without special serializer subclasses', function (string $keyword) {
     $branch = Schema::fromArray(['type' => 'string', 'readOnly' => true, 'x-metadata' => ['enabled' => true]]);
-    $composition = Schema::{$keyword}([$branch, Schema::string()->min(3)])->title('Value');
-    $schema = Schema::object([
+    $composition = SchemaBuilder::make(Schema::{$keyword}([
+        $branch,
+        SchemaBuilder::make()->type('string')->min(3)->build(),
+    ]))
+        ->title('Value')
+        ->build();
+    $schema = SchemaBuilder::make(Schema::object([
         'value' => $composition,
-        'items' => Schema::array()->items($composition),
-    ])->required(['value', 'external']);
+        'items' => SchemaBuilder::make()->type('array')->items($composition)->build(),
+    ]))
+        ->required(['value', 'external'])
+        ->build();
     expect($schema->properties()['value']->toArray())
         ->toBe($composition->toArray())
-        ->and($schema->properties()['items']->itemSchema()->toArray())
+        ->and($schema->properties()['items']->items()->toArray())
         ->toBe($composition->toArray())
         ->and($composition->branches($keyword)[0]->toArray())
         ->toBe($branch->toArray())
@@ -155,7 +167,7 @@ it('composes nested schema builders without special serializer subclasses', func
 })->with(['allOf', 'anyOf', 'oneOf']);
 
 it('keeps nullability outside conditional and reference constraints', function (array $definition, array $resolved) {
-    expect(Schema::fromArray($definition)->nullable()->toArray())
+    expect(SchemaBuilder::make(Schema::fromArray($definition))->nullable()->build()->toArray())
         ->toBe(['anyOf' => [$resolved, ['type' => 'null']]]);
 })->with([
     'conditional' => [

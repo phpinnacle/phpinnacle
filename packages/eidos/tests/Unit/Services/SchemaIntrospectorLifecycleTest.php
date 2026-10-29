@@ -4,7 +4,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema as DatabaseSchema;
 use PHPinnacle\Eidos\Services\SchemaIntrospector;
-use PHPinnacle\Jason\Schema;
+use PHPinnacle\Jason\SchemaBuilder;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -25,36 +25,25 @@ beforeEach(function () {
     });
 });
 
-it('creates independent schemas for model classes and instances', function (bool $useInstance) {
+it('applies shared cast registrations to later introspections of model classes and instances', function (bool $useInstance) {
     $introspector = app(SchemaIntrospector::class);
     $model = $useInstance ? new EidosIntrospectorModel : EidosIntrospectorModel::class;
     $schema = $introspector->introspect($model);
-    $definition = $schema->toArray();
+    $introspector->registerCast('string', fn () => SchemaBuilder::make()
+        ->type('string')
+        ->title('Registered cast')
+        ->build());
+    $nextSchema = app(SchemaIntrospector::class)->introspect($model);
 
-    expect($definition['properties']['name']['type'])->toBe('string');
-
-    $schema->title('Changed in this consumer');
-
-    expect($introspector->introspect($model)->toArray())->toBe($definition);
+    expect($schema->properties()['name']->type())
+        ->toBe('string')
+        ->and($schema->properties()['name']->title())
+        ->toBeNull()
+        ->and($nextSchema->properties()['name']->type())
+        ->toBe('string')
+        ->and($nextSchema->properties()['name']->title())
+        ->toBe('Registered cast');
 })->with(['model class' => false, 'model instance' => true]);
-
-it('shares cast registrations across container resolutions without sharing generated schemas', function () {
-    $introspector = app(SchemaIntrospector::class)->registerCast('string', fn () => Schema::string()->title(
-        'Registered cast',
-    ));
-    $resolved = app(SchemaIntrospector::class);
-
-    expect($resolved)->toBe($introspector);
-
-    $schema = $resolved->introspect(EidosIntrospectorModel::class);
-    $definition = $schema->toArray();
-    $schema->title('Changed in this consumer');
-
-    expect($definition['properties']['name']['title'])
-        ->toBe('Registered cast')
-        ->and(app(SchemaIntrospector::class)->introspect(new EidosIntrospectorModel)->toArray())
-        ->toBe($definition);
-});
 
 it('reflects column changes on the next request', function () {
     $introspector = app(SchemaIntrospector::class);

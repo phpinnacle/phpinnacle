@@ -10,6 +10,7 @@ use Livewire\Component;
 use PHPinnacle\Eidos\Forms\JsonSchemaPicker;
 use PHPinnacle\Eidos\Infolists\JsonSchemaEntry;
 use PHPinnacle\Jason\Schema as JsonSchema;
+use PHPinnacle\Jason\SchemaBuilder;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -103,11 +104,18 @@ it('uses Jason schema objects and closures for selection and readonly rendering'
     $schema = JsonSchema::anyOf([
         JsonSchema::object([
             'customer' => JsonSchema::object([
-                'email' => JsonSchema::string()->nullable()->description('Jason schema address'),
+                'email' => SchemaBuilder::make()
+                    ->type('string')
+                    ->nullable()
+                    ->description('Jason schema address')
+                    ->build(),
             ]),
-            'tags' => JsonSchema::array()->items(JsonSchema::object([
-                'name' => JsonSchema::string(),
-            ])),
+            'tags' => SchemaBuilder::make()
+                ->type('array')
+                ->items(JsonSchema::object([
+                    'name' => JsonSchema::string(),
+                ]))
+                ->build(),
         ]),
         JsonSchema::object(['count' => JsonSchema::integer()]),
     ]);
@@ -160,7 +168,9 @@ it('validates exact union paths against the current schema closure', function ()
     $form = eidos_json_schema_form($selection);
     $schema = JsonSchema::anyOf([
         JsonSchema::object(['данные/客户' => JsonSchema::object(['email' => JsonSchema::string()])]),
-        JsonSchema::object(['данные/客户' => JsonSchema::object(['email' => JsonSchema::integer()->nullable()])]),
+        JsonSchema::object(['данные/客户' => JsonSchema::object([
+            'email' => SchemaBuilder::make()->type('integer')->nullable()->build(),
+        ])]),
     ]);
     $picker = $form->getComponent('selection');
     $picker->jsonSchema(function () use (&$schema) {
@@ -355,11 +365,18 @@ function eidos_json_schema_form(mixed $selection): Schema
         {
             $jsonSchema = JsonSchema::object([
                 'customer' => JsonSchema::object([
-                    'email' => JsonSchema::string()->nullable()->description('Delivery address'),
+                    'email' => SchemaBuilder::make()
+                        ->type('string')
+                        ->nullable()
+                        ->description('Delivery address')
+                        ->build(),
                 ]),
                 'totals' => JsonSchema::object(['subtotal' => JsonSchema::number()]),
                 'literal.key' => JsonSchema::object(['slash/key' => JsonSchema::boolean()]),
-                'tags' => JsonSchema::array()->items(JsonSchema::object(['name' => JsonSchema::string()])),
+                'tags' => SchemaBuilder::make()
+                    ->type('array')
+                    ->items(JsonSchema::object(['name' => JsonSchema::string()]))
+                    ->build(),
                 '01' => JsonSchema::string(),
             ]);
 

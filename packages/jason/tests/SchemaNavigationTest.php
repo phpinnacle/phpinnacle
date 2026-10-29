@@ -2,6 +2,7 @@
 
 use PHPinnacle\Jason\JsonPath;
 use PHPinnacle\Jason\Schema;
+use PHPinnacle\Jason\SchemaBuilder;
 
 it('finds declared data paths through properties and array items', function (string $path, bool $exists) {
     $schema = Schema::fromArray([
@@ -90,7 +91,11 @@ it('walks every supported schema position while leaving annotation and value obj
     ]);
     $visited = [];
     $schema->walk(function (Schema $fragment, ?string $keyword, string|int|null $key) use (&$visited) {
-        $visited[] = [$keyword, $key, is_bool($fragment->toArray()) ? $fragment->toArray() : 'object'];
+        $visited[] = [
+            $keyword,
+            $key,
+            $fragment->allowsAny() || $fragment->deniesAny() ? $fragment->toArray() : 'object',
+        ];
     });
 
     $expected = [
@@ -127,13 +132,23 @@ it('walks every supported schema position while leaving annotation and value obj
 });
 
 it('visits each complete subtree before moving to a sibling schema', function () {
-    $schema = Schema::object([
-        'left' => Schema::object(['child' => Schema::string()->title('left child')])->title('left'),
-        'right' => Schema::object(['child' => Schema::string()->title('right child')])->title('right'),
-    ])->title('root');
+    $schema = SchemaBuilder::make(Schema::object([
+        'left' => SchemaBuilder::make(Schema::object([
+            'child' => SchemaBuilder::make()->type('string')->title('left child')->build(),
+        ]))
+            ->title('left')
+            ->build(),
+        'right' => SchemaBuilder::make(Schema::object([
+            'child' => SchemaBuilder::make()->type('string')->title('right child')->build(),
+        ]))
+            ->title('right')
+            ->build(),
+    ]))
+        ->title('root')
+        ->build();
     $titles = [];
     $schema->walk(function (Schema $fragment) use (&$titles) {
-        $titles[] = $fragment->keyword('title');
+        $titles[] = $fragment->title();
     });
 
     expect($titles)->toBeIn([
@@ -148,7 +163,7 @@ it('walks recursive documents structurally without expanding references', functi
     ]);
     $references = [];
     $schema->walk(function (Schema $fragment) use (&$references) {
-        $references[] = $fragment->keyword('$ref');
+        $references[] = $fragment->ref();
     });
 
     expect($references)->toBe([null, null, '#/$defs/recursive']);

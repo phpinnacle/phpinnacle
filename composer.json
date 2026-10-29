@@ -69,7 +69,7 @@
         ],
         "format": "mago format",
         "phpstan": "phpstan analyse packages/*/src packages/chronica/tests/Unit/HasHistoryTest.php packages/common/tests/Unit/ConcernsTest.php packages/dendros/tests/Unit/TreeTest.php --no-progress --memory-limit=1G",
-        "phpstan:level10": "phpstan analyse packages/babylon/src packages/canvio/src packages/casus/src packages/comments/src packages/eidos/src/Forms/FieldMapping.php packages/eidos/src/Forms/FieldBinding.php packages/eidos/src/Forms/JsonSchema.php packages/eidos/src/Forms/SchemaCompatibility.php packages/eidos/src/Forms/BuiltinStaticForms.php packages/eidos/src/Forms/Concerns packages/ferry/src packages/franz/src packages/intl/src packages/jason/src packages/langcat/src packages/rosetta/src packages/sequentia/src packages/tags/src --level=10 --no-progress --memory-limit=1G",
+        "phpstan:level10": "phpstan analyse packages/babylon/src packages/canvio/src packages/casus/src packages/comments/src packages/eidos/src packages/ferry/src packages/franz/src packages/intl/src packages/jason/src packages/langcat/src packages/rosetta/src packages/sequentia/src packages/tags/src --level=10 --no-progress --memory-limit=1G",
         "test": "pest $(find packages -mindepth 2 -maxdepth 2 -type d -name tests ! -path packages/skeleton/tests)"
     },
     "config": {

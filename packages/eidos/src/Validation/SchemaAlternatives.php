@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Validator;
 /** @internal */
 final class SchemaAlternatives implements DataAwareRule, ValidationRule
 {
+    public bool $implicit = true;
+
     /** @var array<string, mixed> */
     private array $data = [];
 
@@ -30,6 +32,10 @@ final class SchemaAlternatives implements DataAwareRule, ValidationRule
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
+        if (!Arr::has($this->data, $attribute)) {
+            return;
+        }
+
         $data = $this->data;
         Arr::set($data, $attribute, $value);
         $matches = 0;

@@ -15,8 +15,11 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\Builder;
 use Illuminate\Database\Schema\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
 use PHPinnacle\Eidos\Services\SchemaIntrospector;
+use PHPinnacle\Eidos\Validation\RuleFactory;
 use PHPinnacle\Jason\Schema as JsonSchema;
+use PHPinnacle\Jason\SchemaBuilder;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -156,6 +159,11 @@ class MassAssignableSchemaRecord extends Model
     protected $table = 'eidos_mass_assignable_records';
 
     protected $fillable = ['name', 'computed_name'];
+}
+
+class StructuredDefaultSchemaRecord extends DefaultSchemaRecord
+{
+    protected $attributes = ['metadata' => ['source' => 'model']];
 }
 
 class RequiredSchemaRecord extends DefaultSchemaRecord
@@ -338,6 +346,18 @@ it('uses model attribute defaults before database literals without reading insta
         ->not->toHaveKey('default')->and($model->getAttributes())->toBe($attributes)->and(
             $introspector->introspect(DefaultSchemaRecord::class)->toArray(),
         )->toEqual($definition)->and(JsonSchema::fromArray($definition)->toArray())->toEqual($definition);
+});
+
+it('preserves structured model defaults for JSON columns', function () {
+    Schema::create('eidos_default_records', function (Blueprint $table) {
+        $table->text('metadata');
+    });
+
+    $definition = new SchemaIntrospector()
+        ->introspect(StructuredDefaultSchemaRecord::class)
+        ->toArray();
+
+    expect($definition['properties']['metadata']['default'])->toBe(['source' => 'model']);
 });
 
 it('reads database defaults using the connection dialect', function (
@@ -539,6 +559,24 @@ it('uses registered cast schemas and preserves annotations, nullability and gene
     }
 })->with(['fluent schema' => false, 'annotated schema' => true]);
 
+it('preserves boolean cast schemas when adding column annotations and defaults', function (bool $accepts) {
+    Schema::create('eidos_default_records', function (Blueprint $table) {
+        $table->integer('quantity');
+    });
+
+    $schema = new SchemaIntrospector()
+        ->registerCast('integer', fn () => JsonSchema::fromArray($accepts))
+        ->introspect(new DefaultSchemaRecord()->mergeCasts(['quantity' => 'integer']));
+    $quantity = $schema->properties()['quantity'];
+
+    expect($quantity->keyword('readOnly'))
+        ->toBeTrue()
+        ->and($quantity->keyword('default'))
+        ->toBe('0')
+        ->and(Validator::make(['quantity' => 1], new RuleFactory()->make($schema))->passes())
+        ->toBe($accepts);
+})->with([true, false]);
+
 it('passes model, attribute and cast arguments to handlers for root and related fields', function () {
     Schema::create('eidos_schema_suppliers', function (Blueprint $table) {
         $table->id();
@@ -557,9 +595,11 @@ it('passes model, attribute and cast arguments to handlers for root and related 
         Model $model,
         string $attribute,
         array $arguments,
-    ) => JsonSchema::string()
+    ) => SchemaBuilder::make()
+        ->type('string')
         ->title($model->getTable() . '.' . $attribute)
-        ->enum($arguments === [] ? ['plain'] : $arguments));
+        ->enum($arguments === [] ? ['plain'] : $arguments)
+        ->build());
     $definition = $introspector->introspect($model)->toArray();
 
     expect($definition['properties']['label']['title'])
@@ -569,8 +609,10 @@ it('passes model, attribute and cast arguments to handlers for root and related 
         ->and($definition['properties']['plain_label']['enum'])
         ->toBe(['plain']);
 
-    $introspector->registerCast('int', fn (Model $model, string $attribute, array $arguments) => JsonSchema::integer()
-        ->title($model->getTable() . '.' . $attribute));
+    $introspector->registerCast('int', fn (Model $model, string $attribute, array $arguments) => SchemaBuilder::make()
+        ->type('integer')
+        ->title($model->getTable() . '.' . $attribute)
+        ->build());
     $definition = $introspector->introspect($model)->toArray();
 
     expect($definition['properties']['supplier']['properties']['id']['title'])->toBe('eidos_schema_suppliers.id');

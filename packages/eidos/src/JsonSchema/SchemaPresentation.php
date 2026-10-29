@@ -34,14 +34,10 @@ final class SchemaPresentation
                     $titles[$propertyName] = Str::apa(Str::headline($propertyName));
                 }
 
-                $attributes = $schema->keywords();
-                if (array_key_exists('x-icon', $attributes)) {
-                    self::validateIcon($attributes['x-icon']);
+                $iconName = $schema->hasKeyword('x-icon') ? self::validateIcon($schema->keyword('x-icon')) : null;
+                if ($schema->hasKeyword('x-color')) {
+                    self::validateColor($schema->keyword('x-color'));
                 }
-                if (array_key_exists('x-color', $attributes)) {
-                    self::validateColor($attributes['x-color']);
-                }
-                $iconName = $attributes['x-icon'] ?? null;
 
                 if (!$withIcons || $iconName === null || array_key_exists($iconName, $icons)) {
                     return;
@@ -59,11 +55,13 @@ final class SchemaPresentation
         return ['definition' => $definition, 'propertyTitles' => $titles, 'icons' => $icons];
     }
 
-    private static function validateIcon(mixed $icon): void
+    private static function validateIcon(mixed $icon): string
     {
         if (!is_string($icon) || !preg_match('/^[a-zA-Z0-9_-]+$/D', $icon)) {
             throw new InvalidArgumentException('The JSON Schema [x-icon] must be a Blade icon name.');
         }
+
+        return $icon;
     }
 
     private static function validateColor(mixed $color): void
