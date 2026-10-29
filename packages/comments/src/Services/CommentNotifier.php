@@ -2,6 +2,7 @@
 
 namespace PHPinnacle\Comments\Services;
 
+use Closure;
 use Filament\Forms\Components\RichEditor\MentionProvider;
 use Filament\Notifications\Notification;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -17,6 +18,8 @@ class CommentNotifier
     {
         /** @var class-string<Model> $userModel */
         $userModel = config('phpinnacle-comments.user.model');
+        /** @var Closure(array<mixed>): array<string, string> $getLabels */
+        $getLabels = static fn (array $ids) => $userModel::query()->whereKey($ids)->pluck('name', 'id')->all();
 
         return MentionProvider::make('@')
             ->getSearchResultsUsing(
@@ -26,12 +29,7 @@ class CommentNotifier
                     ->pluck('name', 'id')
                     ->all(),
             )
-            ->getLabelsUsing(
-                static function (array $ids) use ($userModel) {
-                    /** @var array<string, string> */
-                    return $userModel::query()->whereKey($ids)->pluck('name', 'id')->all();
-                },
-            );
+            ->getLabelsUsing($getLabels);
     }
 
     public function send(Comment $comment, Authenticatable $author): void

@@ -232,7 +232,7 @@ class FieldBinding extends Field
     public function getSourceRowIndex(string $source): ?int
     {
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
-            if (!is_array($row) || !isset($row['kind'])) {
+            if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
             if ($row['kind'] === 'source' && $row['source'] === $source) {
@@ -288,7 +288,7 @@ class FieldBinding extends Field
         $this->initializeSourceRows();
         $schemas = [];
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
-            if (!is_array($row) || !isset($row['kind'])) {
+            if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
             $schemas['row_' . $index] = $this
@@ -301,7 +301,7 @@ class FieldBinding extends Field
         }
         $schemas += $this->makeSourceSettingsSchemas();
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
-            if (!is_array($row) || !isset($row['kind'])) {
+            if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
             if (
@@ -586,7 +586,7 @@ class FieldBinding extends Field
     {
         $keys = [];
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
-            if (!is_array($row) || !isset($row['kind'])) {
+            if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
             if (
@@ -653,9 +653,7 @@ class FieldBinding extends Field
         foreach ($value as $row) {
             if ($row['kind'] === 'source') {
                 $source = $row['source'];
-                if (
-                    isset($sources[$source])
-                ) {
+                if (array_key_exists($source, $sources)) {
                     $fail('The :attribute field contains an unknown or duplicate source.')->translate();
 
                     return;

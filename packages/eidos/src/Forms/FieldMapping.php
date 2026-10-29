@@ -158,7 +158,7 @@ class FieldMapping extends Field
     public function getSourceRowIndex(string $source): ?int
     {
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
-            if (!is_array($row) || !isset($row['kind'])) {
+            if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
             if ($row['kind'] === 'source' && $row['source'] === $source) {
@@ -243,7 +243,7 @@ class FieldMapping extends Field
         $this->cachedStaticTargets = $this->getStaticTargets();
         $schemas = [];
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
-            if (!is_array($row) || !isset($row['kind'])) {
+            if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
             $schemas['row_' . $index] = $this
@@ -321,7 +321,7 @@ class FieldMapping extends Field
     {
         $draftIndex = null;
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
-            if (!is_int($index) || !is_array($row) || !isset($row['kind'])) {
+            if (!is_int($index) || !is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
             if ($row['kind'] === 'static' && $row['target'] === $target) {
@@ -660,15 +660,13 @@ class FieldMapping extends Field
         foreach ($value as $row) {
             if ($row['kind'] === 'source') {
                 $source = $row['source'];
-                if (
-                    isset($usedSources[$source])
-                ) {
+                if (array_key_exists($source, $usedSources)) {
                     $fail('The :attribute field contains an invalid source.')->translate();
 
                     return;
                 }
                 $usedSources[$source] = true;
-                if ($row['target'] !== null && !isset($modes[$source][$row['target']])) {
+                if ($row['target'] !== null && ($modes[$source][$row['target']] ?? null) === null) {
                     $fail('The :attribute field contains incompatible source and destination schemas.')->translate();
 
                     return;
@@ -698,7 +696,11 @@ class FieldMapping extends Field
             if ($row['target'] === null) {
                 continue;
             }
-            if (isset($usedTargets[$row['target']]) && ($mode !== 'item' || $usedTargets[$row['target']] !== 'item')) {
+            if (
+                array_key_exists($row['target'], $usedTargets)
+                && ($mode !== 'item'
+                || $usedTargets[$row['target']] !== 'item')
+            ) {
                 $fail('The :attribute field reuses a destination that only permits one connection.')->translate();
 
                 return;
