@@ -79,7 +79,7 @@ class Color
     ];
 
     /**
-     * @param string|array<int, string|int> $color
+     * @param string|array{50: string, 100: string, 200: string, 300: string, 400: string, 500: string, 600: string, 700: string, 800: string, 900: string, 950: string} $color
      * @param list<int> $shades
      */
     public static function styles(string|array $color, array $shades = [400, 600]): string
@@ -103,7 +103,7 @@ class Color
     }
 
     /**
-     * @param array<int, string|int> $color
+     * @param array<int|string, string|int> $color
      */
     public static function hex(array $color, int $shade = 500): string
     {

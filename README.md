@@ -73,7 +73,7 @@ Run `composer phpstan` to run PHPStan level 6 static analysis across all package
 
 | Command | Level | Packages |
 | --- | --- | --- |
-| `composer phpstan:level10` | 10 | babylon, canvio, casus, comments, eidos, ferry, franz, iconic, intl, jason, langcat, rosetta, sequentia, tags |
+| `composer phpstan:level10` | 10 | babylon, canvio, casus, comments, eidos, ferry, franz, iconic, intl, jason, langcat, palette, recens, rosetta, sequentia, signum, tags |
 
 ## Composer Repository
 

@@ -7,3 +7,4 @@ parameters:
     stubFiles:
         - packages/ferry/phpstan.stub
         - packages/intl/phpstan.stub
+        - packages/palette/phpstan.stub

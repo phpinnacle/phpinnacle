@@ -24,6 +24,13 @@ it('resolves aliased palette shades', function () {
         ->toBe(Color::hex(Color::Blue, 400));
 });
 
+it('renders CSS variables for named colors and palettes', function () {
+    expect(Color::styles('primary'))
+        ->toBe('--color-400:var(--primary-400);--color-600:var(--primary-600);')
+        ->and(Color::styles(Color::Blue, [500]))
+        ->toBe('--color-500:' . Color::Blue[500] . ';');
+});
+
 it('falls back to the primary semantic color', function () {
     FilamentColor::register(Color::DEFAULT);
 
