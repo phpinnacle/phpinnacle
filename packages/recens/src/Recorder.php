@@ -15,7 +15,7 @@ class Recorder
     use EvaluatesClosures;
 
     /**
-     * @var array<string, Closure|null>
+     * @var array<string, (Closure(): ?array<string, mixed>)|null>
      */
     private array $pages = [];
 
@@ -31,7 +31,6 @@ class Recorder
         }
 
         $default = $this->defaults($page);
-        /** @var array<string, mixed>|null $custom */
         $custom = $this->evaluate($this->pages[get_class($page)] ?? [], [
             'page' => $page,
         ]);

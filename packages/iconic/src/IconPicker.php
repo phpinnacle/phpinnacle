@@ -47,7 +47,7 @@ class IconPicker extends Select
         return view('phpinnacle-iconic::forms.icon-picker')->with('icon', $icon)->render();
     }
 
-    /** @param list<string>|Closure(): list<string> $icons */
+    /** @param list<string>|Closure $icons */
     public function allowIcons(array|Closure $icons): static
     {
         $this->allowedIcons = $icons;
@@ -69,7 +69,7 @@ class IconPicker extends Select
         return $this;
     }
 
-    /** @param list<string>|Closure(): list<string> $icons */
+    /** @param list<string>|Closure $icons */
     public function excludeIcons(array|Closure $icons): static
     {
         $this->excludedIcons = $icons;
@@ -119,7 +119,7 @@ class IconPicker extends Select
         return $this->evaluatePositiveInteger($this->iconRows, 'rows');
     }
 
-    /** @param list<string>|Closure(): list<string> $sets */
+    /** @param list<string>|Closure $sets */
     public function iconSets(array|Closure $sets): static
     {
         $this->sets = $sets;
@@ -134,7 +134,7 @@ class IconPicker extends Select
         return $this;
     }
 
-    /** @param list<string>|Closure(): list<string> $weights */
+    /** @param list<string>|Closure $weights */
     public function weights(array|Closure $weights): static
     {
         $this->weights = $weights;
@@ -280,11 +280,7 @@ class IconPicker extends Select
             return null;
         }
 
-        // @mago-expect lint:inline-variable-return
-        /** @var list<string> $icons */
-        $icons = $this->evaluate($this->allowedIcons);
-
-        return $icons;
+        return $this->evaluate($this->allowedIcons);
     }
 
     /** @return list<string> */
@@ -309,11 +305,7 @@ class IconPicker extends Select
     /** @return list<string> */
     private function getExcludedIcons(): array
     {
-        // @mago-expect lint:inline-variable-return
-        /** @var list<string> $icons */
-        $icons = $this->evaluate($this->excludedIcons);
-
-        return $icons;
+        return $this->evaluate($this->excludedIcons);
     }
 
     /**
@@ -331,21 +323,13 @@ class IconPicker extends Select
     /** @return list<string> */
     private function getIconSets(): array
     {
-        // @mago-expect lint:inline-variable-return
-        /** @var list<string> $sets */
-        $sets = $this->evaluate($this->sets);
-
-        return $sets;
+        return $this->evaluate($this->sets);
     }
 
     /** @return list<string> */
     private function getIconWeights(): array
     {
-        // @mago-expect lint:inline-variable-return
-        /** @var list<string> $weights */
-        $weights = $this->evaluate($this->weights);
-
-        return $weights;
+        return $this->evaluate($this->weights);
     }
 
     /** @param list<string> $weights */

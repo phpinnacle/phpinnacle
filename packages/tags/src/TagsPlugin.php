@@ -38,7 +38,7 @@ class TagsPlugin implements Plugin
     }
 
     /**
-     * @param (Closure(): string)|string ...$models
+     * @param Closure|string ...$models
      */
     public function models(Closure|string ...$models): self
     {
@@ -57,7 +57,6 @@ class TagsPlugin implements Plugin
     public function boot(Panel $panel): void
     {
         foreach ($this->models as $model) {
-            /** @var string $class */
             $class = $this->evaluate($model);
 
             if (!class_exists($class) || !is_subclass_of($class, Model::class)) {

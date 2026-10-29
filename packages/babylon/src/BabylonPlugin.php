@@ -31,6 +31,7 @@ class BabylonPlugin implements Plugin
      */
     private array $locales = [];
 
+    /** @var (Closure(): ?string)|null */
     private ?Closure $userLocaleResolver = null;
 
     public static function get(): static
@@ -98,9 +99,7 @@ class BabylonPlugin implements Plugin
 
     public function getUserLocale(Authenticatable $user): ?string
     {
-        // @mago-expect lint:inline-variable-return
-        /** @var ?string $locale */
-        $locale = $this->evaluate(
+        return $this->evaluate(
             $this->userLocaleResolver,
             namedInjections: [
                 'user' => $user,
@@ -110,8 +109,6 @@ class BabylonPlugin implements Plugin
                 Authenticatable::class => $user,
             ],
         );
-
-        return $locale;
     }
 
     public function locales(string ...$locales): self

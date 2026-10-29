@@ -9,7 +9,7 @@ use Filament\Forms\Components\Field;
 /** @phpstan-require-extends Field */
 trait HasHeaderActions
 {
-    /** @var array<Action>|Closure */
+    /** @var array<Action>|(Closure(): array<Action>) */
     protected array|Closure $headerActions = [];
 
     /** @param array<Action>|Closure $actions */
@@ -24,10 +24,7 @@ trait HasHeaderActions
     /** @return array<Action> */
     public function getHeaderActions(): array
     {
-        /** @var array<Action> $actions */
-        $actions = $this->evaluate($this->headerActions);
-
-        $names = array_map(fn (Action $action) => $action->getName(), $actions);
+        $names = array_map(fn (Action $action) => $action->getName(), $this->evaluate($this->headerActions));
 
         return array_values(array_filter($this->getActions(), fn (Action $action) => in_array(
             $action->getName(),

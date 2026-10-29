@@ -15,18 +15,20 @@ class RecensPlugin implements Plugin
     use EvaluatesClosures;
 
     /**
-     * @var string|array<string>|Closure
+     * @var string|array<string>|(Closure(): (string|array<string>))
      */
     private string|array|Closure $color = 'gray';
 
+    /** @var string|BackedEnum|(Closure(): (string|BackedEnum)) */
     private string|BackedEnum|Closure $icon = 'heroicon-o-clock';
 
+    /** @var int|(Closure(): ?int)|null */
     private int|Closure|null $limit = null;
 
     private ?Recorder $recorder = null;
 
     /**
-     * @var array<string, Closure|null>
+     * @var array<string, (Closure(): ?array<string, mixed>)|null>
      */
     private array $scopes = [];
 
@@ -108,29 +110,17 @@ class RecensPlugin implements Plugin
     /** @return string|array<string> */
     public function getColor(): string|array
     {
-        // @mago-expect lint:inline-variable-return
-        /** @var string|array<string> $color */
-        $color = $this->evaluate($this->color);
-
-        return $color;
+        return $this->evaluate($this->color);
     }
 
     public function getIcon(): string|BackedEnum
     {
-        // @mago-expect lint:inline-variable-return
-        /** @var string|BackedEnum $icon */
-        $icon = $this->evaluate($this->icon);
-
-        return $icon;
+        return $this->evaluate($this->icon);
     }
 
     public function getLimit(): ?int
     {
-        // @mago-expect lint:inline-variable-return
-        /** @var ?int $limit */
-        $limit = $this->evaluate($this->limit);
-
-        return $limit;
+        return $this->evaluate($this->limit);
     }
 
     public function getRecorder(): Recorder
