@@ -156,7 +156,9 @@ class Recent extends Model implements HasIcon, HasLabel
         ];
 
         if (config('phpinnacle-recens.tenancy.model') !== null) {
-            $context['tenant_id'] = Filament::getTenant()?->getKey() ?? config('phpinnacle-recens.tenancy.default');
+            /** @var string|int|null $tenantId */
+            $tenantId = Filament::getTenant()?->getKey() ?? config('phpinnacle-recens.tenancy.default');
+            $context['tenant_id'] = $tenantId;
         }
 
         return $context;
@@ -191,7 +193,8 @@ class Recent extends Model implements HasIcon, HasLabel
      */
     public function prunable(): Builder
     {
-        $days = (int) config('phpinnacle-recens.prune.days', 7);
+        /** @var int $days */
+        $days = config('phpinnacle-recens.prune.days', 7);
 
         return static::query()
             ->whereNull('pinned_at')
@@ -201,6 +204,10 @@ class Recent extends Model implements HasIcon, HasLabel
 
     public function getConnectionName(): ?string
     {
-        return config('phpinnacle-recens.connection', parent::getConnectionName());
+        // @mago-expect lint:inline-variable-return
+        /** @var ?string $connection */
+        $connection = config('phpinnacle-recens.connection', parent::getConnectionName());
+
+        return $connection;
     }
 }

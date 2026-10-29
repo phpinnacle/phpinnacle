@@ -32,14 +32,14 @@ class RecensPlugin implements Plugin
 
     public static function make(): static
     {
-        return app(static::class);
+        return app()->get(static::class);
     }
 
     public static function get(): static
     {
         // @mago-expect lint:inline-variable-return
         /** @var static $plugin */
-        $plugin = filament(app(static::class)->getId());
+        $plugin = filament(static::make()->getId());
 
         return $plugin;
     }
@@ -78,7 +78,13 @@ class RecensPlugin implements Plugin
      */
     public function scopes(array $scopes): self
     {
-        $this->scopes = array_is_list($scopes) ? array_fill_keys($scopes, null) : $scopes;
+        if (array_is_list($scopes)) {
+            /** @var list<string> $scopes */
+            $this->scopes = array_fill_keys($scopes, null);
+        } else {
+            /** @var array<string, Closure|null> $scopes */
+            $this->scopes = $scopes;
+        }
 
         return $this;
     }
@@ -102,27 +108,42 @@ class RecensPlugin implements Plugin
     /** @return string|array<string> */
     public function getColor(): string|array
     {
-        return $this->evaluate($this->color);
+        // @mago-expect lint:inline-variable-return
+        /** @var string|array<string> $color */
+        $color = $this->evaluate($this->color);
+
+        return $color;
     }
 
     public function getIcon(): string|BackedEnum
     {
-        return $this->evaluate($this->icon);
+        // @mago-expect lint:inline-variable-return
+        /** @var string|BackedEnum $icon */
+        $icon = $this->evaluate($this->icon);
+
+        return $icon;
     }
 
     public function getLimit(): ?int
     {
-        return $this->evaluate($this->limit);
+        // @mago-expect lint:inline-variable-return
+        /** @var ?int $limit */
+        $limit = $this->evaluate($this->limit);
+
+        return $limit;
     }
 
     public function getRecorder(): Recorder
     {
-        if ($this->recorder === null) {
-            $this->recorder = new Recorder;
-            $this->load($this->recorder);
+        $recorder = $this->recorder;
+
+        if ($recorder === null) {
+            $recorder = new Recorder;
+            $this->recorder = $recorder;
+            $this->load($recorder);
         }
 
-        return $this->recorder;
+        return $recorder;
     }
 
     public function boot(Panel $panel): void {}

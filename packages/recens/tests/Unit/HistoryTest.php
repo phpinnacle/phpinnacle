@@ -107,6 +107,26 @@ it('uses each panels registrations after switching panels and starting another r
     }
 });
 
+it('records page defaults for scopes without callbacks and reuses the panels recorder', function (array $scopes) {
+    $plugin = RecensPlugin::make()->scopes($scopes);
+    Filament::setCurrentPanel(Panel::make()->id('defaults')->plugin($plugin));
+    $recorder = app(Recorder::class);
+    $recorder->record(new RecordedPage);
+    $entry = Recent::list()[0];
+
+    expect(app(Recorder::class))
+        ->toBe($recorder)
+        ->and($entry->title)
+        ->toBe('Orders')
+        ->and($entry->icon)
+        ->toBe('heroicon-o-document')
+        ->and($entry->group)
+        ->toBeNull();
+})->with([
+    'list' => [[RecordedPage::class]],
+    'map' => [[RecordedPage::class => null]],
+]);
+
 class RecentTenant extends Model
 {
     public $timestamps = false;

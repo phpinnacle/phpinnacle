@@ -31,6 +31,7 @@ class Recorder
         }
 
         $default = $this->defaults($page);
+        /** @var array<string, mixed>|null $custom */
         $custom = $this->evaluate($this->pages[get_class($page)] ?? [], [
             'page' => $page,
         ]);
@@ -39,7 +40,7 @@ class Recorder
     }
 
     /**
-     * @return array{title: string, group: string|\UnitEnum|null, icon: string|\BackedEnum|null}
+     * @return array{title: string, group: string|\UnitEnum|null, icon: string|\BackedEnum|Htmlable|null}
      */
     private function defaults(Page $page): array
     {
