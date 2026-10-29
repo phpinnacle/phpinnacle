@@ -85,7 +85,7 @@ class IconPicker extends Select
     /**
      * @param array<array-key, mixed> $preferred
      * @return array{
-     *     options: array<int, array{label: string, value: string, isDisabled: bool}>,
+     *     options: array<array<string, mixed>>,
      *     hasMore: bool
      * }
      */
@@ -145,7 +145,9 @@ class IconPicker extends Select
     /** @return list<string> */
     protected function getIcons(): array
     {
+        /** @var array<string, array{prefix: string, ...}> $registeredSets */
         $registeredSets = App::make(IconFactory::class)->all();
+        /** @var array<string, array<string, list<string>>> $manifest */
         $manifest = App::make(IconsManifest::class)->getManifest($registeredSets);
         $selectedSets = $this->getIconSets();
         $weights = $this->getIconWeights();
@@ -157,7 +159,7 @@ class IconPicker extends Select
                 $prefix = $registeredSets[$set]['prefix'];
 
                 return collect($paths)
-                    ->flatten()
+                    ->flatMap(static fn (array $icons) => $icons)
                     ->filter(function (string $icon) use ($prefix, $weights, $excludedSuffixes) {
                         $fileName = Str::afterLast($icon, '.') . '.svg';
 
