@@ -39,11 +39,8 @@ class RecensPlugin implements Plugin
 
     public static function get(): static
     {
-        // @mago-expect lint:inline-variable-return
-        /** @var static $plugin */
-        $plugin = filament(static::make()->getId());
-
-        return $plugin;
+        /** @var static */
+        return filament(static::make()->getId());
     }
 
     public function getId(): string

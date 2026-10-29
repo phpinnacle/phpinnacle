@@ -219,10 +219,8 @@ class FieldBinding extends Field
     /** @return State */
     public function getBindingValues(): array
     {
-        /** @var State $rows */
-        $rows = $this->getState() ?? [];
-
-        return $rows;
+        /** @var State */
+        return $this->getState() ?? [];
     }
 
     /** @return array<Schema> */

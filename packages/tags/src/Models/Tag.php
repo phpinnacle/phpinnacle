@@ -49,13 +49,10 @@ class Tag extends Model implements HasColor, HasLabel
      */
     public static function list(string ...$ids): Collection
     {
-        // @mago-expect lint:inline-variable-return
-        /** @var Collection<string, string> $tags */
-        $tags = $ids !== []
+        /** @var Collection<string, string> */
+        return $ids !== []
             ? self::query()->whereKey($ids)->pluck('name', 'id')
             : self::query()->pluck('name', 'id');
-
-        return $tags;
     }
 
     /**
@@ -94,9 +91,8 @@ class Tag extends Model implements HasColor, HasLabel
      */
     public static function retrieve(Model $record): Collection
     {
-        // @mago-expect lint:inline-variable-return
-        /** @var Collection<int, string> $tags */
-        $tags = new self()
+        /** @var Collection<int, string> */
+        return new self()
             ->getConnection()
             ->table('taggables')
             ->select(['tags.name'])
@@ -104,8 +100,6 @@ class Tag extends Model implements HasColor, HasLabel
             ->where('tags.type', $record->getMorphClass())
             ->where('taggables.taggable_id', $record->getKey())
             ->pluck('name');
-
-        return $tags;
     }
 
     /**
@@ -113,11 +107,8 @@ class Tag extends Model implements HasColor, HasLabel
      */
     public static function select(string $type): Collection
     {
-        // @mago-expect lint:inline-variable-return
-        /** @var Collection<string, string> $tags */
-        $tags = self::query()->where('type', $type)->pluck('name', 'id');
-
-        return $tags;
+        /** @var Collection<string, string> */
+        return self::query()->where('type', $type)->pluck('name', 'id');
     }
 
     public function getColor(): array

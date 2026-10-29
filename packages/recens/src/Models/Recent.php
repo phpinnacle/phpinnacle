@@ -204,10 +204,7 @@ class Recent extends Model implements HasIcon, HasLabel
 
     public function getConnectionName(): ?string
     {
-        // @mago-expect lint:inline-variable-return
-        /** @var ?string $connection */
-        $connection = config('phpinnacle-recens.connection', parent::getConnectionName());
-
-        return $connection;
+        /** @var ?string */
+        return config('phpinnacle-recens.connection', parent::getConnectionName());
     }
 }

@@ -14,11 +14,8 @@ class SkeletonPlugin implements Plugin
 
     public static function get(): static
     {
-        // @mago-expect lint:inline-variable-return
-        /** @var static $plugin */
-        $plugin = filament(app(static::class)->getId());
-
-        return $plugin;
+        /** @var static */
+        return filament(app(static::class)->getId());
     }
 
     public function getId(): string

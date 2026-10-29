@@ -28,11 +28,8 @@ class CommentNotifier
             )
             ->getLabelsUsing(
                 static function (array $ids) use ($userModel) {
-                    // @mago-expect lint:inline-variable-return
-                    /** @var array<string, string> $labels */
-                    $labels = $userModel::query()->whereKey($ids)->pluck('name', 'id')->all();
-
-                    return $labels;
+                    /** @var array<string, string> */
+                    return $userModel::query()->whereKey($ids)->pluck('name', 'id')->all();
                 },
             );
     }

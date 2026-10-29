@@ -89,11 +89,8 @@ class Alert extends Model implements HasColor, HasDescription, HasIcon, HasLabel
 
     public function getConnectionName(): ?string
     {
-        // @mago-expect lint:inline-variable-return
-        /** @var ?string $connection */
-        $connection = config('phpinnacle-signum.connection');
-
-        return $connection;
+        /** @var ?string */
+        return config('phpinnacle-signum.connection');
     }
 
     public function getDescription(): ?string
