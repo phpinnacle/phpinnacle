@@ -28,7 +28,7 @@ class Alerts extends Group
             ->icon($alert->getIcon())
             ->color($alert->getColor())
             ->controlActions([
-                DismissAction::make(sprintf('dismiss:%s', $alert->getKey()))
+                DismissAction::make(sprintf('dismiss:%s', $alert->id))
                     ->record($alert),
             ]);
     }

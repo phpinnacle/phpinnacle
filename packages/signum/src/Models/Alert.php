@@ -21,7 +21,7 @@ use PHPinnacle\Signum\Enums\Level;
  * @property Level $level
  * @property string $title
  * @property string|null $message
- * @property string|null $created_by
+ * @property int|string|null $created_by
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $updated_at
  */
@@ -58,7 +58,7 @@ class Alert extends Model implements HasColor, HasDescription, HasIcon, HasLabel
     {
         $self = new self($data);
         $self->target_type = $record->getMorphClass();
-        $self->target_id = $record->getKey();
+        $self->setAttribute('target_id', $record->getKey());
         $self->save();
 
         return $self;
@@ -70,7 +70,7 @@ class Alert extends Model implements HasColor, HasDescription, HasIcon, HasLabel
     public static function list(?Model $model): Collection
     {
         if ($model === null) {
-            return collect();
+            return new Collection;
         }
 
         return self::query()
@@ -89,7 +89,11 @@ class Alert extends Model implements HasColor, HasDescription, HasIcon, HasLabel
 
     public function getConnectionName(): ?string
     {
-        return config('phpinnacle-signum.connection');
+        // @mago-expect lint:inline-variable-return
+        /** @var ?string $connection */
+        $connection = config('phpinnacle-signum.connection');
+
+        return $connection;
     }
 
     public function getDescription(): ?string
