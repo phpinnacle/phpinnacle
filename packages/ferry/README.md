@@ -475,6 +475,42 @@ Source and sink connectors apply the `source` and `sink` settings declared by th
 
 Widening an existing connector's `table.include.list`/`column.include.list` does not back-fill existing rows. Ferry configures `read.only=true` and `signal.enabled.channels=kafka`; updates compare `applied_config` with the desired captured columns. New columns, including those of a newly captured table or an unbound field filter, trigger an `execute-snapshot` signal for each affected table, keyed by the connector's `topic.prefix`. A new source connector needs no signal because Debezium's initial snapshot covers its capture scope. A retry may repeat a snapshot signal; sinks use upserts, so repeated records update the same destination keys.
 
+## Application CDC
+
+When static synchronizations write directly into application tables through a JDBC sink connector, Eloquent model observers do not run. Ferry can capture changes from the application database with a dedicated Debezium PostgreSQL source connector and publish Laravel events (`RecordCreated`, `RecordUpdated`, `RecordDeleted`).
+
+Register tracked models in an application service provider, so console workers that never boot a panel know them as well. A single table inheritance model declares the discriminator values of its rows:
+
+```php
+use App\Models\Customer;
+use App\Models\Product;
+use PHPinnacle\Ferry\Data\TrackedTable;
+use PHPinnacle\Ferry\Services\TrackedTableRegistry;
+
+$this->app->make(TrackedTableRegistry::class)->register(
+    TrackedTable::forModel(Product::class),
+    TrackedTable::forModel(Customer::class, ['type' => Customer::class]),
+);
+```
+
+Each database connection of the tracked models gets one Debezium PostgreSQL source connector, `ferry-cdc-{connection}`, which publishes to `ferry.cdc.{connection}.{schema}.{table}`. The connector uses `snapshot.mode=no_data` to skip the initial backfill, configures a 10-second heartbeat, and serializes decimals as strings.
+
+`php artisan ferry:cdc-sync` pushes and resumes these connectors; `php artisan ferry:cdc-sync --status` inspects them without pushing configuration. Both report connector state, replication slot WAL lag, tracked tables without `REPLICA IDENTITY FULL`, and consumer group lag per topic. They exit with failure when a connector is not running or a tracked table lacks the replica identity.
+
+Removing every tracked table of a connection does not remove its connector: delete the connector and drop the replication slot named in its `slot.name` configuration, otherwise PostgreSQL keeps retaining WAL for it.
+
+Run `php artisan ferry:cdc-consume` as a long-running worker under a process supervisor. It dispatches one `RecordCreated`, `RecordUpdated`, or `RecordDeleted` event per change and commits the Kafka offset after synchronous listeners return and queued listeners are enqueued. Queued listener execution happens separately. `SIGTERM` and `SIGINT` stop the worker after the current message.
+
+Each event carries the model class, the primary key, `operation()`, the row state `before` and `after` the change, an `eventId` of the form `topic:partition:offset`, and source metadata with the commit timestamp, LSN, and transaction id. Events are built from the change itself, so a delete never loads the deleted model. Unchanged TOAST values are restored from the previous row state. Tombstones, snapshot reads, unregistered tables, and updates that leave the row unchanged, such as a JDBC sink upsert of identical values, dispatch no events.
+
+Listeners must be idempotent by `eventId`: a change is redelivered when the worker stops after a listener succeeded but before the offset was committed. `eventId` is unique only while the topic and its offsets are kept, so recreating a topic or resetting consumer group offsets makes earlier identifiers reappear.
+
+A malformed message or a failing listener stops the worker without committing the offset, and the exception is reported with the `ferry_cdc_message` log context holding the message coordinates. The message is processed again on the next start, so later changes of the same partition wait behind it and keep their order. To skip a message deliberately, move the consumer group offset past it with `kafka-consumer-groups --reset-offsets` while the worker is stopped.
+
+### Database requirements
+
+The application PostgreSQL database must run with `wal_level = logical` and enough `max_replication_slots` and `max_wal_senders` for one slot per tracked connection. The configured database user needs the `REPLICATION` attribute, `SELECT` on tracked tables, and the privileges to create the filtered publication. Tracked tables must use `REPLICA IDENTITY FULL`, set by the application's own migrations, so updates and deletes carry the previous row state.
+
 ## Configuration
 
 `phpinnacle-ferry.connection` selects the database connection for Ferry's models and dynamic destination tables. Static destinations may select their own connection. `phpinnacle-ferry.origins.<name>.target_host` optionally overrides the database host seen by the JDBC worker, leaving Laravel's connection settings unchanged. `KafkaOrigin` rejects non-PostgreSQL upstreams. Destinations must also use PostgreSQL: the JDBC configuration always builds a `jdbc:postgresql` URL and does not validate the destination connection's driver.
@@ -572,7 +608,7 @@ For example, the generated source configuration can contain:
 
 The shipped `kafka` origin reads the `FERRY_KAFKA_*` environment variables, including `FERRY_KAFKA_SIGNAL_GROUP_ID`. `phpinnacle-ferry.kafka.transforms` lists transformation classes that the service provider resolves and registers in `TransformRegistry` for both forms and Kafka connector compilation.
 
-`base_uri` is required before any connector operation, and `headers` accompany every REST request. Configure HTTP timeouts on the application's PSR-18 client. Each origin's `signal.topic`, `bootstrap_servers`, and `group_id` configure Debezium's Kafka signal channel; `flush_timeout` bounds publishing time in milliseconds. Publishing signals requires the `ext-rdkafka` PHP extension.
+`base_uri` is required before any connector operation, and `headers` accompany every REST request. Configure HTTP timeouts on the application's PSR-18 client. Each origin's `signal.topic`, `bootstrap_servers`, and `group_id` configure Debezium's Kafka signal channel; `flush_timeout` bounds publishing time in milliseconds. `phpinnacle-ferry.cdc.group_id` (`FERRY_CDC_GROUP_ID`, default `ferry-cdc`) names the consumer group of `ferry:cdc-consume`, which reads from `phpinnacle-ferry.origins.kafka.signal.bootstrap_servers`. Publishing signals and consuming changes require the `ext-rdkafka` PHP extension.
 
 ## Field mapping
 
