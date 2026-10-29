@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: update-agent-skills-${{ github.ref }}
@@ -73,7 +74,7 @@ jobs:
 
           php artisan boost:install --skills --no-interaction
 
-      - name: Update and push generated skills
+      - name: Update skills and open pull request
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -102,8 +103,15 @@ jobs:
             exit 0
           fi
 
+          branch="agent-skills-$(date -u +%Y%m%d-%H%M%S)-$GITHUB_RUN_ID"
+          git switch -c "$branch"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'Update Laravel ecosystem agent skills'
           gh auth setup-git
-          git push origin "HEAD:$GITHUB_REF"
+          git push --set-upstream origin "$branch"
+          echo "Created branch: \`$branch\`" >> "$GITHUB_STEP_SUMMARY"
+          pull_request_url="$(gh pr create --base "$GITHUB_REF_NAME" --head "$branch" \
+            --title 'Update Laravel ecosystem agent skills' \
+            --body 'Refresh generated Laravel, Filament, Livewire, Tailwind, and testing skills using the versions in composer.lock.')"
+          echo "Pull request: $pull_request_url" >> "$GITHUB_STEP_SUMMARY"

@@ -61,8 +61,12 @@ Run the **Update Agent Skills** workflow manually to refresh the generated Larav
 Filament, Livewire, Tailwind, and testing skills in `.agents/skills`. It creates a
 temporary Laravel application using the framework, Filament, Livewire, and Pest
 versions from this repository's `composer.lock`, installs Boost 2, and generates the skills through
-`boost:install --skills`. The workflow commits and pushes changed skills to the
-selected branch using `GITHUB_TOKEN`; branch protection must permit that push.
+`boost:install --skills`. When skills change, the workflow creates an
+`agent-skills-{UTC timestamp}-{run ID}` branch from the selected branch, commits
+and pushes the changes using `GITHUB_TOKEN`, and opens a pull request targeting
+the selected branch. The run summary includes the branch and pull request URL.
+Enable **Allow GitHub Actions to create and approve pull requests** under
+**Settings > Actions > General > Workflow permissions** for this repository.
 These pushes do not trigger the push-based CI workflow. Keep repository-specific
 rules in `AGENTS.md` because the generated skill directories are replaced on update.
 
