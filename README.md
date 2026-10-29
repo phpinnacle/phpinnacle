@@ -1,21 +1,18 @@
 # PHPinnacle Packages
 
-This repository is the source of truth for the PHPinnacle package collection. Each directory under `packages/` is an independently releasable Composer package with its own dependencies, tests, and documentation.
+This repository is the source of truth for the public PHPinnacle package collection. Each directory under `packages/` is an independently releasable Composer package with its own dependencies, tests, and documentation.
 
 ## Packages
 
 | Package | Description |
 | --- | --- |
-| [`phpinnacle/atlas`](packages/atlas/) | Configurable analytics and dashboard builder for Filament with governed datasets, tables, charts, and statistics. |
 | [`phpinnacle/babylon`](packages/babylon/) | Filament panel localization with session middleware, locale selection, and profile integration. |
-| [`phpinnacle/cabeiro`](packages/cabeiro/) | Visual Filament table builder that stores renderer-independent schemas for columns, filters, groups, and summaries. |
 | [`phpinnacle/canvio`](packages/canvio/) | Framework-agnostic PHP client for the Canvas LMS REST API with typed core resources and generic endpoint access. |
 | [`phpinnacle/casus`](packages/casus/) | Application exception recorder and Filament browser for failures, request context, and recurring exceptions. |
 | [`phpinnacle/cerber`](packages/cerber/) | Filament authentication and authorization for users, roles, permissions, OAuth, API tokens, and impersonation. |
 | [`phpinnacle/chronica`](packages/chronica/) | Auditable Eloquent activity history and Filament timelines built on Spatie Activitylog. |
 | [`phpinnacle/comments`](packages/comments/) | Polymorphic discussion threads with Livewire and Filament integrations, policies, and pruning. |
 | [`phpinnacle/common`](packages/common/) | Shared Laravel and Filament utilities, including ranges, filters, columns, and reusable concerns. |
-| [`phpinnacle/decima`](packages/decima/) | Visual workflows, queued execution, and run history for Laravel Filament. |
 | [`phpinnacle/dendros`](packages/dendros/) | Hierarchical Eloquent and Filament building blocks using materialized paths and tree-aware interfaces. |
 | [`phpinnacle/eidos`](packages/eidos/) | JSON Schema generation, Laravel validation rules, Eloquent introspection, and Filament schema, mapping, and binding fields. |
 | [`phpinnacle/franz`](packages/franz/) | Framework-agnostic PHP client for the Kafka Connect REST API with typed connector management. |
@@ -24,7 +21,6 @@ This repository is the source of truth for the PHPinnacle package collection. Ea
 | [`phpinnacle/intl`](packages/intl/) | Symfony Intl-backed country, language, locale, and timezone dictionaries with Laravel and Filament integration. |
 | [`phpinnacle/jason`](packages/jason/) | Framework-independent JSON Schema values, builders, traversal, local references, and canonical JSONPath codecs. |
 | [`phpinnacle/langcat`](packages/langcat/) | Framework-agnostic PHP client for the LangLion API with typed requests and responses. |
-| [`phpinnacle/manuscript`](packages/manuscript/) | Browser-based DOCX editor with a framework-neutral engine and a thin Filament field adapter. |
 | [`phpinnacle/midas`](packages/midas/) | Laravel and Filament payment orchestration for methods, plans, cards, intents, adjustments, and providers. |
 | [`phpinnacle/money`](packages/money/) | Integer-based money value object with currency metadata, formatting, Eloquent, Livewire, and Filament support. |
 | [`phpinnacle/palette`](packages/palette/) | Color palette utilities and a Filament color picker supporting Tailwind, Filament, and custom sources. |
@@ -40,13 +36,10 @@ This repository is the source of truth for the PHPinnacle package collection. Ea
 | [`phpinnacle/stylus`](packages/stylus/) | Filament rich editor extensions for semantic HTML, description lists, conditions, and structured Twig templates. |
 | [`phpinnacle/tags`](packages/tags/) | Reusable polymorphic tagging with Filament input, column, filter, and bulk assignment components. |
 | [`phpinnacle/tempo`](packages/tempo/) | Date and time utilities, Filament pickers and filters, clocks, calendars, and recurrence expansion. |
-| [`phpinnacle/vulcan`](packages/vulcan/) | Visual Filament schema builder with a component palette, nested canvas, drag-and-drop, resizing, and native rendering. |
 
 ## Licensing
 
-Atlas, Cabeiro, Decima, Manuscript, and Vulcan are proprietary commercial packages. Unless an order states otherwise, their licenses grant perpetual use of eligible versions for one production application and include 12 months of updates. Each package contains the complete license terms that apply after it is split from this repository.
-
-All other packages are governed by the license declared in their own directory under `packages/`.
+Packages are governed by the license declared in their own directory under `packages/`.
 
 ## Development
 
@@ -80,48 +73,22 @@ Run `composer phpstan` to run PHPStan level 6 static analysis across all package
 
 | Command | Level | Packages |
 | --- | --- | --- |
-| `composer phpstan:level8` | 8 | cabeiro, vulcan |
 | `composer phpstan:level10` | 10 | babylon, canvio, casus, comments, eidos mapping/binding forms and helpers, ferry, franz, intl, jason, langcat, rosetta, sequentia, tags |
 
 ## Composer Repository
 
-Public packages are available from Packagist and require no custom Composer repository. Proprietary packages are distributed through the Satis repository at `packages.phpinnacle.com`.
+Packages are available from Packagist and require no custom Composer repository.
 
-Build the proprietary package repository:
+The CD workflow splits each publishable package to its generated GitHub repository on `master`. Package mirrors update Packagist automatically and are deployment artifacts; changes belong in this monorepo. The `skeleton` package remains monorepo-only as the template for new packages.
 
-```bash
-composer satis:build
-```
-
-The CD workflow splits each publishable package to its generated GitHub repository on `master`. Public mirrors update Packagist automatically, while proprietary packages are deployed to `packages.phpinnacle.com`. Package mirrors are deployment artifacts; changes belong in this monorepo. The `skeleton` package remains monorepo-only as the template for new packages.
-
-Active development packages are published as `dev-master` with a `1.x-dev` branch alias. Consumer projects that install proprietary packages must add the Satis repository:
-
-```json
-{
-    "repositories": [
-        {
-            "type": "composer",
-            "url": "https://packages.phpinnacle.com"
-        }
-    ]
-}
-```
+Active development packages are published as `dev-master` with a `1.x-dev` branch alias.
 
 Require the active development line explicitly:
 
 ```bash
 composer config minimum-stability dev
 composer config prefer-stable true
-composer require phpinnacle/atlas:1.x-dev
+composer require phpinnacle/common:1.x-dev
 ```
 
-Stable snapshots are published from `master` with the manual `Release` workflow. Enter one semantic version without a `v` prefix and optionally a package name. When no package is selected, the workflow tags every publishable package mirror at the same version. It then redeploys the proprietary Satis repository.
-
-Configure the shared repository credentials outside `composer.json`:
-
-```bash
-composer config --global http-basic.packages.phpinnacle.com composer PASSWORD
-```
-
-The generated files under `build/satis/` are not committed.
+Stable snapshots are published from `master` with the manual `Release` workflow. Enter one semantic version without a `v` prefix and optionally a package name. When no package is selected, the workflow tags every publishable package mirror at the same version.

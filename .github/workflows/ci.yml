@@ -41,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [atlas, cabeiro, decima, eidos, jason, tempo, vulcan]
+        package: [eidos, jason, tempo]
 
     steps:
       - name: Checkout

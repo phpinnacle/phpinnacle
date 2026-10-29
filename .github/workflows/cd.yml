@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy Satis
+    name: Split packages
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
@@ -32,16 +32,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          extensions: rdkafka
-          coverage: none
-
-      - name: Install dependencies
-        run: composer install --no-interaction --no-progress --prefer-dist
-
       - name: Split packages
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_SPLIT_TOKEN }}
@@ -54,22 +44,3 @@ jobs:
             split="$(git subtree split --prefix="$package" HEAD)"
             git push --force "https://github.com/phpinnacle/${name}.git" "${split}:refs/heads/master"
           done
-
-      - name: Build Satis repository
-        env:
-          COMPOSER_AUTH: '{}'
-          GH_TOKEN: ${{ secrets.PACKAGE_SPLIT_TOKEN }}
-        run: composer satis:build
-
-      - name: Configure SSH
-        run: |
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "${{ secrets.SATIS_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          printf '%s\n' 'packages.phpinnacle.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFjPJ3tLfme/nORFm//qYTLN1BRO9F15Rsz61PDKTvS0' > ~/.ssh/known_hosts
-
-      - name: Deploy Satis repository
-        run: |
-          rsync -az build/satis/dist/ deploy@packages.phpinnacle.com:/srv/packages.phpinnacle.com/dist/
-          rsync -az --exclude dist --exclude packages.json build/satis/ deploy@packages.phpinnacle.com:/srv/packages.phpinnacle.com/
-          rsync -az build/satis/packages.json deploy@packages.phpinnacle.com:/srv/packages.phpinnacle.com/packages.json
