@@ -5,7 +5,11 @@ namespace PHPinnacle\Ferry;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Container\Container;
 use Illuminate\Support\Facades\Config;
+use PHPinnacle\Ferry\Commands\ConsumeChangesCommand;
+use PHPinnacle\Ferry\Commands\SyncCdcConnectorCommand;
+use PHPinnacle\Ferry\Contracts\ChangeConsumer;
 use PHPinnacle\Ferry\Contracts\Transform;
+use PHPinnacle\Ferry\Origins\Kafka\RdKafkaChangeConsumer;
 use PHPinnacle\Ferry\Services\OriginFactory;
 use PHPinnacle\Ferry\Services\RosettaAdapter;
 use PHPinnacle\Ferry\Services\StructureAdapterRegistry;
@@ -61,12 +65,19 @@ class FerryServiceProvider extends PackageServiceProvider
 
             return new OriginFactory($this->app, $config);
         });
+
+        $this->app->singleton(ChangeConsumer::class, fn () => new RdKafkaChangeConsumer(
+            Config::string('phpinnacle-ferry.origins.kafka.signal.bootstrap_servers'),
+            Config::string('phpinnacle-ferry.cdc.group_id'),
+        ));
     }
 
     public function configurePackage(Package $package): void
     {
         $package
             ->name(static::$name)
+            ->hasCommand(ConsumeChangesCommand::class)
+            ->hasCommand(SyncCdcConnectorCommand::class)
             ->discoversMigrations()
             ->hasConfigFile()
             ->hasTranslations()

@@ -63,6 +63,9 @@ return [
             ],
         ],
     ],
+    'cdc' => [
+        'group_id' => env('FERRY_CDC_GROUP_ID', 'ferry-cdc'),
+    ],
     'navigation' => [
         'upstream' => [
             'icon' => 'phosphor-plugs-connected',

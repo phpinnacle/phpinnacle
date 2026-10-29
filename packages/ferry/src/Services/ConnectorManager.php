@@ -4,6 +4,7 @@ namespace PHPinnacle\Ferry\Services;
 
 use Closure;
 use PHPinnacle\Ferry\Contracts\Origin;
+use PHPinnacle\Ferry\Data\TrackedTable;
 use PHPinnacle\Ferry\Enums\ConnectorStatus;
 use PHPinnacle\Ferry\Enums\DestinationType;
 use PHPinnacle\Ferry\Enums\ReplicaStatus;
@@ -12,6 +13,7 @@ use PHPinnacle\Ferry\Jobs\Connector\SynchronizeConnectorsJob;
 use PHPinnacle\Ferry\Models\Connector;
 use PHPinnacle\Ferry\Models\Replica;
 use PHPinnacle\Ferry\Models\Upstream;
+use PHPinnacle\Ferry\Origins\Kafka\SourceFactory;
 use Throwable;
 
 class ConnectorManager
@@ -19,6 +21,7 @@ class ConnectorManager
     public function __construct(
         private readonly OriginFactory $origins,
         private readonly ReplicaTableManager $tables,
+        private readonly SourceFactory $sources,
     ) {}
 
     public function save(Replica $replica): void
@@ -103,6 +106,45 @@ class ConnectorManager
                 }
             }
         }
+    }
+
+    /**
+     * @param list<TrackedTable> $tables
+     *
+     * @return array{status: ConnectorStatus, error: string|null}
+     */
+    public function syncApplicationSource(string $connection, array $tables): array
+    {
+        $origin = $this->origins->create('kafka');
+        /** @var array{target_host: ?string, source: array<string, string>} $settings */
+        $settings = config('phpinnacle-ferry.origins.kafka');
+        $connector = new Connector([
+            'name' => $this->sources->applicationName($connection),
+            'origin' => 'kafka',
+            'config' => [
+                ...$this->sources->application($connection, $tables, $settings['target_host']),
+                ...$settings['source'],
+            ],
+        ]);
+
+        $origin->create($connector);
+        $origin->start($connector);
+        $status = $origin->status($connector);
+
+        return ['status' => $status, 'error' => $connector->error];
+    }
+
+    /** @return array{status: ConnectorStatus, error: string|null} */
+    public function checkApplicationSource(string $connection): array
+    {
+        $origin = $this->origins->create('kafka');
+        $connector = new Connector([
+            'name' => $this->sources->applicationName($connection),
+            'origin' => 'kafka',
+        ]);
+        $status = $origin->status($connector);
+
+        return ['status' => $status, 'error' => $connector->error];
     }
 
     public function removed(Replica $replica): void

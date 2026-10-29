@@ -3,6 +3,8 @@
 namespace PHPinnacle\Ferry\Origins\Kafka;
 
 use Illuminate\Support\Facades\Config;
+use PHPinnacle\Ferry\Data\TargetDatabase;
+use PHPinnacle\Ferry\Data\TrackedTable;
 use PHPinnacle\Ferry\Models\Replica;
 use PHPinnacle\Ferry\Models\StructureItem;
 use PHPinnacle\Ferry\Models\Upstream;
@@ -12,6 +14,8 @@ class SourceFactory
     private const string DEFAULT_SCHEMA = 'public';
 
     private const int IDENTIFIER_LENGTH = 63;
+
+    private const string HEARTBEAT_INTERVAL = '10000';
 
     /**
      * @param array{
@@ -126,6 +130,58 @@ class SourceFactory
         ];
     }
 
+    /**
+     * @param list<TrackedTable> $tables
+     *
+     * @return array<string, string>
+     */
+    public function application(string $connection, array $tables, ?string $targetHost = null): array
+    {
+        $database = TargetDatabase::fromConnection($connection, $targetHost);
+
+        return [
+            'connector.class' => 'io.debezium.connector.postgresql.PostgresConnector',
+            'tasks.max' => '1',
+            'database.hostname' => $database->host,
+            'database.port' => (string) $database->port,
+            'database.user' => $database->username,
+            'database.password' => $database->password,
+            'database.dbname' => $database->database,
+            'plugin.name' => 'pgoutput',
+            'slot.name' => $this->applicationSlot($connection),
+            'publication.name' => $this->applicationIdentifier('ferry_cdc_pub', $connection),
+            'publication.autocreate.mode' => 'filtered',
+            'topic.prefix' => $this->applicationTopicPrefix($connection),
+            'table.include.list' => implode(
+                ',',
+                array_unique(array_map(
+                    fn (TrackedTable $table) => $table->qualifiedTable(),
+                    $tables,
+                )),
+            ),
+            'snapshot.mode' => 'no_data',
+            'binary.handling.mode' => 'hex',
+            'decimal.handling.mode' => 'string',
+            'tombstones.on.delete' => 'false',
+            'heartbeat.interval.ms' => self::HEARTBEAT_INTERVAL,
+        ];
+    }
+
+    public function applicationName(string $connection): string
+    {
+        return sprintf('ferry-cdc-%s', $connection);
+    }
+
+    public function applicationSlot(string $connection): string
+    {
+        return $this->applicationIdentifier('ferry_cdc_slot', $connection);
+    }
+
+    public function applicationTopic(TrackedTable $table): string
+    {
+        return sprintf('%s.%s', $this->applicationTopicPrefix($table->connection), $table->qualifiedTable());
+    }
+
     public function name(Upstream|Replica $owner): string
     {
         return sprintf('ferry-%s-%s', $owner instanceof Upstream ? 'source' : 'sink', $owner->code);
@@ -181,6 +237,18 @@ class SourceFactory
         $code = preg_replace('/[^a-z0-9]+/', '_', mb_strtolower($upstream->code)) ?? '';
 
         return mb_substr(sprintf('%s_%s', $prefix, trim($code, '_')), 0, self::IDENTIFIER_LENGTH);
+    }
+
+    private function applicationIdentifier(string $prefix, string $connection): string
+    {
+        $code = preg_replace('/[^a-z0-9]+/', '_', mb_strtolower($connection)) ?? '';
+
+        return mb_substr(sprintf('%s_%s', $prefix, trim($code, '_')), 0, self::IDENTIFIER_LENGTH);
+    }
+
+    private function applicationTopicPrefix(string $connection): string
+    {
+        return sprintf('ferry.cdc.%s', $connection);
     }
 
     private function topicPrefix(Upstream $upstream): string
