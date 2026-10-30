@@ -82,6 +82,7 @@ trait HasSourceSettings
                 $schema->dehydrateState($state);
                 $schema->mutateDehydratedState($state);
             }
+
             /** @var array<int, array{options: array<string, mixed>}> $rows */
             $rows = Arr::get($state, $this->getStatePath(), []);
             $settings[$source] = $rows[$index]['options'];
@@ -99,6 +100,7 @@ trait HasSourceSettings
         if (!$this->hasSourceSettings()) {
             return [];
         }
+
         foreach ($this->cachedSourceRowIndexes as $source => $index) {
             $key = $this->cachedSourceSettingsKeys[$source];
             $schemas['settings_' . $key] = $this->makeSourceSettingsSchema((string) $source, $index, $key);
@@ -138,12 +140,14 @@ trait HasSourceSettings
         if (!is_array($rows) || !array_is_list($rows)) {
             return;
         }
+
         $sources = array_column($this->getSources(), 'id');
         foreach ($sources as $source) {
             if ($this->getSourceRowIndex($source) === null) {
                 $rows[] = ['kind' => 'source', 'source' => $source, 'target' => null, 'options' => []];
             }
         }
+
         $this->rawState($rows);
     }
 }

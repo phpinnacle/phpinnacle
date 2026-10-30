@@ -78,6 +78,7 @@ class MappingHeaderActionsForm extends Component implements HasActions, HasSchem
                         } else {
                             $component->jsonSchema($source);
                         }
+
                         $set('schema', $source);
                     }),
             ]);

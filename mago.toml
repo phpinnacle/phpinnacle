@@ -59,6 +59,7 @@ enabled = false
 
 [formatter]
 preset = "laravel"
+empty-line-after-control-structure = true
 sort-class-methods = false
 space-after-logical-not-unary-prefix-operator = false
 space-around-concatenation-binary-operator = true

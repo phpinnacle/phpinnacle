@@ -57,6 +57,7 @@ function pinax_upload_field(bool $gallery, string $disk, bool $move, string $vis
     if ($gallery) {
         $component = $component->getChildSchema()->getComponent('path', withHidden: true);
     }
+
     $component
         ->moveFiles($move)
         ->visibility($visibility)

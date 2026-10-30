@@ -107,6 +107,7 @@ it('uses images instead of configured icons in tree rows and selected values', f
         expect($image->getAttribute('src'))->toBe('/avatars/anna.jpg');
         expect($image->getAttribute('alt'))->toBe('');
     }
+
     expect($xpath->query('//*[@role="treeitem"]//svg')->length)->toBe(0);
     expect($schema->getState())->toBe(['choice' => $state]);
 })
@@ -178,6 +179,7 @@ it('renders accessible item and group badges without adding them to the select t
     foreach (explode(' ', $item->getAttribute('aria-describedby')) as $id) {
         expect($document->getElementById($id))->not->toBeNull();
     }
+
     expect($schema->getState())->toBe(['choice' => $state]);
     if ($mode === ItemPickerMode::Select) {
         expect($document->getElementById($picker->getId())->textContent)

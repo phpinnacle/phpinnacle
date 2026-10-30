@@ -400,6 +400,7 @@ it('allows users without roles to sign in through independent panel OAuth contex
         );
         $panels[$context->name()] = $panel;
     }
+
     session()->start();
     app('request')->setLaravelSession(session()->driver());
     ($this->mockOAuth)([...$this->oauthResponses, ...$this->oauthResponses]);
@@ -412,6 +413,7 @@ it('allows users without roles to sign in through independent panel OAuth contex
             expect(fn () => $oauth->redirect($context, $providers['second']))
                 ->toThrow(\Symfony\Component\HttpKernel\Exception\HttpException::class);
         }
+
         $redirect = $oauth->redirect($context, $providers[$context->name()]);
         parse_str(parse_url($redirect->getTargetUrl(), PHP_URL_QUERY), $parameters);
         $states[$context->name()] = $parameters['state'];

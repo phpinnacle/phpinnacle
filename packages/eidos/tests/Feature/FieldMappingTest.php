@@ -176,6 +176,7 @@ it('partially updates every changed presentation and fully renders structural sc
                 ->toContain('>boolean</span>');
         }
     }
+
     expect($page->instance()->form->getComponent('mapping')->getConnectionModes())->toBe([
         'first' => ['destination' => MappingMode::Whole],
         'second' => ['destination' => MappingMode::Whole],
@@ -417,6 +418,7 @@ it('places one shared search before the toolbar filter for mapping and binding',
 
         return;
     }
+
     $search = $searches->item(0);
     expect($search->getAttribute('x-model'))
         ->toBe('search')
@@ -481,6 +483,7 @@ it('filters complete source card containers', function (bool $inverse) {
         expect($card->getAttribute('x-bind:class'))->toContain('fi-hidden', "isVisible('source',");
         expect($xpath->query('./div/div[@data-mapping-row and @x-show]', $card))->toHaveCount(0);
     }
+
     expect($schema->getState()['mapping'])->toBe([
         ['kind' => 'source', 'source' => 'title', 'target' => null, 'options' => []],
     ]);
@@ -567,6 +570,7 @@ it('preserves standalone mapping content and values across presentation options'
     if ($contained) {
         expect($text)->toContain('All', 'Mapped', 'Unmapped');
     }
+
     expect($html)->toContain('aria-live="polite"');
     expect($html)->toContain(FilamentAsset::getAlpineComponentSrc('field-mapping', 'phpinnacle/eidos'));
     expect($schema->getState()['mapping'])
@@ -798,8 +802,10 @@ it('persists and validates source settings independently of connections', functi
         if (array_key_exists('name', $targets) && $targets['name']['kind'] === 'source') {
             expect($field->getSourceSettings()['first.part'])->toBe($settings['first.part']);
         }
+
         expect($schema->getState()['mapping'])->toBe(MappingState::mapping($targets, $settings));
     }
+
     $schema->fill(['mapping' => MappingState::mapping([])]);
     expect($field->getSourceSettings())->toBe([
         'first.part' => ['alias' => 'first.part', 'enabled' => true],
@@ -1054,6 +1060,7 @@ it('round trips collection mappings through independent schema instances', funct
             )
             ->sourceSettings([TextInput::make('alias')]);
     }
+
     $rows = [
         ['kind' => 'source', 'source' => '_my_field', 'target' => 'custom', 'options' => ['alias' => 'one']],
         ['kind' => 'source', 'source' => 'other.name', 'target' => 'custom', 'options' => ['alias' => 'two']],
@@ -1097,5 +1104,6 @@ it('validates collection connections after reactive source settings change', fun
     } else {
         $page->assertHasNoErrors();
     }
+
     $page->set('data.mapping.0.options.type', 'string')->call('submit')->assertHasNoErrors();
 })->with(['item', 'property']);

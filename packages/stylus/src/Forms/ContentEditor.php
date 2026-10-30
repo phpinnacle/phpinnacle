@@ -44,6 +44,7 @@ class ContentEditor extends Group
             if ($self->htmlOnlyField === null) {
                 return false;
             }
+
             $value = $get($self->htmlOnlyField);
 
             return ($value instanceof \BackedEnum ? $value->value : $value) === $self->htmlOnlyValue;

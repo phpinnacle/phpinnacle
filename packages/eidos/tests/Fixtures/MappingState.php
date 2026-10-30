@@ -47,6 +47,7 @@ final class MappingState
                 }
             }
         }
+
         foreach ($sources as $source => $settings) {
             if (!array_key_exists($source, $used)) {
                 $rows[] = ['kind' => 'source', 'source' => (string) $source, 'target' => null, 'options' => $settings];
@@ -65,6 +66,7 @@ final class MappingState
             if (is_array($value) && array_key_exists('value', $value)) {
                 continue;
             }
+
             $rows[] = [
                 'kind' => 'source',
                 'source' => (string) $source,
@@ -72,6 +74,7 @@ final class MappingState
                 'options' => $sources[$source] ?? [],
             ];
         }
+
         foreach ($bindings as $target => $value) {
             if (is_array($value) && array_key_exists('value', $value)) {
                 $rows[] = [

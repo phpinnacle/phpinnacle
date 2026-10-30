@@ -51,9 +51,11 @@ final class Codec
         if (is_bool($schema)) {
             return $schema;
         }
+
         if (!$schema instanceof stdClass) {
             throw new InvalidArgumentException('A JSON Schema must be an object or a boolean.');
         }
+
         /** @var array<string, mixed> $definition JSON object keywords, including unknown annotations. */
         $definition = get_object_vars($schema);
         foreach ($definition as $keyword => $value) {
@@ -76,15 +78,18 @@ final class Codec
                     throw new InvalidArgumentException('The schema type must name a JSON primitive type.');
                 }
             }
+
             if (in_array($keyword, self::MAPS, true)) {
                 if (!$value instanceof stdClass) {
                     throw new InvalidArgumentException('The schema keyword [' . $keyword . '] must be an object.');
                 }
+
                 $definition[$keyword] = array_map(self::decode(...), (array) $value);
             } elseif (in_array($keyword, self::LISTS, true)) {
                 if (!is_array($value)) {
                     throw new InvalidArgumentException('The schema keyword [' . $keyword . '] must be an array.');
                 }
+
                 $definition[$keyword] = array_map(self::decode(...), $value);
             } elseif (in_array($keyword, self::SCHEMAS, true)) {
                 $definition[$keyword] = self::decode($value);
@@ -100,6 +105,7 @@ final class Codec
         if (is_bool($schema)) {
             return $schema;
         }
+
         foreach ($schema as $keyword => $value) {
             if (in_array($keyword, self::MAPS, true)) {
                 /** @var array<string, array<string, mixed>|bool> $value */

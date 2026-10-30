@@ -29,6 +29,7 @@ enum CustomerMappingField: string implements HasDescription, HasIcon, HasLabel
                 'type' => $field === self::Active ? 'boolean' : 'string',
             ];
         }
+
         $properties['phone'] = [
             ...$properties['phone'],
             'type' => 'array',

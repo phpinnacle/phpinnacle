@@ -235,6 +235,7 @@ class FieldBinding extends Field
             if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
+
             if ($row['kind'] === 'source' && $row['source'] === $source) {
                 return $index;
             }
@@ -262,6 +263,7 @@ class FieldBinding extends Field
                 $rows[] = ['kind' => 'source', 'source' => $source['id'], 'target' => null, 'options' => []];
             }
         }
+
         $this->rawState($rows);
         $this->clearCachedChildSchemas();
         foreach ($this->getSources() as $source) {
@@ -270,6 +272,7 @@ class FieldBinding extends Field
                 $this->getChildSchemas()['settings_' . $this->getSourceStateKeys()[$source['id']]]->fill();
             }
         }
+
         parent::hydrateState(
             $hydratedDefaultState,
             $shouldCallHydrationHooks,
@@ -285,12 +288,14 @@ class FieldBinding extends Field
         if ($state !== null && (!is_array($state) || !array_is_list($state))) {
             return [];
         }
+
         $this->initializeSourceRows();
         $schemas = [];
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
             if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
+
             $schemas['row_' . $index] = $this
                 ->makeChildSchema('row_' . $index)
                 ->statePath((string) $index)
@@ -299,11 +304,13 @@ class FieldBinding extends Field
                     array_keys($row),
                 ));
         }
+
         $schemas += $this->makeSourceSettingsSchemas();
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
             if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
+
             if (
                 $row['kind'] === 'source'
                 && $row['target'] !== null
@@ -334,6 +341,7 @@ class FieldBinding extends Field
             if (!$field->hasDefaultState()) {
                 $field->default($source);
             }
+
             $schema->statePath((string) $index);
         } else {
             $schema->statePath($index . '.target');
@@ -535,11 +543,13 @@ class FieldBinding extends Field
         if ($this->isDisabled() || !$this->hasStaticValues()) {
             return;
         }
+
         $targets = array_column($this->getBindingValues(), 'target');
         $number = 1;
         while (in_array('static_' . $number, $targets, true)) {
             $number++;
         }
+
         /** @var State $rows */
         $rows = $this->getRawState() ?? [];
         $index = count($rows);
@@ -559,6 +569,7 @@ class FieldBinding extends Field
         if ($this->isDisabled() || !$this->hasStaticValues()) {
             return;
         }
+
         /** @var array{constant: string} $validated */
         $validated = Validator::make($arguments, [
             'constant' => ['required', 'string', Rule::in(array_keys($this->getConstants()))],
@@ -589,6 +600,7 @@ class FieldBinding extends Field
             if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
+
             if (
                 $row['kind'] === 'source'
                 && $row['target'] !== null
@@ -645,6 +657,7 @@ class FieldBinding extends Field
 
             return;
         }
+
         /** @var array{rows: State} $validated */
         $validated = $validator->validated();
         $value = $validated['rows'];
@@ -658,16 +671,20 @@ class FieldBinding extends Field
 
                     return;
                 }
+
                 $sources[$source] = true;
             }
+
             if ($row['kind'] === 'static' && $this->simpleField !== null) {
                 if ($row['target'] === null || in_array($row['target'], $staticTargets, true)) {
                     $fail('The :attribute field contains duplicate or null static targets.')->translate();
 
                     return;
                 }
+
                 $staticTargets[] = $row['target'];
             }
+
             if ($row['target'] !== null && $this->simpleField === null && !is_array($row['target'])) {
                 $fail('The :attribute field contains an invalid binding value.')->translate();
 

@@ -232,6 +232,7 @@ final class MetadataMapper
             if ($comment !== null && !is_string($comment)) {
                 throw new RuntimeException(sprintf('Invalid metadata property comment at position %d', $position + 1));
             }
+
             $comment = $comment === '' ? null : $comment;
             $descriptors = $this->descriptors($this->at($item, 1, 2, 2, 3));
             $descriptor = count($descriptors) === 1 ? $descriptors[0] : null;

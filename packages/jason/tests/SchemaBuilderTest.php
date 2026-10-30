@@ -145,6 +145,7 @@ it('builds typed nested schemas and exposes their original structural positions'
     foreach (['additionalProperties', 'unevaluatedProperties', 'unevaluatedItems', 'not', 'then'] as $method) {
         expect($schema->{$method}()->deniesAny())->toBeTrue();
     }
+
     foreach (['items', 'contains', 'propertyNames', 'if', 'else', 'contentSchema'] as $method) {
         expect($schema->{$method}()->toArray())->toBe($string->toArray());
     }

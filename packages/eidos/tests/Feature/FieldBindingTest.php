@@ -728,6 +728,7 @@ it('preserves binding metadata and values across presentation options', function
     if (!$contained) {
         $field->contained(false);
     }
+
     $schema = field_binding_schema($field, ['name' => 'profile.name']);
     view()->share('errors', new ViewErrorBag);
 
@@ -746,6 +747,7 @@ it('preserves binding metadata and values across presentation options', function
     if ($contained) {
         expect($text)->toContain('All', 'Bound', 'Unbound');
     }
+
     expect(str_contains($text, '1 of 6 sources bound'))->toBe($contained);
     expect($schema->getState()['bindings'])
         ->toBe(MappingState::binding(['name' => 'profile.name'], [], array_column($field->getSources(), 'id')));
@@ -862,6 +864,7 @@ it('keeps independent static schema forms without inferring destination uniquene
         $key = array_key_last($field->getConstants());
         $field->getConstants()[$key]->getComponent('input.static')->state($value);
     }
+
     $rows = $schema->getState()['bindings'];
     expect($rows[1]['target'])
         ->toBe(['destination' => 'shared', 'enabled' => false])

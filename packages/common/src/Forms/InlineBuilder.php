@@ -187,6 +187,7 @@ class InlineBuilder extends Field
                     $positions[] = $to;
                 }
             }
+
             $allowed[] = $positions;
         }
 
@@ -248,6 +249,7 @@ class InlineBuilder extends Field
 
             return;
         }
+
         /** @var list<BuilderItem> $items */
         $items = $validator->validated()['items'];
         foreach ($items as $index => $item) {

@@ -102,6 +102,7 @@ it('propagates processing failures and records their original details', function
     if ($transform) {
         $webhook->payload = 'invalid json';
     }
+
     $webhook->save();
     $job = new ProcessWebhook($webhook);
 

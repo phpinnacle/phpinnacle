@@ -180,6 +180,7 @@ class FieldMapping extends Field
             if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
+
             if ($row['kind'] === 'source' && $row['source'] === $source) {
                 return $index;
             }
@@ -257,6 +258,7 @@ class FieldMapping extends Field
         if ($state !== null && (!is_array($state) || !array_is_list($state))) {
             return ['sourceCards' => $this->makeChildSchema('sourceCards')->inline()->components($this->sourceCards())];
         }
+
         $this->initializeSourceRows();
         $this->sourcePresentationsBeforeUpdate ??= $this->getSourcePresentations();
         $this->cachedStaticTargets = $this->getStaticTargets();
@@ -265,6 +267,7 @@ class FieldMapping extends Field
             if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
+
             $schemas['row_' . $index] = $this
                 ->makeChildSchema('row_' . $index)
                 ->statePath((string) $index)
@@ -273,6 +276,7 @@ class FieldMapping extends Field
                     array_keys($row),
                 ));
         }
+
         $schemas += $this->makeSourceSettingsSchemas();
         foreach ($this->cachedStaticTargets as $target) {
             $schema = $this->getStaticFormSchema($target);
@@ -280,6 +284,7 @@ class FieldMapping extends Field
                 $schemas[self::stateKey($target)] = $schema;
             }
         }
+
         $schemas['sourceCards'] = $this->makeChildSchema('sourceCards')->inline()->components($this->sourceCards());
 
         return $schemas;
@@ -309,6 +314,7 @@ class FieldMapping extends Field
                 $rows[] = ['kind' => 'source', 'source' => (string) $source, 'target' => null, 'options' => []];
             }
         }
+
         $this->rawState($rows);
         foreach ($this->getStaticDefaults() as $target => $value) {
             if ($this->getStaticRowIndex((string) $target, includeDrafts: true) === null) {
@@ -317,9 +323,11 @@ class FieldMapping extends Field
                     $row['target'] = null;
                     $row['draftTarget'] = (string) $target;
                 }
+
                 $rows[] = $row;
             }
         }
+
         $this->rawState($rows);
         $this->clearCachedChildSchemas();
         foreach ($this->getSources() as $source) {
@@ -328,6 +336,7 @@ class FieldMapping extends Field
                 $this->getChildSchemas()['settings_' . $this->getSourceStateKeys()[$source['id']]]->fill();
             }
         }
+
         parent::hydrateState(
             $hydratedDefaultState,
             $shouldCallHydrationHooks,
@@ -343,9 +352,11 @@ class FieldMapping extends Field
             if (!is_int($index) || !is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
+
             if ($row['kind'] === 'static' && $row['target'] === $target) {
                 return $index;
             }
+
             if ($includeDrafts && $row['kind'] === 'static' && ($row['draftTarget'] ?? null) === $target) {
                 $draftIndex = $index;
             }
@@ -384,6 +395,7 @@ class FieldMapping extends Field
         if ($source !== null) {
             $this->sourceSchema = $source;
         }
+
         if ($dest !== null) {
             $this->targetSchema = $dest;
         }
@@ -525,6 +537,7 @@ class FieldMapping extends Field
             foreach ($state as $index => &$row) {
                 $row['position'] ??= $index;
             }
+
             unset($row);
             usort($state, fn (array $a, array $b) => $a['position'] <=> $b['position']);
 
@@ -609,6 +622,7 @@ class FieldMapping extends Field
 
             return;
         }
+
         // Live updates can reach the parent before its child schemas have been resolved.
         $refreshHeadings = $this->sourcePresentationsBeforeUpdate === null;
         $presentations = $this->getSourcePresentations();
@@ -624,6 +638,7 @@ class FieldMapping extends Field
             ) {
                 continue;
             }
+
             /** @var View $heading */
             $heading = $schemas['sourceCards']->getComponent('heading_' . $keys[$source]);
             $heading->viewData(['item' => $item, 'presentation' => $presentation]);
@@ -631,6 +646,7 @@ class FieldMapping extends Field
             $card = $schemas['sourceCards']->getComponent(($refreshHeadings ? 'heading_' : 'card_') . $keys[$source]);
             $card->viewData(['item' => $item, 'presentation' => $presentation])->partiallyRender();
         }
+
         /** @var View $configuration */
         $configuration = $schemas['mappingUi']->getComponent('configuration');
         $configuration->partiallyRender();
@@ -644,6 +660,7 @@ class FieldMapping extends Field
         if (!is_array($value)) {
             return;
         }
+
         $validator = Validator::make(['rows' => $value], [
             'rows' => ['array', 'list'],
             'rows.*' => Rule::forEach(fn (mixed $row) => [Rule::array(
@@ -672,6 +689,7 @@ class FieldMapping extends Field
 
             return;
         }
+
         /** @var array{rows: State} $validated */
         $validated = $validator->validated();
         $value = $validated['rows'];
@@ -686,12 +704,14 @@ class FieldMapping extends Field
 
                     return;
                 }
+
                 $usedSources[$source] = true;
                 if ($row['target'] !== null && ($modes[$source][$row['target']] ?? null) === null) {
                     $fail('The :attribute field contains incompatible source and destination schemas.')->translate();
 
                     return;
                 }
+
                 $mode = $row['target'] === null ? null : $modes[$source][$row['target']];
             } else {
                 if (
@@ -702,6 +722,7 @@ class FieldMapping extends Field
 
                     return;
                 }
+
                 if (
                     $row['target'] !== null
                     && $this->makeStaticField($row['target']) === null
@@ -712,11 +733,14 @@ class FieldMapping extends Field
 
                     return;
                 }
+
                 $mode = MappingMode::Whole;
             }
+
             if ($row['target'] === null) {
                 continue;
             }
+
             if (
                 array_key_exists($row['target'], $usedTargets)
                 && ($mode === MappingMode::Whole
@@ -726,8 +750,10 @@ class FieldMapping extends Field
 
                 return;
             }
+
             $usedTargets[$row['target']] = $mode;
         }
+
         $targets = array_column($this->getTargets(), null, 'id');
         foreach ($this->getRequiredTargets() as $target) {
             if (!array_key_exists($target, $usedTargets)) {

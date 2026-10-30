@@ -13,6 +13,7 @@ beforeEach(function () {
     if (!$url) {
         $this->markTestSkipped('Set DENDROS_PGSQL_URL to a dedicated PostgreSQL test database.');
     }
+
     config()->set('database.connections.dendros_test', ['driver' => 'pgsql', 'url' => $url]);
     config()->set('database.default', 'dendros_test');
     DB::beginTransaction();

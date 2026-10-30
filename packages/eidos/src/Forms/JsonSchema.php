@@ -131,6 +131,7 @@ final readonly class JsonSchema
         if (array_key_exists($name, $properties)) {
             return $properties[$name];
         }
+
         $additional = $this->resolved->additionalProperties();
         if ($additional?->deniesAny()) {
             return null;
@@ -158,6 +159,7 @@ final readonly class JsonSchema
                 $constraints[] = $items;
             }
         }
+
         foreach ([$this->branches('anyOf'), $this->branches('oneOf')] as $branches) {
             $items = [];
             foreach ($branches as $branch) {
@@ -165,6 +167,7 @@ final readonly class JsonSchema
                     $items[] = $branch->itemSchema() ?? self::fromArray([]);
                 }
             }
+
             if ($items !== []) {
                 $constraints[] = self::compose('anyOf', $items);
             }
@@ -193,6 +196,7 @@ final readonly class JsonSchema
             if (($this->resolved->enum() ?? null) !== null) {
                 return 'enum';
             }
+
             $alternatives = $this->alternatives();
             if ($alternatives !== []) {
                 $labels = array_unique(array_map(fn (self $branch) => $branch->label(true), $alternatives));
@@ -201,12 +205,15 @@ final readonly class JsonSchema
 
                 return $label ? $label : 'null';
             }
+
             $format = $this->format();
             if ($format !== null) {
                 return $format;
             }
+
             $types = array_values(array_diff($types, ['null']));
         }
+
         $items = $this->items();
         if ($items !== null) {
             $label = $items->label($formatted);
@@ -272,6 +279,7 @@ final readonly class JsonSchema
         if ($items === null) {
             return [];
         }
+
         $scope = [...$scope, 'items'];
 
         return [
@@ -304,6 +312,7 @@ final readonly class JsonSchema
                 ];
             }
         }
+
         $range = [];
         foreach ([
             [$this->resolved->minimum(), '≥'],
@@ -315,9 +324,11 @@ final readonly class JsonSchema
                 $range[] = $symbol . ' ' . $value;
             }
         }
+
         if ($range !== []) {
             $constraints[] = ['kind' => 'range', 'value' => implode(' · ', $range), 'scope' => $scope];
         }
+
         if ($this->resolved->hasKeyword('pattern')) {
             $constraints[] = [
                 'kind' => 'pattern',
@@ -325,6 +336,7 @@ final readonly class JsonSchema
                 'scope' => $scope,
             ];
         }
+
         if ($this->resolved->hasKeyword('multipleOf')) {
             $constraints[] = [
                 'kind' => 'multiple',
@@ -332,9 +344,11 @@ final readonly class JsonSchema
                 'scope' => $scope,
             ];
         }
+
         if ($this->resolved->uniqueItems() ?? false) {
             $constraints[] = ['kind' => 'unique', 'value' => '', 'scope' => $scope];
         }
+
         foreach ([
             'allOf' => $this->branches('allOf'),
             'anyOf' => $this->branches('anyOf'),
@@ -355,15 +369,18 @@ final readonly class JsonSchema
         foreach ([...$this->branches('anyOf'), ...$this->branches('oneOf')] as $branch) {
             $types = array_merge($types, $branch->types());
         }
+
         foreach ($this->branches('allOf') as $branch) {
             $branchTypes = $branch->types();
             if ($branchTypes !== []) {
                 if (in_array('number', $types, true) && in_array('integer', $branchTypes, true)) {
                     $types[] = 'integer';
                 }
+
                 if (in_array('integer', $types, true) && in_array('number', $branchTypes, true)) {
                     $branchTypes[] = 'integer';
                 }
+
                 $types = $types === [] ? $branchTypes : array_intersect($types, $branchTypes);
             }
         }
@@ -395,6 +412,7 @@ final readonly class JsonSchema
         if ($this->resolved->hasKeyword($name)) {
             return $this->resolved->keyword($name);
         }
+
         foreach ([...$this->branches('allOf'), ...$this->branches('anyOf'), ...$this->branches('oneOf')] as $branch) {
             $value = $branch->annotation($name);
             if ($value !== null) {
@@ -435,6 +453,7 @@ final readonly class JsonSchema
         if ($alternatives !== []) {
             return array_all($alternatives, fn (self $branch) => $branch->compatible($target, $compatibility));
         }
+
         $alternatives = $target->alternatives();
         if ($alternatives !== []) {
             return array_any($alternatives, fn (self $branch) => $this->compatible($branch, $compatibility));
@@ -446,6 +465,7 @@ final readonly class JsonSchema
         if ($sourceTypes !== [] && $targetTypes !== [] && array_diff($sourceTypes, $acceptedTypes) !== []) {
             return false;
         }
+
         $targetValues = $target->enumValues();
         if ($targetValues !== null) {
             $sourceValues = $this->enumValues();
@@ -459,6 +479,7 @@ final readonly class JsonSchema
                 return false;
             }
         }
+
         if (
             ($sourceTypes === []
             || in_array('string', $sourceTypes, true))
@@ -466,6 +487,7 @@ final readonly class JsonSchema
         ) {
             return false;
         }
+
         if (in_array('array', $sourceTypes, true)) {
             return ($this->itemSchema() ?? self::fromArray([]))->compatible(
                 $target->itemSchema() ?? self::fromArray([]),
@@ -540,6 +562,7 @@ final readonly class JsonSchema
         ) {
             return false;
         }
+
         if (!$compatibility->checkStringLengths) {
             return true;
         }
@@ -565,10 +588,12 @@ final readonly class JsonSchema
             if ($branch->types() !== [] && !in_array('string', $branch->types(), true)) {
                 continue;
             }
+
             $bound = $branch->maxLength();
             if ($bound === null) {
                 return null;
             }
+
             $bounds[] = $bound;
         }
 
@@ -584,11 +609,13 @@ final readonly class JsonSchema
             if ($value === null) {
                 continue;
             }
+
             if ($bound === null) {
                 $bound = $value;
 
                 continue;
             }
+
             $bound = $keyword === 'minLength' ? max($bound, $value) : min($bound, $value);
         }
 
