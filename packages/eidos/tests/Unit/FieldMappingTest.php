@@ -132,7 +132,7 @@ it('oriented state preserves cardinality and rejects malformed values', function
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
             source: ['properties' => ['id' => [], 'name' => [], 'active' => []]],
-            dest: [
+            target: [
                 'properties' => [
                     'payload' => ['type' => 'array', 'x-mapping' => 'item', 'items' => []],
                     'enabled' => [],
@@ -154,7 +154,7 @@ it('required destinations come from the schema in both orientations', function (
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
             source: ['properties' => ['id' => [], 'name' => []]],
-            dest: [
+            target: [
                 'required' => ['payload'],
                 'properties' => ['payload' => ['type' => 'array', 'x-mapping' => 'item'], 'optional' => []],
             ],
@@ -186,7 +186,7 @@ it('schema property names retain their identity and metadata independently of ti
             '00' => ['title' => 'Name'],
             'customer.name' => [],
         ],
-    ], dest: CustomerMappingField::jsonSchema());
+    ], target: CustomerMappingField::jsonSchema());
 
     expect(array_column($field->getSources(), 'id'))->toBe(['0', '00', 'customer.name']);
     expect(array_column($field->getSources(), 'label'))->toBe(['Name', 'Name', 'customer.name']);
@@ -204,7 +204,7 @@ it('schema property names retain their identity and metadata independently of ti
 it('mapping validation rejects unknown identifiers and malformed values', function (mixed $value, bool $valid) {
     $field = FieldMapping::make('mapping')->jsonSchema(
         source: ['properties' => ['name' => [], 'email' => []]],
-        dest: ['properties' => ['title' => [], 'contact' => []]],
+        target: ['properties' => ['title' => [], 'contact' => []]],
     );
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
     expect(
@@ -219,7 +219,7 @@ it('schema callbacks change available array destinations reactively', function (
     $array = true;
     $field = FieldMapping::make('mapping')->jsonSchema(
         source: ['properties' => ['name' => [], 'email' => []]],
-        dest: function () use (&$array) {
+        target: function () use (&$array) {
             return ['properties' => [
                 'title' => $array ? ['type' => 'array', 'x-mapping' => 'item'] : ['type' => 'string'],
             ]];
@@ -244,7 +244,7 @@ it('type compatibility is validated on the server', function (?string $sourceTyp
             $field = FieldMapping::make('mapping')
                 ->jsonSchema(
                     source: ['properties' => ['source' => $source]],
-                    dest: ['properties' => [
+                    target: ['properties' => [
                         'target' => $multiple
                             ? ['type' => 'array', 'x-mapping' => 'item', 'items' => $target]
                             : $target,
@@ -268,7 +268,7 @@ it('validates the output schema without changing the source schema', function ()
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
             source: ['properties' => ['active' => ['type' => 'boolean']]],
-            dest: ['properties' => ['name' => ['type' => 'string'], 'enabled' => ['type' => 'boolean']]],
+            target: ['properties' => ['name' => ['type' => 'string'], 'enabled' => ['type' => 'boolean']]],
         )
         ->outputSchema(fn () => ['properties' => ['active' => ['type' => 'string']]]);
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
@@ -300,7 +300,7 @@ it('uses configured schema constraints for connection modes and server validatio
         $field = FieldMapping::make('mapping')
             ->jsonSchema(
                 source: ['properties' => ['source' => ['type' => 'boolean']]],
-                dest: ['properties' => [
+                target: ['properties' => [
                     'target' => $multiple ? ['type' => 'array', 'x-mapping' => 'item', 'items' => $target] : $target,
                 ]],
             )
@@ -372,7 +372,7 @@ it('uses configured schema constraints for connection modes and server validatio
 
 it('adds application restrictions to whole and item connections without overriding schema checks', function () {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(source: ['properties' => ['source' => ['type' => 'string', 'x-domain' => 'customers']]], dest: [
+        ->jsonSchema(source: ['properties' => ['source' => ['type' => 'string', 'x-domain' => 'customers']]], target: [
             'properties' => [
                 'allowed' => ['type' => 'string', 'x-domain' => 'customers'],
                 'blocked' => ['type' => 'string', 'x-domain' => 'orders'],
@@ -416,7 +416,7 @@ it('passes literal field names to connection restrictions for whole and item map
                     'other.id' => ['type' => 'string'],
                 ],
             ],
-            dest: [
+            target: [
                 'properties' => [
                     'key.id' => ['type' => 'string'],
                     'label' => ['type' => 'string'],
@@ -468,7 +468,7 @@ it('distinguishes whole arrays from explicitly collected items', function (bool 
                     'email' => ['type' => 'string'],
                 ],
             ],
-            dest: [
+            target: [
                 'required' => ['contacts'],
                 'properties' => [
                     'contacts' => ['type' => 'array', 'x-mapping' => 'item', 'items' => ['type' => 'string']],
@@ -497,7 +497,7 @@ it('distinguishes whole arrays from explicitly collected items', function (bool 
 it('accepts array sources as items only when the destination items are arrays', function () {
     $field = FieldMapping::make('mapping')->jsonSchema(
         source: ['properties' => ['list' => ['type' => 'array', 'items' => ['type' => 'string']]]],
-        dest: [
+        target: [
             'properties' => [
                 'matrix' => [
                     'type' => 'array',
@@ -522,7 +522,7 @@ it('static values are accepted for every known destination and retain string for
     bool $valid,
 ) {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(dest: ['required' => ['enabled'], 'properties' => ['enabled' => ['type' => 'boolean']]]);
+        ->jsonSchema(target: ['required' => ['enabled'], 'properties' => ['enabled' => ['type' => 'boolean']]]);
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
     expect(
         $validator
@@ -573,7 +573,7 @@ it('uses enum compatibility for connection availability and submitted mappings i
                     'wide' => ['type' => 'string', 'enum' => ['draft', 'active', 'blocked']],
                 ],
             ],
-            dest: ['properties' => ['status' => ['type' => 'string', 'enum' => ['draft', 'active']]]],
+            target: ['properties' => ['status' => ['type' => 'string', 'enum' => ['draft', 'active']]]],
         );
     $modes = $field->getConnectionModes();
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
@@ -600,7 +600,7 @@ it('keeps unannotated arrays and objects as whole values', function () {
                 'object' => ['type' => 'object'],
             ],
         ],
-        dest: [
+        target: [
             'properties' => [
                 'list' => ['type' => 'array', 'items' => ['type' => 'string']],
                 'object' => ['type' => 'object'],
@@ -623,7 +623,7 @@ it('collects items of each supported type using the item schema', function (
 ) {
     $field = FieldMapping::make('mapping')->jsonSchema(
         source: ['properties' => ['field' => $source]],
-        dest: ['properties' => ['collection' => ['type' => 'array', 'x-mapping' => 'item', 'items' => $items]]],
+        target: ['properties' => ['collection' => ['type' => 'array', 'x-mapping' => 'item', 'items' => $items]]],
     );
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
 
@@ -667,7 +667,7 @@ it('collects object properties under literal source names in both orientations',
                     'tags' => ['type' => 'array'],
                 ],
             ],
-            dest: [
+            target: [
                 'required' => ['custom'],
                 'properties' => ['custom' => ['type' => 'object', 'x-mapping' => 'property']],
             ],
@@ -705,7 +705,7 @@ it('checks property output schemas and application restrictions without renaming
                     'unknown' => ['type' => 'string'],
                 ],
             ],
-            dest: [
+            target: [
                 'properties' => [
                     'custom' => [
                         'type' => 'object',
@@ -756,7 +756,7 @@ it('uses the additional property schema for unnamed object properties', function
 ) {
     $field = FieldMapping::make('mapping')->jsonSchema(
         source: ['properties' => ['count' => ['type' => 'integer']]],
-        dest: [
+        target: [
             'properties' => ['custom' => [
                 'type' => 'object',
                 'x-mapping' => 'property',

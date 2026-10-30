@@ -27,7 +27,7 @@ uses(TestCase::class);
 function builtin_static_schema(array $property, mixed $value = null): Schema
 {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(source: ['properties' => ['source' => ['type' => 'string']]], dest: [
+        ->jsonSchema(source: ['properties' => ['source' => ['type' => 'string']]], target: [
             'properties' => ['target' => $property],
             'required' => ['target'],
         ])
@@ -174,7 +174,7 @@ it('leaves unsupported built-in static types available for connections', functio
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
             source: ['properties' => ['source' => $property]],
-            dest: ['properties' => ['target' => $property], 'required' => ['target']],
+            target: ['properties' => ['target' => $property], 'required' => ['target']],
         )
         ->withBuiltinStaticForms();
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
@@ -211,7 +211,7 @@ it('replaces built-in static forms with a target factory', function (string $typ
 
 it('reuses built-in editors inside a target factory', function () {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(dest: [
+        ->jsonSchema(target: [
             'properties' => [
                 'id' => ['type' => 'string'],
                 'active' => ['type' => 'boolean'],
@@ -232,7 +232,7 @@ it('reuses built-in editors inside a target factory', function () {
 
 it('renders destination static forms without source fields', function () {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(source: ['type' => 'object'], dest: [
+        ->jsonSchema(source: ['type' => 'object'], target: [
             'properties' => [
                 'name' => ['type' => 'string', 'title' => 'Name', 'maxLength' => 255],
                 'active' => ['type' => 'boolean', 'title' => 'Active'],

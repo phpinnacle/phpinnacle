@@ -255,16 +255,9 @@ class FieldBinding extends Field
         array &$appliedStateCastPaths = [],
     ): void {
         $this->hydrateDefaultState($hydratedDefaultState);
+        $this->initializeSourceRows();
         /** @var State $rows */
         $rows = $this->getRawState() ?? [];
-        $sources = array_column(array_filter($rows, fn (array $row) => $row['kind'] === 'source'), 'source');
-        foreach ($this->getSources() as $source) {
-            if (!in_array($source['id'], $sources, true)) {
-                $rows[] = ['kind' => 'source', 'source' => $source['id'], 'target' => null, 'options' => []];
-            }
-        }
-
-        $this->rawState($rows);
         $this->clearCachedChildSchemas();
         foreach ($this->getSources() as $source) {
             $index = $this->getSourceRowIndex($source['id']);

@@ -434,7 +434,7 @@ FieldMapping::make('mapping')
             'email' => ['type' => 'string'],
             'phones' => ['type' => 'array', 'items' => ['type' => 'string']],
         ]],
-        dest: ['type' => 'object', 'required' => ['contact'], 'properties' => [
+        target: ['type' => 'object', 'required' => ['contact'], 'properties' => [
             'contact' => ['type' => 'string', 'title' => 'Contact name'],
             'phone_numbers' => ['type' => 'array', 'x-mapping' => 'item', 'items' => ['type' => 'string']],
             'custom' => ['type' => 'object', 'x-mapping' => 'property'],
@@ -534,6 +534,8 @@ FieldMapping::make('mapping')
 | Other arrays, nullable arrays, `object` | No built-in editor; register a custom `staticForms()` factory |
 | `null` | Read-only null value |
 
+Static value editors own their submitted values. When a custom editor uses `dehydrated(false)`, its entire static mapping row is omitted from `getState()`. Explicitly dehydrated `null`, `false`, zero, and empty values retain their native meaning; inactive editor drafts are omitted independently of the value.
+
 The built-in fields follow destination `required` and nullable types, string length limits, and numeric minimum/maximum bounds. Dates serialize as `Y-m-d`, times as `H:i:s`, and date-times as `Y-m-d\TH:i:sP`. Repeaters use `items` to select and validate each field, apply `minItems` and `maxItems`, and use Filament's distinct validation for string and numeric `uniqueItems`. Boolean items use a Select. Empty arrays are allowed unless `minItems` requires entries. `withBuiltinStaticForms()` sets the factory to the standard editors; a later `staticForms()` call replaces it.
 
 There are no built-in JSON editors. Objects, arrays without a supported scalar item type, and nullable arrays offer connections only unless a custom factory is registered. The installed Filament simple repeater cannot hydrate composite items without changing their values or preserve `null` separately from `[]`.
@@ -567,7 +569,7 @@ use PHPinnacle\Eidos\Forms\BuiltinStaticForms;
 )
 ```
 
-An unconnected destination immediately shows its configured editor and becomes a static value initialized with the field's default. Every visible editor counts as mapped, including an empty one. Its native validation, state casts, and dehydration callbacks run on submission; `required()` can reject an empty editor. Values retain their field's type, including `false`, zero, arrays, and `null` when allowed. Custom factories must declare their own value validation.
+An unconnected destination immediately shows its configured editor and becomes a static value initialized with the field's default. Every editor whose value is dehydrated counts as mapped, including an empty one. Its native validation, state casts, and dehydration callbacks run on submission; `required()` can reject an empty editor. Values retain their field's type, including `false`, zero, arrays, and `null` when allowed. Custom factories must declare their own value validation.
 
 Native static editors bind to `{rowIndex}.static`. Connecting a source replaces and hides the destination editor. Removing the destination's final connection restores it with a fresh copy of the configured default, so edits to nested values do not change future resets. Structural changes use a Livewire render when native child forms are present, keeping their row paths and actions current. Native live fields and actions make their usual requests.
 

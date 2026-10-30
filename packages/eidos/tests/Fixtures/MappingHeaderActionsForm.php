@@ -44,7 +44,7 @@ class MappingHeaderActionsForm extends Component implements HasActions, HasSchem
         $source = fn (Get $get) => $get('schema');
         $field = $this->binding
             ? FieldBinding::make('mapping')->jsonSchema($source)->simple(TextInput::make('destination')->required())
-            : FieldMapping::make('mapping')->jsonSchema(source: $source, dest: [
+            : FieldMapping::make('mapping')->jsonSchema(source: $source, target: [
                 'properties' => ['destination' => ['type' => 'string']],
             ]);
         $field

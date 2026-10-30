@@ -268,12 +268,21 @@ class FieldMapping extends Field
                 continue;
             }
 
+            $names = array_keys($row);
+            if (
+                $row['kind'] === 'static'
+                && in_array($row['target'], $this->cachedStaticTargets, true)
+                && $this->makeStaticField($row['target']) !== null
+            ) {
+                $names = array_values(array_diff($names, ['static']));
+            }
+
             $schemas['row_' . $index] = $this
                 ->makeChildSchema('row_' . $index)
                 ->statePath((string) $index)
                 ->components(array_map(
                     fn (string $name) => Hidden::make($name)->default($row[$name])->rules(['present']),
-                    array_keys($row),
+                    $names,
                 ));
         }
 
@@ -388,16 +397,16 @@ class FieldMapping extends Field
 
     /**
      * @param Definition|Closure $source
-     * @param Definition|Closure $dest
+     * @param Definition|Closure $target
      */
-    public function jsonSchema(array|Closure|null $source = null, array|Closure|null $dest = null): static
+    public function jsonSchema(array|Closure|null $source = null, array|Closure|null $target = null): static
     {
         if ($source !== null) {
             $this->sourceSchema = $source;
         }
 
-        if ($dest !== null) {
-            $this->targetSchema = $dest;
+        if ($target !== null) {
+            $this->targetSchema = $target;
         }
 
         return $this;
@@ -533,7 +542,7 @@ class FieldMapping extends Field
         ], 'mappingUi');
         $this->default([]);
         $this->mutateDehydratedStateUsing(function (array $state) {
-            /** @var State $state */
+            /** @var list<SourceState|array{kind: 'static', target: string|null, static?: mixed, options: array<string, mixed>, position?: int, draftTarget?: string}> $state */
             foreach ($state as $index => &$row) {
                 $row['position'] ??= $index;
             }
@@ -545,13 +554,24 @@ class FieldMapping extends Field
                 function (array $row) {
                     unset($row['position'], $row['draftTarget']);
 
-                    return $row;
+                    return (
+                        $row['kind'] === 'source'
+                            ? $row
+                            : [
+                                'kind' => 'static',
+                                'target' => $row['target'],
+                                'static' => $row['static'],
+                                'options' => $row['options'],
+                            ]
+                    );
                 },
                 array_filter(
                     $state,
-                    fn (array $row) => $row['kind'] !== 'static'
-                    || $row['target'] !== null
-                    || !array_key_exists('draftTarget', $row),
+                    fn (array $row) => (
+                        $row['kind'] !== 'static'
+                        || array_key_exists('static', $row)
+                        && ($row['target'] !== null || !array_key_exists('draftTarget', $row))
+                    ),
                 ),
             ));
         });

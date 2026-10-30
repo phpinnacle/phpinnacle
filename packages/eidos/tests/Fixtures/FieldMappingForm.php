@@ -54,7 +54,7 @@ class FieldMappingForm extends Component implements HasSchemas
                 FieldMapping::make('mapping')
                     ->jsonSchema(source: [
                         'properties' => ['first' => ['type' => 'string'], 'second' => ['type' => 'string']],
-                    ], dest: $target)
+                    ], target: $target)
                     ->sourceSettings(fn () => [Select::make('type')
                         ->options(['string' => 'String', 'boolean' => 'Boolean'])
                         ->default('string')
