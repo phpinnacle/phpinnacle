@@ -4,7 +4,7 @@
     x-load
     x-load-src="{{ \Filament\Support\Facades\FilamentAsset::getScriptSrc('resources/js/json-schema-tools', package: 'phpinnacle/eidos') }}"
     x-data="jsonSchemaTools()"
-    x-effect="schemaSelectedKey = {{ $value }}; schemaSyncSelection()"
+    x-effect="schemaSelectedKey = {{ $value }}"
     {{ $attributes->class(['eidos-json-schema-entry']) }}
 >
     @include('phpinnacle-eidos::components.json-schema-options')

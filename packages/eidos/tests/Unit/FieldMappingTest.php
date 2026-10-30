@@ -131,7 +131,12 @@ it('oriented state preserves cardinality and rejects malformed values', function
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
             source: ['properties' => ['id' => [], 'name' => [], 'active' => []]],
-            dest: ['properties' => ['payload' => ['type' => 'array', 'items' => []], 'enabled' => []]],
+            dest: [
+                'properties' => [
+                    'payload' => ['type' => 'array', 'x-mapping' => 'item', 'items' => []],
+                    'enabled' => [],
+                ],
+            ],
         )
         ->inverse($inverse);
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
@@ -148,7 +153,10 @@ it('required destinations come from the schema in both orientations', function (
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
             source: ['properties' => ['id' => [], 'name' => []]],
-            dest: ['required' => ['payload'], 'properties' => ['payload' => ['type' => 'array'], 'optional' => []]],
+            dest: [
+                'required' => ['payload'],
+                'properties' => ['payload' => ['type' => 'array', 'x-mapping' => 'item'], 'optional' => []],
+            ],
         )
         ->inverse($inverse);
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
@@ -211,7 +219,9 @@ it('schema callbacks change available array destinations reactively', function (
     $field = FieldMapping::make('mapping')->jsonSchema(
         source: ['properties' => ['name' => [], 'email' => []]],
         dest: function () use (&$array) {
-            return ['properties' => ['title' => $array ? ['type' => 'array'] : ['type' => 'string']]];
+            return ['properties' => [
+                'title' => $array ? ['type' => 'array', 'x-mapping' => 'item'] : ['type' => 'string'],
+            ]];
         },
     );
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
@@ -233,7 +243,11 @@ it('type compatibility is validated on the server', function (?string $sourceTyp
             $field = FieldMapping::make('mapping')
                 ->jsonSchema(
                     source: ['properties' => ['source' => $source]],
-                    dest: ['properties' => ['target' => $multiple ? ['type' => 'array', 'items' => $target] : $target]],
+                    dest: ['properties' => [
+                        'target' => $multiple
+                            ? ['type' => 'array', 'x-mapping' => 'item', 'items' => $target]
+                            : $target,
+                    ]],
                 )
                 ->inverse($inverse);
             $value = ['target' => $multiple ? [MappingState::source('source')] : MappingState::source('source')];
@@ -285,7 +299,9 @@ it('uses configured schema constraints for connection modes and server validatio
         $field = FieldMapping::make('mapping')
             ->jsonSchema(
                 source: ['properties' => ['source' => ['type' => 'boolean']]],
-                dest: ['properties' => ['target' => $multiple ? ['type' => 'array', 'items' => $target] : $target]],
+                dest: ['properties' => [
+                    'target' => $multiple ? ['type' => 'array', 'x-mapping' => 'item', 'items' => $target] : $target,
+                ]],
             )
             ->outputSchema(fn () => ['properties' => ['source' => $source]])
             ->compatibility($compatibility);
@@ -360,7 +376,11 @@ it('adds application restrictions to whole and item connections without overridi
                 'allowed' => ['type' => 'string', 'x-domain' => 'customers'],
                 'blocked' => ['type' => 'string', 'x-domain' => 'orders'],
                 'wrong_type' => ['type' => 'boolean', 'x-domain' => 'customers'],
-                'items' => ['type' => 'array', 'items' => ['type' => 'string', 'x-domain' => 'customers']],
+                'items' => [
+                    'type' => 'array',
+                    'x-mapping' => 'item',
+                    'items' => ['type' => 'string', 'x-domain' => 'customers'],
+                ],
             ],
         ])
         ->canConnectUsing(
@@ -396,7 +416,7 @@ it('passes literal field names to connection restrictions for whole and item map
                 'properties' => [
                     'key.id' => ['type' => 'string'],
                     'label' => ['type' => 'string'],
-                    'key.parts' => ['type' => 'array', 'items' => ['type' => 'string']],
+                    'key.parts' => ['type' => 'array', 'x-mapping' => 'item', 'items' => ['type' => 'string']],
                 ],
             ],
         )
@@ -430,7 +450,7 @@ it('passes literal field names to connection restrictions for whole and item map
     }
 });
 
-it('accepts an array as a whole value or individual items without mixing them', function (bool $inverse) {
+it('distinguishes whole arrays from explicitly collected items', function (bool $inverse) {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
             source: [
@@ -442,13 +462,17 @@ it('accepts an array as a whole value or individual items without mixing them', 
             ],
             dest: [
                 'required' => ['contacts'],
-                'properties' => ['contacts' => ['type' => 'array', 'items' => ['type' => 'string']]],
+                'properties' => [
+                    'contacts' => ['type' => 'array', 'x-mapping' => 'item', 'items' => ['type' => 'string']],
+                    'whole_contacts' => ['type' => 'array', 'items' => ['type' => 'string']],
+                ],
             ],
         )
         ->inverse($inverse);
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
     $values = [
-        [['contacts' => MappingState::source('list')], true],
+        [['contacts' => MappingState::source('list')], false],
+        [['whole_contacts' => MappingState::source('list'), 'contacts' => MappingState::source('name')], true],
         [['contacts' => [MappingState::source('name'), MappingState::source('email')]], true],
         [['contacts' => [MappingState::source('list'), MappingState::source('name')]], false],
     ];
@@ -467,7 +491,11 @@ it('accepts array sources as items only when the destination items are arrays', 
         source: ['properties' => ['list' => ['type' => 'array', 'items' => ['type' => 'string']]]],
         dest: [
             'properties' => [
-                'matrix' => ['type' => 'array', 'items' => ['type' => 'array', 'items' => ['type' => 'string']]],
+                'matrix' => [
+                    'type' => 'array',
+                    'x-mapping' => 'item',
+                    'items' => ['type' => 'array', 'items' => ['type' => 'string']],
+                ],
             ],
         ],
     );
@@ -554,3 +582,182 @@ it('uses enum compatibility for connection availability and submitted mappings i
             ->toBe($allowed);
     }
 })->with([false, true]);
+
+it('keeps unannotated arrays and objects as whole values', function () {
+    $field = FieldMapping::make('mapping')->jsonSchema(
+        source: [
+            'properties' => [
+                'text' => ['type' => 'string'],
+                'list' => ['type' => 'array', 'items' => ['type' => 'string']],
+                'object' => ['type' => 'object'],
+            ],
+        ],
+        dest: [
+            'properties' => [
+                'list' => ['type' => 'array', 'items' => ['type' => 'string']],
+                'object' => ['type' => 'object'],
+            ],
+        ],
+    );
+
+    expect($field->getMultipleTargets())->toBe([]);
+    expect($field->getConnectionModes())->toBe([
+        'list' => ['list' => 'whole'],
+        'object' => ['object' => 'whole'],
+    ]);
+});
+
+it('collects items of each supported type using the item schema', function (
+    array $source,
+    array $items,
+    bool $allowed,
+) {
+    $field = FieldMapping::make('mapping')->jsonSchema(
+        source: ['properties' => ['field' => $source]],
+        dest: ['properties' => ['collection' => ['type' => 'array', 'x-mapping' => 'item', 'items' => $items]]],
+    );
+    $validator = new Factory(new Translator(new ArrayLoader, 'en'));
+
+    expect($field->getConnectionModes()['field']['collection'] ?? null)->toBe($allowed ? 'item' : null);
+    expect(
+        $validator
+            ->make(
+                ['mapping' => MappingState::mapping(['collection' => MappingState::source('field')])],
+                ['mapping' => $field->getValidationRules()],
+            )
+            ->passes(),
+    )
+        ->toBe($allowed);
+})->with([
+    'string in union' => [['type' => 'string'], ['type' => ['string', 'integer', 'boolean']], true],
+    'integer in union' => [['type' => 'integer'], ['type' => ['string', 'integer', 'boolean']], true],
+    'boolean in union' => [['type' => 'boolean'], ['type' => ['string', 'integer', 'boolean']], true],
+    'number outside union' => [['type' => 'number'], ['type' => ['string', 'integer', 'boolean']], false],
+    'nullable integer' => [['type' => ['integer', 'null']], ['type' => ['number', 'null']], true],
+    'null' => [['type' => 'null'], ['type' => ['string', 'null']], true],
+    'object' => [['type' => 'object'], ['type' => 'object'], true],
+    'nested array' => [
+        ['type' => 'array', 'items' => ['type' => 'string']],
+        ['type' => 'array', 'items' => ['type' => 'string']],
+        true,
+    ],
+    'unrestricted item' => [['type' => 'array'], [], true],
+]);
+
+it('collects object properties under literal source names in both orientations', function (bool $inverse) {
+    $field = FieldMapping::make('mapping')
+        ->inverse($inverse)
+        ->jsonSchema(
+            source: [
+                'properties' => [
+                    '_my_field' => ['type' => 'integer'],
+                    'customer.name' => ['type' => 'string'],
+                    '0' => ['type' => 'boolean'],
+                    'details' => ['type' => 'object'],
+                    'tags' => ['type' => 'array'],
+                ],
+            ],
+            dest: [
+                'required' => ['custom'],
+                'properties' => ['custom' => ['type' => 'object', 'x-mapping' => 'property']],
+            ],
+        );
+    $state = MappingState::mapping(['custom' => [
+        MappingState::source('_my_field'),
+        MappingState::source('customer.name'),
+        MappingState::source('0'),
+        MappingState::source('details'),
+        MappingState::source('tags'),
+    ]]);
+    $validator = new Factory(new Translator(new ArrayLoader, 'en'));
+
+    expect($field->getMultipleTargets())->toBe(['custom']);
+    expect($field->getConnectionModes())->toBe([
+        '_my_field' => ['custom' => 'property'],
+        'customer.name' => ['custom' => 'property'],
+        0 => ['custom' => 'property'],
+        'details' => ['custom' => 'property'],
+        'tags' => ['custom' => 'property'],
+    ]);
+    expect($validator->make(['mapping' => $state], ['mapping' => $field->getValidationRules()])->passes())->toBeTrue();
+    expect($validator->make(['mapping' => []], ['mapping' => $field->getValidationRules()])->passes())->toBeFalse();
+})->with([false, true]);
+
+it('checks property output schemas and application restrictions without renaming source keys', function () {
+    $field = FieldMapping::make('mapping')
+        ->jsonSchema(
+            source: [
+                'properties' => [
+                    'name' => ['type' => 'boolean'],
+                    'enabled' => ['type' => 'boolean'],
+                    'blocked' => ['type' => 'string'],
+                    'unknown' => ['type' => 'string'],
+                ],
+            ],
+            dest: [
+                'properties' => [
+                    'custom' => [
+                        'type' => 'object',
+                        'x-mapping' => 'property',
+                        'properties' => [
+                            'name' => ['type' => 'string'],
+                            'enabled' => ['type' => 'string'],
+                            'blocked' => [],
+                        ],
+                        'additionalProperties' => false,
+                    ],
+                ],
+            ],
+        )
+        ->outputSchema(fn () => [
+            'properties' => [
+                'name' => ['type' => 'string'],
+                'enabled' => ['type' => 'boolean'],
+                'blocked' => ['type' => 'string'],
+                'unknown' => ['type' => 'string'],
+            ],
+        ])
+        ->canConnectUsing(
+            fn (JsonSchema $source, JsonSchema $target, string $sourceName, string $targetName) => (
+                $sourceName !== 'blocked'
+                && $targetName === 'custom'
+            ),
+        );
+    $validator = new Factory(new Translator(new ArrayLoader, 'en'));
+
+    expect($field->getConnectionModes())->toBe(['name' => ['custom' => 'property']]);
+    foreach (['name' => true, 'enabled' => false, 'blocked' => false, 'unknown' => false] as $source => $allowed) {
+        expect(
+            $validator
+                ->make(
+                    ['mapping' => MappingState::mapping(['custom' => MappingState::source($source)])],
+                    ['mapping' => $field->getValidationRules()],
+                )
+                ->passes(),
+        )
+            ->toBe($allowed);
+    }
+});
+
+it('uses the additional property schema for unnamed object properties', function (
+    array|bool $additional,
+    bool $allowed,
+) {
+    $field = FieldMapping::make('mapping')->jsonSchema(
+        source: ['properties' => ['count' => ['type' => 'integer']]],
+        dest: [
+            'properties' => ['custom' => [
+                'type' => 'object',
+                'x-mapping' => 'property',
+                'additionalProperties' => $additional,
+            ]],
+        ],
+    );
+
+    expect($field->getConnectionModes()['count']['custom'] ?? null)->toBe($allowed ? 'property' : null);
+})->with([
+    'open' => [true, true],
+    'closed' => [false, false],
+    'numeric' => [['type' => 'number'], true],
+    'text' => [['type' => 'string'], false],
+]);

@@ -90,7 +90,6 @@ test('rebuilds adapter groups from current display options while preserving exac
     tools.schemaSelectedKey = "$['metadata.version']"
     const rebuild = () => {
         tools.schemaData = tools.schemaBuildGroups(document, 'Schema')
-        tools.schemaSyncSelection()
     }
     rebuild()
     assert.equal(tools.schemaData[0].sources.some(source => source.key === '[]'), false)
@@ -272,7 +271,6 @@ test('resolves selected metadata from current schema and resets it when cleared 
     } }
     tools.schemaSelectedKey = "$['metadata']['version']"
     tools.schemaData = schemaGroups(document, 'Result', { includeRoot: false, format: true, constraints: true, icons: { code: '<svg></svg>' } })
-    tools.schemaSyncSelection()
     assert.equal(tools.schemaSelectedSource.fieldLabel, 'metadata → version')
     assert.equal(tools.schemaSelectedSource.description, 'API version')
     assert.equal(tools.schemaSelectedSource.type, 'enum')
@@ -281,17 +279,13 @@ test('resolves selected metadata from current schema and resets it when cleared 
     assert.deepEqual(tools.schemaSelectedSource.constraints[0].values, [{ kind: 'length', value: '≥ 1' }])
     assert.deepEqual(tools.schemaSelectedSource.enums[0].values, ['"v1"'])
     tools.schemaData = schemaGroups(document, 'Result', { includeRoot: false })
-    tools.schemaSyncSelection()
     assert.equal(tools.schemaSelectedSource.type, 'string')
     assert.deepEqual(tools.schemaSelectedSource.constraints, [])
     tools.schemaSelectedKey = null
-    tools.schemaSyncSelection()
     assert.equal(tools.schemaSelectedSource, null)
     tools.schemaSelectedKey = "$['metadata.version']"
-    tools.schemaSyncSelection()
     assert.equal(tools.schemaSelectedSource.type, 'integer')
     tools.schemaData = []
-    tools.schemaSyncSelection()
     assert.equal(tools.schemaSelectedSource, null)
 })
 
@@ -496,7 +490,6 @@ test('applies palette, HEX and RGBA colors to field presentation with scoped uni
     assert.deepEqual(picker.jsonSchemaColorStyles('success'), tools.jsonSchemaColorStyles('success'))
     tools.schemaData = schemaGroups(document, 'Result', { includeRoot: false })
     tools.schemaSelectedKey = "$['email']"
-    tools.schemaSyncSelection()
     assert.equal(tools.schemaSelectedSource.color, '#3b82f680')
     assert.deepEqual(tools.schemaSelectedSource.value, "$['email']")
 })
@@ -511,7 +504,6 @@ test('toggles palette and literal colors without changing schema annotations, ic
     tools.schemaSelectedKey = "$['email']"
     for (const colors of [true, false, true]) {
         tools.schemaData = schemaGroups(document, 'Result', { ...options, colors })
-        tools.schemaSyncSelection()
         assert.equal(tools.schemaSelectedSource.color, colors ? '#2563eb' : undefined)
         assert.deepEqual(tools.schemaSelectedSource.value, "$['email']")
         assert.equal(tools.schemaSelectedSource.iconHtml, '<svg></svg>')
@@ -965,7 +957,6 @@ test('enables wildcard selection through the shared option', () => {
     tools.schemaSelectedKey = "$['tags'][*]['name']"
     const rebuild = () => {
         tools.schemaData = tools.schemaBuildGroups(schema, 'Schema')
-        tools.schemaSyncSelection()
         return tools.schemaSelectedSource
     }
     assert.equal(rebuild().compatible, false)
@@ -1019,4 +1010,21 @@ test('uses x-enum labels in picker presentations and escapes labels in popovers'
 test('uses JSON keys for numeric, Boolean and null x-enum labels', () => {
     const enumerations = schemaEnums({ enum: [0, true, null], 'x-enum': { 0: 'Zero', true: 'Yes', null: 'None' } }, true)
     assert.deepEqual(enumerations[0].values, ['Zero', 'Yes', 'None'])
+})
+
+test('toggles multiple paths and refreshes selected metadata without changing other pickers', () => {
+    const tools = jsonSchemaTools()
+    tools.schemaData = schemaGroups(schema, 'Record', { includeRoot: false })
+    tools.schemaSelectedKey = tools.schemaToggleSelection([], "$['customer']['email']")
+    tools.schemaSelectedKey = tools.schemaToggleSelection(tools.schemaSelectedKey, "$['tags']")
+    assert.deepEqual(tools.schemaSelections.map(selection => selection.source.fieldLabel), ['customer → email', 'tags'])
+    assert.deepEqual(jsonSchemaTools().schemaSelections, [])
+
+    tools.schemaSelectedKey = tools.schemaToggleSelection(tools.schemaSelectedKey, "$['customer']['email']")
+    assert.deepEqual(tools.schemaSelections.map(selection => selection.value), ["$['tags']"])
+
+    tools.schemaData = []
+    assert.deepEqual(tools.schemaSelections, [{ value: "$['tags']", source: null }])
+    tools.schemaSelectedKey = []
+    assert.deepEqual(tools.schemaSelections, [])
 })

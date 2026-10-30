@@ -10,7 +10,21 @@
     --eidos-toolbar-font-size: 0.875rem;
     --eidos-columns: minmax(0, var(--eidos-left-column)) minmax(0, var(--eidos-gap-column)) minmax(0, var(--eidos-right-column));
     --eidos-connection-danger: var(--danger-600);
+    position: relative;
     isolation: isolate;
+}
+
+.eidos-mapping-loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    border-radius: inherit;
+    background: color-mix(in oklab, white 65%, transparent);
+}
+
+.dark .eidos-mapping-loading::after {
+    background: color-mix(in oklab, var(--gray-900) 65%, transparent);
 }
 
 .field-mapping.fi-dense,

@@ -8,7 +8,7 @@ export default function jsonSchemaTools() {
     return {
         ...schemaPresentation,
         schemaGroups, schemaSelectionLabel, schemaSelectedKey: null,
-        schemaData: [], schemaSelectedSource: null,
+        schemaData: [],
         schemaDescriptions: true, schemaColors: true, schemaFormat: false, schemaProperties: true, schemaRequired: false,
         schemaSelectArrayItemFields: false, schemaConstraints: false, schemaCompact: false, schemaSearchable: true, schemaIcons: {}, schemaPropertyTitles: {},
         dropdownResizeObserver: null,
@@ -20,8 +20,17 @@ export default function jsonSchemaTools() {
                 icons: this.schemaIcons, colors: this.schemaColors, propertyTitles: this.schemaPropertyTitles,
             })
         },
-        schemaSyncSelection() {
-            this.schemaSelectedSource = this.schemaData[0]?.sources.find(source => source.value === this.schemaSelectedKey) ?? null
+        get schemaSelections() {
+            const values = Array.isArray(this.schemaSelectedKey) ? this.schemaSelectedKey : [this.schemaSelectedKey]
+            return values.filter(value => value !== null).map(value => ({
+                value, source: this.schemaData[0]?.sources.find(source => source.value === value) ?? null,
+            }))
+        },
+        get schemaSelectedSource() {
+            return this.schemaSelections[0]?.source ?? null
+        },
+        schemaToggleSelection(values, value) {
+            return (values ?? []).includes(value) ? values.filter(selected => selected !== value) : [...(values ?? []), value]
         },
         matchDropdownWidth(panel, trigger) {
             let width = `${trigger.getBoundingClientRect().width}px`

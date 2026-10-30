@@ -15,6 +15,45 @@ use Tests\TestCase;
 
 uses(TestCase::class);
 
+it('hydrates and dehydrates multiple paths independently of a single picker', function () {
+    $form = eidos_json_schema_form(null);
+    $picker = $form->getComponent('selection')->multiple();
+    $form->components([
+        ...$form->getComponents(),
+        JsonSchemaPicker::make('single')->jsonSchema($picker->getJsonSchema()),
+    ]);
+    $form->fill();
+    expect($form->getState()['selection'])->toBe([]);
+    expect($form->getState()['single'])->toBeNull();
+
+    $paths = ["$['totals']['subtotal']", "$['customer']['email']"];
+    $form->fill(['selection' => $paths, 'single' => "$['tags']"]);
+
+    expect($form->getState()['selection'])->toBe($paths);
+    expect($form->getState()['single'])->toBe("$['tags']");
+
+    $picker->dehydrateStateUsing(fn (array $state) => implode(',', $state));
+    expect($form->getState()['selection'])->toBe(implode(',', $paths));
+    expect($form->getState()['single'])->toBe("$['tags']");
+    expect($picker->getState())->toBe($paths);
+});
+
+it('validates multiple paths as a list of distinct available fields', function (mixed $selection) {
+    $form = eidos_json_schema_form(null);
+    $form->getComponent('selection')->multiple()->required();
+    $form->fill(['selection' => $selection]);
+
+    expect($form->getState(...))->toThrow(ValidationException::class);
+})->with([
+    'empty' => [[]],
+    'single path' => ["$['tags']"],
+    'unknown path' => [["$['missing']"]],
+    'duplicate' => [["$['tags']", "$['tags']"]],
+    'null item' => [[null]],
+    'nested list' => [[["$['tags']"]]],
+    'associative' => [['field' => "$['tags']"]],
+]);
+
 it('selects array item fields only when explicitly enabled and preserves their JSONPath state', function () {
     $path = "$['tags'][*]['name']";
     $form = eidos_json_schema_form($path);

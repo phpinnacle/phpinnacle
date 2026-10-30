@@ -125,6 +125,30 @@ final readonly class JsonSchema
         return array_values(array_unique($required));
     }
 
+    /** @return 'whole'|'item'|'property' */
+    public function mappingMode(): string
+    {
+        return match ([$this->singleType(), $this->annotation('x-mapping')]) {
+            ['array', 'item'] => 'item',
+            ['object', 'property'] => 'property',
+            default => 'whole',
+        };
+    }
+
+    public function property(string $name): ?self
+    {
+        $properties = $this->properties();
+        if (array_key_exists($name, $properties)) {
+            return $properties[$name];
+        }
+        $additional = $this->resolved->additionalProperties();
+        if ($additional?->deniesAny()) {
+            return null;
+        }
+
+        return $additional === null || $additional->allowsAny() ? self::fromArray([]) : self::fromSchema($additional);
+    }
+
     public function items(): ?self
     {
         if (array_values(array_diff($this->types(), ['null'])) !== ['array']) {

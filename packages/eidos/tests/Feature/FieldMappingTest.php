@@ -28,6 +28,25 @@ require_once __DIR__ . '/../Fixtures/FieldMappingForm.php';
 
 uses(TestCase::class);
 
+it('blocks mapping editor interaction during Livewire requests', function (string $editor) {
+    $source = ['properties' => ['name' => ['type' => 'string']]];
+    $field = $editor === 'mapping'
+        ? FieldMapping::make('editor')->jsonSchema(source: $source, dest: $source)
+        : FieldBinding::make('editor')->jsonSchema($source)->simple(TextInput::make('destination'));
+    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema->fill();
+    view()->share('errors', new ViewErrorBag);
+
+    $document = new DOMDocument;
+    $document->loadHTML($schema->toHtml(), LIBXML_NOERROR | LIBXML_NOWARNING);
+    $nodes = new DOMXPath($document)->query(
+        '//*[@*[name()="wire:loading.class" and .="eidos-mapping-loading"]]',
+    );
+
+    expect($nodes->length)->toBe(1);
+    expect($nodes->item(0)->getAttribute('wire:loading.attr'))->toBe('inert');
+})->with(['mapping', 'binding']);
+
 it('defers mapping changes with native static forms and source settings', function () {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
@@ -53,7 +72,7 @@ it('keeps native editor addresses and submits ordered connections without inacti
                 'properties' => [
                     'name' => ['type' => 'string'],
                     'note' => ['type' => 'string'],
-                    'list' => ['type' => 'array', 'items' => ['type' => 'string']],
+                    'list' => ['type' => 'array', 'x-mapping' => 'item', 'items' => ['type' => 'string']],
                 ],
             ],
         )
@@ -202,7 +221,7 @@ function static_mapping_schema(array $mapping, array $targets = []): Schema
                     'count' => ['type' => 'number'],
                     '0' => ['type' => 'string'],
                     'raw' => ['type' => 'integer'],
-                    'tags' => ['type' => 'array', 'items' => ['type' => 'string']],
+                    'tags' => ['type' => 'array', 'x-mapping' => 'item', 'items' => ['type' => 'string']],
                 ],
                 array_fill_keys([...array_keys($mapping), ...$targets], true),
             ),
@@ -976,7 +995,7 @@ it('rebinds native settings and static editors to their current row indexes', fu
             'properties' => ['first' => ['type' => 'string'], 'second' => ['type' => 'string']],
         ], dest: [
             'properties' => [
-                'items' => ['type' => 'array', 'items' => ['type' => 'string']],
+                'items' => ['type' => 'array', 'x-mapping' => 'item', 'items' => ['type' => 'string']],
                 'label' => ['type' => 'string'],
             ],
         ])
@@ -1018,3 +1037,54 @@ it('rebinds native settings and static editors to their current row indexes', fu
     $expected[2]['options']['rules'] = [['value' => 'Edited first']];
     expect($schema->getState()['mapping'])->toBe($expected);
 });
+
+it('round trips collection mappings through independent schema instances', function (string $mode, string $type) {
+    $fields = [];
+    foreach (['first', 'second'] as $name) {
+        $fields[] = FieldMapping::make($name)
+            ->jsonSchema(
+                source: ['properties' => ['_my_field' => ['type' => 'string'], 'other.name' => ['type' => 'string']]],
+                dest: [
+                    'properties' => [
+                        'custom' => ['type' => $type, 'x-mapping' => $mode, 'items' => ['type' => 'string']],
+                    ],
+                ],
+            )
+            ->sourceSettings([TextInput::make('alias')]);
+    }
+    $rows = [
+        ['kind' => 'source', 'source' => '_my_field', 'target' => 'custom', 'options' => ['alias' => 'one']],
+        ['kind' => 'source', 'source' => 'other.name', 'target' => 'custom', 'options' => ['alias' => 'two']],
+    ];
+    $schema = Schema::make(SchemaHost::make())->statePath('data')->components($fields);
+    $schema->fill(['first' => $rows, 'second' => $rows]);
+    view()->share('errors', new ViewErrorBag);
+
+    expect($schema->getState())->toBe(['first' => $rows, 'second' => $rows]);
+    expect($schema->toHtml())->toContain($mode === 'property' ? 'Individual properties' : 'Individual items');
+    $changed = $rows;
+    $changed[0]['target'] = null;
+    $fields[0]->state($changed);
+    expect($schema->getState())->toBe(['first' => $changed, 'second' => $rows]);
+    $schema->fill($schema->getState());
+    expect($schema->getState())->toBe(['first' => $changed, 'second' => $rows]);
+})->with(['array items' => ['item', 'array'], 'object properties' => ['property', 'object']]);
+
+it('validates collection connections after reactive source settings change', function (string $mode) {
+    $page = Livewire::test(\PHPinnacle\Eidos\Tests\Fixtures\FieldMappingForm::class, ['mappingMode' => $mode])
+        ->set('data.mapping.0.target', 'destination')
+        ->set('data.mapping.1.target', 'destination')
+        ->call('submit')
+        ->assertHasNoErrors()
+        ->set('data.mapping.0.options.type', 'boolean')
+        ->assertSet('data.mapping.0.target', 'destination')
+        ->assertSet('data.mapping.1.target', 'destination')
+        ->call('submit');
+
+    if ($mode === 'item') {
+        $page->assertHasErrors(['data.mapping']);
+    } else {
+        $page->assertHasNoErrors();
+    }
+    $page->set('data.mapping.0.options.type', 'string')->call('submit')->assertHasNoErrors();
+})->with(['item', 'property']);

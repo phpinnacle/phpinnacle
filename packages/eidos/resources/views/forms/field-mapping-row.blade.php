@@ -52,8 +52,8 @@
                 <x-phpinnacle-eidos::mapping-item :compact="$compact" class="relative" :item="$item" :presentation="$presentation" :multiple="$isMultiple" :warning="$warning">
                     @if ($isMultiple)
                         <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400" x-show="isMapped('target', @js($item['id'])) && !isConstant(@js($item['id']))" x-cloak>
-                            <span x-show="targetMode(@js($item['id'])) === 'whole'">{{ __('phpinnacle-eidos::schema-forms.mapping.whole_array') }}</span>
                             <span x-show="targetMode(@js($item['id'])) === 'item'">{{ __('phpinnacle-eidos::schema-forms.mapping.array_items') }}</span>
+                            <span x-show="targetMode(@js($item['id'])) === 'property'">{{ __('phpinnacle-eidos::schema-forms.mapping.object_properties') }}</span>
                         </span>
                     @endif
                     @if ($side === 'target')

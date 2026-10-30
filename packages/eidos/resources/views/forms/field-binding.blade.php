@@ -35,6 +35,8 @@
             '--eidos-right-column: '.$columnSpans['target'].'fr',
         ]) }}
         wire:key="{{ $getId() }}-{{ $configurationKey }}"
+        wire:loading.class="eidos-mapping-loading"
+        wire:loading.attr="inert"
         x-load
         x-load-src="{{ FilamentAsset::getAlpineComponentSrc('field-binding', 'phpinnacle/eidos') }}"
         x-data="fieldBinding({ state: $wire.$entangle('{{ $statePath }}'), disabled: @js($disabled), sourceKeys: @js(array_column($sources, 'id')), setTarget: (index, value) => $wire.$set(@js($statePath) + '.' + index + '.target', value, false) })"

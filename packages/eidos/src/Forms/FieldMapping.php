@@ -123,10 +123,16 @@ class FieldMapping extends Field
     /** @return list<string> */
     public function getMultipleTargets(): array
     {
-        return array_keys(array_filter(
+        return array_keys(array_filter($this->getTargetModes(), fn (string $mode) => $mode !== 'whole'));
+    }
+
+    /** @return array<string, 'whole'|'item'|'property'> */
+    public function getTargetModes(): array
+    {
+        return array_map(
+            fn (JsonSchema $property) => $property->mappingMode(),
             JsonSchema::fromArray($this->getTargetSchema())->properties(),
-            fn (JsonSchema $property) => $property->items() !== null,
-        ));
+        );
     }
 
     /** @param Closure $forms Factory returning a Field named value or null, with target, property and other Filament-injected arguments. */
@@ -425,7 +431,7 @@ class FieldMapping extends Field
         );
     }
 
-    /** @return array<string, array<string, 'whole'|'item'>> */
+    /** @return array<string, array<string, 'whole'|'item'|'property'>> */
     public function getConnectionModes(): array
     {
         $modes = [];
@@ -434,15 +440,17 @@ class FieldMapping extends Field
         foreach (array_keys(JsonSchema::fromArray($this->getSourceSchema())->properties()) as $source) {
             $output = $outputs[$source] ?? JsonSchema::fromArray([]);
             foreach ($targets as $target => $destination) {
-                $items = $destination->items();
+                $mode = $destination->mappingMode();
+                $targetSchema = match ($mode) {
+                    'item' => $destination->items(),
+                    'property' => $destination->property((string) $source),
+                    default => $destination,
+                };
                 if (
-                    ($items === null
-                    || $output->items() !== null)
-                    && $this->canConnect($output, $destination, $source, $target)
+                    $targetSchema !== null
+                    && $this->canConnect($output, $targetSchema, (string) $source, (string) $target)
                 ) {
-                    $modes[$source][$target] = 'whole';
-                } elseif ($items !== null && $this->canConnect($output, $items, $source, $target)) {
-                    $modes[$source][$target] = 'item';
+                    $modes[$source][$target] = $mode;
                 }
             }
         }
@@ -698,8 +706,8 @@ class FieldMapping extends Field
             }
             if (
                 array_key_exists($row['target'], $usedTargets)
-                && ($mode !== 'item'
-                || $usedTargets[$row['target']] !== 'item')
+                && ($mode === 'whole'
+                || $usedTargets[$row['target']] !== $mode)
             ) {
                 $fail('The :attribute field reuses a destination that only permits one connection.')->translate();
 

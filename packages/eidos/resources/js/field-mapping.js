@@ -1,4 +1,4 @@
-export default function fieldMapping({ element, state, disabled, inverse = false, requiredTargets = [], connectionModes, staticDefaults = {} }) {
+export default function fieldMapping({ element, state, disabled, inverse = false, requiredTargets = [], connectionModes, targetModes, staticDefaults = {} }) {
     let ports;
     const isStaticValue = (entry) => entry?.kind === 'value';
 
@@ -8,6 +8,7 @@ export default function fieldMapping({ element, state, disabled, inverse = false
         inverse,
         requiredTargets,
         connectionModes,
+        targetModes,
         sourceTypes: {},
         search: '',
         visibilityFilter: 'all',
@@ -37,8 +38,9 @@ export default function fieldMapping({ element, state, disabled, inverse = false
             this.observer?.disconnect();
         },
 
-        updateConfiguration(connectionModes, sourceIds, sourceTypes) {
+        updateConfiguration(connectionModes, sourceIds, sourceTypes, targetModes) {
             this.connectionModes = connectionModes;
+            this.targetModes = targetModes;
             this.sourceTypes = sourceTypes;
             if (this.selected?.side === 'source' && !sourceIds.includes(this.selected.id)) this.cancel();
             ports = undefined;
@@ -62,7 +64,7 @@ export default function fieldMapping({ element, state, disabled, inverse = false
                         return;
                     }
                     const entry = { kind: 'source', source };
-                    if (this.targetMode(row.target) === 'item') {
+                    if (this.targetMode(row.target) !== 'whole') {
                         if (!Array.isArray(mappings.get(row.target))) mappings.set(row.target, []);
                         mappings.get(row.target).push(entry);
                     } else {
@@ -148,9 +150,7 @@ export default function fieldMapping({ element, state, disabled, inverse = false
         },
 
         targetMode(target) {
-            const rows = this.state.filter(row => row.target === target);
-            if (rows.length > 1) return 'item';
-            return this.connectionModes[rows[0]?.source]?.[target] ?? 'whole';
+            return this.targetModes[target];
         },
 
         isIncompatible(side, id) {
@@ -167,13 +167,16 @@ export default function fieldMapping({ element, state, disabled, inverse = false
         },
 
         hasTypeConflict(target) {
-            return this.pairs().some((pair) => pair.target === target && (!this.canConnect(pair.source, target) || this.connectionModes[pair.source]?.[target] !== this.targetMode(target)));
+            const pairs = this.pairs().filter(pair => pair.target === target);
+            const mode = this.targetMode(target);
+            return mode === 'whole' && pairs.length > 1
+                || pairs.some(pair => !this.canConnect(pair.source, target) || this.connectionModes[pair.source]?.[target] !== mode);
         },
 
         isVisible(side, id, text) {
             const searchableText = side === 'source' ? `${text} ${this.sourceTypes[id] ?? ''}` : text;
             return searchableText.toLocaleLowerCase().includes(this.search.trim().toLocaleLowerCase())
-                && (this.visibilityFilter === 'all' || this.isMapped(side, id) === (this.visibilityFilter === 'mapped'));
+                && (this.visibilityFilter === 'all' || this.pairs().some(pair => pair[side] === id) === (this.visibilityFilter === 'mapped'));
         },
 
         selectFromCard(event, side, id) {
@@ -201,11 +204,12 @@ export default function fieldMapping({ element, state, disabled, inverse = false
         connect(source, target) {
             if (this.disabled || !this.canConnect(source, target) || !this.isSourceAvailable(source, target)) return;
 
-            const multiple = this.connectionModes[source][target] === 'item';
+            const mode = this.connectionModes[source][target];
+            const multiple = mode !== 'whole';
             this.state.forEach(row => {
                 if (row.target !== target) return;
                 const rowSource = row.source;
-                if (rowSource === source || multiple && this.connectionModes[rowSource]?.[target] === 'item') return;
+                if (rowSource === source || multiple && this.connectionModes[rowSource]?.[target] === mode) return;
                 if (row.kind === 'static') row.draftTarget = target;
                 row.target = null;
             });

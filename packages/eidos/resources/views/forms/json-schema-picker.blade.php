@@ -7,7 +7,8 @@
         <x-phpinnacle-eidos::json-schema-picker
             schema="schemaDocument"
             value="schemaValue"
-            choose="schemaValue = source.value"
+            :choose="$isMultiple() ? 'schemaValue = schemaToggleSelection(schemaValue, source.value)' : 'schemaValue = source.value'"
+            :multiple="$isMultiple()"
             :label="\Illuminate\Support\Js::from($getLabel())"
             :disabled="$isDisabled()"
             :select-array-item-fields="$canSelectArrayItemFields()"

@@ -18,9 +18,12 @@ class FieldMappingForm extends Component implements HasSchemas
 
     public bool $dynamicTarget = false;
 
-    public function mount(bool $dynamicTarget = false): void
+    public ?string $mappingMode = null;
+
+    public function mount(bool $dynamicTarget = false, ?string $mappingMode = null): void
     {
         $this->dynamicTarget = $dynamicTarget;
+        $this->mappingMode = $mappingMode;
         $this->form->fill();
     }
 
@@ -32,6 +35,18 @@ class FieldMappingForm extends Component implements HasSchemas
                     'type' => $component->getSourceSettings()['first']['type'] ?? 'string',
                 ]],
             ] : ['properties' => ['destination' => ['type' => 'boolean']]];
+
+        if ($this->mappingMode !== null) {
+            $target = [
+                'properties' => [
+                    'destination' => [
+                        'type' => $this->mappingMode === 'property' ? 'object' : 'array',
+                        'x-mapping' => $this->mappingMode,
+                        'items' => ['type' => 'string'],
+                    ],
+                ],
+            ];
+        }
 
         return $schema
             ->statePath('data')
