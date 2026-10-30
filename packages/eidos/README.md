@@ -444,6 +444,8 @@ FieldMapping::make('mapping')
 
 Required destinations come from the destination object's `required` list. Collection connections are explicit: set `x-mapping: item` on an array destination or `x-mapping: property` on an object destination. Without the annotation, a destination accepts only one compatible whole value.
 
+`FieldMapping` determines the mode from each destination's type and `x-mapping` annotation. `getTargetModes()` and `getConnectionModes()` return `PHPinnacle\Eidos\Enums\MappingMode` cases (`Whole`, `Item`, `Property`); JavaScript receives their string values.
+
 ### State and connections
 
 State is one list of rows, with every source represented exactly once. A source row contains `kind: source`, its literal `source` identifier, a nullable `target`, and an `options` array containing its settings:

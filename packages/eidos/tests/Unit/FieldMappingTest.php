@@ -3,6 +3,7 @@
 use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
+use PHPinnacle\Eidos\Enums\MappingMode;
 use PHPinnacle\Eidos\Forms\FieldMapping;
 use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Eidos\Forms\SchemaCompatibility;
@@ -307,7 +308,7 @@ it('uses configured schema constraints for connection modes and server validatio
             ->compatibility($compatibility);
         $value = ['target' => $multiple ? [MappingState::source('source')] : MappingState::source('source')];
 
-        $mode = $multiple ? 'item' : 'whole';
+        $mode = $multiple ? MappingMode::Item : MappingMode::Whole;
         expect($field->getConnectionModes()['source']['target'] ?? null)->toBe($allowed ? $mode : null);
         expect(
             $validator
@@ -390,7 +391,10 @@ it('adds application restrictions to whole and item connections without overridi
         );
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
 
-    expect($field->getConnectionModes())->toBe(['source' => ['allowed' => 'whole', 'items' => 'item']]);
+    expect($field->getConnectionModes())->toBe(['source' => [
+        'allowed' => MappingMode::Whole,
+        'items' => MappingMode::Item,
+    ]]);
     foreach (['allowed' => true, 'blocked' => false, 'wrong_type' => false] as $target => $allowed) {
         expect(
             $validator
@@ -429,8 +433,12 @@ it('passes literal field names to connection restrictions for whole and item map
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
 
     expect($field->getConnectionModes())->toBe([
-        'record.id' => ['key.id' => 'whole', 'label' => 'whole', 'key.parts' => 'item'],
-        'other.id' => ['label' => 'whole'],
+        'record.id' => [
+            'key.id' => MappingMode::Whole,
+            'label' => MappingMode::Whole,
+            'key.parts' => MappingMode::Item,
+        ],
+        'other.id' => ['label' => MappingMode::Whole],
     ]);
     foreach (['record.id' => true, 'other.id' => false] as $source => $allowed) {
         foreach ([
@@ -570,7 +578,7 @@ it('uses enum compatibility for connection availability and submitted mappings i
     $modes = $field->getConnectionModes();
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
     foreach (['date' => false, 'status' => true, 'narrow' => true, 'wide' => false] as $source => $allowed) {
-        expect($modes[$source]['status'] ?? null)->toBe($allowed ? 'whole' : null);
+        expect($modes[$source]['status'] ?? null)->toBe($allowed ? MappingMode::Whole : null);
         expect(
             $validator
                 ->make(
@@ -601,9 +609,10 @@ it('keeps unannotated arrays and objects as whole values', function () {
     );
 
     expect($field->getMultipleTargets())->toBe([]);
+    expect($field->getTargetModes())->toBe(['list' => MappingMode::Whole, 'object' => MappingMode::Whole]);
     expect($field->getConnectionModes())->toBe([
-        'list' => ['list' => 'whole'],
-        'object' => ['object' => 'whole'],
+        'list' => ['list' => MappingMode::Whole],
+        'object' => ['object' => MappingMode::Whole],
     ]);
 });
 
@@ -618,7 +627,8 @@ it('collects items of each supported type using the item schema', function (
     );
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
 
-    expect($field->getConnectionModes()['field']['collection'] ?? null)->toBe($allowed ? 'item' : null);
+    expect($field->getTargetModes())->toBe(['collection' => MappingMode::Item]);
+    expect($field->getConnectionModes()['field']['collection'] ?? null)->toBe($allowed ? MappingMode::Item : null);
     expect(
         $validator
             ->make(
@@ -672,12 +682,13 @@ it('collects object properties under literal source names in both orientations',
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
 
     expect($field->getMultipleTargets())->toBe(['custom']);
+    expect($field->getTargetModes())->toBe(['custom' => MappingMode::Property]);
     expect($field->getConnectionModes())->toBe([
-        '_my_field' => ['custom' => 'property'],
-        'customer.name' => ['custom' => 'property'],
-        0 => ['custom' => 'property'],
-        'details' => ['custom' => 'property'],
-        'tags' => ['custom' => 'property'],
+        '_my_field' => ['custom' => MappingMode::Property],
+        'customer.name' => ['custom' => MappingMode::Property],
+        0 => ['custom' => MappingMode::Property],
+        'details' => ['custom' => MappingMode::Property],
+        'tags' => ['custom' => MappingMode::Property],
     ]);
     expect($validator->make(['mapping' => $state], ['mapping' => $field->getValidationRules()])->passes())->toBeTrue();
     expect($validator->make(['mapping' => []], ['mapping' => $field->getValidationRules()])->passes())->toBeFalse();
@@ -725,7 +736,7 @@ it('checks property output schemas and application restrictions without renaming
         );
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
 
-    expect($field->getConnectionModes())->toBe(['name' => ['custom' => 'property']]);
+    expect($field->getConnectionModes())->toBe(['name' => ['custom' => MappingMode::Property]]);
     foreach (['name' => true, 'enabled' => false, 'blocked' => false, 'unknown' => false] as $source => $allowed) {
         expect(
             $validator
@@ -754,7 +765,7 @@ it('uses the additional property schema for unnamed object properties', function
         ],
     );
 
-    expect($field->getConnectionModes()['count']['custom'] ?? null)->toBe($allowed ? 'property' : null);
+    expect($field->getConnectionModes()['count']['custom'] ?? null)->toBe($allowed ? MappingMode::Property : null);
 })->with([
     'open' => [true, true],
     'closed' => [false, false],

@@ -125,16 +125,6 @@ final readonly class JsonSchema
         return array_values(array_unique($required));
     }
 
-    /** @return 'whole'|'item'|'property' */
-    public function mappingMode(): string
-    {
-        return match ([$this->singleType(), $this->annotation('x-mapping')]) {
-            ['array', 'item'] => 'item',
-            ['object', 'property'] => 'property',
-            default => 'whole',
-        };
-    }
-
     public function property(string $name): ?self
     {
         $properties = $this->properties();

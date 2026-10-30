@@ -11,9 +11,11 @@ use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Schema;
 use Filament\Support\Facades\FilamentAsset;
+use Illuminate\Support\Js;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
+use PHPinnacle\Eidos\Enums\MappingMode;
 use PHPinnacle\Eidos\Forms\FieldBinding;
 use PHPinnacle\Eidos\Forms\FieldMapping;
 use PHPinnacle\Eidos\Forms\JsonSchema;
@@ -175,8 +177,8 @@ it('partially updates every changed presentation and fully renders structural sc
         }
     }
     expect($page->instance()->form->getComponent('mapping')->getConnectionModes())->toBe([
-        'first' => ['destination' => 'whole'],
-        'second' => ['destination' => 'whole'],
+        'first' => ['destination' => MappingMode::Whole],
+        'second' => ['destination' => MappingMode::Whole],
     ]);
 })->with([false, true]);
 
@@ -1061,7 +1063,16 @@ it('round trips collection mappings through independent schema instances', funct
     view()->share('errors', new ViewErrorBag);
 
     expect($schema->getState())->toBe(['first' => $rows, 'second' => $rows]);
-    expect($schema->toHtml())->toContain($mode === 'property' ? 'Individual properties' : 'Individual items');
+    expect($schema->toHtml())
+        ->toContain($mode === 'property' ? 'Individual properties' : 'Individual items')
+        ->toContain('targetModes: ' . Js::from(['custom' => $mode]))
+        ->toContain(
+            'updateConfiguration('
+                . Js::from([
+                    '_my_field' => ['custom' => $mode],
+                    'other.name' => ['custom' => $mode],
+                ]),
+        );
     $changed = $rows;
     $changed[0]['target'] = null;
     $fields[0]->state($changed);

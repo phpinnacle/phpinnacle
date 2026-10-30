@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Js;
 use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\Rule;
+use PHPinnacle\Eidos\Enums\MappingMode;
 use PHPinnacle\Eidos\Forms\Concerns\HasColumnSpans;
 use PHPinnacle\Eidos\Forms\Concerns\HasHeaderActions;
 use PHPinnacle\Eidos\Forms\Concerns\HasSourceSettings;
@@ -123,16 +124,28 @@ class FieldMapping extends Field
     /** @return list<string> */
     public function getMultipleTargets(): array
     {
-        return array_keys(array_filter($this->getTargetModes(), fn (string $mode) => $mode !== 'whole'));
+        return array_keys(array_filter(
+            $this->getTargetModes(),
+            fn (MappingMode $mode) => $mode !== MappingMode::Whole,
+        ));
     }
 
-    /** @return array<string, 'whole'|'item'|'property'> */
+    /** @return array<string, MappingMode> */
     public function getTargetModes(): array
     {
         return array_map(
-            fn (JsonSchema $property) => $property->mappingMode(),
+            self::mappingMode(...),
             JsonSchema::fromArray($this->getTargetSchema())->properties(),
         );
+    }
+
+    private static function mappingMode(JsonSchema $schema): MappingMode
+    {
+        return match ([$schema->singleType(), $schema->annotation('x-mapping')]) {
+            ['array', MappingMode::Item->value] => MappingMode::Item,
+            ['object', MappingMode::Property->value] => MappingMode::Property,
+            default => MappingMode::Whole,
+        };
     }
 
     /** @param Closure $forms Factory returning a Field named value or null, with target, property and other Filament-injected arguments. */
@@ -431,7 +444,7 @@ class FieldMapping extends Field
         );
     }
 
-    /** @return array<string, array<string, 'whole'|'item'|'property'>> */
+    /** @return array<string, array<string, MappingMode>> */
     public function getConnectionModes(): array
     {
         $modes = [];
@@ -440,11 +453,11 @@ class FieldMapping extends Field
         foreach (array_keys(JsonSchema::fromArray($this->getSourceSchema())->properties()) as $source) {
             $output = $outputs[$source] ?? JsonSchema::fromArray([]);
             foreach ($targets as $target => $destination) {
-                $mode = $destination->mappingMode();
+                $mode = self::mappingMode($destination);
                 $targetSchema = match ($mode) {
-                    'item' => $destination->items(),
-                    'property' => $destination->property((string) $source),
-                    default => $destination,
+                    MappingMode::Item => $destination->items(),
+                    MappingMode::Property => $destination->property((string) $source),
+                    MappingMode::Whole => $destination,
                 };
                 if (
                     $targetSchema !== null
@@ -699,14 +712,14 @@ class FieldMapping extends Field
 
                     return;
                 }
-                $mode = 'whole';
+                $mode = MappingMode::Whole;
             }
             if ($row['target'] === null) {
                 continue;
             }
             if (
                 array_key_exists($row['target'], $usedTargets)
-                && ($mode === 'whole'
+                && ($mode === MappingMode::Whole
                 || $usedTargets[$row['target']] !== $mode)
             ) {
                 $fail('The :attribute field reuses a destination that only permits one connection.')->translate();
