@@ -418,24 +418,24 @@ icon markup must be trusted server output.
 
 ## Field mapping
 
-`FieldMapping` connects the named properties of two inline JSON Schema objects. Configuration accepts `Forms\JsonSchema` instances or Filament-evaluated closures returning them. `getSourceSchema()`, `getTargetSchema()`, and `getOutputSchema()` return these objects; use `toArray()` at serialization boundaries. Property names are stable identifiers, including numeric names and names containing dots.
+`FieldMapping` connects the named properties of two inline JSON Schema objects. Configuration accepts Jason `Schema` instances or Filament-evaluated closures returning them. `getSourceSchema()`, `getTargetSchema()`, and `getOutputSchema()` return these objects; use `toArray()` at serialization boundaries. Property names are stable identifiers, including numeric names and names containing dots.
 
-The `Forms\JsonSchema` adapter uses [Jason](https://github.com/phpinnacle/jason) for schema values and local JSON Pointer `$ref` resolution. Serialized definitions retain their original references; property views resolve them. Read the declared format through `format(): ?string` and effective enum restrictions (including intersected `allOf` values) through `enumValues(): ?array`; other metadata remains available through `annotation()`. Mapping fields require schema object definitions; Boolean schemas are rejected by this adapter.
+Mapping and binding fields accept [Jason](https://github.com/phpinnacle/jason) `Schema` values directly, including schemas returned by `SchemaBuilder::build()`. Serialized definitions retain their original references; property views resolve them. Jason owns structural readers and composition projections such as `types()`, `effectiveProperties()`, `effectiveRequired()`, `effectiveFormat()`, `enumValues()`, and `effectiveMaxLength()`. Eidos owns connection policy in `SchemaCompatibility::accepts($source, $target)` and mapping metadata in `SchemaPresentation`. Boolean mapping fields remain unsupported.
 
-`JsonSchema::equals($other)` compares serialized definitions using JSON value equality: object key order is ignored, array element order and scalar types are preserved, and numbers compare by value. It does not prove equivalence between differently expressed schemas.
+`Schema::equals($other)` compares serialized definitions using JSON value equality: object key order is ignored, array element order and scalar types are preserved, and numbers compare by value. It does not prove equivalence between differently expressed schemas.
 
 ```php
 use PHPinnacle\Eidos\Forms\FieldMapping;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Jason\Schema;
 
 FieldMapping::make('mapping')
     ->jsonSchema(
-        source: JsonSchema::fromArray(['type' => 'object', 'properties' => [
+        source: Schema::fromArray(['type' => 'object', 'properties' => [
             'name' => ['type' => 'string', 'title' => 'Display name'],
             'email' => ['type' => 'string'],
             'phones' => ['type' => 'array', 'items' => ['type' => 'string']],
         ]]),
-        target: JsonSchema::fromArray(['type' => 'object', 'required' => ['contact'], 'properties' => [
+        target: Schema::fromArray(['type' => 'object', 'required' => ['contact'], 'properties' => [
             'contact' => ['type' => 'string', 'title' => 'Contact name'],
             'phone_numbers' => ['type' => 'array', 'x-mapping' => 'item', 'items' => ['type' => 'string']],
             'custom' => ['type' => 'object', 'x-mapping' => 'property'],
@@ -494,18 +494,18 @@ FieldMapping::make('mapping')
 `formats(false)` disables format checks; `stringLengths(false)` disables both length checks. Type, nullability, and array-item checks remain active. Add application restrictions with `canConnectUsing()`:
 
 ```php
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Jason\Schema;
 
-->canConnectUsing(fn (JsonSchema $source, JsonSchema $target) =>
+->canConnectUsing(fn (Schema $source, Schema $target) =>
     ($source->toArray()['x-domain'] ?? null) === ($target->toArray()['x-domain'] ?? null)
 )
 ```
 
-The callback receives `(JsonSchema $source, JsonSchema $target, string $sourceName, string $targetName)`: the effective source and destination property schemas, followed by their literal property names. For an item connection, `$target` is the destination item schema; for a property connection, it is the matching property or additional-property schema. `$targetName` remains the name of the destination collection. It runs only after the configured checks pass and cannot override their rejection. `toArray()` exposes each inline definition, including application metadata. The same server-computed connection modes drive client availability and form validation.
+The callback receives `(Schema $source, Schema $target, string $sourceName, string $targetName)`: the effective source and destination property schemas, followed by their literal property names. For an item connection, `$target` is the destination item schema; for a property connection, it is the matching property or additional-property schema. `$targetName` remains the name of the destination collection. It runs only after the configured checks pass and cannot override their rejection. `toArray()` exposes each inline definition, including application metadata. The same server-computed connection modes drive client availability and form validation.
 
 The component projects `type`, `format`, `minLength`, `maxLength`, `enum`, `items`, `required`, `properties`, `allOf`, `anyOf`, and `oneOf` definitions after resolving local references. An enum destination requires an explicit source enum whose values are a subset of its allowed values; an unrestricted string or date cannot connect to a Status enum. `allOf` intersects enum constraints and types, treating `number` intersected with `integer` as `integer`; array items use the same checks. Enum equality preserves JSON value types, compares numbers by value, and ignores object property order. These are the component’s compatibility rules; they do not validate runtime payloads or prove arbitrary JSON Schema containment. Other constraints such as `pattern`, numeric bounds, item counts, and uniqueness are displayed as metadata but are not enforced by connection compatibility; native static editors remain responsible for their value validation.
 
-Use `outputSchema(JsonSchema|Closure)` for the effective source object schema after applying source settings. It replaces the input schema for source type chips, constraint hints and compatibility checks. Declare only formats and bounds guaranteed by the effective output: a logical string output alone does not preserve an email/UUID format or establish a length limit. The consumer supplies this schema; the field does not compute output values or infer their guarantees.
+Use `outputSchema(Schema|Closure)` for the effective source object schema after applying source settings. It replaces the input schema for source type chips, constraint hints and compatibility checks. Declare only formats and bounds guaranteed by the effective output: a logical string output alone does not preserve an email/UUID format or establish a length limit. The consumer supplies this schema; the field does not compute output values or infer their guarantees.
 
 See [JSON Schema extensions](#json-schema-extensions) for the `x-enum` label
 format. Enum display labels leave compatibility checks and saved values unchanged.
@@ -546,25 +546,25 @@ Use `staticForms()` to select a custom inline Filament editor for each destinati
 ```php
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Jason\Schema;
 
 FieldMapping::make('mapping')
     ->jsonSchema(source: $sourceSchema, target: $destinationSchema)
-    ->staticForms(fn (string $target, JsonSchema $property) => match ($target) {
+    ->staticForms(fn (string $target, Schema $property) => match ($target) {
         'name' => TextInput::make('value')->hiddenLabel()->required()->maxLength($property->maxLength()),
         'is_active' => Toggle::make('value')->label('Enabled')->default(false),
         default => null,
     });
 ```
 
-The factory returns a fresh field named `value`, or `null` to omit the editor. It receives the literal destination identifier as `$target`, its `JsonSchema` as `$property`, and can use other Filament-injected arguments such as the `FieldMapping` as `$component`. It runs for every destination, including untyped properties, objects and unions. Returning `null` controls editor visibility; it does not prohibit submitted scalar values. There is no fallback text editor or static-value checkbox.
+The factory returns a fresh field named `value`, or `null` to omit the editor. It receives the literal destination identifier as `$target`, its `Schema` as `$property`, and can use other Filament-injected arguments such as the `FieldMapping` as `$component`. It runs for every destination, including untyped properties, objects and unions. Returning `null` controls editor visibility; it does not prohibit submitted scalar values. There is no fallback text editor or static-value checkbox.
 
 Reuse the standard editors for other destinations without repeating their type selection:
 
 ```php
 use PHPinnacle\Eidos\Forms\BuiltinStaticForms;
 
-->staticForms(fn (FieldMapping $component, string $target, JsonSchema $property) => $target === 'id'
+->staticForms(fn (FieldMapping $component, string $target, Schema $property) => $target === 'id'
     ? null
     : BuiltinStaticForms::make($property, in_array($target, $component->getRequiredTargets(), true))
 )
@@ -591,7 +591,7 @@ Settings are validated and submitted for every source, including sources with `t
 
 ### Presentation and assets
 
-Property `title`, `description`, `x-icon`, and `x-color` provide presentation metadata for mapping cards and binding sources. The property key is the technical name shown beside its title and the identifier used in state and connections. Search includes both the title and property key. `x-color` accepts a registered Filament color name or a literal hex/RGB color for the icon and title. Cards display the technical name, required marker, constraint hints, type chips, description and warnings; omitted icons reserve no space. Formats replace the general type label. UUID schemas display their standard `uuid` format; application-specific annotations remain opaque to these fields. Nullable types add a `null` chip, and enum tooltips list allowed values. `x-badges` accepts a list such as `[['label' => 'Imported', 'color' => 'info']]`; the type chip appears last. For framework schema builders, pass their inline `toArray()` result.
+Property `title`, `description`, `x-icon`, and `x-color` provide presentation metadata for mapping cards and binding sources. The property key is the technical name shown beside its title and the identifier used in state and connections. Search includes both the title and property key. `x-color` accepts a registered Filament color name or a literal hex/RGB color for the icon and title. Cards display the technical name, required marker, constraint hints, type chips, description and warnings; omitted icons reserve no space. Formats replace the general type label. UUID schemas display their standard `uuid` format; application-specific annotations remain opaque to these fields. Nullable types add a `null` chip, and enum tooltips list allowed values. `x-badges` accepts a list such as `[['label' => 'Imported', 'color' => 'info']]`; the type chip appears last. Pass a schema builder's `build()` result directly to mapping or binding fields.
 
 Array chevrons expand item schemas and their scoped constraints, one row per nested level. Field constraints remain in the heading. Details start collapsed and work on connected or disabled cards without changing selection; lines follow card resizing. Source actions appear below the metadata. Colors use Filament's `primary` palette for connections, `warning` for required destinations and `danger` for conflicts, in light and dark themes.
 
@@ -621,12 +621,12 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Jason\Schema;
 
 [
     Hidden::make('schema')->default($sourceSchema->toArray()),
     FieldMapping::make('mapping')
-        ->jsonSchema(source: fn (Get $get) => JsonSchema::fromArray($get('schema')), target: $destinationSchema)
+        ->jsonSchema(source: fn (Get $get) => Schema::fromArray($get('schema')), target: $destinationSchema)
         ->headerActions([
             Action::make('addField')
                 ->schema([TextInput::make('field')->required()])
@@ -639,7 +639,7 @@ use PHPinnacle\Eidos\Forms\JsonSchema;
                         'options' => ['transforms' => []],
                     ];
                     $component->state($state);
-                    $component->jsonSchema(source: JsonSchema::fromArray($schema));
+                    $component->jsonSchema(source: Schema::fromArray($schema));
                     $set('schema', $schema);
                 }),
         ]),
@@ -698,10 +698,10 @@ For example:
 ```php
 use Filament\Forms\Components\TextInput;
 use PHPinnacle\Eidos\Forms\FieldBinding;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Jason\Schema;
 
 FieldBinding::make('bindings')
-    ->jsonSchema(JsonSchema::fromArray(['type' => 'object', 'properties' => [
+    ->jsonSchema(Schema::fromArray(['type' => 'object', 'properties' => [
         'name' => ['type' => 'string', 'title' => 'Customer name'],
         'email' => ['type' => 'string', 'title' => 'Email address'],
     ]]))
@@ -715,10 +715,10 @@ Use `schema()` to store each binding as an associative array whose keys and valu
 
 ```php
 use Filament\Forms\Components\Select;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Jason\Schema;
 
 FieldBinding::make('bindings')
-    ->jsonSchema(JsonSchema::fromArray(['properties' => ['name' => ['type' => 'string'], 'email' => ['type' => 'string']]]))
+    ->jsonSchema(Schema::fromArray(['properties' => ['name' => ['type' => 'string'], 'email' => ['type' => 'string']]]))
     ->schema([
         TextInput::make('destination')->required(),
         Select::make('transform')->options([
@@ -737,10 +737,10 @@ Choose `simple()` or `schema()` for a field. Both accept closures and use native
 Use `staticValues()` with `simple()` or `schema()` to enable static pairs. The default is disabled; pass `staticValues(false)` to disable them explicitly. The component supplies a full-width native input with a Value placeholder and an accessible hidden label; it accepts scalar values. **Add static value** creates an immediately connected pair. With `simple()`, it uses the field's explicit default, or the first unused `static_N` destination when no default was configured. The source card shows a readable title (`Static 1`) alongside the technical property (`static_1`), without a separate section heading. Non-string simple targets are displayed as JSON. The right card reuses the configured field or schema without changing child names or rules. Hover or focus the connecting line to reveal a danger trash button, which removes the pair including its value and settings.
 
 ```php
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Jason\Schema;
 
 FieldBinding::make('bindings')
-    ->jsonSchema(JsonSchema::fromArray(['properties' => ['name' => ['type' => 'string'], 'email' => ['type' => 'string']]]))
+    ->jsonSchema(Schema::fromArray(['properties' => ['name' => ['type' => 'string'], 'email' => ['type' => 'string']]]))
     ->simple(TextInput::make('destination')->required())
     ->staticValues();
 
@@ -753,10 +753,10 @@ With `schema()`, each static pair receives the whole binding form and its own de
 
 ```php
 use Filament\Forms\Components\Toggle;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Jason\Schema;
 
 FieldBinding::make('bindings')
-    ->jsonSchema(JsonSchema::fromArray(['properties' => ['name' => ['type' => 'string']]]))
+    ->jsonSchema(Schema::fromArray(['properties' => ['name' => ['type' => 'string']]]))
     ->schema([
         TextInput::make('channel')->required(),
         Toggle::make('enabled')->default(false),
@@ -767,7 +767,7 @@ FieldBinding::make('bindings')
 //  ['kind' => 'static', 'target' => ['channel' => 'audit', 'enabled' => false], 'static' => 'active', 'options' => []]]
 ```
 
-`sourceSettings()` also supplies settings after Value in static cards. Its callback may accept `?Closure $inputSchema = null`: static cards receive a closure returning their current input `JsonSchema`, while ordinary sources leave this argument null. For a static card, `$source` is its internal row key. Custom settings components may read the current input schema through this closure; existing native scalar values retain their types. Native dehydrated settings are included in the static row’s `options` array, alongside `static` and `target`.
+`sourceSettings()` also supplies settings after Value in static cards. Its callback may accept `?Closure $inputSchema = null`: static cards receive a closure returning their current input `Schema`, while ordinary sources leave this argument null. For a static card, `$source` is its internal row key. Custom settings components may read the current input schema through this closure; existing native scalar values retain their types. Native dehydrated settings are included in the static row’s `options` array, alongside `static` and `target`.
 
 Without `staticValues()` the component rejects static rows on submission, and the bound-sources counter never includes them. This replaces the former `constants([...])` schema registration.
 
@@ -775,7 +775,7 @@ Source bindings and static values share one serialized list. With `simple()`, st
 
 Use `sourceSettings(fn (string $source) => [Actions::make([...])])` for native source actions, as with `FieldMapping`. They remain available on unbound sources.
 
-`jsonSchema(JsonSchema|Closure)` supplies the source object schema and the same property metadata as `FieldMapping`. Its `required` annotations describe source properties; they do not require the user to bind them. The native `schema()` method continues to describe the per-binding Filament editor. Source identifiers retain their literal identity, including numeric identifiers and dots. `labels(source: 'Source', dest: 'Binding')` sets the headings and accepts closures. Configuration is trusted developer code; source identifiers and binding shapes are validated on submission, while the child fields define the value validation.
+`jsonSchema(Schema|Closure)` supplies the source object schema and the same property metadata as `FieldMapping`. Its `required` annotations describe source properties; they do not require the user to bind them. The native `schema()` method continues to describe the per-binding Filament editor. Source identifiers retain their literal identity, including numeric identifiers and dots. `labels(source: 'Source', dest: 'Binding')` sets the headings and accepts closures. Configuration is trusted developer code; source identifiers and binding shapes are validated on submission, while the child fields define the value validation.
 
 `getBindingValues()` reads the current public row list for callbacks before native child dehydration. Submit the parent schema with `getState()` to run validation and return the list with native child values. Livewire stores that same list. Complex child forms bind to `{rowIndex}.target`; a simple field binds its native value directly to that path while retaining its configured name. Fill forms using the public state shown above. Package views, theme setup and asset publishing are shared with `FieldMapping` as described above.
 

@@ -11,7 +11,7 @@ use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Concerns\CanBeCompact;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\View;
-use Filament\Schemas\Schema;
+use Filament\Schemas\Schema as FilamentSchema;
 use Filament\Support\Concerns\CanBeContained;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Js;
@@ -22,9 +22,11 @@ use PHPinnacle\Eidos\Forms\Concerns\HasColumnSpans;
 use PHPinnacle\Eidos\Forms\Concerns\HasHeaderActions;
 use PHPinnacle\Eidos\Forms\Concerns\HasSourceSettings;
 use PHPinnacle\Eidos\Forms\Concerns\Searchable;
+use PHPinnacle\Eidos\JsonSchema\SchemaPresentation;
+use PHPinnacle\Jason\Schema;
 
 /**
- * @phpstan-import-type MappingItem from JsonSchema
+ * @phpstan-import-type MappingItem from SchemaPresentation
  * @phpstan-type SourceState array{kind: 'source', source: string, target: mixed, options: array<string, mixed>}
  * @phpstan-type StaticState array{kind: 'static', target: mixed, static: mixed, options: array<string, mixed>}
  * @phpstan-type State list<SourceState|StaticState>
@@ -42,8 +44,8 @@ class FieldBinding extends Field
 
     protected string $view = 'phpinnacle-eidos::forms.field-binding';
 
-    /** @var JsonSchema|Closure(): JsonSchema */
-    protected JsonSchema|Closure $jsonSchema;
+    /** @var Schema|Closure(): Schema */
+    protected Schema|Closure $jsonSchema;
 
     /** @var string|Closure(): string */
     protected string|Closure $sourceLabel = 'Source';
@@ -59,7 +61,7 @@ class FieldBinding extends Field
     /** @var array<string, string>|Closure(): array<string, string> */
     protected array|Closure $warnings = [];
 
-    private ?JsonSchema $cachedSourceSchema = null;
+    private ?Schema $cachedSourceSchema = null;
 
     /** @var list<MappingItem> */
     private array $cachedSources = [];
@@ -81,8 +83,8 @@ class FieldBinding extends Field
         return $this->evaluate($this->warnings);
     }
 
-    /** @param JsonSchema|Closure $schema Schema or Filament-evaluated callback returning JsonSchema. */
-    public function jsonSchema(JsonSchema|Closure $schema): static
+    /** @param Schema|Closure $schema Schema or Filament-evaluated callback returning Schema. */
+    public function jsonSchema(Schema|Closure $schema): static
     {
         $this->jsonSchema = $schema;
 
@@ -111,7 +113,7 @@ class FieldBinding extends Field
         return $this->evaluate($this->targetLabel);
     }
 
-    public function getSourceSchema(): JsonSchema
+    public function getSourceSchema(): Schema
     {
         return $this->evaluate($this->jsonSchema);
     }
@@ -121,7 +123,7 @@ class FieldBinding extends Field
     {
         $schema = $this->getSourceSchema();
         if ($this->cachedSourceSchema?->toArray() !== $schema->toArray()) {
-            $this->cachedSources = $schema->toMappingItems();
+            $this->cachedSources = SchemaPresentation::toMappingItems($schema);
             $this->cachedSourceSchema = $schema;
         }
 
@@ -159,7 +161,7 @@ class FieldBinding extends Field
         return 'source_' . bin2hex($source);
     }
 
-    /** @return array<Schema> */
+    /** @return array<FilamentSchema> */
     public function getBindings(): array
     {
         return array_filter(
@@ -169,7 +171,7 @@ class FieldBinding extends Field
         );
     }
 
-    public function getBindingSchema(string $source): Schema
+    public function getBindingSchema(string $source): FilamentSchema
     {
         return (
             $this->getBindings()[$this->getBindingKey($source)] ?? $this->makeBindingSchema(
@@ -220,7 +222,7 @@ class FieldBinding extends Field
         return $this->getState() ?? [];
     }
 
-    /** @return array<Schema> */
+    /** @return array<FilamentSchema> */
     public function getConstants(): array
     {
         return array_filter($this->getBindings(), self::isConstantKey(...), ARRAY_FILTER_USE_KEY);
@@ -271,7 +273,7 @@ class FieldBinding extends Field
         );
     }
 
-    /** @return array<Schema> */
+    /** @return array<FilamentSchema> */
     public function getDefaultChildSchemas(): array
     {
         $state = $this->getRawState();
@@ -319,9 +321,9 @@ class FieldBinding extends Field
         return $schemas;
     }
 
-    private function makeBindingSchema(string $source, int $index): Schema
+    private function makeBindingSchema(string $source, int $index): FilamentSchema
     {
-        /** @var Schema $schema The default child schema always exists. */
+        /** @var FilamentSchema $schema The default child schema always exists. */
         $schema = $this->getChildSchema();
         $schema = $schema->getClone()->inlineLabel(false);
         if ($this->simpleField !== null) {
@@ -352,13 +354,13 @@ class FieldBinding extends Field
         );
     }
 
-    private function getConstantSchema(string $key, ?string $defaultTarget = null): Schema
+    private function getConstantSchema(string $key, ?string $defaultTarget = null): FilamentSchema
     {
         $fields = $this->evaluate($this->sourceSettingsSchema, [
             'source' => $key,
             'inputSchema' => fn () => fn () => $this->getConstantInputSchema($key),
         ]);
-        /** @var Schema $output The default child schema always exists. */
+        /** @var FilamentSchema $output The default child schema always exists. */
         $output = $this->getChildSchema();
         $output = $output->getClone()->inlineLabel(false);
         if ($this->simpleField !== null) {
@@ -394,7 +396,7 @@ class FieldBinding extends Field
         ]);
     }
 
-    public function getConstantInputSchema(string $constant): JsonSchema
+    public function getConstantInputSchema(string $constant): Schema
     {
         /** @var State $rows */
         $rows = $this->getRawState();
@@ -402,7 +404,7 @@ class FieldBinding extends Field
         $row = $rows[$this->constantIndex($constant)];
         $value = $row['static'];
 
-        return JsonSchema::fromArray(['type' => match (true) {
+        return Schema::fromArray(['type' => match (true) {
             is_bool($value) => 'boolean',
             is_int($value) => 'integer',
             is_float($value) => 'number',
@@ -481,7 +483,7 @@ class FieldBinding extends Field
     {
         parent::setUp();
 
-        $this->jsonSchema = JsonSchema::fromArray([]);
+        $this->jsonSchema = Schema::fromArray([]);
 
         $this->schema([]);
         $this->childComponents([

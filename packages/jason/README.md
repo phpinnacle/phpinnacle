@@ -64,6 +64,43 @@ Pointer paths remain valid. `min()` and `max()` set length, item count, or numer
 bounds according to a single primitive type. Explicit methods such as
 `minimum()`, `maxLength()` and `minItems()` set their named keywords directly.
 
+## Project composed schemas
+
+Structural readers retain the declared keywords. For composition-aware reads, resolve
+local references first, then use the projection methods on that separate value:
+
+```php
+$view = $schema->resolveReferences();
+$properties = $view->effectiveProperties();
+$required = $view->effectiveRequired();
+$types = $view->types();
+$maximum = $view->effectiveMaxLength();
+```
+
+`effectiveProperties()` and `effectiveRequired()` merge `allOf` branches.
+`types()` combines declared alternatives and intersects conjunctive types, including
+`integer` within `number`; `singleType()` excludes null when identifying one type.
+`effectiveItems()` combines item constraints; `arrayItems()` returns them only for
+an array type, using an empty object schema when items are unrestricted.
+`property($name)` selects an effective property or its additional-property schema,
+returning null when additional properties are prohibited.
+`enumValues()` intersects `allOf` enum restrictions; `allowsEnumValue($value)`
+checks those restrictions using JSON value equality.
+`effectiveMinLength()` intersects conjunctive minimum lengths;
+`effectiveMaxLength()` also includes the widest string alternative, returning null
+for an unbounded alternative. `alternatives()` projects `anyOf` or `oneOf` branches
+with their sibling constraints. `annotation($name)` returns a declared value or
+the first non-null value from composition branches; `effectiveFormat()` uses that
+lookup for `format`. Extension values remain opaque to Jason.
+
+These projections do not validate payloads or prove arbitrary schema equivalence
+or containment. UI presentation, connection policy, and application transformations
+belong to consumers.
+
+`equals($other)` compares serialized schema definitions by JSON value: object key
+order is ignored, list order and scalar types are preserved, and numbers compare
+by value. It does not compare the meaning of differently expressed schemas.
+
 ## Read and preserve definitions
 
 ```php

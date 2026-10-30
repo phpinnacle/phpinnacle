@@ -1,48 +1,18 @@
 <?php
 
-use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Eidos\Forms\SchemaCompatibility;
-
-it('compares schema definitions using JSON value equality', function (array $left, array $right, bool $equal) {
-    $source = JsonSchema::fromArray($left);
-    $other = JsonSchema::fromArray($right);
-
-    expect($source->equals($other))->toBe($equal)->and($other->equals($source))->toBe($equal);
-})->with([
-    'nested object key order' => [
-        ['type' => 'array', 'items' => ['type' => 'string', 'maxLength' => 36]],
-        ['items' => ['maxLength' => 36, 'type' => 'string'], 'type' => 'array'],
-        true,
-    ],
-    'changed constraint' => [['type' => 'string', 'maxLength' => 36], ['type' => 'string', 'maxLength' => 35], false],
-    'JSON scalar types' => [['enum' => [1]], ['enum' => ['1']], false],
-    'array element order' => [['default' => [1, 2]], ['default' => [2, 1]], false],
-    'JSON number equality' => [['enum' => [1]], ['enum' => [1.0]], true],
-]);
+use PHPinnacle\Eidos\JsonSchema\SchemaPresentation;
+use PHPinnacle\Jason\Schema;
 
 it('collects each declared badge once across conjunctive branches', function () {
     $first = ['label' => 'First', 'color' => 'success'];
     $second = ['label' => 'Second', 'color' => 'warning'];
-    $schema = JsonSchema::fromArray([
+    $schema = Schema::fromArray([
         'allOf' => [['x-badges' => [$first]], ['x-badges' => [$second]]],
     ]);
 
-    expect($schema->badges())->toBe([$first, $second]);
+    expect(SchemaPresentation::badges($schema))->toBe([$first, $second]);
 });
-
-it('resolves maximum string lengths across composed output schemas', function (array $definition, ?int $maximum) {
-    expect(JsonSchema::fromArray($definition)->maxLength())->toBe($maximum);
-})->with([
-    'unbounded' => [['type' => 'string'], null],
-    'bounded' => [['type' => 'string', 'maxLength' => 10], 10],
-    'intersection' => [['allOf' => [['type' => 'string', 'maxLength' => 20], ['maxLength' => 10]]], 10],
-    'nullable alternatives' => [['anyOf' => [['type' => 'string', 'maxLength' => 10], ['type' => 'null']]], 10],
-    'bounded alternatives' => [
-        ['oneOf' => [['type' => 'string', 'maxLength' => 10], ['type' => 'string', 'maxLength' => 20]]],
-        20,
-    ],
-    'unbounded alternative' => [['anyOf' => [['type' => 'string', 'maxLength' => 10], ['type' => 'string']]], null],
-]);
 
 it('presents formats, enums, nullable values and nested arrays without changing logical types', function (
     array $definition,
@@ -50,11 +20,11 @@ it('presents formats, enums, nullable values and nested arrays without changing 
     bool $nullable,
     string $logicalType,
 ) {
-    $schema = JsonSchema::fromArray($definition);
+    $schema = Schema::fromArray($definition);
 
-    expect($schema->presentation())
+    expect(SchemaPresentation::presentation($schema))
         ->toMatchArray(['type' => $type, 'nullable' => $nullable])
-        ->and($schema->label())
+        ->and(SchemaPresentation::label($schema))
         ->toBe($logicalType);
 })->with([
     'format' => [['type' => 'string', 'format' => 'uuid'], 'uuid', false, 'string'],
@@ -88,7 +58,7 @@ it('presents formats, enums, nullable values and nested arrays without changing 
 ]);
 
 it('shows constraint values with their item and composition scopes', function () {
-    $presentation = JsonSchema::fromArray([
+    $presentation = SchemaPresentation::presentation(Schema::fromArray([
         'type' => 'array',
         'minItems' => 1,
         'maxItems' => 10,
@@ -99,7 +69,7 @@ it('shows constraint values with their item and composition scopes', function ()
                 ['pattern' => '^[A-Z]+$'],
             ],
         ],
-    ])->presentation();
+    ]));
 
     expect($presentation['constraints'])
         ->toBe([
@@ -122,7 +92,7 @@ it('shows constraint values with their item and composition scopes', function ()
 });
 
 it('keeps each internal array level and its restrictions separate from the outer array', function () {
-    $presentation = JsonSchema::fromArray([
+    $presentation = SchemaPresentation::presentation(Schema::fromArray([
         'type' => 'array',
         'maxItems' => 10,
         'items' => [
@@ -131,7 +101,7 @@ it('keeps each internal array level and its restrictions separate from the outer
             'maxItems' => 3,
             'items' => ['type' => 'number', 'minimum' => 0],
         ],
-    ])->presentation();
+    ]));
 
     expect($presentation['constraints'])
         ->toBe([['kind' => 'items', 'value' => '≤ 10', 'scope' => []]])
@@ -148,38 +118,43 @@ it('keeps each internal array level and its restrictions separate from the outer
 });
 
 it('presents numeric limits and allowed values without treating them as connection rules', function () {
-    $schema = JsonSchema::fromArray([
+    $schema = Schema::fromArray([
         'type' => 'number',
         'minimum' => 0,
         'exclusiveMaximum' => 100,
         'multipleOf' => 0.5,
     ]);
 
-    expect($schema->presentation()['constraints'])
+    expect(SchemaPresentation::presentation($schema)['constraints'])
         ->toBe([
             ['kind' => 'range', 'value' => '≥ 0 · < 100', 'scope' => []],
             ['kind' => 'multiple', 'value' => '× 0.5', 'scope' => []],
         ])
-        ->and($schema->compatible(JsonSchema::fromArray(['type' => 'number', 'maximum' => 10])))
+        ->and(SchemaCompatibility::make()->accepts($schema, Schema::fromArray(['type' => 'number', 'maximum' => 10])))
         ->toBeTrue()
-        ->and(JsonSchema::fromArray(['type' => 'string', 'enum' => ['active', '<draft>']])->presentation()['enum'])
+        ->and(
+            SchemaPresentation::presentation(Schema::fromArray([
+                'type' => 'string',
+                'enum' => ['active', '<draft>'],
+            ]))['enum'],
+        )
         ->toBe(['"active"', '"<draft>"']);
 });
 
 it('intersects numeric types in allOf without losing their integer constraint', function (array $definition) {
-    $schema = JsonSchema::fromArray($definition);
+    $schema = Schema::fromArray($definition);
 
     expect($schema->types())
         ->toBe(['integer'])
-        ->and($schema->compatible(JsonSchema::fromArray(['type' => 'integer'])))
+        ->and(SchemaCompatibility::make()->accepts($schema, Schema::fromArray(['type' => 'integer'])))
         ->toBeTrue()
-        ->and($schema->compatible(JsonSchema::fromArray(['type' => 'number'])))
+        ->and(SchemaCompatibility::make()->accepts($schema, Schema::fromArray(['type' => 'number'])))
         ->toBeTrue()
-        ->and($schema->compatible(JsonSchema::fromArray(['type' => 'string'])))
+        ->and(SchemaCompatibility::make()->accepts($schema, Schema::fromArray(['type' => 'string'])))
         ->toBeFalse()
-        ->and(JsonSchema::fromArray(['type' => 'integer'])->compatible($schema))
+        ->and(SchemaCompatibility::make()->accepts(Schema::fromArray(['type' => 'integer']), $schema))
         ->toBeTrue()
-        ->and(JsonSchema::fromArray(['type' => 'number'])->compatible($schema))
+        ->and(SchemaCompatibility::make()->accepts(Schema::fromArray(['type' => 'number']), $schema))
         ->toBeFalse();
 })->with([
     'number then integer' => [['allOf' => [['type' => 'number'], ['type' => 'integer']]]],
@@ -190,23 +165,13 @@ it('intersects numeric types in allOf without losing their integer constraint', 
     'nested intersection' => [['allOf' => [['type' => 'number'], ['allOf' => [['type' => 'integer']]]]]],
 ]);
 
-it('preserves number and null alternatives in numeric intersections', function () {
-    expect(JsonSchema::fromArray(['allOf' => [['type' => 'number'], ['type' => 'number']]])->types())
-        ->toBe(['number'])
-        ->and(
-            JsonSchema::fromArray([
-                'allOf' => [['type' => ['number', 'null']], ['type' => ['integer', 'null']]],
-            ])->types(),
-        )
-        ->toEqualCanonicalizing(['integer', 'null']);
-});
-
 it('compares declared unions, nullability, formats and nested array types', function (
     array $source,
     array $target,
     bool $compatible,
 ) {
-    expect(JsonSchema::fromArray($source)->compatible(JsonSchema::fromArray($target)))->toBe($compatible);
+    expect(SchemaCompatibility::make()->accepts(Schema::fromArray($source), Schema::fromArray($target)))
+        ->toBe($compatible);
 })->with([
     'matching scalar' => [['type' => 'string'], ['type' => 'string'], true],
     'reference metadata does not restrict UUID compatibility' => [
@@ -361,7 +326,7 @@ it('compares declared unions, nullability, formats and nested array types', func
 ]);
 
 it('configures format and length checks independently throughout nested schemas', function () {
-    $source = JsonSchema::fromArray([
+    $source = Schema::fromArray([
         'type' => 'array',
         'items' => [
             'type' => 'string',
@@ -369,7 +334,7 @@ it('configures format and length checks independently throughout nested schemas'
             'maxLength' => 255,
         ],
     ]);
-    $target = JsonSchema::fromArray([
+    $target = Schema::fromArray([
         'type' => 'array',
         'items' => [
             'type' => 'string',
@@ -379,14 +344,16 @@ it('configures format and length checks independently throughout nested schemas'
     ]);
     $defaults = SchemaCompatibility::make();
 
-    expect($source->compatible($target, $defaults->formats(false)))->toBeFalse();
-    expect($source->compatible($target, $defaults->stringLengths(false)))->toBeFalse();
-    expect($source->compatible($target, $defaults->formats(false)->stringLengths(false)))->toBeTrue();
-    expect($source->compatible($target, $defaults))->toBeFalse();
-    expect(JsonSchema::fromArray(['type' => 'boolean'])->compatible(
-        JsonSchema::fromArray(['type' => 'string']),
-        $defaults->formats(false)->stringLengths(false),
-    ))->toBeFalse();
+    expect($defaults->formats(false)->accepts($source, $target))->toBeFalse();
+    expect($defaults->stringLengths(false)->accepts($source, $target))->toBeFalse();
+    expect($defaults->formats(false)->stringLengths(false)->accepts($source, $target))->toBeTrue();
+    expect($defaults->accepts($source, $target))->toBeFalse();
+    expect(
+        $defaults
+            ->formats(false)
+            ->stringLengths(false)
+            ->accepts(Schema::fromArray(['type' => 'boolean']), Schema::fromArray(['type' => 'string'])),
+    )->toBeFalse();
 });
 
 it('projects composed property metadata and required names', function () {
@@ -401,24 +368,28 @@ it('projects composed property metadata and required names', function () {
             ],
         ],
     ];
-    $properties = JsonSchema::fromArray($schema)->properties();
+    $properties = Schema::fromArray($schema)->resolveReferences()->effectiveProperties();
 
-    expect(JsonSchema::fromArray($schema)->required())->toBe(['name']);
+    expect(Schema::fromArray($schema)->effectiveRequired())->toBe(['name']);
     expect($properties['name']->annotation('title'))->toBe('Name');
     expect($properties['name']->annotation('description'))->toBe('Customer name');
-    expect($properties['name']->label())->toBe('string');
-    expect($properties['contacts']->label())->toBe('string[]');
-    expect(JsonSchema::fromArray(['type' => ['array', 'null'], 'items' => ['type' => 'string']])->items()->label())
+    expect(SchemaPresentation::label($properties['name']))->toBe('string');
+    expect(SchemaPresentation::label($properties['contacts']))->toBe('string[]');
+    expect(
+        SchemaPresentation::label(
+            Schema::fromArray(['type' => ['array', 'null'], 'items' => ['type' => 'string']])->arrayItems(),
+        ),
+    )
         ->toBe('string');
 });
 
 it('uses property keys as technical names and titles as labels', function () {
-    $items = JsonSchema::fromArray([
+    $items = SchemaPresentation::toMappingItems(Schema::fromArray([
         'properties' => [
             'property-1' => ['title' => 'Property title'],
             '0' => [],
         ],
-    ])->toMappingItems();
+    ]));
 
     expect($items[0]['id'])->toBe('property-1');
     expect($items[0]['name'])->toBe('property-1');
@@ -431,7 +402,8 @@ it('requires source enum values to fit the destination enum', function (
     array $target,
     bool $compatible,
 ) {
-    expect(JsonSchema::fromArray($source)->compatible(JsonSchema::fromArray($target)))->toBe($compatible);
+    expect(SchemaCompatibility::make()->accepts(Schema::fromArray($source), Schema::fromArray($target)))
+        ->toBe($compatible);
 })->with([
     'date into status' => [
         ['type' => 'string', 'format' => 'date'],
@@ -526,18 +498,19 @@ it('uses Jason reference projections without changing the serialized mapping sch
         '$defs' => ['code' => ['type' => 'string', 'format' => 'email', 'maxLength' => 5]],
         'properties' => ['code' => ['$ref' => '#/$defs/code', 'maxLength' => 10]],
     ];
-    $schema = JsonSchema::fromArray($definition);
-    expect($schema->properties()['code']->maxLength())
+    $schema = Schema::fromArray($definition);
+    expect($schema->resolveReferences()->effectiveProperties()['code']->effectiveMaxLength())
         ->toBe(5)
-        ->and($schema->properties()['code']->format())
+        ->and($schema->resolveReferences()->effectiveProperties()['code']->effectiveFormat())
         ->toBe('email')
         ->and($schema->toArray())
         ->toBe($definition);
 });
 
 it('rejects boolean mapping fields instead of changing them into unconstrained definitions', function () {
-    $schema = JsonSchema::fromArray(['properties' => ['forbidden' => false]]);
-    expect($schema->properties(...))->toThrow(InvalidArgumentException::class, 'Boolean schemas');
+    $schema = Schema::fromArray(['properties' => ['forbidden' => false]]);
+    expect(fn () => SchemaPresentation::toMappingItems($schema))
+        ->toThrow(InvalidArgumentException::class, 'Boolean schemas');
 });
 
 it('uses x-enum labels in enum presentations without changing compatibility', function () {
@@ -546,16 +519,27 @@ it('uses x-enum labels in enum presentations without changing compatibility', fu
         'enum' => ['draft', 'active', 'archived', null],
         'x-enum' => ['draft' => 'Draft order', 'active' => 'Active order'],
     ];
-    $schema = JsonSchema::fromArray($definition);
+    $schema = Schema::fromArray($definition);
 
-    expect($schema->presentation()['enum'])->toBe(['Draft order', 'Active order', '"archived"', 'null']);
+    expect(SchemaPresentation::presentation($schema)['enum'])->toBe([
+        'Draft order',
+        'Active order',
+        '"archived"',
+        'null',
+    ]);
     expect($schema->toArray())->toBe($definition);
-    expect(JsonSchema::fromArray(['type' => 'string', 'enum' => ['draft']])->compatible($schema))->toBeTrue();
-    expect(JsonSchema::fromArray(['type' => 'string', 'enum' => ['Draft order']])->compatible($schema))->toBeFalse();
+    expect(SchemaCompatibility::make()->accepts(Schema::fromArray([
+        'type' => 'string',
+        'enum' => ['draft'],
+    ]), $schema))->toBeTrue();
+    expect(SchemaCompatibility::make()->accepts(Schema::fromArray([
+        'type' => 'string',
+        'enum' => ['Draft order'],
+    ]), $schema))->toBeFalse();
 });
 
 it('resolves x-enum labels through local schema references', function () {
-    $schema = JsonSchema::fromArray([
+    $schema = Schema::fromArray([
         '$defs' => [
             'status' => [
                 'type' => 'string',
@@ -566,14 +550,14 @@ it('resolves x-enum labels through local schema references', function () {
         '$ref' => '#/$defs/status',
     ]);
 
-    expect($schema->presentation()['enum'])->toBe(['Draft order']);
+    expect(SchemaPresentation::presentation($schema)['enum'])->toBe(['Draft order']);
 });
 
 it('uses JSON keys for numeric, Boolean and null enum labels', function () {
-    $schema = JsonSchema::fromArray([
+    $schema = Schema::fromArray([
         'enum' => [0, true, null],
         'x-enum' => [0 => 'Zero', 'true' => 'Yes', 'null' => 'None'],
     ]);
 
-    expect($schema->presentation()['enum'])->toBe(['Zero', 'Yes', 'None']);
+    expect(SchemaPresentation::presentation($schema)['enum'])->toBe(['Zero', 'Yes', 'None']);
 });

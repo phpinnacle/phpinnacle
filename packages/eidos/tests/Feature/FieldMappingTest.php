@@ -9,7 +9,7 @@ use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Actions;
-use Filament\Schemas\Schema;
+use Filament\Schemas\Schema as FilamentSchema;
 use Filament\Support\Facades\FilamentAsset;
 use Illuminate\Support\Js;
 use Illuminate\Support\ViewErrorBag;
@@ -18,9 +18,9 @@ use Livewire\Livewire;
 use PHPinnacle\Eidos\Enums\MappingMode;
 use PHPinnacle\Eidos\Forms\FieldBinding;
 use PHPinnacle\Eidos\Forms\FieldMapping;
-use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Eidos\Tests\Fixtures\MappingState;
 use PHPinnacle\Eidos\Tests\Fixtures\SchemaHost;
+use PHPinnacle\Jason\Schema;
 use Tests\TestCase;
 
 require_once __DIR__ . '/../Fixtures/MappingState.php';
@@ -31,7 +31,7 @@ require_once __DIR__ . '/../Fixtures/FieldMappingForm.php';
 uses(TestCase::class);
 
 it('hydrates composed source schemas with native settings', function (bool $binding, bool $dynamic) {
-    $source = JsonSchema::fromArray([
+    $source = Schema::fromArray([
         '$defs' => ['fields' => ['properties' => ['name' => ['type' => 'string']]]],
         'allOf' => [['$ref' => '#/$defs/fields']],
     ]);
@@ -40,7 +40,7 @@ it('hydrates composed source schemas with native settings', function (bool $bind
         ? FieldBinding::make('mapping')->jsonSchema($configured)->simple(TextInput::make('destination'))
         : FieldMapping::make('mapping')->jsonSchema(source: $configured);
     $field->sourceSettings([TextInput::make('alias')->default('Display name')]);
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
 
     $schema->fill();
 
@@ -54,13 +54,13 @@ it('blocks mapping editor interaction during Livewire requests', function (strin
     $source = ['properties' => ['name' => ['type' => 'string']]];
     $field = $editor === 'mapping'
         ? FieldMapping::make('editor')->jsonSchema(
-            source: JsonSchema::fromArray($source),
-            target: JsonSchema::fromArray($source),
+            source: Schema::fromArray($source),
+            target: Schema::fromArray($source),
         )
         : FieldBinding::make('editor')
-            ->jsonSchema(JsonSchema::fromArray($source))
+            ->jsonSchema(Schema::fromArray($source))
             ->simple(TextInput::make('destination'));
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill();
     view()->share('errors', new ViewErrorBag);
 
@@ -80,12 +80,12 @@ it('blocks mapping editor interaction during Livewire requests', function (strin
 it('defers mapping changes with native static forms and source settings', function () {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: JsonSchema::fromArray(['properties' => ['name' => ['type' => 'string']]]),
-            target: JsonSchema::fromArray(['properties' => ['name' => ['type' => 'string']]]),
+            source: Schema::fromArray(['properties' => ['name' => ['type' => 'string']]]),
+            target: Schema::fromArray(['properties' => ['name' => ['type' => 'string']]]),
         )
         ->staticForms(fn () => TextInput::make('value'))
         ->sourceSettings([TextInput::make('alias')]);
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill();
     view()->share('errors', new ViewErrorBag);
 
@@ -97,10 +97,10 @@ it('defers mapping changes with native static forms and source settings', functi
 it('keeps native editor addresses and submits ordered connections without inactive static drafts', function () {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: JsonSchema::fromArray([
+            source: Schema::fromArray([
                 'properties' => ['first' => ['type' => 'string'], 'second' => ['type' => 'string']],
             ]),
-            target: JsonSchema::fromArray([
+            target: Schema::fromArray([
                 'properties' => [
                     'name' => ['type' => 'string'],
                     'note' => ['type' => 'string'],
@@ -109,10 +109,10 @@ it('keeps native editor addresses and submits ordered connections without inacti
             ]),
         )
         ->sourceSettings([TextInput::make('alias')->dehydrateStateUsing(fn (string $state) => strtoupper($state))])
-        ->staticForms(fn (JsonSchema $property) => $property->singleType() === 'string'
+        ->staticForms(fn (Schema $property) => $property->singleType() === 'string'
             ? TextInput::make('value')->default('fallback')->required()->maxLength(10)
             : null);
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill([
         'mapping' => [
             ['kind' => 'static', 'target' => 'note', 'static' => 'saved', 'options' => []],
@@ -149,7 +149,7 @@ it('keeps native editor addresses and submits ordered connections without inacti
 
 it('omits static rows when their value field is not dehydrated while preserving explicit null values', function () {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(target: JsonSchema::fromArray([
+        ->jsonSchema(target: Schema::fromArray([
             'properties' => [
                 'optional' => ['type' => ['string', 'null']],
                 'nullable' => ['type' => ['string', 'null']],
@@ -160,7 +160,7 @@ it('omits static rows when their value field is not dehydrated while preserving 
         ->staticForms(fn (string $target) => $target === 'disabled'
             ? Toggle::make('value')
             : TextInput::make('value')->dehydrated(fn (mixed $state) => $target !== 'optional' || $state !== null));
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['mapping' => MappingState::mapping([
         'optional' => MappingState::value(null),
         'nullable' => MappingState::value(null),
@@ -205,10 +205,10 @@ it('validates client ordering and static draft identifiers before submission', f
 
 it('replaces an existing static value even when its destination has no static editor', function () {
     $field = FieldMapping::make('mapping')->jsonSchema(
-        source: JsonSchema::fromArray(['properties' => ['name' => ['type' => 'string']]]),
-        target: JsonSchema::fromArray(['properties' => ['name' => ['type' => 'string']]]),
+        source: Schema::fromArray(['properties' => ['name' => ['type' => 'string']]]),
+        target: Schema::fromArray(['properties' => ['name' => ['type' => 'string']]]),
     );
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill([
         'mapping' => [
             ['kind' => 'static', 'target' => 'name', 'static' => 'saved', 'options' => []],
@@ -258,15 +258,15 @@ it('partially updates every changed presentation and fully renders structural sc
 it('refreshes source cards when a reactive schema changes its types and annotations', function (string $component) {
     $definition = ['properties' => ['code' => ['title' => 'Code', 'type' => 'string', 'maxLength' => 10]]];
     $source = function () use (&$definition) {
-        return JsonSchema::fromArray($definition);
+        return Schema::fromArray($definition);
     };
     $field = $component === FieldBinding::class
         ? FieldBinding::make('mapping')->jsonSchema($source)->simple(TextInput::make('target'))
         : FieldMapping::make('mapping')->jsonSchema(
             source: $source,
-            target: JsonSchema::fromArray([]),
+            target: Schema::fromArray([]),
         );
-    Schema::make(SchemaHost::make())->statePath('data')->components([$field])->fill(['mapping' => []]);
+    FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field])->fill(['mapping' => []]);
     expect($field->getSources()[0]['presentation']['type'])->toBe('string');
     $definition = [
         'properties' => ['code' => ['title' => 'Quantity', 'type' => 'integer', 'minimum' => 0]],
@@ -287,13 +287,13 @@ it('refreshes source cards when a reactive schema changes its types and annotati
  * @param array<array-key, mixed> $mapping
  * @param list<string> $targets
  */
-function static_mapping_schema(array $mapping, array $targets = []): Schema
+function static_mapping_schema(array $mapping, array $targets = []): FilamentSchema
 {
     $livewire = SchemaHost::make();
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: JsonSchema::fromArray(['properties' => ['source' => ['type' => 'string']]]),
-            target: JsonSchema::fromArray([
+            source: Schema::fromArray(['properties' => ['source' => ['type' => 'string']]]),
+            target: Schema::fromArray([
                 'properties' => array_intersect_key(
                     [
                         'name.part' => ['type' => ['string', 'null']],
@@ -307,7 +307,7 @@ function static_mapping_schema(array $mapping, array $targets = []): Schema
                 ),
             ]),
         )
-        ->staticForms(fn (string $target, JsonSchema $property) => match ($property->singleType()) {
+        ->staticForms(fn (string $target, Schema $property) => match ($property->singleType()) {
             'string' => TextInput::make('value')
                 ->label($target)
                 ->required()
@@ -320,7 +320,7 @@ function static_mapping_schema(array $mapping, array $targets = []): Schema
         })
         ->dehydrateStateUsing(fn (array $state) => $state);
 
-    $schema = Schema::make($livewire)->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make($livewire)->statePath('data')->components([$field]);
     $schema->fill(['mapping' => MappingState::mapping($mapping)]);
 
     return $schema;
@@ -328,16 +328,16 @@ function static_mapping_schema(array $mapping, array $targets = []): Schema
 
 it('selects static editors by target without prohibiting submitted scalar values', function () {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(target: JsonSchema::fromArray([
+        ->jsonSchema(target: Schema::fromArray([
             'properties' => [
                 'id' => ['type' => 'string'],
                 'name' => ['type' => 'string', 'maxLength' => 5],
             ],
         ]))
-        ->staticForms(fn (string $target, JsonSchema $property) => $target === 'id'
+        ->staticForms(fn (string $target, Schema $property) => $target === 'id'
             ? null
             : TextInput::make('value')->maxLength($property->annotation('maxLength')));
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $mapping = MappingState::mapping([
         'id' => MappingState::value('record-1'),
         'name' => MappingState::value('Alice'),
@@ -367,7 +367,7 @@ it('offers registered static editors for every destination and validates their d
 
     $schema
         ->getComponent('mapping')
-        ->staticForms(fn (string $target, JsonSchema $property) => match ($property->singleType()) {
+        ->staticForms(fn (string $target, Schema $property) => match ($property->singleType()) {
             'string' => TextInput::make('value')->nullable(),
             'boolean' => Toggle::make('value')->default(false),
             default => null,
@@ -443,12 +443,12 @@ it('only renders one mapping search input when enabled, including closure config
     $livewire = SchemaHost::make();
 
     $field = FieldMapping::make('mapping')->jsonSchema(
-        source: JsonSchema::fromArray(['properties' => ['title' => []]]),
-        target: JsonSchema::fromArray([
+        source: Schema::fromArray(['properties' => ['title' => []]]),
+        target: Schema::fromArray([
             'properties' => ['name' => []],
         ]),
     );
-    $schema = Schema::make($livewire)->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make($livewire)->statePath('data')->components([$field]);
     $schema->fill(['mapping' => MappingState::mapping(['name' => MappingState::source('title')])]);
     view()->share('errors', new ViewErrorBag);
 
@@ -480,14 +480,14 @@ it('places one shared search before the toolbar filter for mapping and binding',
     $source = ['properties' => ['name' => ['type' => 'string']]];
     $field = $binding
         ? FieldBinding::make('mapping')
-            ->jsonSchema(JsonSchema::fromArray($source))
+            ->jsonSchema(Schema::fromArray($source))
             ->simple(TextInput::make('destination'))
         : FieldMapping::make('mapping')->jsonSchema(
-            source: JsonSchema::fromArray($source),
-            target: JsonSchema::fromArray($source),
+            source: Schema::fromArray($source),
+            target: Schema::fromArray($source),
         );
     $field->searchable()->contained($contained);
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill();
     $state = $schema->getState();
     view()->share('errors', new ViewErrorBag);
@@ -519,12 +519,12 @@ it('keeps static values in destination editors without creating source cards', f
     $sourceSchema = ['properties' => ['name' => ['type' => 'string']]];
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: JsonSchema::fromArray($sourceSchema),
-            target: JsonSchema::fromArray(['properties' => ['label' => ['type' => 'string']]]),
+            source: Schema::fromArray($sourceSchema),
+            target: Schema::fromArray(['properties' => ['label' => ['type' => 'string']]]),
         )
         ->withBuiltinStaticForms()
         ->inverse($inverse);
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill([
         'mapping' => [
             ['kind' => 'static', 'target' => 'label', 'static' => 'Customer', 'options' => []],
@@ -550,13 +550,13 @@ it('keeps static values in destination editors without creating source cards', f
 it('filters complete source card containers', function (bool $inverse) {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: JsonSchema::fromArray(['properties' => ['title' => ['type' => 'string']]]),
-            target: JsonSchema::fromArray([
+            source: Schema::fromArray(['properties' => ['title' => ['type' => 'string']]]),
+            target: Schema::fromArray([
                 'properties' => ['name' => ['type' => 'string']],
             ]),
         )
         ->inverse($inverse);
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill([
         'mapping' => [
             ['kind' => 'source', 'source' => 'title', 'target' => null, 'options' => []],
@@ -583,13 +583,13 @@ it('filters complete source card containers', function (bool $inverse) {
 it('applies column spans to their source and target sides without changing mappings', function (bool $inverse) {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: JsonSchema::fromArray(['properties' => ['title' => ['type' => 'string']]]),
-            target: JsonSchema::fromArray([
+            source: Schema::fromArray(['properties' => ['title' => ['type' => 'string']]]),
+            target: Schema::fromArray([
                 'properties' => ['name' => ['type' => 'string']],
             ]),
         )
         ->inverse($inverse);
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['mapping' => MappingState::mapping(['name' => MappingState::source('title')])]);
     view()->share('errors', new ViewErrorBag);
     $state = $schema->getState();
@@ -616,7 +616,7 @@ it('preserves standalone mapping content and values across presentation options'
 
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: JsonSchema::fromArray([
+            source: Schema::fromArray([
                 'properties' => [
                     'title' => [
                         'type' => 'string',
@@ -625,7 +625,7 @@ it('preserves standalone mapping content and values across presentation options'
                     ],
                 ],
             ]),
-            target: JsonSchema::fromArray([
+            target: Schema::fromArray([
                 'required' => ['name'],
                 'properties' => [
                     'name' => [
@@ -644,7 +644,7 @@ it('preserves standalone mapping content and values across presentation options'
         $field->contained(false);
     }
 
-    $schema = Schema::make($livewire)
+    $schema = FilamentSchema::make($livewire)
         ->statePath('data')
         ->components([$field]);
     $schema->fill(['mapping' => MappingState::mapping(['name' => MappingState::source('title')])]);
@@ -690,13 +690,13 @@ it('keeps the mapping toolbar when either side has no fields', function (
 ) {
     $livewire = SchemaHost::make();
 
-    $schema = Schema::make($livewire)
+    $schema = FilamentSchema::make($livewire)
         ->statePath('data')
         ->components([
             FieldMapping::make('mapping')
                 ->jsonSchema(
-                    source: JsonSchema::fromArray(['properties' => array_fill_keys($sources, [])]),
-                    target: JsonSchema::fromArray(['properties' => array_fill_keys($targets, [])]),
+                    source: Schema::fromArray(['properties' => array_fill_keys($sources, [])]),
+                    target: Schema::fromArray(['properties' => array_fill_keys($targets, [])]),
                 )
                 ->searchable()
                 ->warnings(dest: ['name' => 'Review the destination.'])
@@ -719,13 +719,13 @@ it('keeps the mapping toolbar when either side has no fields', function (
 it('highlights warnings on either side and preserves missing identifiers in both orientations', function (bool $inverse) {
     $livewire = SchemaHost::make();
 
-    $schema = Schema::make($livewire)
+    $schema = FilamentSchema::make($livewire)
         ->statePath('data')
         ->components([
             FieldMapping::make('mapping')
                 ->jsonSchema(
-                    source: JsonSchema::fromArray(['properties' => ['title' => [], 'email' => []]]),
-                    target: JsonSchema::fromArray([
+                    source: Schema::fromArray(['properties' => ['title' => [], 'email' => []]]),
+                    target: Schema::fromArray([
                         'properties' => ['name' => [], 'contact' => []],
                     ]),
                 )
@@ -750,13 +750,13 @@ it('highlights warnings on either side and preserves missing identifiers in both
 it('renders native actions on every source before mapping in both orientations', function (bool $inverse) {
     $livewire = SchemaHost::make();
 
-    $schema = Schema::make($livewire)
+    $schema = FilamentSchema::make($livewire)
         ->statePath('data')
         ->components([
             FieldMapping::make('mapping')
                 ->jsonSchema(
-                    source: JsonSchema::fromArray(['properties' => ['title' => [], 'email' => []]]),
-                    target: JsonSchema::fromArray([
+                    source: Schema::fromArray(['properties' => ['title' => [], 'email' => []]]),
+                    target: Schema::fromArray([
                         'properties' => ['name' => [], 'contact' => []],
                     ]),
                 )
@@ -785,13 +785,13 @@ it('renders native actions on every source before mapping in both orientations',
 it('does not render static editors without a registered type factory', function (bool $inverse) {
     $livewire = SchemaHost::make();
 
-    $schema = Schema::make($livewire)
+    $schema = FilamentSchema::make($livewire)
         ->statePath('data')
         ->components([
             FieldMapping::make('mapping')
                 ->jsonSchema(
-                    source: JsonSchema::fromArray(['properties' => ['title' => []]]),
-                    target: JsonSchema::fromArray([
+                    source: Schema::fromArray(['properties' => ['title' => []]]),
+                    target: Schema::fromArray([
                         'properties' => ['name' => [], 'contact' => []],
                     ]),
                 )
@@ -808,7 +808,7 @@ it('does not render static editors without a registered type factory', function 
 
 it('renders schema names, formats and separate disclosure controls for scoped details', function () {
     $field = FieldMapping::make('mapping')->jsonSchema(
-        source: JsonSchema::fromArray([
+        source: Schema::fromArray([
             'properties' => [
                 'tag_codes' => [
                     'title' => 'Tags',
@@ -821,14 +821,14 @@ it('renders schema names, formats and separate disclosure controls for scoped de
                 ],
             ],
         ]),
-        target: JsonSchema::fromArray([
+        target: Schema::fromArray([
             'properties' => [
                 'id' => ['title' => 'Identifier', 'type' => 'string', 'format' => 'uuid'],
                 'status' => ['type' => 'string', 'enum' => ['active', '<draft>']],
             ],
         ]),
     );
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['mapping' => MappingState::mapping([])]);
     view()->share('errors', new ViewErrorBag);
 
@@ -853,7 +853,7 @@ it('renders schema names, formats and separate disclosure controls for scoped de
 it('shows output metadata without retaining the input format or limits', function () {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: JsonSchema::fromArray([
+            source: Schema::fromArray([
                 'properties' => ['id' => [
                     'title' => 'Identifier',
                     'type' => 'string',
@@ -861,10 +861,10 @@ it('shows output metadata without retaining the input format or limits', functio
                     'maxLength' => 36,
                 ]],
             ]),
-            target: JsonSchema::fromArray(['properties' => ['enabled' => ['type' => 'boolean']]]),
+            target: Schema::fromArray(['properties' => ['enabled' => ['type' => 'boolean']]]),
         )
-        ->outputSchema(fn () => JsonSchema::fromArray(['properties' => ['id' => ['type' => 'boolean']]]));
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+        ->outputSchema(fn () => Schema::fromArray(['properties' => ['id' => ['type' => 'boolean']]]));
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['mapping' => MappingState::mapping([])]);
     view()->share('errors', new ViewErrorBag);
 
@@ -880,13 +880,13 @@ it('shows only the final type and uses it for connection checks', function () {
 
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: JsonSchema::fromArray(['properties' => ['active' => ['type' => 'boolean']]]),
-            target: JsonSchema::fromArray([
+            source: Schema::fromArray(['properties' => ['active' => ['type' => 'boolean']]]),
+            target: Schema::fromArray([
                 'properties' => ['name' => ['type' => 'string']],
             ]),
         )
-        ->outputSchema(fn () => JsonSchema::fromArray(['properties' => ['active' => ['type' => 'string']]]));
-    $schema = Schema::make($livewire)->statePath('data')->components([$field]);
+        ->outputSchema(fn () => Schema::fromArray(['properties' => ['active' => ['type' => 'string']]]));
+    $schema = FilamentSchema::make($livewire)->statePath('data')->components([$field]);
     $schema->fill(['mapping' => MappingState::mapping(['name' => MappingState::source('active')])]);
     view()->share('errors', new ViewErrorBag);
 
@@ -905,17 +905,17 @@ it('shows only the final type and uses it for connection checks', function () {
 it('persists and validates source settings independently of connections', function (bool $inverse) {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: JsonSchema::fromArray([
+            source: Schema::fromArray([
                 'properties' => ['first.part' => ['type' => 'string'], '0' => ['type' => 'string']],
             ]),
-            target: JsonSchema::fromArray(['properties' => ['name' => ['type' => 'string']]]),
+            target: Schema::fromArray(['properties' => ['name' => ['type' => 'string']]]),
         )
         ->sourceSettings(fn (string $source) => [
             TextInput::make('alias')->default($source)->required(),
             Toggle::make('enabled')->default(true),
         ])
         ->inverse($inverse);
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $settings = [
         'first.part' => ['alias' => 'First', 'enabled' => false],
         '0' => ['alias' => 'Zero', 'enabled' => true],
@@ -951,11 +951,11 @@ it('reads and submits canonical nested source settings without changing editor s
     $sourceSchema = ['properties' => ['first.part' => ['type' => 'string'], '0' => ['type' => 'string']]];
     $field = $binding
         ? FieldBinding::make('widget')
-            ->jsonSchema(JsonSchema::fromArray($sourceSchema))
+            ->jsonSchema(Schema::fromArray($sourceSchema))
             ->simple(TextInput::make('column'))
         : FieldMapping::make('widget')->jsonSchema(
-            source: JsonSchema::fromArray($sourceSchema),
-            target: JsonSchema::fromArray([
+            source: Schema::fromArray($sourceSchema),
+            target: Schema::fromArray([
                 'properties' => ['first' => [], 'second' => []],
             ]),
         );
@@ -966,7 +966,7 @@ it('reads and submits canonical nested source settings without changing editor s
         Builder::make('blocks')->blocks([Block::make('replace')->schema([TextInput::make('value')])]),
         KeyValue::make('mapping')->label('Mapping for ' . $source),
     ]);
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $settings = [
         'first.part' => [
             'rules' => [['value' => 'first']],
@@ -1007,15 +1007,15 @@ it('reads and submits canonical nested source settings without changing editor s
 it('shows settings for newly available sources without requiring a connection or binding', function (bool $binding) {
     $sources = ['name'];
     $sourceSchema = function () use (&$sources) {
-        return JsonSchema::fromArray(['properties' => array_fill_keys($sources, ['type' => 'string'])]);
+        return Schema::fromArray(['properties' => array_fill_keys($sources, ['type' => 'string'])]);
     };
     $field = $binding
         ? FieldBinding::make('widget')->jsonSchema($sourceSchema)->simple(TextInput::make('column'))
-        : FieldMapping::make('widget')->jsonSchema(source: $sourceSchema, target: JsonSchema::fromArray([
+        : FieldMapping::make('widget')->jsonSchema(source: $sourceSchema, target: Schema::fromArray([
             'properties' => ['output' => ['type' => 'string']],
         ]));
     $field->sourceSettings(fn (string $source) => [TextInput::make('alias')->label('Alias for ' . $source)]);
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['widget' => []]);
     view()->share('errors', new ViewErrorBag);
     expect($schema->toHtml())->toContain('Alias for name')->not->toContain('Alias for email');
@@ -1028,16 +1028,16 @@ it('shows the property key separately from its title and preserves mapping state
     $sourceSchema = ['properties' => [$sourceId => ['type' => 'string', 'title' => 'Email']]];
     $field = $binding
         ? FieldBinding::make('widget')
-            ->jsonSchema(JsonSchema::fromArray($sourceSchema))
+            ->jsonSchema(Schema::fromArray($sourceSchema))
             ->simple(TextInput::make('destination')->default('contact.email'))
         : FieldMapping::make('widget')->jsonSchema(
-            source: JsonSchema::fromArray($sourceSchema),
-            target: JsonSchema::fromArray([
+            source: Schema::fromArray($sourceSchema),
+            target: Schema::fromArray([
                 'properties' => ['email' => ['type' => 'string']],
             ]),
         );
     $field->searchable();
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $state = $binding
         ? MappingState::binding([$sourceId => 'contact.email'])
         : MappingState::mapping(['email' => MappingState::source($sourceId)]);
@@ -1142,10 +1142,10 @@ it('uses native row state in owning header actions across Livewire requests', fu
 it('rebinds native settings and static editors to their current row indexes', function () {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: JsonSchema::fromArray([
+            source: Schema::fromArray([
                 'properties' => ['first' => ['type' => 'string'], 'second' => ['type' => 'string']],
             ]),
-            target: JsonSchema::fromArray([
+            target: Schema::fromArray([
                 'properties' => [
                     'items' => ['type' => 'array', 'x-mapping' => 'item', 'items' => ['type' => 'string']],
                     'label' => ['type' => 'string'],
@@ -1156,7 +1156,7 @@ it('rebinds native settings and static editors to their current row indexes', fu
             ->schema([TextInput::make('value')])
             ->defaultItems(0)])
         ->staticForms(fn (string $target) => $target === 'label' ? TextInput::make('value') : null);
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $first = [
         'kind' => 'source',
         'source' => 'first',
@@ -1196,10 +1196,10 @@ it('round trips collection mappings through independent schema instances', funct
     foreach (['first', 'second'] as $name) {
         $fields[] = FieldMapping::make($name)
             ->jsonSchema(
-                source: JsonSchema::fromArray([
+                source: Schema::fromArray([
                     'properties' => ['_my_field' => ['type' => 'string'], 'other.name' => ['type' => 'string']],
                 ]),
-                target: JsonSchema::fromArray([
+                target: Schema::fromArray([
                     'properties' => [
                         'custom' => ['type' => $type, 'x-mapping' => $mode, 'items' => ['type' => 'string']],
                     ],
@@ -1212,7 +1212,7 @@ it('round trips collection mappings through independent schema instances', funct
         ['kind' => 'source', 'source' => '_my_field', 'target' => 'custom', 'options' => ['alias' => 'one']],
         ['kind' => 'source', 'source' => 'other.name', 'target' => 'custom', 'options' => ['alias' => 'two']],
     ];
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components($fields);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components($fields);
     $schema->fill(['first' => $rows, 'second' => $rows]);
     view()->share('errors', new ViewErrorBag);
 

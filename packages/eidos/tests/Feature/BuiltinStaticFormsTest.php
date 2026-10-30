@@ -8,14 +8,14 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
-use Filament\Schemas\Schema;
+use Filament\Schemas\Schema as FilamentSchema;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use PHPinnacle\Eidos\Forms\BuiltinStaticForms;
 use PHPinnacle\Eidos\Forms\FieldMapping;
-use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Eidos\Tests\Fixtures\MappingState;
 use PHPinnacle\Eidos\Tests\Fixtures\SchemaHost;
+use PHPinnacle\Jason\Schema;
 use Tests\TestCase;
 
 require_once __DIR__ . '/../Fixtures/MappingState.php';
@@ -24,18 +24,18 @@ require_once __DIR__ . '/../Fixtures/SchemaHost.php';
 uses(TestCase::class);
 
 /** @param array<string, mixed> $property */
-function builtin_static_schema(array $property, mixed $value = null): Schema
+function builtin_static_schema(array $property, mixed $value = null): FilamentSchema
 {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: JsonSchema::fromArray(['properties' => ['source' => ['type' => 'string']]]),
-            target: JsonSchema::fromArray([
+            source: Schema::fromArray(['properties' => ['source' => ['type' => 'string']]]),
+            target: Schema::fromArray([
                 'properties' => ['target' => $property],
                 'required' => ['target'],
             ]),
         )
         ->withBuiltinStaticForms();
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['mapping' => MappingState::mapping(['target' => MappingState::value($value)])]);
 
     return $schema;
@@ -165,11 +165,11 @@ it('validates submitted values through built-in fields', function (array $proper
 it('leaves unsupported built-in static types available for connections', function (array $property) {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: JsonSchema::fromArray(['properties' => ['source' => $property]]),
-            target: JsonSchema::fromArray(['properties' => ['target' => $property], 'required' => ['target']]),
+            source: Schema::fromArray(['properties' => ['source' => $property]]),
+            target: Schema::fromArray(['properties' => ['target' => $property], 'required' => ['target']]),
         )
         ->withBuiltinStaticForms();
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill();
 
     expect($field->getStaticFormSchema('target'))->toBeNull();
@@ -203,16 +203,16 @@ it('replaces built-in static forms with a target factory', function (string $typ
 
 it('reuses built-in editors inside a target factory', function () {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(target: JsonSchema::fromArray([
+        ->jsonSchema(target: Schema::fromArray([
             'properties' => [
                 'id' => ['type' => 'string'],
                 'active' => ['type' => 'boolean'],
             ],
         ]))
-        ->staticForms(fn (string $target, JsonSchema $property) => $target === 'id'
+        ->staticForms(fn (string $target, Schema $property) => $target === 'id'
             ? null
             : BuiltinStaticForms::make($property, false));
-    Schema::make(SchemaHost::make())->statePath('data')->components([$field])->fill(['mapping' => []]);
+    FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field])->fill(['mapping' => []]);
 
     expect($field->getStaticFormSchema('id'))
         ->toBeNull()
@@ -225,8 +225,8 @@ it('reuses built-in editors inside a target factory', function () {
 it('renders destination static forms without source fields', function () {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: JsonSchema::fromArray(['type' => 'object']),
-            target: JsonSchema::fromArray([
+            source: Schema::fromArray(['type' => 'object']),
+            target: Schema::fromArray([
                 'properties' => [
                     'name' => ['type' => 'string', 'title' => 'Name', 'maxLength' => 255],
                     'active' => ['type' => 'boolean', 'title' => 'Active'],
@@ -234,7 +234,7 @@ it('renders destination static forms without source fields', function () {
             ]),
         )
         ->withBuiltinStaticForms();
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['mapping' => []]);
     view()->share('errors', new ViewErrorBag);
 

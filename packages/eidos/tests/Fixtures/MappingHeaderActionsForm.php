@@ -12,11 +12,11 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
-use Filament\Schemas\Schema;
+use Filament\Schemas\Schema as FilamentSchema;
 use Livewire\Component;
 use PHPinnacle\Eidos\Forms\FieldBinding;
 use PHPinnacle\Eidos\Forms\FieldMapping;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Jason\Schema;
 
 class MappingHeaderActionsForm extends Component implements HasActions, HasSchemas
 {
@@ -40,12 +40,12 @@ class MappingHeaderActionsForm extends Component implements HasActions, HasSchem
         $this->form->fill();
     }
 
-    public function form(Schema $schema): Schema
+    public function form(FilamentSchema $schema): FilamentSchema
     {
-        $source = fn (Get $get) => JsonSchema::fromArray($get('schema'));
+        $source = fn (Get $get) => Schema::fromArray($get('schema'));
         $field = $this->binding
             ? FieldBinding::make('mapping')->jsonSchema($source)->simple(TextInput::make('destination')->required())
-            : FieldMapping::make('mapping')->jsonSchema(source: $source, target: JsonSchema::fromArray([
+            : FieldMapping::make('mapping')->jsonSchema(source: $source, target: Schema::fromArray([
                 'properties' => ['destination' => ['type' => 'string']],
             ]));
         $field
@@ -75,9 +75,9 @@ class MappingHeaderActionsForm extends Component implements HasActions, HasSchem
                         ];
                         $component->state($state);
                         if ($component instanceof FieldMapping) {
-                            $component->jsonSchema(source: JsonSchema::fromArray($source));
+                            $component->jsonSchema(source: Schema::fromArray($source));
                         } else {
-                            $component->jsonSchema(JsonSchema::fromArray($source));
+                            $component->jsonSchema(Schema::fromArray($source));
                         }
 
                         $set('schema', $source);

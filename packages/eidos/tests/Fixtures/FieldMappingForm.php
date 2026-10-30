@@ -5,10 +5,10 @@ namespace PHPinnacle\Eidos\Tests\Fixtures;
 use Filament\Forms\Components\Select;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
-use Filament\Schemas\Schema;
+use Filament\Schemas\Schema as FilamentSchema;
 use Livewire\Component;
 use PHPinnacle\Eidos\Forms\FieldMapping;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Jason\Schema;
 
 class FieldMappingForm extends Component implements HasSchemas
 {
@@ -28,17 +28,17 @@ class FieldMappingForm extends Component implements HasSchemas
         $this->form->fill();
     }
 
-    public function form(Schema $schema): Schema
+    public function form(FilamentSchema $schema): FilamentSchema
     {
         $target = $this->dynamicTarget
-            ? fn (FieldMapping $component) => JsonSchema::fromArray([
+            ? fn (FieldMapping $component) => Schema::fromArray([
                 'properties' => ['destination' => [
                     'type' => $component->getSourceSettings()['first']['type'] ?? 'string',
                 ]],
-            ]) : JsonSchema::fromArray(['properties' => ['destination' => ['type' => 'boolean']]]);
+            ]) : Schema::fromArray(['properties' => ['destination' => ['type' => 'boolean']]]);
 
         if ($this->mappingMode !== null) {
-            $target = JsonSchema::fromArray([
+            $target = Schema::fromArray([
                 'properties' => [
                     'destination' => [
                         'type' => $this->mappingMode === 'property' ? 'object' : 'array',
@@ -53,7 +53,7 @@ class FieldMappingForm extends Component implements HasSchemas
             ->statePath('data')
             ->components([
                 FieldMapping::make('mapping')
-                    ->jsonSchema(source: JsonSchema::fromArray([
+                    ->jsonSchema(source: Schema::fromArray([
                         'properties' => ['first' => ['type' => 'string'], 'second' => ['type' => 'string']],
                     ]), target: $target)
                     ->sourceSettings(fn () => [Select::make('type')
@@ -66,7 +66,7 @@ class FieldMappingForm extends Component implements HasSchemas
                         $schema['properties']['first']['type'] = $type;
                         $schema['properties']['second']['type'] = $type;
 
-                        return JsonSchema::fromArray($schema);
+                        return Schema::fromArray($schema);
                     }),
             ]);
     }

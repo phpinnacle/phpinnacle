@@ -8,11 +8,11 @@ use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Arr;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Eidos\JsonSchema\SchemaPresentation;
 
 /**
  * @phpstan-require-extends Field
- * @phpstan-import-type MappingItem from JsonSchema
+ * @phpstan-import-type MappingItem from SchemaPresentation
  */
 trait HasSourceSettings
 {
