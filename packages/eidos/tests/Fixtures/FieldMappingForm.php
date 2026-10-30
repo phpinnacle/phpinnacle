@@ -8,6 +8,7 @@ use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
 use Livewire\Component;
 use PHPinnacle\Eidos\Forms\FieldMapping;
+use PHPinnacle\Eidos\Forms\JsonSchema;
 
 class FieldMappingForm extends Component implements HasSchemas
 {
@@ -30,14 +31,14 @@ class FieldMappingForm extends Component implements HasSchemas
     public function form(Schema $schema): Schema
     {
         $target = $this->dynamicTarget
-            ? fn (FieldMapping $component) => [
+            ? fn (FieldMapping $component) => JsonSchema::fromArray([
                 'properties' => ['destination' => [
                     'type' => $component->getSourceSettings()['first']['type'] ?? 'string',
                 ]],
-            ] : ['properties' => ['destination' => ['type' => 'boolean']]];
+            ]) : JsonSchema::fromArray(['properties' => ['destination' => ['type' => 'boolean']]]);
 
         if ($this->mappingMode !== null) {
-            $target = [
+            $target = JsonSchema::fromArray([
                 'properties' => [
                     'destination' => [
                         'type' => $this->mappingMode === 'property' ? 'object' : 'array',
@@ -45,27 +46,27 @@ class FieldMappingForm extends Component implements HasSchemas
                         'items' => ['type' => 'string'],
                     ],
                 ],
-            ];
+            ]);
         }
 
         return $schema
             ->statePath('data')
             ->components([
                 FieldMapping::make('mapping')
-                    ->jsonSchema(source: [
+                    ->jsonSchema(source: JsonSchema::fromArray([
                         'properties' => ['first' => ['type' => 'string'], 'second' => ['type' => 'string']],
-                    ], target: $target)
+                    ]), target: $target)
                     ->sourceSettings(fn () => [Select::make('type')
                         ->options(['string' => 'String', 'boolean' => 'Boolean'])
                         ->default('string')
                         ->live()])
                     ->outputSchema(function (FieldMapping $component) {
-                        $schema = $component->getSourceSchema();
+                        $schema = $component->getSourceSchema()->toArray();
                         $type = $component->getSourceSettings()['first']['type'] ?? 'string';
                         $schema['properties']['first']['type'] = $type;
                         $schema['properties']['second']['type'] = $type;
 
-                        return $schema;
+                        return JsonSchema::fromArray($schema);
                     }),
             ]);
     }

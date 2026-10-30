@@ -25,7 +25,6 @@ use PHPinnacle\Eidos\Forms\Concerns\Searchable;
 
 /**
  * @phpstan-import-type MappingItem from JsonSchema
- * @phpstan-import-type Definition from JsonSchema
  * @phpstan-type SourceState array{kind: 'source', source: string, target: mixed, options: array<string, mixed>}
  * @phpstan-type StaticState array{kind: 'static', target: mixed, static: mixed, options: array<string, mixed>}
  * @phpstan-type State list<SourceState|StaticState>
@@ -43,8 +42,8 @@ class FieldBinding extends Field
 
     protected string $view = 'phpinnacle-eidos::forms.field-binding';
 
-    /** @var Definition|Closure(): Definition */
-    protected array|Closure $jsonSchema = [];
+    /** @var JsonSchema|Closure(): JsonSchema */
+    protected JsonSchema|Closure $jsonSchema;
 
     /** @var string|Closure(): string */
     protected string|Closure $sourceLabel = 'Source';
@@ -60,8 +59,7 @@ class FieldBinding extends Field
     /** @var array<string, string>|Closure(): array<string, string> */
     protected array|Closure $warnings = [];
 
-    /** @var Definition|null */
-    private ?array $cachedSourceDefinition = null;
+    private ?JsonSchema $cachedSourceSchema = null;
 
     /** @var list<MappingItem> */
     private array $cachedSources = [];
@@ -83,8 +81,8 @@ class FieldBinding extends Field
         return $this->evaluate($this->warnings);
     }
 
-    /** @param Definition|Closure $schema */
-    public function jsonSchema(array|Closure $schema): static
+    /** @param JsonSchema|Closure $schema Schema or Filament-evaluated callback returning JsonSchema. */
+    public function jsonSchema(JsonSchema|Closure $schema): static
     {
         $this->jsonSchema = $schema;
 
@@ -113,8 +111,7 @@ class FieldBinding extends Field
         return $this->evaluate($this->targetLabel);
     }
 
-    /** @return Definition */
-    public function getSourceSchema(): array
+    public function getSourceSchema(): JsonSchema
     {
         return $this->evaluate($this->jsonSchema);
     }
@@ -122,10 +119,10 @@ class FieldBinding extends Field
     /** @return list<MappingItem> */
     public function getSources(): array
     {
-        $definition = $this->getSourceSchema();
-        if ($this->cachedSourceDefinition !== $definition) {
-            $this->cachedSources = JsonSchema::fromArray($definition)->toMappingItems();
-            $this->cachedSourceDefinition = $definition;
+        $schema = $this->getSourceSchema();
+        if ($this->cachedSourceSchema?->toArray() !== $schema->toArray()) {
+            $this->cachedSources = $schema->toMappingItems();
+            $this->cachedSourceSchema = $schema;
         }
 
         return $this->cachedSources;
@@ -483,6 +480,8 @@ class FieldBinding extends Field
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->jsonSchema = JsonSchema::fromArray([]);
 
         $this->schema([]);
         $this->childComponents([

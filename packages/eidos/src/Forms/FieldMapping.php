@@ -23,7 +23,6 @@ use PHPinnacle\Eidos\Forms\Concerns\Searchable;
 
 /**
  * @phpstan-import-type MappingItem from JsonSchema
- * @phpstan-import-type Definition from JsonSchema
  * @phpstan-import-type Presentation from JsonSchema
  * @phpstan-type SourceEntry array{kind: 'source', source: string}
  * @phpstan-type ValueEntry array{kind: 'value', value: mixed}
@@ -45,14 +44,14 @@ class FieldMapping extends Field
 
     protected string $view = 'phpinnacle-eidos::forms.field-mapping';
 
-    /** @var Definition|Closure(): Definition */
-    protected array|Closure $sourceSchema = [];
+    /** @var JsonSchema|Closure(): JsonSchema */
+    protected JsonSchema|Closure $sourceSchema;
 
-    /** @var Definition|Closure(): Definition */
-    protected array|Closure $targetSchema = [];
+    /** @var JsonSchema|Closure(): JsonSchema */
+    protected JsonSchema|Closure $targetSchema;
 
-    /** @var Definition|Closure(): Definition|null */
-    protected array|Closure|null $outputSchema = null;
+    /** @var JsonSchema|Closure(): JsonSchema|null */
+    protected JsonSchema|Closure|null $outputSchema = null;
 
     protected ?SchemaCompatibility $compatibility = null;
 
@@ -76,8 +75,7 @@ class FieldMapping extends Field
     /** @var array<string, string>|Closure(): array<string, string> */
     protected array|Closure $targetWarnings = [];
 
-    /** @var Definition|null */
-    private ?array $cachedSourceDefinition = null;
+    private ?JsonSchema $cachedSourceSchema = null;
 
     /** @var list<MappingItem> */
     private array $cachedSources = [];
@@ -118,7 +116,7 @@ class FieldMapping extends Field
     /** @return list<string> */
     public function getRequiredTargets(): array
     {
-        return JsonSchema::fromArray($this->getTargetSchema())->required();
+        return $this->getTargetSchema()->required();
     }
 
     /** @return list<string> */
@@ -135,7 +133,7 @@ class FieldMapping extends Field
     {
         return array_map(
             self::mappingMode(...),
-            JsonSchema::fromArray($this->getTargetSchema())->properties(),
+            $this->getTargetSchema()->properties(),
         );
     }
 
@@ -318,7 +316,7 @@ class FieldMapping extends Field
         /** @var State $rows */
         $rows = $this->getRawState() ?? [];
         $sources = array_column(array_filter($rows, fn (array $row) => $row['kind'] === 'source'), 'source');
-        foreach (array_keys($this->evaluate($this->sourceSchema)['properties'] ?? []) as $source) {
+        foreach (array_keys($this->getSourceSchema()->properties()) as $source) {
             if (!in_array((string) $source, $sources, true)) {
                 $rows[] = ['kind' => 'source', 'source' => (string) $source, 'target' => null, 'options' => []];
             }
@@ -396,10 +394,10 @@ class FieldMapping extends Field
     }
 
     /**
-     * @param Definition|Closure $source
-     * @param Definition|Closure $target
+     * @param JsonSchema|Closure|null $source
+     * @param JsonSchema|Closure|null $target
      */
-    public function jsonSchema(array|Closure|null $source = null, array|Closure|null $target = null): static
+    public function jsonSchema(JsonSchema|Closure|null $source = null, JsonSchema|Closure|null $target = null): static
     {
         if ($source !== null) {
             $this->sourceSchema = $source;
@@ -412,28 +410,25 @@ class FieldMapping extends Field
         return $this;
     }
 
-    /** @param Definition|Closure $schema */
-    public function outputSchema(array|Closure $schema): static
+    /** @param JsonSchema|Closure $schema Schema or Filament-evaluated callback returning JsonSchema. */
+    public function outputSchema(JsonSchema|Closure $schema): static
     {
         $this->outputSchema = $schema;
 
         return $this;
     }
 
-    /** @return Definition */
-    public function getSourceSchema(): array
+    public function getSourceSchema(): JsonSchema
     {
         return $this->evaluate($this->sourceSchema);
     }
 
-    /** @return Definition */
-    public function getTargetSchema(): array
+    public function getTargetSchema(): JsonSchema
     {
         return $this->evaluate($this->targetSchema);
     }
 
-    /** @return Definition */
-    public function getOutputSchema(): array
+    public function getOutputSchema(): JsonSchema
     {
         return $this->outputSchema === null ? $this->getSourceSchema() : $this->evaluate($this->outputSchema);
     }
@@ -469,9 +464,9 @@ class FieldMapping extends Field
     public function getConnectionModes(): array
     {
         $modes = [];
-        $outputs = JsonSchema::fromArray($this->getOutputSchema())->properties();
-        $targets = JsonSchema::fromArray($this->getTargetSchema())->properties();
-        foreach (array_keys(JsonSchema::fromArray($this->getSourceSchema())->properties()) as $source) {
+        $outputs = $this->getOutputSchema()->properties();
+        $targets = $this->getTargetSchema()->properties();
+        foreach (array_keys($this->getSourceSchema()->properties()) as $source) {
             $output = $outputs[$source] ?? JsonSchema::fromArray([]);
             foreach ($targets as $target => $destination) {
                 $mode = self::mappingMode($destination);
@@ -517,10 +512,10 @@ class FieldMapping extends Field
     /** @return list<MappingItem> */
     public function getSources(): array
     {
-        $definition = $this->getSourceSchema();
-        if ($this->cachedSourceDefinition !== $definition) {
-            $this->cachedSources = JsonSchema::fromArray($definition)->toMappingItems();
-            $this->cachedSourceDefinition = $definition;
+        $schema = $this->getSourceSchema();
+        if ($this->cachedSourceSchema?->toArray() !== $schema->toArray()) {
+            $this->cachedSources = $schema->toMappingItems();
+            $this->cachedSourceSchema = $schema;
         }
 
         return $this->cachedSources;
@@ -529,12 +524,15 @@ class FieldMapping extends Field
     /** @return list<MappingItem> */
     public function getTargets(): array
     {
-        return JsonSchema::fromArray($this->getTargetSchema())->toMappingItems();
+        return $this->getTargetSchema()->toMappingItems();
     }
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->sourceSchema = JsonSchema::fromArray([]);
+        $this->targetSchema = JsonSchema::fromArray([]);
 
         $this->schema([]);
         $this->childComponents([
@@ -590,7 +588,7 @@ class FieldMapping extends Field
     {
         return array_map(
             fn (JsonSchema $property) => $property->presentation(),
-            JsonSchema::fromArray($this->getOutputSchema())->properties(),
+            $this->getOutputSchema()->properties(),
         );
     }
 
@@ -818,7 +816,7 @@ class FieldMapping extends Field
             return null;
         }
 
-        $property = JsonSchema::fromArray($this->getTargetSchema())->properties()[$target];
+        $property = $this->getTargetSchema()->properties()[$target];
 
         /** @var Field|null */
         return $this->evaluate($this->staticForms, ['target' => $target, 'property' => $property]);

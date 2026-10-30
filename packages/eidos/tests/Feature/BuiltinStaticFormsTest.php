@@ -27,10 +27,13 @@ uses(TestCase::class);
 function builtin_static_schema(array $property, mixed $value = null): Schema
 {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(source: ['properties' => ['source' => ['type' => 'string']]], target: [
-            'properties' => ['target' => $property],
-            'required' => ['target'],
-        ])
+        ->jsonSchema(
+            source: JsonSchema::fromArray(['properties' => ['source' => ['type' => 'string']]]),
+            target: JsonSchema::fromArray([
+                'properties' => ['target' => $property],
+                'required' => ['target'],
+            ]),
+        )
         ->withBuiltinStaticForms();
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['mapping' => MappingState::mapping(['target' => MappingState::value($value)])]);
@@ -173,8 +176,8 @@ it('validates submitted values through built-in fields', function (array $proper
 it('leaves unsupported built-in static types available for connections', function (array $property) {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: ['properties' => ['source' => $property]],
-            target: ['properties' => ['target' => $property], 'required' => ['target']],
+            source: JsonSchema::fromArray(['properties' => ['source' => $property]]),
+            target: JsonSchema::fromArray(['properties' => ['target' => $property], 'required' => ['target']]),
         )
         ->withBuiltinStaticForms();
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
@@ -211,12 +214,12 @@ it('replaces built-in static forms with a target factory', function (string $typ
 
 it('reuses built-in editors inside a target factory', function () {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(target: [
+        ->jsonSchema(target: JsonSchema::fromArray([
             'properties' => [
                 'id' => ['type' => 'string'],
                 'active' => ['type' => 'boolean'],
             ],
-        ])
+        ]))
         ->staticForms(fn (string $target, JsonSchema $property) => $target === 'id'
             ? null
             : BuiltinStaticForms::make($property, false));
@@ -232,12 +235,15 @@ it('reuses built-in editors inside a target factory', function () {
 
 it('renders destination static forms without source fields', function () {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(source: ['type' => 'object'], target: [
-            'properties' => [
-                'name' => ['type' => 'string', 'title' => 'Name', 'maxLength' => 255],
-                'active' => ['type' => 'boolean', 'title' => 'Active'],
-            ],
-        ])
+        ->jsonSchema(
+            source: JsonSchema::fromArray(['type' => 'object']),
+            target: JsonSchema::fromArray([
+                'properties' => [
+                    'name' => ['type' => 'string', 'title' => 'Name', 'maxLength' => 255],
+                    'active' => ['type' => 'boolean', 'title' => 'Active'],
+                ],
+            ]),
+        )
         ->withBuiltinStaticForms();
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['mapping' => []]);

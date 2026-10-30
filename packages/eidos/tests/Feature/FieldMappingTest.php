@@ -30,11 +30,36 @@ require_once __DIR__ . '/../Fixtures/FieldMappingForm.php';
 
 uses(TestCase::class);
 
+it('hydrates composed source schemas with native settings', function (bool $binding, bool $dynamic) {
+    $source = JsonSchema::fromArray([
+        '$defs' => ['fields' => ['properties' => ['name' => ['type' => 'string']]]],
+        'allOf' => [['$ref' => '#/$defs/fields']],
+    ]);
+    $configured = $dynamic ? fn () => $source : $source;
+    $field = $binding
+        ? FieldBinding::make('mapping')->jsonSchema($configured)->simple(TextInput::make('destination'))
+        : FieldMapping::make('mapping')->jsonSchema(source: $configured);
+    $field->sourceSettings([TextInput::make('alias')->default('Display name')]);
+    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+
+    $schema->fill();
+
+    expect($field->getSourceSchema())->toBe($source);
+    expect($schema->getState()['mapping'])->toBe([
+        ['kind' => 'source', 'source' => 'name', 'target' => null, 'options' => ['alias' => 'Display name']],
+    ]);
+})->with([false, true])->with([false, true]);
+
 it('blocks mapping editor interaction during Livewire requests', function (string $editor) {
     $source = ['properties' => ['name' => ['type' => 'string']]];
     $field = $editor === 'mapping'
-        ? FieldMapping::make('editor')->jsonSchema(source: $source, target: $source)
-        : FieldBinding::make('editor')->jsonSchema($source)->simple(TextInput::make('destination'));
+        ? FieldMapping::make('editor')->jsonSchema(
+            source: JsonSchema::fromArray($source),
+            target: JsonSchema::fromArray($source),
+        )
+        : FieldBinding::make('editor')
+            ->jsonSchema(JsonSchema::fromArray($source))
+            ->simple(TextInput::make('destination'));
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill();
     view()->share('errors', new ViewErrorBag);
@@ -52,8 +77,8 @@ it('blocks mapping editor interaction during Livewire requests', function (strin
 it('defers mapping changes with native static forms and source settings', function () {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: ['properties' => ['name' => ['type' => 'string']]],
-            target: ['properties' => ['name' => ['type' => 'string']]],
+            source: JsonSchema::fromArray(['properties' => ['name' => ['type' => 'string']]]),
+            target: JsonSchema::fromArray(['properties' => ['name' => ['type' => 'string']]]),
         )
         ->staticForms(fn () => TextInput::make('value'))
         ->sourceSettings([TextInput::make('alias')]);
@@ -69,14 +94,16 @@ it('defers mapping changes with native static forms and source settings', functi
 it('keeps native editor addresses and submits ordered connections without inactive static drafts', function () {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: ['properties' => ['first' => ['type' => 'string'], 'second' => ['type' => 'string']]],
-            target: [
+            source: JsonSchema::fromArray([
+                'properties' => ['first' => ['type' => 'string'], 'second' => ['type' => 'string']],
+            ]),
+            target: JsonSchema::fromArray([
                 'properties' => [
                     'name' => ['type' => 'string'],
                     'note' => ['type' => 'string'],
                     'list' => ['type' => 'array', 'x-mapping' => 'item', 'items' => ['type' => 'string']],
                 ],
-            ],
+            ]),
         )
         ->sourceSettings([TextInput::make('alias')->dehydrateStateUsing(fn (string $state) => strtoupper($state))])
         ->staticForms(fn (JsonSchema $property) => $property->singleType() === 'string'
@@ -118,14 +145,14 @@ it('keeps native editor addresses and submits ordered connections without inacti
 
 it('omits static rows when their value field is not dehydrated while preserving explicit null values', function () {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(target: [
+        ->jsonSchema(target: JsonSchema::fromArray([
             'properties' => [
                 'optional' => ['type' => ['string', 'null']],
                 'nullable' => ['type' => ['string', 'null']],
                 'zero' => ['type' => 'integer'],
                 'disabled' => ['type' => 'boolean'],
             ],
-        ])
+        ]))
         ->staticForms(fn (string $target) => $target === 'disabled'
             ? Toggle::make('value')
             : TextInput::make('value')->dehydrated(fn (mixed $state) => $target !== 'optional' || $state !== null));
@@ -162,8 +189,8 @@ it('validates client ordering and static draft identifiers before submission', f
 
 it('replaces an existing static value even when its destination has no static editor', function () {
     $field = FieldMapping::make('mapping')->jsonSchema(
-        source: ['properties' => ['name' => ['type' => 'string']]],
-        target: ['properties' => ['name' => ['type' => 'string']]],
+        source: JsonSchema::fromArray(['properties' => ['name' => ['type' => 'string']]]),
+        target: JsonSchema::fromArray(['properties' => ['name' => ['type' => 'string']]]),
     );
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill([
@@ -215,11 +242,14 @@ it('partially updates every changed presentation and fully renders structural sc
 it('refreshes source cards when a reactive schema changes its types and annotations', function (string $component) {
     $definition = ['properties' => ['code' => ['title' => 'Code', 'type' => 'string', 'maxLength' => 10]]];
     $source = function () use (&$definition) {
-        return $definition;
+        return JsonSchema::fromArray($definition);
     };
     $field = $component === FieldBinding::class
         ? FieldBinding::make('mapping')->jsonSchema($source)->simple(TextInput::make('target'))
-        : FieldMapping::make('mapping')->jsonSchema(source: $source, target: []);
+        : FieldMapping::make('mapping')->jsonSchema(
+            source: $source,
+            target: JsonSchema::fromArray([]),
+        );
     Schema::make(SchemaHost::make())->statePath('data')->components([$field])->fill(['mapping' => []]);
     expect($field->getSources()[0]['presentation']['type'])->toBe('string');
     $definition = [
@@ -245,19 +275,22 @@ function static_mapping_schema(array $mapping, array $targets = []): Schema
 {
     $livewire = SchemaHost::make();
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(source: ['properties' => ['source' => ['type' => 'string']]], target: [
-            'properties' => array_intersect_key(
-                [
-                    'name.part' => ['type' => ['string', 'null']],
-                    'enabled' => ['type' => 'boolean'],
-                    'count' => ['type' => 'number'],
-                    '0' => ['type' => 'string'],
-                    'raw' => ['type' => 'integer'],
-                    'tags' => ['type' => 'array', 'x-mapping' => 'item', 'items' => ['type' => 'string']],
-                ],
-                array_fill_keys([...array_keys($mapping), ...$targets], true),
-            ),
-        ])
+        ->jsonSchema(
+            source: JsonSchema::fromArray(['properties' => ['source' => ['type' => 'string']]]),
+            target: JsonSchema::fromArray([
+                'properties' => array_intersect_key(
+                    [
+                        'name.part' => ['type' => ['string', 'null']],
+                        'enabled' => ['type' => 'boolean'],
+                        'count' => ['type' => 'number'],
+                        '0' => ['type' => 'string'],
+                        'raw' => ['type' => 'integer'],
+                        'tags' => ['type' => 'array', 'x-mapping' => 'item', 'items' => ['type' => 'string']],
+                    ],
+                    array_fill_keys([...array_keys($mapping), ...$targets], true),
+                ),
+            ]),
+        )
         ->staticForms(fn (string $target, JsonSchema $property) => match ($property->singleType()) {
             'string' => TextInput::make('value')
                 ->label($target)
@@ -279,12 +312,12 @@ function static_mapping_schema(array $mapping, array $targets = []): Schema
 
 it('selects static editors by target without prohibiting submitted scalar values', function () {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(target: [
+        ->jsonSchema(target: JsonSchema::fromArray([
             'properties' => [
                 'id' => ['type' => 'string'],
                 'name' => ['type' => 'string', 'maxLength' => 5],
             ],
-        ])
+        ]))
         ->staticForms(fn (string $target, JsonSchema $property) => $target === 'id'
             ? null
             : TextInput::make('value')->maxLength($property->annotation('maxLength')));
@@ -393,9 +426,12 @@ it('validates static values through their registered Filament fields', function 
 it('only renders one mapping search input when enabled, including closure configuration', function () {
     $livewire = SchemaHost::make();
 
-    $field = FieldMapping::make('mapping')->jsonSchema(source: ['properties' => ['title' => []]], target: [
-        'properties' => ['name' => []],
-    ]);
+    $field = FieldMapping::make('mapping')->jsonSchema(
+        source: JsonSchema::fromArray(['properties' => ['title' => []]]),
+        target: JsonSchema::fromArray([
+            'properties' => ['name' => []],
+        ]),
+    );
     $schema = Schema::make($livewire)->statePath('data')->components([$field]);
     $schema->fill(['mapping' => MappingState::mapping(['name' => MappingState::source('title')])]);
     view()->share('errors', new ViewErrorBag);
@@ -428,8 +464,13 @@ it('places one shared search before the toolbar filter for mapping and binding',
 ) {
     $source = ['properties' => ['name' => ['type' => 'string']]];
     $field = $binding
-        ? FieldBinding::make('mapping')->jsonSchema($source)->simple(TextInput::make('destination'))
-        : FieldMapping::make('mapping')->jsonSchema(source: $source, target: $source);
+        ? FieldBinding::make('mapping')
+            ->jsonSchema(JsonSchema::fromArray($source))
+            ->simple(TextInput::make('destination'))
+        : FieldMapping::make('mapping')->jsonSchema(
+            source: JsonSchema::fromArray($source),
+            target: JsonSchema::fromArray($source),
+        );
     $field->searchable()->contained($contained)->dense($dense);
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill();
@@ -462,7 +503,10 @@ it('places one shared search before the toolbar filter for mapping and binding',
 it('keeps static values in destination editors without creating source cards', function (bool $inverse) {
     $sourceSchema = ['properties' => ['name' => ['type' => 'string']]];
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(source: $sourceSchema, target: ['properties' => ['label' => ['type' => 'string']]])
+        ->jsonSchema(
+            source: JsonSchema::fromArray($sourceSchema),
+            target: JsonSchema::fromArray(['properties' => ['label' => ['type' => 'string']]]),
+        )
         ->withBuiltinStaticForms()
         ->inverse($inverse);
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
@@ -473,7 +517,7 @@ it('keeps static values in destination editors without creating source cards', f
     ]);
     view()->share('errors', new ViewErrorBag);
 
-    expect($field->getSourceSchema())
+    expect($field->getSourceSchema()->toArray())
         ->toBe($sourceSchema)
         ->and(array_column($field->getSources(), 'id'))
         ->toBe(['name'])
@@ -490,9 +534,12 @@ it('keeps static values in destination editors without creating source cards', f
 
 it('filters complete source card containers', function (bool $inverse) {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(source: ['properties' => ['title' => ['type' => 'string']]], target: [
-            'properties' => ['name' => ['type' => 'string']],
-        ])
+        ->jsonSchema(
+            source: JsonSchema::fromArray(['properties' => ['title' => ['type' => 'string']]]),
+            target: JsonSchema::fromArray([
+                'properties' => ['name' => ['type' => 'string']],
+            ]),
+        )
         ->inverse($inverse);
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill([
@@ -520,9 +567,12 @@ it('filters complete source card containers', function (bool $inverse) {
 
 it('applies column spans to their source and target sides without changing mappings', function (bool $inverse) {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(source: ['properties' => ['title' => ['type' => 'string']]], target: [
-            'properties' => ['name' => ['type' => 'string']],
-        ])
+        ->jsonSchema(
+            source: JsonSchema::fromArray(['properties' => ['title' => ['type' => 'string']]]),
+            target: JsonSchema::fromArray([
+                'properties' => ['name' => ['type' => 'string']],
+            ]),
+        )
         ->inverse($inverse);
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['mapping' => MappingState::mapping(['name' => MappingState::source('title')])]);
@@ -550,25 +600,28 @@ it('preserves standalone mapping content and values across presentation options'
     $livewire = SchemaHost::make();
 
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(source: [
-            'properties' => [
-                'title' => [
-                    'type' => 'string',
-                    'description' => 'The incoming display name.',
-                    'x-badges' => [['label' => 'Imported', 'color' => 'gray']],
+        ->jsonSchema(
+            source: JsonSchema::fromArray([
+                'properties' => [
+                    'title' => [
+                        'type' => 'string',
+                        'description' => 'The incoming display name.',
+                        'x-badges' => [['label' => 'Imported', 'color' => 'gray']],
+                    ],
                 ],
-            ],
-        ], target: [
-            'required' => ['name'],
-            'properties' => [
-                'name' => [
-                    'type' => 'string',
-                    'description' => 'The destination display name.',
-                    'x-icon' => 'heroicon-o-user',
-                    'x-badges' => [['label' => 'Unique', 'color' => 'gray']],
+            ]),
+            target: JsonSchema::fromArray([
+                'required' => ['name'],
+                'properties' => [
+                    'name' => [
+                        'type' => 'string',
+                        'description' => 'The destination display name.',
+                        'x-icon' => 'heroicon-o-user',
+                        'x-badges' => [['label' => 'Unique', 'color' => 'gray']],
+                    ],
                 ],
-            ],
-        ])
+            ]),
+        )
         ->dense(fn () => $dense)
         ->compact(fn () => $compact)
         ->columnSpanFull();
@@ -620,7 +673,10 @@ it('keeps the mapping toolbar when either side has no fields', function (
         ->statePath('data')
         ->components([
             FieldMapping::make('mapping')
-                ->jsonSchema(source: ['properties' => array_fill_keys($sources, [])], target: ['properties' => array_fill_keys($targets, [])])
+                ->jsonSchema(
+                    source: JsonSchema::fromArray(['properties' => array_fill_keys($sources, [])]),
+                    target: JsonSchema::fromArray(['properties' => array_fill_keys($targets, [])]),
+                )
                 ->searchable()
                 ->warnings(dest: ['name' => 'Review the destination.'])
                 ->labels(source: 'Incoming fields', dest: 'Output fields'),
@@ -646,9 +702,12 @@ it('highlights warnings on either side and preserves missing identifiers in both
         ->statePath('data')
         ->components([
             FieldMapping::make('mapping')
-                ->jsonSchema(source: ['properties' => ['title' => [], 'email' => []]], target: [
-                    'properties' => ['name' => [], 'contact' => []],
-                ])
+                ->jsonSchema(
+                    source: JsonSchema::fromArray(['properties' => ['title' => [], 'email' => []]]),
+                    target: JsonSchema::fromArray([
+                        'properties' => ['name' => [], 'contact' => []],
+                    ]),
+                )
                 ->warnings(
                     source: fn () => ['title' => 'Source <type> changed.', '42' => 'Source disappeared.'],
                     dest: ['name' => 'Destination changed.', '42' => 'Destination disappeared.'],
@@ -674,9 +733,12 @@ it('renders native actions on every source before mapping in both orientations',
         ->statePath('data')
         ->components([
             FieldMapping::make('mapping')
-                ->jsonSchema(source: ['properties' => ['title' => [], 'email' => []]], target: [
-                    'properties' => ['name' => [], 'contact' => []],
-                ])
+                ->jsonSchema(
+                    source: JsonSchema::fromArray(['properties' => ['title' => [], 'email' => []]]),
+                    target: JsonSchema::fromArray([
+                        'properties' => ['name' => [], 'contact' => []],
+                    ]),
+                )
                 ->sourceSettings(fn (string $source) => [
                     Actions::make([
                         Action::make('inspect')->label('Inspect ' . $source),
@@ -706,9 +768,12 @@ it('does not render static editors without a registered type factory', function 
         ->statePath('data')
         ->components([
             FieldMapping::make('mapping')
-                ->jsonSchema(source: ['properties' => ['title' => []]], target: [
-                    'properties' => ['name' => [], 'contact' => []],
-                ])
+                ->jsonSchema(
+                    source: JsonSchema::fromArray(['properties' => ['title' => []]]),
+                    target: JsonSchema::fromArray([
+                        'properties' => ['name' => [], 'contact' => []],
+                    ]),
+                )
                 ->inverse($inverse),
         ]);
     $schema->fill(['mapping' => MappingState::mapping([])]);
@@ -721,24 +786,27 @@ it('does not render static editors without a registered type factory', function 
 })->with([false, true]);
 
 it('renders schema names, formats and separate disclosure controls for scoped details', function () {
-    $field = FieldMapping::make('mapping')->jsonSchema(source: [
-        'properties' => [
-            'tag_codes' => [
-                'title' => 'Tags',
-                'type' => 'array',
-                'maxItems' => 10,
-                'uniqueItems' => true,
-                'items' => ['type' => 'string', 'maxLength' => 16],
-                'x-icon' => 'heroicon-o-tag',
-                'x-color' => 'violet',
+    $field = FieldMapping::make('mapping')->jsonSchema(
+        source: JsonSchema::fromArray([
+            'properties' => [
+                'tag_codes' => [
+                    'title' => 'Tags',
+                    'type' => 'array',
+                    'maxItems' => 10,
+                    'uniqueItems' => true,
+                    'items' => ['type' => 'string', 'maxLength' => 16],
+                    'x-icon' => 'heroicon-o-tag',
+                    'x-color' => 'violet',
+                ],
             ],
-        ],
-    ], target: [
-        'properties' => [
-            'id' => ['title' => 'Identifier', 'type' => 'string', 'format' => 'uuid'],
-            'status' => ['type' => 'string', 'enum' => ['active', '<draft>']],
-        ],
-    ]);
+        ]),
+        target: JsonSchema::fromArray([
+            'properties' => [
+                'id' => ['title' => 'Identifier', 'type' => 'string', 'format' => 'uuid'],
+                'status' => ['type' => 'string', 'enum' => ['active', '<draft>']],
+            ],
+        ]),
+    );
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['mapping' => MappingState::mapping([])]);
     view()->share('errors', new ViewErrorBag);
@@ -763,15 +831,18 @@ it('renders schema names, formats and separate disclosure controls for scoped de
 
 it('shows output metadata without retaining the input format or limits', function () {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(source: [
-            'properties' => ['id' => [
-                'title' => 'Identifier',
-                'type' => 'string',
-                'format' => 'uuid',
-                'maxLength' => 36,
-            ]],
-        ], target: ['properties' => ['enabled' => ['type' => 'boolean']]])
-        ->outputSchema(fn () => ['properties' => ['id' => ['type' => 'boolean']]]);
+        ->jsonSchema(
+            source: JsonSchema::fromArray([
+                'properties' => ['id' => [
+                    'title' => 'Identifier',
+                    'type' => 'string',
+                    'format' => 'uuid',
+                    'maxLength' => 36,
+                ]],
+            ]),
+            target: JsonSchema::fromArray(['properties' => ['enabled' => ['type' => 'boolean']]]),
+        )
+        ->outputSchema(fn () => JsonSchema::fromArray(['properties' => ['id' => ['type' => 'boolean']]]));
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['mapping' => MappingState::mapping([])]);
     view()->share('errors', new ViewErrorBag);
@@ -787,10 +858,13 @@ it('shows only the final type and uses it for connection checks', function () {
     $livewire = SchemaHost::make();
 
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(source: ['properties' => ['active' => ['type' => 'boolean']]], target: [
-            'properties' => ['name' => ['type' => 'string']],
-        ])
-        ->outputSchema(fn () => ['properties' => ['active' => ['type' => 'string']]]);
+        ->jsonSchema(
+            source: JsonSchema::fromArray(['properties' => ['active' => ['type' => 'boolean']]]),
+            target: JsonSchema::fromArray([
+                'properties' => ['name' => ['type' => 'string']],
+            ]),
+        )
+        ->outputSchema(fn () => JsonSchema::fromArray(['properties' => ['active' => ['type' => 'string']]]));
     $schema = Schema::make($livewire)->statePath('data')->components([$field]);
     $schema->fill(['mapping' => MappingState::mapping(['name' => MappingState::source('active')])]);
     view()->share('errors', new ViewErrorBag);
@@ -809,9 +883,12 @@ it('shows only the final type and uses it for connection checks', function () {
 
 it('persists and validates source settings independently of connections', function (bool $inverse) {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(source: [
-            'properties' => ['first.part' => ['type' => 'string'], '0' => ['type' => 'string']],
-        ], target: ['properties' => ['name' => ['type' => 'string']]])
+        ->jsonSchema(
+            source: JsonSchema::fromArray([
+                'properties' => ['first.part' => ['type' => 'string'], '0' => ['type' => 'string']],
+            ]),
+            target: JsonSchema::fromArray(['properties' => ['name' => ['type' => 'string']]]),
+        )
         ->sourceSettings(fn (string $source) => [
             TextInput::make('alias')->default($source)->required(),
             Toggle::make('enabled')->default(true),
@@ -852,10 +929,15 @@ it('persists and validates source settings independently of connections', functi
 it('reads and submits canonical nested source settings without changing editor state', function (bool $binding) {
     $sourceSchema = ['properties' => ['first.part' => ['type' => 'string'], '0' => ['type' => 'string']]];
     $field = $binding
-        ? FieldBinding::make('widget')->jsonSchema($sourceSchema)->simple(TextInput::make('column'))
-        : FieldMapping::make('widget')->jsonSchema(source: $sourceSchema, target: [
-            'properties' => ['first' => [], 'second' => []],
-        ]);
+        ? FieldBinding::make('widget')
+            ->jsonSchema(JsonSchema::fromArray($sourceSchema))
+            ->simple(TextInput::make('column'))
+        : FieldMapping::make('widget')->jsonSchema(
+            source: JsonSchema::fromArray($sourceSchema),
+            target: JsonSchema::fromArray([
+                'properties' => ['first' => [], 'second' => []],
+            ]),
+        );
     $field->sourceSettings(fn (string $source) => [
         Repeater::make('rules')->schema([TextInput::make('value')->dehydrateStateUsing(
             fn (string $state) => strtoupper($state),
@@ -904,13 +986,13 @@ it('reads and submits canonical nested source settings without changing editor s
 it('shows settings for newly available sources without requiring a connection or binding', function (bool $binding) {
     $sources = ['name'];
     $sourceSchema = function () use (&$sources) {
-        return ['properties' => array_fill_keys($sources, ['type' => 'string'])];
+        return JsonSchema::fromArray(['properties' => array_fill_keys($sources, ['type' => 'string'])]);
     };
     $field = $binding
         ? FieldBinding::make('widget')->jsonSchema($sourceSchema)->simple(TextInput::make('column'))
-        : FieldMapping::make('widget')->jsonSchema(source: $sourceSchema, target: [
+        : FieldMapping::make('widget')->jsonSchema(source: $sourceSchema, target: JsonSchema::fromArray([
             'properties' => ['output' => ['type' => 'string']],
-        ]);
+        ]));
     $field->sourceSettings(fn (string $source) => [TextInput::make('alias')->label('Alias for ' . $source)]);
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['widget' => []]);
@@ -925,11 +1007,14 @@ it('shows the property key separately from its title and preserves mapping state
     $sourceSchema = ['properties' => [$sourceId => ['type' => 'string', 'title' => 'Email']]];
     $field = $binding
         ? FieldBinding::make('widget')
-            ->jsonSchema($sourceSchema)
+            ->jsonSchema(JsonSchema::fromArray($sourceSchema))
             ->simple(TextInput::make('destination')->default('contact.email'))
-        : FieldMapping::make('widget')->jsonSchema(source: $sourceSchema, target: [
-            'properties' => ['email' => ['type' => 'string']],
-        ]);
+        : FieldMapping::make('widget')->jsonSchema(
+            source: JsonSchema::fromArray($sourceSchema),
+            target: JsonSchema::fromArray([
+                'properties' => ['email' => ['type' => 'string']],
+            ]),
+        );
     $field->searchable();
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $state = $binding
@@ -1022,20 +1107,23 @@ it('uses native row state in owning header actions across Livewire requests', fu
     expect($field->getState())->toBe($page->get('data.mapping'));
     expect(array_is_list($field->getState()))->toBeTrue();
     if (!$binding) {
-        expect($field->getTargetSchema())->toBe(['properties' => ['destination' => ['type' => 'string']]]);
+        expect($field->getTargetSchema()->toArray())->toBe(['properties' => ['destination' => ['type' => 'string']]]);
     }
 })->with([false, true])->with([false, true]);
 
 it('rebinds native settings and static editors to their current row indexes', function () {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(source: [
-            'properties' => ['first' => ['type' => 'string'], 'second' => ['type' => 'string']],
-        ], target: [
-            'properties' => [
-                'items' => ['type' => 'array', 'x-mapping' => 'item', 'items' => ['type' => 'string']],
-                'label' => ['type' => 'string'],
-            ],
-        ])
+        ->jsonSchema(
+            source: JsonSchema::fromArray([
+                'properties' => ['first' => ['type' => 'string'], 'second' => ['type' => 'string']],
+            ]),
+            target: JsonSchema::fromArray([
+                'properties' => [
+                    'items' => ['type' => 'array', 'x-mapping' => 'item', 'items' => ['type' => 'string']],
+                    'label' => ['type' => 'string'],
+                ],
+            ]),
+        )
         ->sourceSettings([Repeater::make('rules')
             ->schema([TextInput::make('value')])
             ->defaultItems(0)])
@@ -1080,12 +1168,14 @@ it('round trips collection mappings through independent schema instances', funct
     foreach (['first', 'second'] as $name) {
         $fields[] = FieldMapping::make($name)
             ->jsonSchema(
-                source: ['properties' => ['_my_field' => ['type' => 'string'], 'other.name' => ['type' => 'string']]],
-                target: [
+                source: JsonSchema::fromArray([
+                    'properties' => ['_my_field' => ['type' => 'string'], 'other.name' => ['type' => 'string']],
+                ]),
+                target: JsonSchema::fromArray([
                     'properties' => [
                         'custom' => ['type' => $type, 'x-mapping' => $mode, 'items' => ['type' => 'string']],
                     ],
-                ],
+                ]),
             )
             ->sourceSettings([TextInput::make('alias')]);
     }

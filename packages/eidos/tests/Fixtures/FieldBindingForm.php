@@ -11,6 +11,7 @@ use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
 use Livewire\Component;
 use PHPinnacle\Eidos\Forms\FieldBinding;
+use PHPinnacle\Eidos\Forms\JsonSchema;
 
 class FieldBindingForm extends Component implements HasActions, HasSchemas
 {
@@ -37,7 +38,7 @@ class FieldBindingForm extends Component implements HasActions, HasSchemas
 
     public function form(Schema $schema): Schema
     {
-        $field = FieldBinding::make('bindings')->jsonSchema(CustomerMappingField::jsonSchema());
+        $field = FieldBinding::make('bindings')->jsonSchema(JsonSchema::fromArray(CustomerMappingField::jsonSchema()));
 
         if ($this->complex) {
             $field->schema([
