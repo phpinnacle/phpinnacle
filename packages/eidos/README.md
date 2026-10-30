@@ -795,8 +795,30 @@ composer phpstan:level10
 ```
 
 Tests cover schema generation, shared cast registrations, validation outcomes,
-exact property selection, search, accessible navigation, annotation preservation,
-safe rendering, mapping compatibility, static editors, and native binding forms.
+exact property selection, search, annotation preservation, safe rendering, mapping
+compatibility, static editors, and native binding forms. PHP Livewire tests exercise
+server requests; JavaScript tests exercise component methods and adapter callbacks.
+Neither suite mounts Alpine in a browser or verifies DOM event propagation.
+
+For individual JavaScript test results on Node versions that summarize by file, run
+`node --test --test-isolation=none --test-reporter=tap tests/*.test.js` from the package root.
+
+In a consuming application's browser, check these interactions after the initial
+render and again after a Livewire update:
+
+- Start a mapping from each side, press Escape, and confirm the selection and
+  candidate highlighting clear while saved connections remain unchanged.
+- Connect through empty card and source-settings footer space. Clicking native
+  inputs, buttons, or descendants of `[data-field-interactive]` must keep the
+  pending selection and let the control perform its own action.
+- Bind and unbind both simple and schema editors, edit nested defaults, and bind
+  again. Confirm fresh defaults, independent sibling editors, no request for the
+  bind/unbind itself, and the edited values on the next submission.
+- Edit a native static destination field, connect a source to replace it, then
+  disconnect and confirm its default is restored.
+- On the first opening of a picker or readonly inspector, confirm the tree has a
+  measurable height, fits the viewport, and is positioned beside its trigger.
+  Repeat after changing the schema and reopening the dropdown.
 
 ## License
 

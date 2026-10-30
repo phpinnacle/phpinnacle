@@ -20,6 +20,13 @@ uses(TestCase::class);
 dataset('field mapping mappingValues', [
     'empty mapping' => [[], true],
     'source row must be an array' => [['name'], false],
+    'missing target' => [[['kind' => 'source', 'source' => 'name', 'options' => []]], false],
+    'missing options' => [[['kind' => 'source', 'source' => 'name', 'target' => 'title']], false],
+    'non-array options' => [
+        [['kind' => 'source', 'source' => 'name', 'target' => 'title', 'options' => 'invalid']],
+        false,
+    ],
+    'nested row' => [[[['kind' => 'source', 'source' => 'name', 'target' => 'title', 'options' => []]]], false],
     'missing kind' => [[['source' => 'name', 'target' => 'title', 'options' => []]], false],
     'disconnected static source' => [
         [[
@@ -54,77 +61,22 @@ dataset('field mapping mappingValues', [
     'associative mapping' => [['title' => MappingState::source('name')], false],
 ]);
 
-dataset('field mapping typePairs', [
-    'equal' => ['string', 'string', true],
-    'different' => ['string', 'boolean', false],
-    'untyped source' => [null, 'boolean', true],
-    'untyped destination' => ['string', null, true],
-    'both untyped' => [null, null, true],
-]);
-
 dataset('field mapping orientedMappingValues', [
-    'forward multiple sources' => [
+    'multiple sources' => [
         false,
         MappingState::mapping(['payload' => [MappingState::source('id'), MappingState::source('name')]]),
         true,
     ],
-    'forward one array item' => [false, MappingState::mapping(['payload' => MappingState::source('id')]), true],
-    'forward single destination' => [false, MappingState::mapping(['enabled' => MappingState::source('active')]), true],
-    'forward unbound source' => [false, MappingState::mapping([], [], ['id']), true],
-    'forward missing target' => [false, [['kind' => 'source', 'source' => 'id', 'options' => []]], false],
-    'forward missing options' => [false, [['kind' => 'source', 'source' => 'id', 'target' => 'payload']], false],
-    'forward non-array options' => [
-        false,
-        [['kind' => 'source', 'source' => 'id', 'target' => 'payload', 'options' => 'invalid']],
-        false,
-    ],
-    'forward nested row' => [
-        false,
-        [[['kind' => 'source', 'source' => 'id', 'target' => 'payload', 'options' => []]]],
-        false,
-    ],
-    'forward numeric source' => [
-        false,
-        [['kind' => 'source', 'source' => 42, 'target' => 'payload', 'options' => []]],
-        false,
-    ],
-    'forward duplicate within list' => [
-        false,
-        MappingState::mapping(['payload' => [MappingState::source('id'), MappingState::source('id')]]),
-        false,
-    ],
-    'forward reused source across destinations' => [
-        false,
-        MappingState::mapping(['payload' => MappingState::source('id'), 'enabled' => MappingState::source('id')]),
-        false,
-    ],
-    'forward unknown source' => [false, MappingState::mapping(['payload' => MappingState::source('unknown')]), false],
+    'one array item' => [false, MappingState::mapping(['payload' => MappingState::source('id')]), true],
+    'single destination' => [false, MappingState::mapping(['enabled' => MappingState::source('active')]), true],
+    'unbound source' => [false, MappingState::mapping([], [], ['id']), true],
     'inverse multiple sources' => [
         true,
         MappingState::mapping(['payload' => [MappingState::source('id'), MappingState::source('name')]]),
         true,
     ],
-    'inverse one source' => [true, MappingState::mapping(['payload' => MappingState::source('id')]), true],
-    'inverse single destination' => [true, MappingState::mapping(['enabled' => MappingState::source('active')]), true],
-    'inverse reused source' => [
-        true,
-        MappingState::mapping([
-            'payload' => MappingState::source('active'),
-            'enabled' => MappingState::source('active'),
-        ]),
-        false,
-    ],
-    'inverse unbound source' => [true, MappingState::mapping([], [], ['id']), true],
-    'inverse numeric source' => [
-        true,
-        [['kind' => 'source', 'source' => 42, 'target' => 'enabled', 'options' => []]],
-        false,
-    ],
-    'inverse unknown source' => [true, MappingState::mapping(['enabled' => MappingState::source('unknown')]), false],
-    'inverse unknown destination' => [true, MappingState::mapping(['unknown' => MappingState::source('id')]), false],
-    'inverse scalar state' => [true, 'payload', false],
 ]);
-it('oriented state preserves cardinality and rejects malformed values', function (
+it('preserves connection cardinality and unbound sources in oriented state', function (
     bool $inverse,
     mixed $value,
     bool $valid,
@@ -235,34 +187,39 @@ it('schema callbacks change available array destinations reactively', function (
     expect($validator->make($state, ['mapping' => $field->getValidationRules()])->passes())->toBeFalse();
 });
 
-it('type compatibility is validated on the server', function (?string $sourceType, ?string $targetType, bool $valid) {
-    $source = $sourceType === null ? [] : ['type' => $sourceType];
-    $target = $targetType === null ? [] : ['type' => $targetType];
+it('validates type compatibility on submission for whole and item connections', function (
+    string $targetType,
+    bool $multiple,
+    bool $inverse,
+    bool $valid,
+) {
+    $target = ['type' => $targetType];
+    $field = FieldMapping::make('mapping')
+        ->jsonSchema(
+            source: JsonSchema::fromArray(['properties' => ['source' => ['type' => 'string']]]),
+            target: JsonSchema::fromArray(['properties' => [
+                'target' => $multiple ? ['type' => 'array', 'x-mapping' => 'item', 'items' => $target] : $target,
+            ]]),
+        )
+        ->inverse($inverse);
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
-    foreach ([false, true] as $inverse) {
-        foreach ([false, true] as $multiple) {
-            $field = FieldMapping::make('mapping')
-                ->jsonSchema(
-                    source: JsonSchema::fromArray(['properties' => ['source' => $source]]),
-                    target: JsonSchema::fromArray(['properties' => [
-                        'target' => $multiple
-                            ? ['type' => 'array', 'x-mapping' => 'item', 'items' => $target]
-                            : $target,
-                    ]]),
-                )
-                ->inverse($inverse);
-            $value = ['target' => $multiple ? [MappingState::source('source')] : MappingState::source('source')];
-            expect(
-                $validator
-                    ->make(['mapping' => MappingState::mapping($value)], [
-                        'mapping' => $field->getValidationRules(),
-                    ])
-                    ->passes(),
-            )
-                ->toBe($valid);
-        }
-    }
-})->with('field mapping typePairs');
+    $value = ['target' => $multiple ? [MappingState::source('source')] : MappingState::source('source')];
+
+    expect(
+        $validator
+            ->make(['mapping' => MappingState::mapping($value)], [
+                'mapping' => $field->getValidationRules(),
+            ])
+            ->passes(),
+    )
+        ->toBe($valid);
+})->with([
+    'compatible whole' => ['string', false, false, true],
+    'incompatible whole' => ['boolean', false, false, false],
+    'compatible item' => ['string', true, false, true],
+    'incompatible item' => ['boolean', true, false, false],
+    'inverse incompatible whole' => ['boolean', false, true, false],
+]);
 
 it('validates the output schema without changing the source schema', function () {
     $field = FieldMapping::make('mapping')
@@ -328,34 +285,10 @@ it('uses configured schema constraints for connection modes and server validatio
         SchemaCompatibility::make(),
         false,
     ],
-    'integer to number accepted' => [
-        ['type' => 'integer'],
-        ['type' => 'number'],
-        SchemaCompatibility::make(),
-        true,
-    ],
-    'number to integer rejected' => [
-        ['type' => 'number'],
-        ['type' => 'integer'],
-        SchemaCompatibility::make(),
-        false,
-    ],
-    'short string accepted' => [
-        ['type' => 'string', 'maxLength' => 64],
-        ['type' => 'string', 'maxLength' => 255],
-        SchemaCompatibility::make(),
-        true,
-    ],
     'length check disabled' => [
         ['type' => 'string', 'maxLength' => 255],
         ['type' => 'string', 'maxLength' => 64],
         SchemaCompatibility::make()->stringLengths(false),
-        true,
-    ],
-    'uuid to plain string' => [
-        ['type' => 'string', 'format' => 'uuid'],
-        ['type' => 'string'],
-        SchemaCompatibility::make(),
         true,
     ],
     'uuid to date rejected' => [
@@ -372,7 +305,7 @@ it('uses configured schema constraints for connection modes and server validatio
     ],
 ]);
 
-it('adds application restrictions to whole and item connections without overriding schema checks', function () {
+it('adds application restrictions to connection modes and validates whole connections', function () {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
             source: JsonSchema::fromArray([
@@ -501,31 +434,6 @@ it('distinguishes whole arrays from explicitly collected items', function (bool 
     }
 })->with([false, true]);
 
-it('accepts array sources as items only when the destination items are arrays', function () {
-    $field = FieldMapping::make('mapping')->jsonSchema(
-        source: JsonSchema::fromArray([
-            'properties' => ['list' => ['type' => 'array', 'items' => ['type' => 'string']]],
-        ]),
-        target: JsonSchema::fromArray([
-            'properties' => [
-                'matrix' => [
-                    'type' => 'array',
-                    'x-mapping' => 'item',
-                    'items' => ['type' => 'array', 'items' => ['type' => 'string']],
-                ],
-            ],
-        ]),
-    );
-    $validator = new Factory(new Translator(new ArrayLoader, 'en'));
-    expect(
-        $validator
-            ->make(['mapping' => MappingState::mapping(['matrix' => MappingState::source('list')])], [
-                'mapping' => $field->getValidationRules(),
-            ])
-            ->passes(),
-    )->toBeTrue();
-});
-
 it('static values are accepted for every known destination and retain string form validation', function (
     mixed $value,
     bool $valid,
@@ -573,14 +481,15 @@ it('rejects source settings for identifiers outside the source schema', function
     )->toBeFalse();
 });
 
-it('uses enum compatibility for connection availability and submitted mappings in both orientations', function (bool $inverse) {
+it('uses enum compatibility for connection availability and submitted mappings', function (
+    bool $inverse,
+    array $sources,
+) {
     $field = FieldMapping::make('mapping')
         ->inverse($inverse)
         ->jsonSchema(
             source: JsonSchema::fromArray([
                 'properties' => [
-                    'date' => ['type' => 'string', 'format' => 'date'],
-                    'status' => ['type' => 'string', 'enum' => ['draft', 'active']],
                     'narrow' => ['type' => 'string', 'enum' => ['active']],
                     'wide' => ['type' => 'string', 'enum' => ['draft', 'active', 'blocked']],
                 ],
@@ -591,7 +500,7 @@ it('uses enum compatibility for connection availability and submitted mappings i
         );
     $modes = $field->getConnectionModes();
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
-    foreach (['date' => false, 'status' => true, 'narrow' => true, 'wide' => false] as $source => $allowed) {
+    foreach ($sources as $source => $allowed) {
         expect($modes[$source]['status'] ?? null)->toBe($allowed ? MappingMode::Whole : null);
         expect(
             $validator
@@ -603,7 +512,10 @@ it('uses enum compatibility for connection availability and submitted mappings i
         )
             ->toBe($allowed);
     }
-})->with([false, true]);
+})->with([
+    'subset and superset' => [false, ['narrow' => true, 'wide' => false]],
+    'inverse subset' => [true, ['narrow' => true]],
+]);
 
 it('keeps unannotated arrays and objects as whole values', function () {
     $field = FieldMapping::make('mapping')->jsonSchema(

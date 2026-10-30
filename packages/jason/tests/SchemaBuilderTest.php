@@ -192,3 +192,70 @@ it('preserves boolean schema keywords errors at the builder boundary', function 
     expect(fn () => SchemaBuilder::make(Schema::fromArray($definition))->title('Unsupported'))
         ->toThrow(InvalidArgumentException::class, 'Boolean schemas cannot have keywords.');
 })->with([true, false]);
+
+it('writes type-specific lower and upper bounds', function (
+    string $type,
+    int|float $minimum,
+    int|float $maximum,
+    array $expected,
+) {
+    $schema = SchemaBuilder::make()->type($type)->min($minimum)->max($maximum)->build();
+
+    expect($schema->toArray())->toBe($expected);
+})->with([
+    'string' => ['string', 0, 8, ['type' => 'string', 'minLength' => 0, 'maxLength' => 8]],
+    'array' => ['array', 0, 4, ['type' => 'array', 'minItems' => 0, 'maxItems' => 4]],
+    'integer' => ['integer', -1, 5, ['type' => 'integer', 'minimum' => -1, 'maximum' => 5]],
+    'number' => ['number', -0.5, 1.5, ['type' => 'number', 'minimum' => -0.5, 'maximum' => 1.5]],
+]);
+
+it('replaces an additional-property schema with a prohibition', function () {
+    $schema = SchemaBuilder::make()
+        ->type('object')
+        ->additionalProperties(Schema::string())
+        ->withoutAdditionalProperties()
+        ->build();
+
+    expect($schema->toArray())->toBe(['type' => 'object', 'additionalProperties' => false]);
+});
+
+it('excludes null from primitive and constrained schemas', function (array $definition, array|bool $expected) {
+    $schema = Schema::fromArray($definition);
+    $result = $schema->builder()->nullable(false)->build();
+
+    expect($result->toArray())->toBe($expected);
+    expect($schema->toArray())->toBe($definition);
+})->with([
+    'single remaining type' => [
+        ['type' => ['string', 'null']],
+        ['type' => 'string'],
+    ],
+    'multiple remaining types' => [
+        ['type' => ['string', 'integer', 'null']],
+        ['type' => ['string', 'integer']],
+    ],
+    'null only' => [
+        ['type' => 'null'],
+        false,
+    ],
+    'enum constraint' => [
+        ['type' => ['string', 'null'], 'enum' => ['active', null]],
+        [
+            'allOf' => [
+                ['type' => ['string', 'null'], 'enum' => ['active', null]],
+                ['not' => ['type' => 'null']],
+            ],
+        ],
+    ],
+]);
+
+it('allows null outside existing composition constraints', function (string $keyword) {
+    $schema = Schema::fromArray([$keyword => [['type' => 'string'], ['type' => 'integer']]]);
+
+    expect($schema->builder()->nullable()->build()->toArray())->toBe([
+        'anyOf' => [
+            [$keyword => [['type' => 'string'], ['type' => 'integer']]],
+            ['type' => 'null'],
+        ],
+    ]);
+})->with(['anyOf', 'oneOf', 'allOf']);

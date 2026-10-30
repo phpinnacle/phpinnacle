@@ -72,6 +72,9 @@ it('blocks mapping editor interaction during Livewire requests', function (strin
 
     expect($nodes->length)->toBe(1);
     expect($nodes->item(0)->getAttribute('wire:loading.attr'))->toBe('inert');
+    if ($editor === 'mapping') {
+        expect($nodes->item(0)->getAttribute('x-on:keydown.escape.window'))->toBe('cancel()');
+    }
 })->with(['mapping', 'binding']);
 
 it('defers mapping changes with native static forms and source settings', function () {
@@ -133,13 +136,14 @@ it('keeps native editor addresses and submits ordered connections without inacti
     ]);
 
     $rows[3]['target'] = 'name';
-    $rows[3]['static'] = 'edited';
     $field->rawState($rows);
+    $field->getStaticFormSchema('name')->getComponent('value')->rawState('edited');
     expect($field->getStaticFormSchema('name')->getStatePath())->toBe('data.mapping.3');
-    expect(array_column($schema->getState()['mapping'], 'target'))->toBe(['note', 'name', 'list', 'list']);
+    $submitted = $schema->getState()['mapping'];
+    expect(array_column($submitted, 'target'))->toBe(['note', 'name', 'list', 'list']);
+    expect($submitted[1]['static'])->toBe('edited');
 
-    $rows[3]['static'] = 'a value exceeding ten characters';
-    $field->rawState($rows);
+    $field->getStaticFormSchema('name')->getComponent('value')->rawState('a value exceeding ten characters');
     expect($schema->getState(...))->toThrow(ValidationException::class);
 });
 
@@ -172,19 +176,31 @@ it('omits static rows when their value field is not dehydrated while preserving 
         ]));
 });
 
-it('validates client ordering and static draft identifiers before submission', function (array $metadata) {
-    $schema = static_mapping_schema([], ['name.part']);
+it('validates client ordering and static draft identifiers before submission', function (
+    array $metadata,
+    string $message,
+) {
+    $schema = static_mapping_schema(['name.part' => MappingState::value('valid')]);
     $field = $schema->getComponent('mapping');
+    expect($schema->getState()['mapping'][0]['static'])->toBe('VALID');
     $rows = $field->getRawState();
     $index = $field->getStaticRowIndex('name.part');
     $rows[$index] = [...$rows[$index], ...$metadata];
     $field->rawState($rows);
 
-    expect($schema->getState(...))->toThrow(ValidationException::class);
+    try {
+        $schema->getState();
+        test()->fail('Invalid client metadata was accepted.');
+    } catch (ValidationException $exception) {
+        expect($exception->errors())->toBe(['data.mapping' => [$message]]);
+    }
 })->with([
-    'negative position' => [['position' => -1]],
-    'nonnumeric position' => [['position' => 'first']],
-    'unknown static draft' => [['target' => null, 'draftTarget' => 'unknown']],
+    'negative position' => [['position' => -1], 'The rows.0.position field must be at least 0.'],
+    'nonnumeric position' => [['position' => 'first'], 'The rows.0.position field must be an integer.'],
+    'unknown static draft' => [
+        ['target' => null, 'draftTarget' => 'unknown'],
+        'The selected rows.0.draftTarget is invalid.',
+    ],
 ]);
 
 it('replaces an existing static value even when its destination has no static editor', function () {
@@ -460,7 +476,6 @@ it('only renders one mapping search input when enabled, including closure config
 it('places one shared search before the toolbar filter for mapping and binding', function (
     bool $binding,
     bool $contained,
-    bool $dense,
 ) {
     $source = ['properties' => ['name' => ['type' => 'string']]];
     $field = $binding
@@ -471,7 +486,7 @@ it('places one shared search before the toolbar filter for mapping and binding',
             source: JsonSchema::fromArray($source),
             target: JsonSchema::fromArray($source),
         );
-    $field->searchable()->contained($contained)->dense($dense);
+    $field->searchable()->contained($contained);
     $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill();
     $state = $schema->getState();
@@ -498,7 +513,7 @@ it('places one shared search before the toolbar filter for mapping and binding',
     expect($xpath->query('following::fieldset[contains(@class, "eidos-mapping-filter")]', $search))
         ->toHaveCount($contained ? 1 : 0);
     expect($schema->getState())->toBe($state);
-})->with([false, true])->with([false, true])->with([false, true]);
+})->with([false, true])->with([false, true]);
 
 it('keeps static values in destination editors without creating source cards', function (bool $inverse) {
     $sourceSchema = ['properties' => ['name' => ['type' => 'string']]];
@@ -661,7 +676,13 @@ it('preserves standalone mapping content and values across presentation options'
             [],
             array_column($schema->getComponent('mapping')->getSources(), 'id'),
         ));
-})->with([true, false])->with([true, false])->with([true, false]);
+})->with([
+    'baseline' => [true, false, false],
+    'without container' => [false, false, false],
+    'dense' => [true, true, false],
+    'compact' => [true, false, true],
+    'combined' => [false, true, true],
+]);
 
 it('keeps the mapping toolbar when either side has no fields', function (
     array $sources,
@@ -1057,7 +1078,14 @@ it('keeps header actions and the trailing filter in one toolbar with density def
     $field->getAction('addSource')->size(\Filament\Support\Enums\Size::Large);
     $page->instance()->form->toHtml();
     expect($field->getAction('addSource')->getSize())->toBe(\Filament\Support\Enums\Size::Large);
-})->with([false, true])->with([false, true])->with([false, true]);
+})->with([
+    'mapping baseline' => [false, true, false],
+    'binding baseline' => [true, true, false],
+    'mapping without container' => [false, false, false],
+    'binding without container' => [true, false, false],
+    'dense mapping' => [false, true, true],
+    'dense binding' => [true, true, true],
+]);
 
 it('uses native row state in owning header actions across Livewire requests', function (
     bool $binding,

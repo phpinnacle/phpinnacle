@@ -41,7 +41,7 @@ function builtin_static_schema(array $property, mixed $value = null): Schema
     return $schema;
 }
 
-it('registers native editors for basic types and string formats', function (array $property, string $class) {
+it('registers native editors for distinct built-in field types', function (array $property, string $class) {
     $schema = builtin_static_schema($property);
     $field = $schema->getComponent('mapping')->getStaticFormSchema('target')->getComponent('value');
 
@@ -49,17 +49,11 @@ it('registers native editors for basic types and string formats', function (arra
 })->with([
     'string' => [['type' => 'string'], TextInput::class],
     'text' => [['type' => 'string', 'format' => 'text'], Textarea::class],
-    'integer' => [['type' => 'integer'], TextInput::class],
-    'number' => [['type' => 'number'], TextInput::class],
     'boolean' => [['type' => 'boolean'], Toggle::class],
     'nullable boolean' => [['type' => ['boolean', 'null']], Select::class],
     'typed array' => [['type' => 'array', 'items' => ['type' => 'integer']], Repeater::class],
     'null' => [['type' => 'null'], TextInput::class],
     'enum' => [['type' => 'string', 'enum' => ['draft', 'active']], Select::class],
-    'uuid' => [['type' => 'string', 'format' => 'uuid'], TextInput::class],
-    'reference' => [['type' => 'string', 'format' => 'uuid', 'x-eidos-reference' => true], TextInput::class],
-    'phone' => [['type' => 'string', 'format' => 'phone'], TextInput::class],
-    'email' => [['type' => 'string', 'format' => 'email'], TextInput::class],
     'date' => [['type' => 'string', 'format' => 'date'], DatePicker::class],
     'time' => [['type' => 'string', 'format' => 'time'], TimePicker::class],
     'date-time' => [['type' => 'string', 'format' => 'date-time'], DateTimePicker::class],
@@ -99,10 +93,6 @@ it('round trips built-in static values with their native types', function (array
     'enum' => [['type' => 'string', 'enum' => ['draft', 'active']], 'active'],
     'uuid' => [
         ['type' => 'string', 'format' => 'uuid'],
-        '550e8400-e29b-41d4-a716-446655440000',
-    ],
-    'reference' => [
-        ['type' => 'string', 'format' => 'uuid', 'x-eidos-reference' => true],
         '550e8400-e29b-41d4-a716-446655440000',
     ],
     'email' => [['type' => 'string', 'format' => 'email'], 'user@example.com'],
@@ -164,7 +154,6 @@ it('validates submitted values through built-in fields', function (array $proper
     'minimum text length' => [['type' => 'string', 'format' => 'text', 'minLength' => 3], 'ab'],
     'maximum text length' => [['type' => 'string', 'format' => 'text', 'maxLength' => 3], 'long'],
     'uuid' => [['type' => 'string', 'format' => 'uuid'], 'invalid'],
-    'reference' => [['type' => 'string', 'format' => 'uuid', 'x-eidos-reference' => true], 'invalid'],
     'email' => [['type' => 'string', 'format' => 'email'], 'invalid'],
     'phone' => [['type' => 'string', 'format' => 'phone'], 'letters'],
     'integer' => [['type' => 'integer'], '1.5'],

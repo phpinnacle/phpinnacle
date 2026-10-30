@@ -4,13 +4,15 @@ use PHPinnacle\Jason\JsonPath;
 
 it('round trips canonical JSONPath names indexes and wildcards', function () {
     $segments = ['literal.key', 'slash/key', '*', "quote'\"\\", "line\n\t", 'товар', '0', 0, null];
+    $expected = <<<'PATH'
+        $['literal.key']['slash/key']['*']['quote\'"\\']['line\n\t']['товар']['0'][0][*]
+        PATH;
 
     $path = JsonPath::fromSegments($segments);
 
     expect($path)
-        ->toStartWith("$['literal.key']['slash/key']['*']")
-        ->toEndWith("['0'][0][*]")
-        ->and(JsonPath::parse($path))
+        ->toBe($expected)
+        ->and(JsonPath::parse($expected))
         ->toBe($segments)
         ->and(JsonPath::parse('$'))
         ->toBe([]);

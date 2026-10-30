@@ -91,7 +91,7 @@ test('connection visibility follows the native target after editing', () => {
 });
 
 for (const defaultValue of ['email', false, 0, [], { destination: 'contact.email', rules: [{ trim: true }] }]) {
-    test(`local binding restores independent native defaults: ${JSON.stringify(defaultValue)}`, () => {
+    test(`local binding preserves typed defaults and existing values: ${JSON.stringify(defaultValue)}`, () => {
         const component = editor();
         const settings = component.state[1].options;
         const expected = structuredClone(defaultValue);
@@ -112,7 +112,7 @@ for (const defaultValue of ['email', false, 0, [], { destination: 'contact.email
     });
 }
 
-test('local targets reach deferred Livewire state before native editors mount', () => {
+test('binding calls setTarget with its row index before assigning the local target', () => {
     const calls = [];
     const component = editor(false, (index, value) => {
         calls.push([index, structuredClone(value)]);
@@ -121,3 +121,27 @@ test('local targets reach deferred Livewire state before native editors mount', 
     component.bind('email', { destination: 'contact.email', enabled: true });
     assert.deepEqual(calls, [[1, { destination: 'contact.email', enabled: true }]]);
 });
+
+for (const [type, defaultValue, edit] of [
+    ['array', ['trim'], value => value.push('lowercase')],
+    ['object', { rules: [{ trim: true }] }, value => { value.rules[0].trim = false; }],
+]) {
+    test(`binding restores an independent ${type} default after nested edits`, () => {
+        const expected = structuredClone(defaultValue);
+        const first = editor();
+        const second = editor();
+        first.bind('email', defaultValue);
+        second.bind('email', defaultValue);
+
+        for (let cycle = 0; cycle < 2; cycle++) {
+            edit(first.state[1].target);
+            first.bind('email', defaultValue);
+            assert.notDeepEqual(first.state[1].target, expected);
+            assert.deepEqual(second.state[1].target, expected);
+            assert.deepEqual(defaultValue, expected);
+            first.unbind('email');
+            first.bind('email', defaultValue);
+            assert.deepEqual(first.state[1].target, expected);
+        }
+    });
+}

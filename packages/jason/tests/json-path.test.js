@@ -4,11 +4,11 @@ import { jsonPath, parseJsonPath } from '../resources/js/json-path.js'
 
 test('round trips canonical JSONPath names, indexes, and wildcards', () => {
     const segments = ['literal.key', 'slash/key', '*', `quote'"\\`, 'line\n\t', 'товар', '0', 0, null]
+    const expected = String.raw`$['literal.key']['slash/key']['*']['quote\'"\\']['line\n\t']['товар']['0'][0][*]`
     const path = jsonPath(segments)
 
-    assert.ok(path.startsWith("$['literal.key']['slash/key']['*']"))
-    assert.ok(path.endsWith("['0'][0][*]"))
-    assert.deepEqual(parseJsonPath(path), segments)
+    assert.equal(path, expected)
+    assert.deepEqual(parseJsonPath(expected), segments)
     assert.deepEqual(parseJsonPath('$'), [])
 })
 
