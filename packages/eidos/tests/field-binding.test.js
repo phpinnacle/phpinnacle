@@ -112,14 +112,18 @@ for (const defaultValue of ['email', false, 0, [], { destination: 'contact.email
     });
 }
 
-test('binding calls setTarget with its row index before assigning the local target', () => {
+test('binding and unbinding synchronize the corresponding Livewire row and local target', () => {
     const calls = [];
-    const component = editor(false, (index, value) => {
-        calls.push([index, structuredClone(value)]);
-        assert.equal(component.state[index].target, null);
-    });
-    component.bind('email', { destination: 'contact.email', enabled: true });
-    assert.deepEqual(calls, [[1, { destination: 'contact.email', enabled: true }]]);
+    const component = editor(false, (index, value) => calls.push([index, structuredClone(value)]));
+    const target = { destination: 'contact.email', enabled: true };
+
+    component.bind('email', target);
+    assert.deepEqual(calls, [[1, target]]);
+    assert.deepEqual(component.state[1].target, target);
+
+    component.unbind('email');
+    assert.deepEqual(calls, [[1, target], [1, null]]);
+    assert.equal(component.state[1].target, null);
 });
 
 for (const [type, defaultValue, edit] of [

@@ -28,7 +28,30 @@ trait HasSourceSettings
     /** @return list<MappingItem> */
     abstract public function getSources(): array;
 
-    abstract public function getSourceRowIndex(string $source): ?int;
+    public function getSourceRowIndex(string $source): ?int
+    {
+        foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
+            if (!is_array($row) || ($row['kind'] ?? null) === null) {
+                continue;
+            }
+
+            if ($row['kind'] === 'source' && $row['source'] === $source) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
+
+    public function isSourceUsed(string $source): bool
+    {
+        $index = $this->getSourceRowIndex($source);
+
+        /** @var list<array{target: mixed, ...}> $rows */
+        $rows = $this->getRawState() ?? [];
+
+        return $index !== null && $rows[$index]['target'] !== null;
+    }
 
     /** @param array<Component>|Closure $schema */
     public function sourceSettings(array|Closure $schema): static
@@ -132,6 +155,19 @@ trait HasSourceSettings
             $this->cachedSourceSettingsKeys === $this->getSourceStateKeys()
             && $this->cachedSourceRowIndexes === $this->getSourceRowIndexes()
         );
+    }
+
+    protected function hydrateSourceSettings(): void
+    {
+        /** @var list<array{options: array<string, mixed>, ...}> $rows */
+        $rows = $this->getRawState() ?? [];
+        $this->clearCachedChildSchemas();
+        foreach ($this->getSources() as $source) {
+            $index = $this->getSourceRowIndex($source['id']);
+            if ($this->hasSourceSettings() && $index !== null && ($rows[$index]['options'] ?? []) === []) {
+                $this->getChildSchemas()['settings_' . $this->getSourceStateKeys()[$source['id']]]->fill();
+            }
+        }
     }
 
     protected function initializeSourceRows(): void

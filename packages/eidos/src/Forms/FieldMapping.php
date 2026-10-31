@@ -174,21 +174,6 @@ class FieldMapping extends Field
         return $this->staticForms !== null;
     }
 
-    public function getSourceRowIndex(string $source): ?int
-    {
-        foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
-            if (!is_array($row) || ($row['kind'] ?? null) === null) {
-                continue;
-            }
-
-            if ($row['kind'] === 'source' && $row['source'] === $source) {
-                return $index;
-            }
-        }
-
-        return null;
-    }
-
     /** @return array<Component> */
     protected function getSourceSettingsComponents(string $source): array
     {
@@ -315,16 +300,9 @@ class FieldMapping extends Field
         array &$appliedStateCastPaths = [],
     ): void {
         $this->hydrateDefaultState($hydratedDefaultState);
+        $this->initializeSourceRows();
         /** @var State $rows */
         $rows = $this->getRawState() ?? [];
-        $sources = array_column(array_filter($rows, fn (array $row) => $row['kind'] === 'source'), 'source');
-        foreach (array_keys($this->getSourceSchema()->resolveReferences()->effectiveProperties()) as $source) {
-            if (!in_array((string) $source, $sources, true)) {
-                $rows[] = ['kind' => 'source', 'source' => (string) $source, 'target' => null, 'options' => []];
-            }
-        }
-
-        $this->rawState($rows);
         foreach ($this->getStaticDefaults() as $target => $value) {
             if ($this->getStaticRowIndex((string) $target, includeDrafts: true) === null) {
                 $row = ['kind' => 'static', 'target' => (string) $target, 'static' => $value, 'options' => []];
@@ -338,13 +316,7 @@ class FieldMapping extends Field
         }
 
         $this->rawState($rows);
-        $this->clearCachedChildSchemas();
-        foreach ($this->getSources() as $source) {
-            $index = $this->getSourceRowIndex($source['id']);
-            if ($this->hasSourceSettings() && $index !== null && ($rows[$index]['options'] ?? []) === []) {
-                $this->getChildSchemas()['settings_' . $this->getSourceStateKeys()[$source['id']]]->fill();
-            }
-        }
+        $this->hydrateSourceSettings();
 
         parent::hydrateState(
             $hydratedDefaultState,
@@ -783,16 +755,6 @@ class FieldMapping extends Field
                 )->translate();
             }
         }
-    }
-
-    public function isSourceUsed(string $source): bool
-    {
-        $index = $this->getSourceRowIndex($source);
-
-        /** @var State $rows */
-        $rows = $this->getRawState() ?? [];
-
-        return $index !== null && $rows[$index]['target'] !== null;
     }
 
     /** @return list<string> */

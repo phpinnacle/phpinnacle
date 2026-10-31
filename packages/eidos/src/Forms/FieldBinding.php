@@ -228,21 +228,6 @@ class FieldBinding extends Field
         return array_filter($this->getBindings(), self::isConstantKey(...), ARRAY_FILTER_USE_KEY);
     }
 
-    public function getSourceRowIndex(string $source): ?int
-    {
-        foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
-            if (!is_array($row) || ($row['kind'] ?? null) === null) {
-                continue;
-            }
-
-            if ($row['kind'] === 'source' && $row['source'] === $source) {
-                return $index;
-            }
-        }
-
-        return null;
-    }
-
     /**
      * @param array<string, mixed>|null $hydratedDefaultState
      * @param array<string, true> $appliedStateCastPaths
@@ -255,15 +240,7 @@ class FieldBinding extends Field
     ): void {
         $this->hydrateDefaultState($hydratedDefaultState);
         $this->initializeSourceRows();
-        /** @var State $rows */
-        $rows = $this->getRawState() ?? [];
-        $this->clearCachedChildSchemas();
-        foreach ($this->getSources() as $source) {
-            $index = $this->getSourceRowIndex($source['id']);
-            if ($this->hasSourceSettings() && $index !== null && ($rows[$index]['options'] ?? []) === []) {
-                $this->getChildSchemas()['settings_' . $this->getSourceStateKeys()[$source['id']]]->fill();
-            }
-        }
+        $this->hydrateSourceSettings();
 
         parent::hydrateState(
             $hydratedDefaultState,
@@ -574,16 +551,6 @@ class FieldBinding extends Field
         $this->rawState(array_values($rows));
         $this->clearCachedChildSchemas();
         $this->callAfterStateUpdated();
-    }
-
-    public function isSourceUsed(string $source): bool
-    {
-        $index = $this->getSourceRowIndex($source);
-
-        /** @var State $rows */
-        $rows = $this->getRawState() ?? [];
-
-        return $index !== null && $rows[$index]['target'] !== null;
     }
 
     /** @return list<string> */
