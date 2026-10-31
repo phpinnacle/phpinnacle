@@ -767,7 +767,7 @@ FieldBinding::make('bindings')
 //  ['kind' => 'static', 'target' => ['channel' => 'audit', 'enabled' => false], 'static' => 'active', 'options' => []]]
 ```
 
-`sourceSettings()` also supplies settings after Value in static cards. Its callback may accept `?Closure $inputSchema = null`: static cards receive a closure returning their current input `Schema`, while ordinary sources leave this argument null. For a static card, `$source` is its internal row key. Custom settings components may read the current input schema through this closure; existing native scalar values retain their types. Native dehydrated settings are included in the static row’s `options` array, alongside `static` and `target`.
+`sourceSettings()` also supplies settings after Value in static cards. Its callback may accept `?Closure $inputSchema = null`: static cards receive a closure returning their current input `Schema`, while ordinary sources leave this argument null. For a static card, `$source` is its internal row key. Custom settings components may read the current input schema through this closure; existing native scalar values retain their types. Native dehydrated settings are included in the static row’s `options` array, alongside `static` and `target`. Source settings reads reuse the native child schemas; row reordering refreshes their state paths without changing editor values.
 
 Without `staticValues()` the component rejects static rows on submission, and the bound-sources counter never includes them. This replaces the former `constants([...])` schema registration.
 

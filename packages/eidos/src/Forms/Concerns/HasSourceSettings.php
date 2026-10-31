@@ -100,6 +100,7 @@ trait HasSourceSettings
     /** @return array<string, array<string, mixed>> */
     public function getSourceSettings(): array
     {
+        $schemas = $this->getChildSchemas(withHidden: true);
         $state = [];
         Arr::set($state, $this->getStatePath(), $this->getRawState() ?? []);
         /** @var array<string, mixed> $state */
@@ -107,7 +108,11 @@ trait HasSourceSettings
         $settings = [];
         foreach ($this->getSourceRowIndexes() as $source => $index) {
             if ($this->hasSourceSettings()) {
-                $schema = $this->makeSourceSettingsSchema((string) $source, $index, $keys[$source]);
+                $schema = $schemas['settings_' . $keys[$source]] ?? $this->makeSourceSettingsSchema(
+                    (string) $source,
+                    $index,
+                    $keys[$source],
+                );
                 $schema->dehydrateState($state);
                 $schema->mutateDehydratedState($state);
             }

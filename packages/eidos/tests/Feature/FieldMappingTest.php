@@ -947,6 +947,48 @@ it('persists and validates source settings independently of connections', functi
     expect($schema->getState(...))->toThrow(ValidationException::class);
 })->with([false, true]);
 
+it('reuses source settings schemas and refreshes their row addresses after reordering', function (bool $binding) {
+    $source = Schema::fromArray(['properties' => ['first.part' => ['type' => 'string'], '0' => ['type' => 'string']]]);
+    $field = $binding
+        ? FieldBinding::make('widget')->jsonSchema($source)->simple(TextInput::make('column'))
+        : FieldMapping::make('widget')->jsonSchema(source: $source);
+    $builds = 0;
+    $field->sourceSettings(function (string $source) use (&$builds) {
+        $builds++;
+
+        return [TextInput::make('alias')
+            ->label('Alias for ' . $source)
+            ->required()
+            ->dehydrateStateUsing(fn (string $state) => strtoupper($state))];
+    });
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema->fill([
+        'widget' => [
+            ['kind' => 'source', 'source' => 'first.part', 'target' => null, 'options' => ['alias' => 'first']],
+            ['kind' => 'source', 'source' => '0', 'target' => null, 'options' => ['alias' => 'second']],
+        ],
+    ]);
+    $builds = 0;
+    $settings = ['first.part' => ['alias' => 'FIRST'], '0' => ['alias' => 'SECOND']];
+
+    expect($field->getSourceSettings())->toBe($settings);
+    expect($field->getSourceSettings())->toBe($settings);
+    expect($builds)->toBe(0);
+
+    $field->rawState(array_reverse($field->getRawState()));
+    expect($field->getSourceSettings())->toBe($settings);
+    expect($schema->getComponentByStatePath('widget.0.options.alias')->getLabel())->toBe('Alias for 0');
+    expect($builds)->toBe(2);
+    $schema->getComponentByStatePath('widget.0.options.alias')->state('edited');
+    $settings['0']['alias'] = 'EDITED';
+    expect($field->getSourceSettings())->toBe($settings);
+    expect($builds)->toBe(2);
+    expect($schema->getState()['widget'])->toBe([
+        ['kind' => 'source', 'source' => '0', 'target' => null, 'options' => ['alias' => 'EDITED']],
+        ['kind' => 'source', 'source' => 'first.part', 'target' => null, 'options' => ['alias' => 'FIRST']],
+    ]);
+})->with([false, true]);
+
 it('reads and submits canonical nested source settings without changing editor state', function (bool $binding) {
     $sourceSchema = ['properties' => ['first.part' => ['type' => 'string'], '0' => ['type' => 'string']]];
     $field = $binding
