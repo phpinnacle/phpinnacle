@@ -1254,3 +1254,35 @@ it('validates collection connections after reactive source settings change', fun
 
     $page->set('data.mapping.0.options.type', 'string')->call('submit')->assertHasNoErrors();
 })->with(['item', 'property']);
+
+it('indexes a large mapping with a single read of its row state', function () {
+    $field = new class('mapping') extends FieldMapping {
+        public int $stateReads = 0;
+
+        public function getRawState(): mixed
+        {
+            $this->stateReads++;
+
+            return parent::getRawState();
+        }
+    };
+    $field->configure();
+    $properties = [];
+    $rows = [];
+    for ($index = 0; $index < 64; $index++) {
+        $source = 'field_' . $index;
+        $properties[$source] = ['type' => 'string'];
+        $rows[] = ['kind' => 'source', 'source' => $source, 'target' => null, 'options' => []];
+    }
+
+    $field->jsonSchema(source: Schema::fromArray(['properties' => $properties]));
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema->fill(['mapping' => array_reverse($rows)]);
+    $field->stateReads = 0;
+    $indexes = $field->getSourceRowIndexes();
+
+    expect($indexes)
+        ->toBe(array_combine(array_keys($properties), range(63, 0)))
+        ->and($field->stateReads)
+        ->toBe(1);
+});

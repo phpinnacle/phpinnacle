@@ -122,7 +122,7 @@ class FieldBinding extends Field
     public function getSources(): array
     {
         $schema = $this->getSourceSchema();
-        if ($this->cachedSourceSchema?->toArray() !== $schema->toArray()) {
+        if ($this->cachedSourceSchema !== $schema && $this->cachedSourceSchema?->toArray() !== $schema->toArray()) {
             $this->cachedSources = SchemaPresentation::toMappingItems($schema);
             $this->cachedSourceSchema = $schema;
         }

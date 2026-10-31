@@ -325,3 +325,28 @@ it('honors addable, deletable, reorderable and disabled controls', function () {
     expect(($this->action)(['order' => [0]])->isDisabled())->toBeTrue();
     expect($this->field->getAllowedMoves())->toBe([[]]);
 });
+
+it('initializes visible editors and only enables sorting for multiple items', function (int $count) {
+    $this->field->state(array_fill(0, $count, ['type' => 'stop', 'data' => []]));
+    $html = $this->field->toHtml();
+    expect($html)->toContain('x-load="visible"');
+    expect(preg_match('/\sx-sortable(?:\s|=)/', $html) === 1)->toBe($count > 1);
+})->with([0, 1, 2]);
+
+it('opens native catalog actions without rendering a loading indicator for every entry', function () {
+    $document = new DOMDocument;
+    $document->loadHTML($this->field->toHtml(), LIBXML_NOERROR | LIBXML_NOWARNING);
+    $xpath = new DOMXPath($document);
+    $buttons = $xpath->query('//button[contains(@class, "fi-dropdown-list-item")]');
+
+    expect($buttons)->toHaveCount(2);
+    foreach ($buttons as $index => $button) {
+        $handler = $button->getAttribute('x-on:click');
+        expect($handler)
+            ->toContain('$wire.mountAction(', $index === 0 ? 'notify' : 'stop')
+            ->and($button->hasAttribute('wire:click'))
+            ->toBeFalse()
+            ->and($xpath->query('.//*[contains(@class, "fi-loading-indicator")]', $button))
+            ->toHaveCount(0);
+    }
+});

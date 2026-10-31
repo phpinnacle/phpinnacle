@@ -15,7 +15,7 @@
     role="group"
     aria-label="{{ $action->getLabel() }}"
     data-inline-builder="{{ $action->getSchemaComponent()->getId() }}"
-    x-load
+    x-load="visible"
     x-load-src="{{ FilamentAsset::getAlpineComponentSrc('inline-builder', 'phpinnacle/common') }}"
     :x-data="'inlineBuilder('.Js::from(['action' => $action->getName(), 'context' => $action->getContext(), 'disabled' => $disabled])->toHtml().')'"
     x-on:click="openFromSpace($event)"
@@ -39,6 +39,9 @@
                         @foreach ($addable as $block)
                             @php
                                 $button = $action(['block' => $block->getName()]);
+                                if ($handler = $button->getLivewireClickHandler()) {
+                                    $button->alpineClickHandler('$wire.'.$handler);
+                                }
                             @endphp
                             {{ $button->grouped()->label($block->getLabel())->icon($block->getIcon()) }}
                         @endforeach
@@ -53,7 +56,7 @@
             class="inline-builder-items"
             x-ref="items"
             data-allowed-moves="{{ json_encode($allowedMoves, JSON_THROW_ON_ERROR) }}"
-            @if ($action->getSchemaComponent()->isReorderable())
+            @if (count($settings) > 1 && $action->getSchemaComponent()->isReorderable())
                 x-sortable
                 x-init="$nextTick(() => configureSorting($el))"
                 x-on:end.stop="reorder($event)"

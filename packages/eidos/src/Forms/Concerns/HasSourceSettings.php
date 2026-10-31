@@ -80,11 +80,17 @@ trait HasSourceSettings
     /** @return array<string, int> */
     public function getSourceRowIndexes(): array
     {
+        $rowsBySource = [];
+        foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
+            if (is_array($row) && ($row['kind'] ?? null) === 'source' && is_string($row['source'] ?? null)) {
+                $rowsBySource[$row['source']] ??= $index;
+            }
+        }
+
         $indexes = [];
         foreach ($this->getSources() as $source) {
-            $index = $this->getSourceRowIndex($source['id']);
-            if ($index !== null) {
-                $indexes[$source['id']] = $index;
+            if (array_key_exists($source['id'], $rowsBySource)) {
+                $indexes[$source['id']] = $rowsBySource[$source['id']];
             }
         }
 
