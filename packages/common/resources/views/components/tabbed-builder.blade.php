@@ -125,8 +125,5 @@
                 />
             @endforelse
         </div>
-        @if ($isReorderable() && count($items) > 1)
-            <p class="tabbed-builder-hint">{{ __('phpinnacle-common::tabbed-builder.reorder') }}</p>
-        @endif
     </div>
 </x-dynamic-component>

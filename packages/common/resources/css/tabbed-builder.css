@@ -1,9 +1,8 @@
 .tabbed-builder {
     --tabbed-border: var(--gray-200);
-    --tabbed-muted: var(--gray-500);
     --tabbed-accent: var(--primary-600);
     display: grid;
-    grid-template-areas: "header" "panels" "hint";
+    grid-template-areas: "header" "panels";
     overflow: clip;
 }
 
@@ -89,14 +88,6 @@
     padding: clamp(0.75rem, 2vw, 1.5rem);
 }
 
-.tabbed-builder-hint {
-    grid-area: hint;
-    border-top: 1px solid var(--tabbed-border);
-    padding: 0.75rem 1rem;
-    color: var(--tabbed-muted);
-    font-size: 0.75rem;
-}
-
 .tabbed-builder-tab-button:focus-visible, .tabbed-builder-panel:focus-visible {
     outline: 2px solid var(--tabbed-accent);
     outline-offset: -3px;
@@ -118,7 +109,7 @@
 }
 
 .tabbed-builder.tabs-position-bottom {
-    grid-template-areas: "panels" "header" "hint";
+    grid-template-areas: "panels" "header";
 }
 
 .tabbed-builder.tabs-position-bottom .tabbed-builder-header {
@@ -129,7 +120,7 @@
 @media (min-width: 48rem) {
     .tabbed-builder.is-vertical {
         grid-template-columns: clamp(8rem, 25%, 16rem) minmax(0, 1fr);
-        grid-template-areas: "header panels" "hint hint";
+        grid-template-areas: "header panels";
     }
 
     .tabbed-builder.is-vertical .tabbed-builder-header {
@@ -139,7 +130,7 @@
 
     .tabbed-builder.tabs-position-end {
         grid-template-columns: minmax(0, 1fr) clamp(8rem, 25%, 16rem);
-        grid-template-areas: "panels header" "hint hint";
+        grid-template-areas: "panels header";
     }
 
     .tabbed-builder.tabs-position-end .tabbed-builder-header {
@@ -150,7 +141,6 @@
 
 .dark .tabbed-builder {
     --tabbed-border: color-mix(in oklab, white 10%, transparent);
-    --tabbed-muted: var(--gray-400);
     --tabbed-accent: var(--primary-400);
 }
 
