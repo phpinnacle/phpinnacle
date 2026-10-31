@@ -159,6 +159,36 @@ it('prepares native nested editor markup without binding or changing saved value
     expect($field->getRawState())->toBe($state);
 });
 
+it('prepares binding editors without rebuilding sibling source settings', function () {
+    $settingsBuilds = 0;
+    $field = FieldBinding::make('bindings')
+        ->jsonSchema(Schema::fromArray([
+            'properties' => [
+                'name' => ['type' => 'string'],
+                'email' => ['type' => 'string'],
+                'phone' => ['type' => 'string'],
+            ],
+        ]))
+        ->simple(TextInput::make('destination'))
+        ->sourceSettings(function (string $source) use (&$settingsBuilds) {
+            $settingsBuilds++;
+
+            return [TextInput::make('alias')->default($source)];
+        });
+    field_binding_schema($field, ['name' => 'contact.name', 'email' => 'contact.email']);
+    $field->getChildSchemas();
+    $settingsBuilds = 0;
+    $state = $field->getRawState();
+
+    foreach ($field->getSources() as $source) {
+        $default = $field->getBindingDefault($source['id']);
+        expect($field->renderBindingSchema($source['id'], $default))->toContain('type="text"');
+    }
+
+    expect($settingsBuilds)->toBe(0);
+    expect($field->getRawState())->toBe($state);
+});
+
 function field_binding_schema(FieldBinding $field, array $state = []): FilamentSchema
 {
     $livewire = SchemaHost::make();

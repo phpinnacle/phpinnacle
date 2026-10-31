@@ -209,7 +209,7 @@ class FieldBinding extends Field
             $rows[$index]['target'] ??= $default;
             $this->rawState($rows);
 
-            return $this->getBindingSchema($source)->toHtml();
+            return $this->makeBindingSchema($source, $index)->toHtml();
         } finally {
             $this->rawState($state);
         }
