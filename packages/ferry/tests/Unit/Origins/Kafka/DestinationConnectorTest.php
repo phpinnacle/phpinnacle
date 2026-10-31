@@ -1,8 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Queue;
-use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Ferry\Data\FieldMapping;
+use PHPinnacle\Ferry\Data\TransformSetting;
 use PHPinnacle\Ferry\Destinations\StaticDestination;
 use PHPinnacle\Ferry\Enums\DestinationType;
 use PHPinnacle\Ferry\Enums\StructureStatus;
@@ -11,6 +11,7 @@ use PHPinnacle\Ferry\Origins\Kafka\SinkConfigFactory;
 use PHPinnacle\Ferry\Origins\Kafka\SourceFactory;
 use PHPinnacle\Ferry\Origins\Kafka\TransformFactory;
 use PHPinnacle\Ferry\Services\DestinationFactory;
+use PHPinnacle\Ferry\Services\ReplicaSchemaResolver;
 use PHPinnacle\Ferry\Tests\TestCase;
 use PHPinnacle\Jason\Schema;
 use PHPinnacle\Jason\SchemaBuilder;
@@ -76,11 +77,11 @@ it('builds a confluent jdbc sink connector config with field renames', function 
         ],
     ]);
 
-    $builder = new SourceFactory;
+    $builder = app(SourceFactory::class);
     config(['phpinnacle-ferry.replica.table_prefix' => 'changed_prefix_']);
 
-    $config = new SinkConfigFactory($this->factory)->make(
-        new DestinationFactory()->resolve($replica),
+    $config = new SinkConfigFactory($this->factory, app(ReplicaSchemaResolver::class))->make(
+        new DestinationFactory(app(ReplicaSchemaResolver::class))->resolve($replica),
         $replica,
         $object,
         $builder->topic($upstream, $object),
@@ -102,12 +103,12 @@ it('builds a confluent jdbc sink connector config with field renames', function 
         ->toBe('true')
         ->and($config['auto.create'])
         ->toBe('false')
-        ->and($config['connection.url'])
-        ->toBe('jdbc:postgresql://db.internal:5432/:memory:')
         ->and($config['transforms.rename_keys.renames'])
         ->toBe('_idrref:external_id')
         ->and($config['transforms.rename_values.renames'])
-        ->toBe('_idrref:external_id,_fld1:title')
+        ->toBe('_fld1:title')
+        ->and($config['transforms.rename_values.include'])
+        ->toBe('_fld1')
         ->and($config['transforms'])
         ->toBe('rename_keys,rename_values')
         ->and($config)
@@ -143,16 +144,16 @@ it('keeps each sink limited to the fields of its own mapping when several replic
         ],
     ]);
 
-    $builder = new SourceFactory;
+    $builder = app(SourceFactory::class);
 
-    $firstConfig = new SinkConfigFactory($this->factory)->make(
-        new DestinationFactory()->resolve($first),
+    $firstConfig = new SinkConfigFactory($this->factory, app(ReplicaSchemaResolver::class))->make(
+        new DestinationFactory(app(ReplicaSchemaResolver::class))->resolve($first),
         $first,
         $object,
         $builder->topic($upstream, $object),
     );
-    $secondConfig = new SinkConfigFactory($this->factory)->make(
-        new DestinationFactory()->resolve($second),
+    $secondConfig = new SinkConfigFactory($this->factory, app(ReplicaSchemaResolver::class))->make(
+        new DestinationFactory(app(ReplicaSchemaResolver::class))->resolve($second),
         $second,
         $object,
         $builder->topic($upstream, $object),
@@ -187,9 +188,9 @@ it('builds a static sink with fixed fields and its target upstream', function (
         ],
     ]);
 
-    $builder = new SourceFactory;
+    $builder = app(SourceFactory::class);
 
-    $config = new SinkConfigFactory($this->factory)->make(
+    $config = new SinkConfigFactory($this->factory, app(ReplicaSchemaResolver::class))->make(
         $registry->resolve($replica),
         $replica,
         $object,
@@ -205,17 +206,17 @@ it('builds a static sink with fixed fields and its target upstream', function (
         ->and($config['pk.fields'])
         ->toBe('customer_id')
         ->and($config['transforms.rename_values.renames'])
-        ->toBe('_idrref:customer_id,_fld1:name')
+        ->toBe('_fld1:name,__ferry_fixed_type:type,__ferry_fixed_profile_id:profile_id')
         ->and($config['transforms'])
-        ->toBe('rename_keys,rename_values,insert_type,insert_profile_id')
+        ->toBe('insert_type,insert_profile_id,rename_keys,rename_values')
         ->and($config['transforms.insert_type.type'])
         ->toBe('org.apache.kafka.connect.transforms.InsertField$Value')
         ->and($config['transforms.insert_type.static.field'])
-        ->toBe('type')
+        ->toBe('__ferry_fixed_type')
         ->and($config['transforms.insert_type.static.value'])
         ->toBe('Customer')
         ->and($config['transforms.insert_profile_id.static.field'])
-        ->toBe('profile_id')
+        ->toBe('__ferry_fixed_profile_id')
         ->and($config['transforms.insert_profile_id.static.value'])
         ->toBe('b2b-profile-id')
         ->and($config)
@@ -242,17 +243,21 @@ it('builds a static sink with fixed fields and its target upstream', function (
     ],
 ]);
 
-it('refuses to build a sink for an unregistered static destination', function () {
-    $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
-    TestCase::makeItem($upstream);
-
+it('refuses to resolve a static destination whose registration was removed', function () {
+    $destinations = app(DestinationFactory::class);
+    $destinations->register(customers_destination());
     $replica = TestCase::makeReplica([
-        'upstream_id' => $upstream->id,
-        'source' => 'object-0',
+        'type' => DestinationType::Static,
+        'destination' => 'customers',
+        'mapping' => [
+            new FieldMapping('_idrref', 'customer_id'),
+            FieldMapping::fromArray(['kind' => 'static', 'target' => 'name', 'static' => 'Customer', 'options' => []]),
+            FieldMapping::fromArray(['kind' => 'static', 'target' => 'tax_number', 'static' => '123', 'options' => []]),
+        ],
     ]);
-    $replica->forceFill(['type' => DestinationType::Static, 'destination' => 'customers'])->saveQuietly();
+    $withoutRegistration = new DestinationFactory(app(ReplicaSchemaResolver::class));
 
-    expect(fn () => new DestinationFactory()->resolve($replica))
+    expect(fn () => $withoutRegistration->resolve($replica))
         ->toThrow(LogicException::class, __('phpinnacle-ferry::resources.replica.errors.static_destination_missing', [
             'destination' => 'customers',
         ]));
@@ -276,11 +281,11 @@ it('keeps configured sink hosts and environment ports while applying the default
         config(['database.connections.sqlite.port' => $port]);
     }
 
-    $builder = new SourceFactory;
+    $builder = app(SourceFactory::class);
 
     expect(
-        new SinkConfigFactory($this->factory)->make(
-            new DestinationFactory()->resolve($replica),
+        new SinkConfigFactory($this->factory, app(ReplicaSchemaResolver::class))->make(
+            new DestinationFactory(app(ReplicaSchemaResolver::class))->resolve($replica),
             $replica,
             $object,
             $builder->topic($upstream, $object),
@@ -322,7 +327,7 @@ it('selects and renames only source key fields mapped to the static primary key'
     $object = TestCase::makeItem($upstream, [
         'primary_key' => $sourceKey,
         'fields' => [
-            '_owner' => JsonSchema::fromArray([
+            '_owner' => Schema::fromArray([
                 'type' => 'string',
                 'format' => 'uuid',
                 'x-ferry-reference' => true,
@@ -342,7 +347,12 @@ it('selects and renames only source key fields mapped to the static primary key'
         ),
     ]);
 
-    $config = new SinkConfigFactory($this->factory)->make($destination, $replica, $object, 'topic');
+    $config = new SinkConfigFactory($this->factory, app(ReplicaSchemaResolver::class))->make(
+        $destination,
+        $replica,
+        $object,
+        'topic',
+    );
 
     expect($config)->toMatchArray([
         'pk.mode' => 'record_key',
@@ -358,7 +368,9 @@ it('selects and renames only source key fields mapped to the static primary key'
         [
             'pk.fields' => 'id',
             'fields.whitelist' => 'id',
-            'transforms.rename_values.renames' => '_idrref:id',
+            'transforms.rename_values.include' => '',
+            'transforms.rename_values.exclude' => '_idrref,_owner',
+            'transforms.rename_values.renames' => '',
             'transforms.rename_keys.include' => '_idrref',
             'transforms.rename_keys.renames' => '_idrref:id',
         ],
@@ -370,7 +382,9 @@ it('selects and renames only source key fields mapped to the static primary key'
         [
             'pk.fields' => 'source_id,id',
             'fields.whitelist' => 'id,source_id',
-            'transforms.rename_values.renames' => '_idrref:id,_owner:source_id',
+            'transforms.rename_values.include' => '',
+            'transforms.rename_values.exclude' => '_idrref,_owner',
+            'transforms.rename_values.renames' => '',
             'transforms.rename_keys.include' => '_idrref,_owner',
             'transforms.rename_keys.renames' => '_idrref:id,_owner:source_id',
         ],
@@ -382,9 +396,56 @@ it('selects and renames only source key fields mapped to the static primary key'
         [
             'pk.fields' => '_owner,source_id',
             'fields.whitelist' => 'source_id,_owner',
-            'transforms.rename_values.renames' => '_owner:source_id,_idrref:_owner',
+            'transforms.rename_values.include' => '',
+            'transforms.rename_values.exclude' => '_idrref,_owner',
+            'transforms.rename_values.renames' => '',
             'transforms.rename_keys.include' => '_idrref,_owner',
             'transforms.rename_keys.renames' => '_idrref:_owner,_owner:source_id',
         ],
     ],
 ]);
+
+it('empties key-only sink values after record transforms without discarding the record key', function (
+    DestinationType $type,
+) {
+    $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
+    $object = TestCase::makeItem($upstream, [
+        'sources' => ['name' => ['type' => 'string'], 'shared' => ['type' => 'string']],
+    ]);
+    $destination = new StaticDestination(
+        'key_only',
+        'Key only',
+        'key_only',
+        ['external_id'],
+        SchemaBuilder::make(Schema::object(['external_id' => Schema::fromArray(TestCase::keySchema()->toArray())]))
+            ->required(['external_id'])
+            ->build(),
+    );
+    app(DestinationFactory::class)->register($destination);
+    $replica = TestCase::makeReplica([
+        'upstream_id' => $upstream->id,
+        'type' => $type,
+        'destination' => $type === DestinationType::Static ? 'key_only' : null,
+        'transforms' => [new TransformSetting('slug', ['input' => "$['name']", 'output' => 'slug'])],
+    ]);
+
+    $config = app(SinkConfigFactory::class)->make(
+        app(DestinationFactory::class)->resolve($replica),
+        $replica,
+        $object,
+        'topic',
+    );
+
+    expect($config)->toMatchArray([
+        'transforms' => 'replica_0,rename_keys,rename_values',
+        'transforms.replica_0.input' => 'name',
+        'transforms.rename_keys.include' => '_idrref',
+        'transforms.rename_keys.renames' => '_idrref:external_id',
+        'transforms.rename_values.include' => '',
+        'transforms.rename_values.exclude' => '_idrref,name,slug,shared',
+        'transforms.rename_values.renames' => '',
+        'pk.mode' => 'record_key',
+        'pk.fields' => 'external_id',
+        'delete.enabled' => 'true',
+    ]);
+})->with([DestinationType::Dynamic, DestinationType::Static]);

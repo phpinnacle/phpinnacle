@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\Queue;
-use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Ferry\Data\FieldMapping;
 use PHPinnacle\Ferry\Destinations\StaticDestination;
 use PHPinnacle\Ferry\Enums\DestinationType;
@@ -9,6 +8,7 @@ use PHPinnacle\Ferry\Enums\ReplicaStatus;
 use PHPinnacle\Ferry\Enums\StructureStatus;
 use PHPinnacle\Ferry\Origins\Kafka\SourceFactory;
 use PHPinnacle\Ferry\Services\DestinationFactory;
+use PHPinnacle\Ferry\Services\ReplicaSchemaResolver;
 use PHPinnacle\Ferry\Tests\TestCase;
 use PHPinnacle\Jason\Schema;
 use PHPinnacle\Jason\SchemaBuilder;
@@ -37,7 +37,7 @@ it('builds a debezium postgres connector config scoped to the tracked replicas',
     ], ['status' => ReplicaStatus::Active]);
 
     $upstream = $upstream->fresh();
-    $builder = new SourceFactory;
+    $builder = app(SourceFactory::class);
     $config = $builder->source(
         $upstream,
         config('phpinnacle-ferry.origins.kafka'),
@@ -117,7 +117,7 @@ it('groups captured column annotations across replicas without inferring convert
         ],
     ], ['status' => ReplicaStatus::Pause]);
 
-    $config = new SourceFactory()->source($upstream, config('phpinnacle-ferry.origins.kafka'));
+    $config = app(SourceFactory::class)->source($upstream, config('phpinnacle-ferry.origins.kafka'));
 
     expect($config['uuid.columns'])
         ->toBe('warehouse.records.record_id,warehouse.records.filter_id')
@@ -135,14 +135,14 @@ it('registers the configured converter classes even without per-column selection
     config(['phpinnacle-ferry.kafka.converters' => ['text' => 'example.TextConverter']]);
     $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
 
-    $config = new SourceFactory()->source($upstream, config('phpinnacle-ferry.origins.kafka'));
+    $config = app(SourceFactory::class)->source($upstream, config('phpinnacle-ferry.origins.kafka'));
 
     expect($config)
         ->toMatchArray(['converters' => 'text', 'text.type' => 'example.TextConverter'])
         ->not->toHaveKeys(['text.columns', 'uuid.type', 'integer.type', 'mchar.type']);
 
     config(['phpinnacle-ferry.kafka.converters' => []]);
-    expect(new SourceFactory()->source($upstream, config('phpinnacle-ferry.origins.kafka')))
+    expect(app(SourceFactory::class)->source($upstream, config('phpinnacle-ferry.origins.kafka')))
         ->not
         ->toHaveKey('converters');
 });
@@ -151,13 +151,13 @@ it('unions tables and columns across the tracked replicas of one upstream', func
     $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
     $first = TestCase::makeItem($upstream, [
         'sources' => ['_fld1' => ['type' => 'string', 'maxLength' => 100, 'title' => 'Title']],
-        'fields' => ['_idrref' => JsonSchema::fromArray(['type' => 'string', 'x-ferry-converter' => 'uuid'])],
+        'fields' => ['_idrref' => Schema::fromArray(['type' => 'string', 'x-ferry-converter' => 'uuid'])],
     ]);
     $second = TestCase::makeItem($upstream, [
         'external_id' => 'object-1',
         'name' => '_reference1',
         'sources' => ['_fld2' => ['type' => 'string', 'maxLength' => 100, 'title' => 'Name']],
-        'fields' => ['_idrref' => JsonSchema::fromArray(['type' => 'string', 'x-ferry-converter' => 'uuid'])],
+        'fields' => ['_idrref' => Schema::fromArray(['type' => 'string', 'x-ferry-converter' => 'uuid'])],
     ]);
 
     TestCase::makeReplica([
@@ -181,7 +181,7 @@ it('unions tables and columns across the tracked replicas of one upstream', func
     ], ['status' => ReplicaStatus::Pause]);
 
     $upstream = $upstream->fresh();
-    $config = new SourceFactory()->source(
+    $config = app(SourceFactory::class)->source(
         $upstream,
         config('phpinnacle-ferry.origins.kafka'),
     );
@@ -197,7 +197,7 @@ it('unions tables and columns across the tracked replicas of one upstream', func
 it('never lets an unscoped source connector capture the whole database', function () {
     $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
 
-    $config = new SourceFactory()->source(
+    $config = app(SourceFactory::class)->source(
         $upstream,
         config('phpinnacle-ferry.origins.kafka'),
     );
@@ -211,7 +211,7 @@ it('never lets an unscoped source connector capture the whole database', functio
         ->toBe('kafka');
 });
 
-it('captures every source primary-key column independently of the static value mapping', function (
+it('captures declared source keys before a pending static replica is mapped', function (
     array $primaryKey,
     string $columns,
     ?string $key,
@@ -220,25 +220,33 @@ it('captures every source primary-key column independently of the static value m
         key: 'names',
         label: 'Names',
         table: 'names',
-        primaryKey: ['name'],
-        schema: SchemaBuilder::make(Schema::object(['name' => Schema::string()]))
-            ->required(['name'])
+        primaryKey: ['tenant_id', 'record_id'],
+        schema: SchemaBuilder::make(Schema::object([
+            'tenant_id' => Schema::integer(),
+            'record_id' => Schema::string(),
+            'name' => Schema::string(),
+        ]))
+            ->required(['tenant_id', 'record_id'])
             ->build(),
     ));
     $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
-    $object = TestCase::makeItem($upstream, [
+    TestCase::makeItem($upstream, [
         'name' => 'customers',
         'primary_key' => $primaryKey,
-        'sources' => ['display_name' => ['type' => 'string']],
+        'sources' => [
+            'tenant_id' => ['type' => 'integer'],
+            'record_id' => ['type' => 'string'],
+            'display_name' => ['type' => 'string'],
+        ],
     ]);
     TestCase::makeReplica([
         'upstream_id' => $upstream->id,
         'type' => DestinationType::Static,
         'destination' => 'names',
-        'mapping' => [new FieldMapping(source: 'display_name', target: 'name')],
+        'mapping' => [],
     ]);
 
-    $config = new SourceFactory()->source($upstream, config('phpinnacle-ferry.origins.kafka'));
+    $config = app(SourceFactory::class)->source($upstream, config('phpinnacle-ferry.origins.kafka'));
 
     expect($config['table.include.list'])->toBe('public.customers');
     expect($config['column.include.list'])->toBe($columns);
@@ -250,10 +258,10 @@ it('captures every source primary-key column independently of the static value m
 })->with([
     'composite in declared order' => [
         ['tenant_id', 'record_id'],
-        'public.customers.tenant_id,public.customers.record_id,public.customers.display_name',
+        'public.customers.tenant_id,public.customers.record_id',
         'public.customers:tenant_id,record_id',
     ],
-    'without a declared primary key' => [[], 'public.customers.display_name', null],
+    'without a declared primary key' => [[], '', null],
 ]);
 
 it('uses the key and column names supplied by a non-Rosetta adapter', function () {
@@ -262,7 +270,7 @@ it('uses the key and column names supplied by a non-Rosetta adapter', function (
         'name' => 'customers',
         'primary_key' => ['record_id'],
         'fields' => [],
-        'schema' => JsonSchema::fromArray([
+        'schema' => Schema::fromArray([
             'type' => 'object',
             'properties' => [
                 'record_id' => ['type' => 'string', 'title' => 'ID'],
@@ -277,14 +285,14 @@ it('uses the key and column names supplied by a non-Rosetta adapter', function (
             new FieldMapping(source: 'display_name', target: 'name'),
         ],
     ], ['status' => ReplicaStatus::Active]);
-    $config = new SourceFactory()->source(
+    $config = app(SourceFactory::class)->source(
         $upstream,
         config('phpinnacle-ferry.origins.kafka'),
     );
     $pipeline = app(\PHPinnacle\Ferry\Origins\Kafka\TransformFactory::class)->pipeline(
         $replica,
         $object,
-        $replica->primaryKeyMap($object),
+        $replica->primaryKeyMap(app(ReplicaSchemaResolver::class)->primaryKeySources($replica, $object)),
     );
 
     expect($config['message.key.columns'])
@@ -293,6 +301,6 @@ it('uses the key and column names supplied by a non-Rosetta adapter', function (
         ->toBe('public.customers.record_id,public.customers.display_name')
         ->and($pipeline['transforms.rename_keys.renames'])
         ->toBe('record_id:id')
-        ->and($replica->columnMap($object))
+        ->and($replica->columnMap())
         ->toBe(['record_id' => 'id', 'display_name' => 'name']);
 });

@@ -698,6 +698,7 @@ final class ClientTest extends TestCase
             $responses[] = new Response(200, [], $list($item));
             $responses[] = new Response(200, [], $json($item));
         }
+
         $responses = [
             ...$responses,
             new Response(200, [], $list($program)),

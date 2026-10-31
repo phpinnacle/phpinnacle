@@ -4,11 +4,13 @@ namespace PHPinnacle\Ferry\Transformations;
 
 use Filament\Forms\Components\Select;
 use Filament\Support\Icons\Heroicon;
-use PHPinnacle\Common\Forms\InlineBuilder\Block;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Common\Forms\InlineBuilder\Block as InlineBlock;
+use PHPinnacle\Eidos\Forms\SchemaCompatibility;
 use PHPinnacle\Ferry\Contracts\Transform;
 use PHPinnacle\Ferry\Enums\KafkaType;
+use PHPinnacle\Ferry\Enums\TransformScope;
 use PHPinnacle\Ferry\Enums\TransformTarget;
+use PHPinnacle\Jason\Schema;
 
 final class Cast implements Transform
 {
@@ -22,14 +24,24 @@ final class Cast implements Transform
         return 'cast';
     }
 
+    public function getScope(): TransformScope
+    {
+        return TransformScope::Field;
+    }
+
+    public function sourceFields(array $params): array
+    {
+        return [];
+    }
+
     public function getTarget(): TransformTarget
     {
         return TransformTarget::Value;
     }
 
-    public function accepts(JsonSchema $input): bool
+    public function accepts(Schema $input): bool
     {
-        return $input->compatible(JsonSchema::fromArray(['type' => [
+        return SchemaCompatibility::make()->accepts($input, Schema::fromArray(['type' => [
             'string',
             'integer',
             'number',
@@ -39,7 +51,7 @@ final class Cast implements Transform
     }
 
     /** @param array<string, string> $params */
-    public function output(JsonSchema $input, array $params): ?JsonSchema
+    public function output(Schema $input, array $params): ?Schema
     {
         if (($params['type'] ?? null) === null) {
             return null;
@@ -51,16 +63,16 @@ final class Cast implements Transform
             $schema['type'] = [$schema['type'], 'null'];
         }
 
-        return JsonSchema::fromArray($schema);
+        return Schema::fromArray($schema);
     }
 
-    public function block(): Block
+    public function block(): InlineBlock
     {
-        return Block::make($this->getKey())
-            ->label(fn () => __('phpinnacle-ferry::resources.transform.cast'))
-            ->description(fn () => __('phpinnacle-ferry::resources.transform.cast_description'))
+        return InlineBlock::make($this->getKey())
+            ->label(fn () => __('phpinnacle-ferry::transforms.cast'))
+            ->description(fn () => __('phpinnacle-ferry::transforms.cast_description'))
             ->icon(Heroicon::ArrowPath)
-            ->schema(fn (?JsonSchema $input) => [
+            ->schema(fn (?Schema $input) => [
                 Select::make('type')
                     ->label(__('phpinnacle-ferry::resources.replica.fields.constant_type'))
                     ->options(KafkaType::class)
@@ -69,14 +81,14 @@ final class Cast implements Transform
                     ->disableOptionWhen(
                         fn (string $value) => (
                             $input?->singleType() === $value
-                            && $input->format() === null
+                            && $input->effectiveFormat() === null
                             && $input->annotation('x-ferry-reference') !== true
                         ),
                     )
                     ->required(),
                 Select::make('replace_null_with_default')
-                    ->label(__('phpinnacle-ferry::resources.transform.cast_replace_null_with_default'))
-                    ->helperText(__('phpinnacle-ferry::resources.transform.cast_replace_null_with_default_help'))
+                    ->label(__('phpinnacle-ferry::transforms.cast_replace_null_with_default'))
+                    ->helperText(__('phpinnacle-ferry::transforms.cast_replace_null_with_default_help'))
                     ->options([
                         'true' => __('filament-forms::components.select.boolean.true'),
                         'false' => __('filament-forms::components.select.boolean.false'),
@@ -89,12 +101,14 @@ final class Cast implements Transform
             ]);
     }
 
-    /** @param array<string, string> $params */
-    public function connector(string $field, array $params): array
+    /**
+     * @param array<string, string> $params
+     */
+    public function connector(array $params): array
     {
         return [
             'type' => 'org.apache.kafka.connect.transforms.Cast$Value',
-            'spec' => sprintf('%s:%s', $field, $params['type']),
+            'spec' => sprintf('%s:%s', $params['field'], $params['type']),
             ...(
                 array_key_exists('replace_null_with_default', $params)
                     ? ['replace.null.with.default' => $params['replace_null_with_default']]

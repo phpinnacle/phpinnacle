@@ -35,9 +35,11 @@ final class References
         if (++$this->nodes > 20_000) {
             throw new InvalidArgumentException('The JSON Schema expands beyond 20000 fragments.');
         }
+
         if (is_bool($schema)) {
             return $schema;
         }
+
         $embeddedResource = $embeddedResource || !$root && array_key_exists('$id', $schema);
         if (array_key_exists('$ref', $schema)) {
             /** @var string $reference */
@@ -45,9 +47,11 @@ final class References
             if (in_array($reference, $references, true)) {
                 throw new InvalidArgumentException('A recursive reference cannot be expanded: ' . $reference);
             }
+
             if ($embeddedResource) {
                 throw new InvalidArgumentException('References inside embedded $id resources are not supported.');
             }
+
             $resolved = $this->expand($this->target($reference), [...$references, $reference]);
             unset($schema['$ref']);
             $siblings = $schema;
@@ -61,6 +65,7 @@ final class References
                 $this->expand($schema, $references, root: $root, embeddedResource: $embeddedResource),
             ]];
         }
+
         foreach ($schema as $keyword => $value) {
             if (in_array($keyword, Codec::MAPS, true)) {
                 /** @var array<string, array<string, mixed>|bool> $value */
@@ -92,6 +97,7 @@ final class References
         if (!str_starts_with($reference, '#') || $pointer !== '' && !str_starts_with($pointer, '/')) {
             throw new InvalidArgumentException('Only local JSON Pointer references are supported: ' . $reference);
         }
+
         $this->referenceRoot ??= $this->document->jsonSerialize();
         $target = $this->referenceRoot;
         if ($pointer !== '') {
@@ -99,6 +105,7 @@ final class References
                 if (preg_match('/~(?:[^01]|$)/', $part)) {
                     throw new InvalidArgumentException('Invalid JSON Pointer escape: ' . $reference);
                 }
+
                 $part = str_replace(['~1', '~0'], ['/', '~'], $part);
                 if ($target instanceof stdClass && property_exists($target, $part)) {
                     $target = $target->{$part};
@@ -109,6 +116,7 @@ final class References
                 }
             }
         }
+
         if (!$target instanceof stdClass && !is_bool($target)) {
             throw new InvalidArgumentException('The reference target must be a schema: ' . $reference);
         }

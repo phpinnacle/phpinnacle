@@ -6,14 +6,18 @@ use Closure;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\ValidationException;
-use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Ferry\Data\FieldMapping;
 use PHPinnacle\Ferry\Destinations\StaticDestination;
+use PHPinnacle\Ferry\Services\ReplicaSchemaResolver;
 use PHPinnacle\Ferry\Services\ReplicaTableManager;
-use PHPinnacle\Ferry\Services\TransformRegistry;
+use PHPinnacle\Jason\Schema;
 
 readonly class ReplicaSchema
 {
+    public function __construct(
+        private ReplicaSchemaResolver $schemas,
+    ) {}
+
     /**
      * @param list<mixed> $columns
      * @param Closure(string): PotentiallyTranslatedString $fail
@@ -33,6 +37,7 @@ readonly class ReplicaSchema
 
                 return;
             }
+
             if (array_key_exists($column, $used)) {
                 $fail('phpinnacle-ferry::validation.replica_schema.column_duplicate')->translate([
                     'column' => $column,
@@ -40,6 +45,7 @@ readonly class ReplicaSchema
 
                 return;
             }
+
             if (preg_match('/^[a-z][a-z0-9_]*$/', $column) !== 1) {
                 $fail('phpinnacle-ferry::validation.replica_schema.column_format')->translate([
                     'column' => $column,
@@ -47,6 +53,7 @@ readonly class ReplicaSchema
 
                 return;
             }
+
             $used[$column] = true;
         }
     }
@@ -63,6 +70,7 @@ readonly class ReplicaSchema
 
             return;
         }
+
         $missing = array_diff($primaryKey, $sources);
         if ($missing !== []) {
             $fail('phpinnacle-ferry::validation.replica_schema.primary_key_required')->translate([
@@ -74,21 +82,26 @@ readonly class ReplicaSchema
     /**
      * @param list<FieldMapping> $mappings
      * @param list<string> $sourcePrimaryKey
-     * @param list<string> $physicalPrimaryKey
      */
-    public static function assertValid(
+    public function assertValid(
         array $mappings,
         ?StaticDestination $destination,
         array $sourcePrimaryKey,
-        JsonSchema $sourceSchema,
-        array $physicalPrimaryKey,
+        ?Schema $sourceSchema,
     ): void {
+        if ($sourceSchema === null) {
+            throw ValidationException::withMessages([
+                'data.transforms' => __('phpinnacle-ferry::validation.replica_transforms'),
+            ]);
+        }
+
         $sources = [];
         foreach ($mappings as $mapping) {
             if ($mapping->source !== null && $mapping->target !== null) {
                 $sources[] = $mapping->source;
             }
         }
+
         Validator::validate(['data' => ['mapping' => $sources]], ['data.mapping' => [
             fn (string $attribute, mixed $value, Closure $fail) => self::validatePrimaryKey(
                 $sourcePrimaryKey,
@@ -96,28 +109,15 @@ readonly class ReplicaSchema
                 $fail,
             ),
         ]]);
-        $destinationSchema = JsonSchema::fromArray($destination?->getSchema()->keywords() ?? []);
-        $fields = $destinationSchema->properties();
+        $destinationSchema = $destination?->getSchema() ?? Schema::fromArray([]);
+        $fields = $destinationSchema->resolveReferences()->effectiveProperties();
         foreach ($mappings as $mapping) {
             $sourceIsKey = in_array($mapping->source, $sourcePrimaryKey, true);
-            if (in_array($mapping->source, $physicalPrimaryKey, true) && $mapping->transforms() !== []) {
-                throw ValidationException::withMessages([
-                    'data.mapping' => __('phpinnacle-ferry::validation.primary_key_transforms_prohibited'),
-                ]);
-            }
-            if (
-                $sourceIsKey
-                && !in_array($mapping->source, $physicalPrimaryKey, true)
-                && count($mapping->transforms()) !== 1
-            ) {
-                throw ValidationException::withMessages([
-                    'data.mapping' => __('phpinnacle-ferry::validation.key_transform_required'),
-                ]);
-            }
             if ($mapping->target === null) {
                 continue;
             }
-            $output = app(TransformRegistry::class)->mappingSchema($mapping, $sourceSchema);
+
+            $output = $this->schemas->mappingSchema($mapping, $sourceSchema);
             if ($output === null || ReplicaTableManager::columnType($output) === null) {
                 throw ValidationException::withMessages([
                     'data.mapping' => __('phpinnacle-ferry::resources.replica.errors.unsupported_field_type', [
@@ -125,6 +125,7 @@ readonly class ReplicaSchema
                     ]),
                 ]);
             }
+
             if ($destination !== null) {
                 self::assertCompatibleWithDestination($fields, $mapping->target, $mapping, $output);
                 if (
@@ -143,17 +144,18 @@ readonly class ReplicaSchema
                 }
             }
         }
+
         if ($destination !== null) {
             self::assertRequiredFieldsMapped($destinationSchema, $mappings);
         }
     }
 
-    /** @param array<string, JsonSchema> $fields */
+    /** @param array<string, Schema> $fields */
     private static function assertCompatibleWithDestination(
         array $fields,
         string $column,
         FieldMapping $mapping,
-        JsonSchema $output,
+        Schema $output,
     ): void {
         $field = $fields[$column] ?? null;
 
@@ -175,12 +177,12 @@ readonly class ReplicaSchema
     }
 
     /** @param list<FieldMapping> $mappings */
-    private static function assertRequiredFieldsMapped(JsonSchema $schema, array $mappings): void
+    private static function assertRequiredFieldsMapped(Schema $schema, array $mappings): void
     {
         $mapped = array_map(static fn (FieldMapping $mapping) => $mapping->target, $mappings);
-        $fields = $schema->properties();
+        $fields = $schema->resolveReferences()->effectiveProperties();
 
-        foreach ($schema->required() as $column) {
+        foreach ($schema->effectiveRequired() as $column) {
             if (!in_array($column, $mapped, true)) {
                 throw ValidationException::withMessages([
                     'data.mapping' => __(

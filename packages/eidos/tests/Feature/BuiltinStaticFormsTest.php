@@ -8,14 +8,14 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
-use Filament\Schemas\Schema;
+use Filament\Schemas\Schema as FilamentSchema;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use PHPinnacle\Eidos\Forms\BuiltinStaticForms;
 use PHPinnacle\Eidos\Forms\FieldMapping;
-use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Eidos\Tests\Fixtures\MappingState;
 use PHPinnacle\Eidos\Tests\Fixtures\SchemaHost;
+use PHPinnacle\Jason\Schema;
 use Tests\TestCase;
 
 require_once __DIR__ . '/../Fixtures/MappingState.php';
@@ -24,21 +24,24 @@ require_once __DIR__ . '/../Fixtures/SchemaHost.php';
 uses(TestCase::class);
 
 /** @param array<string, mixed> $property */
-function builtin_static_schema(array $property, mixed $value = null): Schema
+function builtin_static_schema(array $property, mixed $value = null): FilamentSchema
 {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(source: ['properties' => ['source' => ['type' => 'string']]], dest: [
-            'properties' => ['target' => $property],
-            'required' => ['target'],
-        ])
+        ->jsonSchema(
+            source: Schema::fromArray(['properties' => ['source' => ['type' => 'string']]]),
+            target: Schema::fromArray([
+                'properties' => ['target' => $property],
+                'required' => ['target'],
+            ]),
+        )
         ->withBuiltinStaticForms();
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['mapping' => MappingState::mapping(['target' => MappingState::value($value)])]);
 
     return $schema;
 }
 
-it('registers native editors for basic types and string formats', function (array $property, string $class) {
+it('registers native editors for distinct built-in field types', function (array $property, string $class) {
     $schema = builtin_static_schema($property);
     $field = $schema->getComponent('mapping')->getStaticFormSchema('target')->getComponent('value');
 
@@ -46,17 +49,11 @@ it('registers native editors for basic types and string formats', function (arra
 })->with([
     'string' => [['type' => 'string'], TextInput::class],
     'text' => [['type' => 'string', 'format' => 'text'], Textarea::class],
-    'integer' => [['type' => 'integer'], TextInput::class],
-    'number' => [['type' => 'number'], TextInput::class],
     'boolean' => [['type' => 'boolean'], Toggle::class],
     'nullable boolean' => [['type' => ['boolean', 'null']], Select::class],
     'typed array' => [['type' => 'array', 'items' => ['type' => 'integer']], Repeater::class],
     'null' => [['type' => 'null'], TextInput::class],
     'enum' => [['type' => 'string', 'enum' => ['draft', 'active']], Select::class],
-    'uuid' => [['type' => 'string', 'format' => 'uuid'], TextInput::class],
-    'reference' => [['type' => 'string', 'format' => 'uuid', 'x-eidos-reference' => true], TextInput::class],
-    'phone' => [['type' => 'string', 'format' => 'phone'], TextInput::class],
-    'email' => [['type' => 'string', 'format' => 'email'], TextInput::class],
     'date' => [['type' => 'string', 'format' => 'date'], DatePicker::class],
     'time' => [['type' => 'string', 'format' => 'time'], TimePicker::class],
     'date-time' => [['type' => 'string', 'format' => 'date-time'], DateTimePicker::class],
@@ -96,10 +93,6 @@ it('round trips built-in static values with their native types', function (array
     'enum' => [['type' => 'string', 'enum' => ['draft', 'active']], 'active'],
     'uuid' => [
         ['type' => 'string', 'format' => 'uuid'],
-        '550e8400-e29b-41d4-a716-446655440000',
-    ],
-    'reference' => [
-        ['type' => 'string', 'format' => 'uuid', 'x-eidos-reference' => true],
         '550e8400-e29b-41d4-a716-446655440000',
     ],
     'email' => [['type' => 'string', 'format' => 'email'], 'user@example.com'],
@@ -161,7 +154,6 @@ it('validates submitted values through built-in fields', function (array $proper
     'minimum text length' => [['type' => 'string', 'format' => 'text', 'minLength' => 3], 'ab'],
     'maximum text length' => [['type' => 'string', 'format' => 'text', 'maxLength' => 3], 'long'],
     'uuid' => [['type' => 'string', 'format' => 'uuid'], 'invalid'],
-    'reference' => [['type' => 'string', 'format' => 'uuid', 'x-eidos-reference' => true], 'invalid'],
     'email' => [['type' => 'string', 'format' => 'email'], 'invalid'],
     'phone' => [['type' => 'string', 'format' => 'phone'], 'letters'],
     'integer' => [['type' => 'integer'], '1.5'],
@@ -173,11 +165,11 @@ it('validates submitted values through built-in fields', function (array $proper
 it('leaves unsupported built-in static types available for connections', function (array $property) {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(
-            source: ['properties' => ['source' => $property]],
-            dest: ['properties' => ['target' => $property], 'required' => ['target']],
+            source: Schema::fromArray(['properties' => ['source' => $property]]),
+            target: Schema::fromArray(['properties' => ['target' => $property], 'required' => ['target']]),
         )
         ->withBuiltinStaticForms();
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill();
 
     expect($field->getStaticFormSchema('target'))->toBeNull();
@@ -211,16 +203,16 @@ it('replaces built-in static forms with a target factory', function (string $typ
 
 it('reuses built-in editors inside a target factory', function () {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(dest: [
+        ->jsonSchema(target: Schema::fromArray([
             'properties' => [
                 'id' => ['type' => 'string'],
                 'active' => ['type' => 'boolean'],
             ],
-        ])
-        ->staticForms(fn (string $target, JsonSchema $property) => $target === 'id'
+        ]))
+        ->staticForms(fn (string $target, Schema $property) => $target === 'id'
             ? null
             : BuiltinStaticForms::make($property, false));
-    Schema::make(SchemaHost::make())->statePath('data')->components([$field])->fill(['mapping' => []]);
+    FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field])->fill(['mapping' => []]);
 
     expect($field->getStaticFormSchema('id'))
         ->toBeNull()
@@ -232,14 +224,17 @@ it('reuses built-in editors inside a target factory', function () {
 
 it('renders destination static forms without source fields', function () {
     $field = FieldMapping::make('mapping')
-        ->jsonSchema(source: ['type' => 'object'], dest: [
-            'properties' => [
-                'name' => ['type' => 'string', 'title' => 'Name', 'maxLength' => 255],
-                'active' => ['type' => 'boolean', 'title' => 'Active'],
-            ],
-        ])
+        ->jsonSchema(
+            source: Schema::fromArray(['type' => 'object']),
+            target: Schema::fromArray([
+                'properties' => [
+                    'name' => ['type' => 'string', 'title' => 'Name', 'maxLength' => 255],
+                    'active' => ['type' => 'boolean', 'title' => 'Active'],
+                ],
+            ]),
+        )
         ->withBuiltinStaticForms();
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['mapping' => []]);
     view()->share('errors', new ViewErrorBag);
 

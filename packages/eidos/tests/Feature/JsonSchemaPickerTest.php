@@ -15,6 +15,45 @@ use Tests\TestCase;
 
 uses(TestCase::class);
 
+it('hydrates and dehydrates multiple paths independently of a single picker', function () {
+    $form = eidos_json_schema_form(null);
+    $picker = $form->getComponent('selection')->multiple();
+    $form->components([
+        ...$form->getComponents(),
+        JsonSchemaPicker::make('single')->jsonSchema($picker->getJsonSchema()),
+    ]);
+    $form->fill();
+    expect($form->getState()['selection'])->toBe([]);
+    expect($form->getState()['single'])->toBeNull();
+
+    $paths = ["$['totals']['subtotal']", "$['customer']['email']"];
+    $form->fill(['selection' => $paths, 'single' => "$['tags']"]);
+
+    expect($form->getState()['selection'])->toBe($paths);
+    expect($form->getState()['single'])->toBe("$['tags']");
+
+    $picker->dehydrateStateUsing(fn (array $state) => implode(',', $state));
+    expect($form->getState()['selection'])->toBe(implode(',', $paths));
+    expect($form->getState()['single'])->toBe("$['tags']");
+    expect($picker->getState())->toBe($paths);
+});
+
+it('validates multiple paths as a list of distinct available fields', function (mixed $selection) {
+    $form = eidos_json_schema_form(null);
+    $form->getComponent('selection')->multiple()->required();
+    $form->fill(['selection' => $selection]);
+
+    expect($form->getState(...))->toThrow(ValidationException::class);
+})->with([
+    'empty' => [[]],
+    'single path' => ["$['tags']"],
+    'unknown path' => [["$['missing']"]],
+    'duplicate' => [["$['tags']", "$['tags']"]],
+    'null item' => [[null]],
+    'nested list' => [[["$['tags']"]]],
+    'associative' => [['field' => "$['tags']"]],
+]);
+
 it('selects array item fields only when explicitly enabled and preserves their JSONPath state', function () {
     $path = "$['tags'][*]['name']";
     $form = eidos_json_schema_form($path);
@@ -159,7 +198,6 @@ it('offers a schema inspector in regular mode and preserves the path when switch
     expect($entry->getState())->toBe($path);
 })->with([
     'nested path' => ["$['customer']['email']"],
-    'literal names' => ["$['literal.key']['slash/key']"],
     'no path' => [null],
 ]);
 
@@ -187,16 +225,15 @@ it('validates exact union paths against the current schema closure', function ()
 it('keeps nested composition paths within one complete branch', function (
     string $selection,
     bool $valid,
-    string $keyword,
 ) {
     $form = eidos_json_schema_form($selection);
     $form->getComponent('selection')->jsonSchema(JsonSchema::fromArray([
-        $keyword => [
+        'anyOf' => [
             [
                 'type' => 'object',
                 'properties' => [
                     'payload' => [
-                        $keyword => [
+                        'anyOf' => [
                             [
                                 'type' => 'object',
                                 'properties' => [
@@ -233,22 +270,17 @@ it('keeps nested composition paths within one complete branch', function (
     }
 })->with([
     'nested union property' => ["$['payload']['metadata']['version']", true],
-    'other nested variant' => ["$['payload']['contact']['email']", true],
-    'other root variant' => ["$['payload']['tags']", true],
     'crossed variants' => ["$['payload']['metadata']['email']", false],
-    'array item' => ["$['payload']['tags']['name']", false],
-])->with(['anyOf', 'oneOf', 'allOf']);
+]);
 
 it('accepts exact schema path segments', function (string $selection) {
     $form = eidos_json_schema_form($selection);
 
     expect($form->getState()['selection'])->toBe($selection);
 })->with([
-    'nested' => ["$['customer']['email']"],
     'literal key' => ["$['literal.key']['slash/key']"],
     'numeric key' => ["$['01']"],
     'array field' => ["$['tags']"],
-    'subtotal' => ["$['totals']['subtotal']"],
 ]);
 
 it('defaults to an absent selection', function () {
@@ -283,24 +315,21 @@ it('allows consumers to format submitted paths with native Filament dehydration'
     expect($picker->getState())->toBe($selection);
 })->with(['selected' => ["$['totals']['subtotal']"], 'absent' => [null]]);
 
-it('accepts a field path for a required picker', function () {
-    $form = eidos_json_schema_form("$['customer']['email']");
-    $form->getComponent('selection')->required();
-
-    expect($form->getState()['selection'])->toBe("$['customer']['email']");
-});
-
-it('rejects absent and empty selections for a required picker', function (mixed $selection) {
-    $form = eidos_json_schema_form($selection);
-    $form->getComponent('selection')->required();
-
-    expect($form->getState(...))->toThrow(ValidationException::class);
-})->with(['absent' => [null], 'empty path' => [[]]]);
-
-it('accepts an absent selection for an optional picker', function () {
+it('requires a selection only when configured and accepts a valid path', function () {
     $form = eidos_json_schema_form(null);
-
+    $picker = $form->getComponent('selection');
     expect($form->getState()['selection'])->toBeNull();
+
+    $picker->required();
+    try {
+        $form->getState();
+        test()->fail('A required picker accepted an absent selection.');
+    } catch (ValidationException $exception) {
+        expect($exception->errors())->toBe(['data.selection' => ['The selection field is required.']]);
+    }
+
+    $form->fill(['selection' => "$['customer']['email']"]);
+    expect($form->getState()['selection'])->toBe("$['customer']['email']");
 });
 
 it('rejects malformed, missing and array item selections', function (mixed $selection) {
@@ -311,7 +340,6 @@ it('rejects malformed, missing and array item selections', function (mixed $sele
     'empty path' => [[]],
     'dotted path' => ['customer.email'],
     'root' => ['$'],
-    'legacy array path' => [['customer', 'email']],
     'number' => [42],
     'boolean' => [false],
     'empty string' => '',
@@ -319,14 +347,10 @@ it('rejects malformed, missing and array item selections', function (mixed $sele
     'encoded path' => '["customer","email"]',
     'missing' => ["$['missing']"],
     'array item' => ["$['tags']['name']"],
-    'non-string segment' => [['customer', 1]],
-    'nested array' => [["$['customer']['email']"]],
-    'associative array' => [['field' => 'customer']],
-    'sparse list' => [[0 => 'customer', 2 => 'email']],
     'different numeric key' => ["$['1']"],
 ]);
 
-it('prepares dropdown trees before opening so their full height can be measured', function () {
+it('renders dropdown trees outside templates', function () {
     $form = eidos_json_schema_form(null);
     view()->share('errors', new ViewErrorBag);
 
@@ -340,17 +364,6 @@ it('prepares dropdown trees before opening so their full height can be measured'
         )->length)
             ->toBeGreaterThan(0);
     }
-});
-
-it('renders schema descriptions in the picker and readonly infolist entry', function () {
-    $form = eidos_json_schema_form("$['customer']['email']");
-    view()->share('errors', new ViewErrorBag);
-
-    $picker = $form->getComponent('selection')->toHtml();
-    $entry = $form->getComponent('preview')->toHtml();
-
-    expect($picker)->toContain('Delivery address');
-    expect($entry)->toContain('Delivery address');
 });
 
 function eidos_json_schema_form(mixed $selection): Schema

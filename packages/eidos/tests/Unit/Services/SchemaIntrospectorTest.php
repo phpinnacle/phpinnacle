@@ -514,7 +514,7 @@ it('marks stored and virtual generated columns as read only across relations', f
         ->not->toHaveKey('supplier');
 });
 
-it('uses registered cast schemas and preserves annotations, nullability and generated fields', function (bool $useSchema) {
+it('uses registered cast schemas and preserves annotations, nullability and generated fields', function () {
     Schema::create('eidos_schema_suppliers', function (Blueprint $table) {
         $table->id();
         $table->string('name');
@@ -529,15 +529,11 @@ it('uses registered cast schemas and preserves annotations, nullability and gene
     $model = new CustomSchemaRecord;
     $model->mergeCasts(['metadata' => CustomSchemaCast::class, 'generated_label' => CustomSchemaCast::class]);
     $introspector = new SchemaIntrospector;
-    $introspector->registerCast(CustomSchemaCast::class, fn () => (
-        $useSchema
-            ? JsonSchema::fromArray([
-                'type' => 'object',
-                'properties' => ['name' => ['type' => 'string']],
-                'x-icon' => 'heroicon-o-user',
-            ])
-            : JsonSchema::object(['name' => JsonSchema::string()])
-    ));
+    $introspector->registerCast(CustomSchemaCast::class, fn () => JsonSchema::fromArray([
+        'type' => 'object',
+        'properties' => ['name' => ['type' => 'string']],
+        'x-icon' => 'heroicon-o-user',
+    ]));
 
     $properties = $introspector
         ->introspect($model)
@@ -554,10 +550,8 @@ it('uses registered cast schemas and preserves annotations, nullability and gene
         ->and($properties['label']['type'])
         ->toBe('string');
 
-    if ($useSchema) {
-        expect($properties['metadata']['x-icon'])->toBe('heroicon-o-user');
-    }
-})->with(['fluent schema' => false, 'annotated schema' => true]);
+    expect($properties['metadata']['x-icon'])->toBe('heroicon-o-user');
+});
 
 it('preserves boolean cast schemas when adding column annotations and defaults', function (bool $accepts) {
     Schema::create('eidos_default_records', function (Blueprint $table) {

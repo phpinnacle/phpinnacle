@@ -8,11 +8,11 @@ use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Arr;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Eidos\JsonSchema\SchemaPresentation;
 
 /**
  * @phpstan-require-extends Field
- * @phpstan-import-type MappingItem from JsonSchema
+ * @phpstan-import-type MappingItem from SchemaPresentation
  */
 trait HasSourceSettings
 {
@@ -28,7 +28,30 @@ trait HasSourceSettings
     /** @return list<MappingItem> */
     abstract public function getSources(): array;
 
-    abstract public function getSourceRowIndex(string $source): ?int;
+    public function getSourceRowIndex(string $source): ?int
+    {
+        foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
+            if (!is_array($row) || ($row['kind'] ?? null) === null) {
+                continue;
+            }
+
+            if ($row['kind'] === 'source' && $row['source'] === $source) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
+
+    public function isSourceUsed(string $source): bool
+    {
+        $index = $this->getSourceRowIndex($source);
+
+        /** @var list<array{target: mixed, ...}> $rows */
+        $rows = $this->getRawState() ?? [];
+
+        return $index !== null && $rows[$index]['target'] !== null;
+    }
 
     /** @param array<Component>|Closure $schema */
     public function sourceSettings(array|Closure $schema): static
@@ -82,6 +105,7 @@ trait HasSourceSettings
                 $schema->dehydrateState($state);
                 $schema->mutateDehydratedState($state);
             }
+
             /** @var array<int, array{options: array<string, mixed>}> $rows */
             $rows = Arr::get($state, $this->getStatePath(), []);
             $settings[$source] = $rows[$index]['options'];
@@ -99,6 +123,7 @@ trait HasSourceSettings
         if (!$this->hasSourceSettings()) {
             return [];
         }
+
         foreach ($this->cachedSourceRowIndexes as $source => $index) {
             $key = $this->cachedSourceSettingsKeys[$source];
             $schemas['settings_' . $key] = $this->makeSourceSettingsSchema((string) $source, $index, $key);
@@ -132,18 +157,33 @@ trait HasSourceSettings
         );
     }
 
+    protected function hydrateSourceSettings(): void
+    {
+        /** @var list<array{options: array<string, mixed>, ...}> $rows */
+        $rows = $this->getRawState() ?? [];
+        $this->clearCachedChildSchemas();
+        foreach ($this->getSources() as $source) {
+            $index = $this->getSourceRowIndex($source['id']);
+            if ($this->hasSourceSettings() && $index !== null && ($rows[$index]['options'] ?? []) === []) {
+                $this->getChildSchemas()['settings_' . $this->getSourceStateKeys()[$source['id']]]->fill();
+            }
+        }
+    }
+
     protected function initializeSourceRows(): void
     {
         $rows = $this->getRawState() ?? [];
         if (!is_array($rows) || !array_is_list($rows)) {
             return;
         }
+
         $sources = array_column($this->getSources(), 'id');
         foreach ($sources as $source) {
             if ($this->getSourceRowIndex($source) === null) {
                 $rows[] = ['kind' => 'source', 'source' => $source, 'target' => null, 'options' => []];
             }
         }
+
         $this->rawState($rows);
     }
 }

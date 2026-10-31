@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Config;
-use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Ferry\Casts\JsonSchemaCast;
 use PHPinnacle\Ferry\Casts\MappingCast;
 use PHPinnacle\Ferry\Casts\TransformsCast;
@@ -19,8 +18,7 @@ use PHPinnacle\Ferry\Enums\DestinationType;
 use PHPinnacle\Ferry\Enums\ReplicaStatus;
 use PHPinnacle\Ferry\Models\Concerns\HasConnector;
 use PHPinnacle\Ferry\Observers\ReplicaObserver;
-use PHPinnacle\Ferry\Services\ReplicaTableManager;
-use PHPinnacle\Ferry\Services\TransformRegistry;
+use PHPinnacle\Jason\Schema;
 
 /**
  * @property string $id
@@ -32,7 +30,7 @@ use PHPinnacle\Ferry\Services\TransformRegistry;
  * @property DestinationType $type
  * @property string $source
  * @property string $destination
- * @property JsonSchema $schema
+ * @property Schema $schema
  * @property list<FieldMapping> $mapping
  * @property list<TransformSetting> $transforms
  * @property CarbonImmutable $created_at
@@ -82,6 +80,7 @@ class Replica extends Model
             if (!array_key_exists('schema', $replica->getAttributes())) {
                 $replica->schema = $replica->sourceObject()->schema;
             }
+
             if ($replica->type === DestinationType::Dynamic) {
                 $replica->destination = Config::string('phpinnacle-ferry.replica.table_prefix') . $replica->code;
             }
@@ -138,89 +137,8 @@ class Replica extends Model
         }
     }
 
-    public function outputSchema(FieldMapping $mapping, ?JsonSchema $schema = null): ?JsonSchema
-    {
-        return app(TransformRegistry::class)->mappingSchema($mapping, $schema ?? $this->schema);
-    }
-
-    /** @return list<string> */
-    public function droppedColumns(): array
-    {
-        return $this->mappingChanges()['drop'];
-    }
-
-    /** @return array{drop: list<string>, columns: list<array{mapping: FieldMapping, from: string|null}>, alter: list<FieldMapping>} */
-    public function mappingChanges(): array
-    {
-        $changes = ['drop' => [], 'columns' => [], 'alter' => []];
-
-        if ($this->type === DestinationType::Static) {
-            return $changes;
-        }
-
-        /** @var list<FieldMapping> $original */
-        $original = $this->getOriginal('mapping');
-        /** @var JsonSchema $originalSchema */
-        $originalSchema = $this->getOriginal('schema');
-        $previous = array_filter($original, static fn (FieldMapping $mapping) => $mapping->target !== null);
-        $schema = array_filter($this->mapping, static fn (FieldMapping $mapping) => $mapping->target !== null);
-        $next = array_combine(
-            array_map(static fn (FieldMapping $mapping) => $mapping->identity(), $schema),
-            $schema,
-        );
-        foreach ($previous as $mapping) {
-            $replacement = $next[$mapping->identity()] ?? null;
-
-            if (
-                $replacement === null
-                || ReplicaTableManager::columnType($this->outputSchema(
-                    $replacement,
-                )) !== ReplicaTableManager::columnType(
-                    $this->outputSchema($mapping, $originalSchema),
-                )
-            ) {
-                /** @var string $target */
-                $target = $mapping->target;
-                $changes['drop'][] = $target;
-            }
-        }
-
-        $previous = array_combine(
-            array_map(static fn (FieldMapping $mapping) => $mapping->identity(), $previous),
-            $previous,
-        );
-
-        foreach ($schema as $mapping) {
-            $existing = $previous[$mapping->identity()] ?? null;
-            $previousOutput = $existing === null ? null : $this->outputSchema($existing, $originalSchema);
-            $nextOutput = $this->outputSchema($mapping);
-            $previousType = ReplicaTableManager::columnType($previousOutput);
-            $nextType = ReplicaTableManager::columnType($nextOutput);
-
-            if (
-                $existing === null
-                || $previousType !== $nextType
-            ) {
-                $changes['columns'][] = ['mapping' => $mapping, 'from' => null];
-            } elseif ($existing->target !== $mapping->target) {
-                $changes['columns'][] = ['mapping' => $mapping, 'from' => $existing->target];
-            }
-
-            if (
-                $existing !== null
-                && $previousType === 'string'
-                && $nextType === 'string'
-                && $previousOutput?->maxLength() !== $nextOutput?->maxLength()
-            ) {
-                $changes['alter'][] = $mapping;
-            }
-        }
-
-        return $changes;
-    }
-
     /** @return array<string, string> */
-    public function columnMap(StructureItem $object): array
+    public function columnMap(): array
     {
         $columns = [];
 
@@ -241,19 +159,15 @@ class Replica extends Model
         return $this->upstream->structure->publishedItems()->where('external_id', $this->source)->firstOrFail();
     }
 
-    /** @return list<string> */
-    public function primaryKeySources(StructureItem $object): array
+    /**
+     * @param list<string> $sources
+     * @return array<string, string>
+     */
+    public function primaryKeyMap(array $sources): array
     {
-        /** @var list<string> */
-        return $this->schema->annotation('x-primary-key') ?? $object->primary_key;
-    }
-
-    /** @return array<string, string> */
-    public function primaryKeyMap(StructureItem $object): array
-    {
-        $columns = $this->columnMap($object);
+        $columns = $this->columnMap();
         $keys = [];
-        foreach ($this->primaryKeySources($object) as $column) {
+        foreach ($sources as $column) {
             $keys[$column] = $columns[$column];
         }
 

@@ -11,7 +11,7 @@ use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Concerns\CanBeCompact;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\View;
-use Filament\Schemas\Schema;
+use Filament\Schemas\Schema as FilamentSchema;
 use Filament\Support\Concerns\CanBeContained;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Js;
@@ -22,10 +22,11 @@ use PHPinnacle\Eidos\Forms\Concerns\HasColumnSpans;
 use PHPinnacle\Eidos\Forms\Concerns\HasHeaderActions;
 use PHPinnacle\Eidos\Forms\Concerns\HasSourceSettings;
 use PHPinnacle\Eidos\Forms\Concerns\Searchable;
+use PHPinnacle\Eidos\JsonSchema\SchemaPresentation;
+use PHPinnacle\Jason\Schema;
 
 /**
- * @phpstan-import-type MappingItem from JsonSchema
- * @phpstan-import-type Definition from JsonSchema
+ * @phpstan-import-type MappingItem from SchemaPresentation
  * @phpstan-type SourceState array{kind: 'source', source: string, target: mixed, options: array<string, mixed>}
  * @phpstan-type StaticState array{kind: 'static', target: mixed, static: mixed, options: array<string, mixed>}
  * @phpstan-type State list<SourceState|StaticState>
@@ -43,8 +44,8 @@ class FieldBinding extends Field
 
     protected string $view = 'phpinnacle-eidos::forms.field-binding';
 
-    /** @var Definition|Closure(): Definition */
-    protected array|Closure $jsonSchema = [];
+    /** @var Schema|Closure(): Schema */
+    protected Schema|Closure $jsonSchema;
 
     /** @var string|Closure(): string */
     protected string|Closure $sourceLabel = 'Source';
@@ -60,8 +61,7 @@ class FieldBinding extends Field
     /** @var array<string, string>|Closure(): array<string, string> */
     protected array|Closure $warnings = [];
 
-    /** @var Definition|null */
-    private ?array $cachedSourceDefinition = null;
+    private ?Schema $cachedSourceSchema = null;
 
     /** @var list<MappingItem> */
     private array $cachedSources = [];
@@ -83,8 +83,8 @@ class FieldBinding extends Field
         return $this->evaluate($this->warnings);
     }
 
-    /** @param Definition|Closure $schema */
-    public function jsonSchema(array|Closure $schema): static
+    /** @param Schema|Closure $schema Schema or Filament-evaluated callback returning Schema. */
+    public function jsonSchema(Schema|Closure $schema): static
     {
         $this->jsonSchema = $schema;
 
@@ -113,8 +113,7 @@ class FieldBinding extends Field
         return $this->evaluate($this->targetLabel);
     }
 
-    /** @return Definition */
-    public function getSourceSchema(): array
+    public function getSourceSchema(): Schema
     {
         return $this->evaluate($this->jsonSchema);
     }
@@ -122,10 +121,10 @@ class FieldBinding extends Field
     /** @return list<MappingItem> */
     public function getSources(): array
     {
-        $definition = $this->getSourceSchema();
-        if ($this->cachedSourceDefinition !== $definition) {
-            $this->cachedSources = JsonSchema::fromArray($definition)->toMappingItems();
-            $this->cachedSourceDefinition = $definition;
+        $schema = $this->getSourceSchema();
+        if ($this->cachedSourceSchema?->toArray() !== $schema->toArray()) {
+            $this->cachedSources = SchemaPresentation::toMappingItems($schema);
+            $this->cachedSourceSchema = $schema;
         }
 
         return $this->cachedSources;
@@ -162,7 +161,7 @@ class FieldBinding extends Field
         return 'source_' . bin2hex($source);
     }
 
-    /** @return array<Schema> */
+    /** @return array<FilamentSchema> */
     public function getBindings(): array
     {
         return array_filter(
@@ -172,7 +171,7 @@ class FieldBinding extends Field
         );
     }
 
-    public function getBindingSchema(string $source): Schema
+    public function getBindingSchema(string $source): FilamentSchema
     {
         return (
             $this->getBindings()[$this->getBindingKey($source)] ?? $this->makeBindingSchema(
@@ -223,24 +222,10 @@ class FieldBinding extends Field
         return $this->getState() ?? [];
     }
 
-    /** @return array<Schema> */
+    /** @return array<FilamentSchema> */
     public function getConstants(): array
     {
         return array_filter($this->getBindings(), self::isConstantKey(...), ARRAY_FILTER_USE_KEY);
-    }
-
-    public function getSourceRowIndex(string $source): ?int
-    {
-        foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
-            if (!is_array($row) || ($row['kind'] ?? null) === null) {
-                continue;
-            }
-            if ($row['kind'] === 'source' && $row['source'] === $source) {
-                return $index;
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -254,22 +239,9 @@ class FieldBinding extends Field
         array &$appliedStateCastPaths = [],
     ): void {
         $this->hydrateDefaultState($hydratedDefaultState);
-        /** @var State $rows */
-        $rows = $this->getRawState() ?? [];
-        $sources = array_column(array_filter($rows, fn (array $row) => $row['kind'] === 'source'), 'source');
-        foreach ($this->getSources() as $source) {
-            if (!in_array($source['id'], $sources, true)) {
-                $rows[] = ['kind' => 'source', 'source' => $source['id'], 'target' => null, 'options' => []];
-            }
-        }
-        $this->rawState($rows);
-        $this->clearCachedChildSchemas();
-        foreach ($this->getSources() as $source) {
-            $index = $this->getSourceRowIndex($source['id']);
-            if ($this->hasSourceSettings() && $index !== null && ($rows[$index]['options'] ?? []) === []) {
-                $this->getChildSchemas()['settings_' . $this->getSourceStateKeys()[$source['id']]]->fill();
-            }
-        }
+        $this->initializeSourceRows();
+        $this->hydrateSourceSettings();
+
         parent::hydrateState(
             $hydratedDefaultState,
             $shouldCallHydrationHooks,
@@ -278,19 +250,21 @@ class FieldBinding extends Field
         );
     }
 
-    /** @return array<Schema> */
+    /** @return array<FilamentSchema> */
     public function getDefaultChildSchemas(): array
     {
         $state = $this->getRawState();
         if ($state !== null && (!is_array($state) || !array_is_list($state))) {
             return [];
         }
+
         $this->initializeSourceRows();
         $schemas = [];
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
             if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
+
             $schemas['row_' . $index] = $this
                 ->makeChildSchema('row_' . $index)
                 ->statePath((string) $index)
@@ -299,11 +273,13 @@ class FieldBinding extends Field
                     array_keys($row),
                 ));
         }
+
         $schemas += $this->makeSourceSettingsSchemas();
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
             if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
+
             if (
                 $row['kind'] === 'source'
                 && $row['target'] !== null
@@ -322,9 +298,9 @@ class FieldBinding extends Field
         return $schemas;
     }
 
-    private function makeBindingSchema(string $source, int $index): Schema
+    private function makeBindingSchema(string $source, int $index): FilamentSchema
     {
-        /** @var Schema $schema The default child schema always exists. */
+        /** @var FilamentSchema $schema The default child schema always exists. */
         $schema = $this->getChildSchema();
         $schema = $schema->getClone()->inlineLabel(false);
         if ($this->simpleField !== null) {
@@ -334,6 +310,7 @@ class FieldBinding extends Field
             if (!$field->hasDefaultState()) {
                 $field->default($source);
             }
+
             $schema->statePath((string) $index);
         } else {
             $schema->statePath($index . '.target');
@@ -354,13 +331,13 @@ class FieldBinding extends Field
         );
     }
 
-    private function getConstantSchema(string $key, ?string $defaultTarget = null): Schema
+    private function getConstantSchema(string $key, ?string $defaultTarget = null): FilamentSchema
     {
         $fields = $this->evaluate($this->sourceSettingsSchema, [
             'source' => $key,
             'inputSchema' => fn () => fn () => $this->getConstantInputSchema($key),
         ]);
-        /** @var Schema $output The default child schema always exists. */
+        /** @var FilamentSchema $output The default child schema always exists. */
         $output = $this->getChildSchema();
         $output = $output->getClone()->inlineLabel(false);
         if ($this->simpleField !== null) {
@@ -396,7 +373,7 @@ class FieldBinding extends Field
         ]);
     }
 
-    public function getConstantInputSchema(string $constant): JsonSchema
+    public function getConstantInputSchema(string $constant): Schema
     {
         /** @var State $rows */
         $rows = $this->getRawState();
@@ -404,7 +381,7 @@ class FieldBinding extends Field
         $row = $rows[$this->constantIndex($constant)];
         $value = $row['static'];
 
-        return JsonSchema::fromArray(['type' => match (true) {
+        return Schema::fromArray(['type' => match (true) {
             is_bool($value) => 'boolean',
             is_int($value) => 'integer',
             is_float($value) => 'number',
@@ -483,6 +460,8 @@ class FieldBinding extends Field
     {
         parent::setUp();
 
+        $this->jsonSchema = Schema::fromArray([]);
+
         $this->schema([]);
         $this->childComponents([
             View::make('phpinnacle-eidos::forms.field-binding-static-values')->key('staticValues'),
@@ -535,11 +514,13 @@ class FieldBinding extends Field
         if ($this->isDisabled() || !$this->hasStaticValues()) {
             return;
         }
+
         $targets = array_column($this->getBindingValues(), 'target');
         $number = 1;
         while (in_array('static_' . $number, $targets, true)) {
             $number++;
         }
+
         /** @var State $rows */
         $rows = $this->getRawState() ?? [];
         $index = count($rows);
@@ -559,6 +540,7 @@ class FieldBinding extends Field
         if ($this->isDisabled() || !$this->hasStaticValues()) {
             return;
         }
+
         /** @var array{constant: string} $validated */
         $validated = Validator::make($arguments, [
             'constant' => ['required', 'string', Rule::in(array_keys($this->getConstants()))],
@@ -571,16 +553,6 @@ class FieldBinding extends Field
         $this->callAfterStateUpdated();
     }
 
-    public function isSourceUsed(string $source): bool
-    {
-        $index = $this->getSourceRowIndex($source);
-
-        /** @var State $rows */
-        $rows = $this->getRawState() ?? [];
-
-        return $index !== null && $rows[$index]['target'] !== null;
-    }
-
     /** @return list<string> */
     private function getBoundKeys(): array
     {
@@ -589,6 +561,7 @@ class FieldBinding extends Field
             if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
+
             if (
                 $row['kind'] === 'source'
                 && $row['target'] !== null
@@ -645,6 +618,7 @@ class FieldBinding extends Field
 
             return;
         }
+
         /** @var array{rows: State} $validated */
         $validated = $validator->validated();
         $value = $validated['rows'];
@@ -658,16 +632,20 @@ class FieldBinding extends Field
 
                     return;
                 }
+
                 $sources[$source] = true;
             }
+
             if ($row['kind'] === 'static' && $this->simpleField !== null) {
                 if ($row['target'] === null || in_array($row['target'], $staticTargets, true)) {
                     $fail('The :attribute field contains duplicate or null static targets.')->translate();
 
                     return;
                 }
+
                 $staticTargets[] = $row['target'];
             }
+
             if ($row['target'] !== null && $this->simpleField === null && !is_array($row['target'])) {
                 $fail('The :attribute field contains an invalid binding value.')->translate();
 

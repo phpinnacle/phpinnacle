@@ -12,10 +12,11 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
-use Filament\Schemas\Schema;
+use Filament\Schemas\Schema as FilamentSchema;
 use Livewire\Component;
 use PHPinnacle\Eidos\Forms\FieldBinding;
 use PHPinnacle\Eidos\Forms\FieldMapping;
+use PHPinnacle\Jason\Schema;
 
 class MappingHeaderActionsForm extends Component implements HasActions, HasSchemas
 {
@@ -39,14 +40,14 @@ class MappingHeaderActionsForm extends Component implements HasActions, HasSchem
         $this->form->fill();
     }
 
-    public function form(Schema $schema): Schema
+    public function form(FilamentSchema $schema): FilamentSchema
     {
-        $source = fn (Get $get) => $get('schema');
+        $source = fn (Get $get) => Schema::fromArray($get('schema'));
         $field = $this->binding
             ? FieldBinding::make('mapping')->jsonSchema($source)->simple(TextInput::make('destination')->required())
-            : FieldMapping::make('mapping')->jsonSchema(source: $source, dest: [
+            : FieldMapping::make('mapping')->jsonSchema(source: $source, target: Schema::fromArray([
                 'properties' => ['destination' => ['type' => 'string']],
-            ]);
+            ]));
         $field
             ->contained($this->contained)
             ->sourceSettings([
@@ -63,7 +64,7 @@ class MappingHeaderActionsForm extends Component implements HasActions, HasSchem
                     ->schema([TextInput::make('field')->required()])
                     ->action(function (array $data, FieldMapping|FieldBinding $component, Set $set) {
                         $this->owner = $component::class;
-                        $source = $component->getSourceSchema();
+                        $source = $component->getSourceSchema()->toArray();
                         $source['properties'][$data['field']] = ['type' => 'string'];
                         $state = $component->getState();
                         $state[] = [
@@ -74,10 +75,11 @@ class MappingHeaderActionsForm extends Component implements HasActions, HasSchem
                         ];
                         $component->state($state);
                         if ($component instanceof FieldMapping) {
-                            $component->jsonSchema(source: $source);
+                            $component->jsonSchema(source: Schema::fromArray($source));
                         } else {
-                            $component->jsonSchema($source);
+                            $component->jsonSchema(Schema::fromArray($source));
                         }
+
                         $set('schema', $source);
                     }),
             ]);

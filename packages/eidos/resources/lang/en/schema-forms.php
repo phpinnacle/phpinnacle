@@ -39,7 +39,7 @@ return [
             'pattern' => 'Pattern',
             'unique' => 'unique',
         ],
-        'whole_array' => 'Whole array',
+        'object_properties' => 'Individual properties',
         'array_items' => 'Individual items',
         'multiple' => 'Multiple',
         'incompatible' => 'Incompatible types',

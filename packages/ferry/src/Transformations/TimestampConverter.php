@@ -6,10 +6,12 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Icons\Heroicon;
-use PHPinnacle\Common\Forms\InlineBuilder\Block;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Common\Forms\InlineBuilder\Block as InlineBlock;
+use PHPinnacle\Eidos\Forms\SchemaCompatibility;
 use PHPinnacle\Ferry\Contracts\Transform;
+use PHPinnacle\Ferry\Enums\TransformScope;
 use PHPinnacle\Ferry\Enums\TransformTarget;
+use PHPinnacle\Jason\Schema;
 
 final class TimestampConverter implements Transform
 {
@@ -23,21 +25,35 @@ final class TimestampConverter implements Transform
         return 'timestamp_converter';
     }
 
+    public function getScope(): TransformScope
+    {
+        return TransformScope::Field;
+    }
+
+    public function sourceFields(array $params): array
+    {
+        return [];
+    }
+
     public function getTarget(): TransformTarget
     {
         return TransformTarget::Value;
     }
 
-    public function accepts(JsonSchema $input): bool
+    public function accepts(Schema $input): bool
     {
         return (
             $input->annotation('x-ferry-reference') !== true
-            && $input->compatible(JsonSchema::fromArray(['type' => ['string', 'integer', 'null']]))
+            && SchemaCompatibility::make()->accepts($input, Schema::fromArray(['type' => [
+                'string',
+                'integer',
+                'null',
+            ]]))
         );
     }
 
     /** @param array<string, string> $params */
-    public function output(JsonSchema $input, array $params): ?JsonSchema
+    public function output(Schema $input, array $params): ?Schema
     {
         if (($params['target_type'] ?? null) === null) {
             return null;
@@ -57,57 +73,57 @@ final class TimestampConverter implements Transform
             $schema['type'] = [$schema['type'], 'null'];
         }
 
-        return JsonSchema::fromArray($schema);
+        return Schema::fromArray($schema);
     }
 
-    public function block(): Block
+    public function block(): InlineBlock
     {
-        return Block::make($this->getKey())
+        return InlineBlock::make($this->getKey())
             ->color('info')
-            ->label(fn () => __('phpinnacle-ferry::resources.transform.timestamp_converter'))
-            ->description(fn () => __('phpinnacle-ferry::resources.transform.timestamp_converter_description'))
+            ->label(fn () => __('phpinnacle-ferry::transforms.timestamp_converter'))
+            ->description(fn () => __('phpinnacle-ferry::transforms.timestamp_converter_description'))
             ->icon(Heroicon::Clock)
-            ->schema(function (?JsonSchema $input) {
+            ->schema(function (?Schema $input) {
                 $stringInput =
                     in_array('string', $input?->types() ?? [], true)
-                    && !in_array($input->format(), ['date', 'time', 'date-time'], true);
+                    && !in_array($input->effectiveFormat(), ['date', 'time', 'date-time'], true);
 
                 return [
                     Select::make('target_type')
-                        ->label(__('phpinnacle-ferry::resources.transform.timestamp_target_type'))
+                        ->label(__('phpinnacle-ferry::transforms.timestamp_target_type'))
                         ->options([
-                            'string' => __('phpinnacle-ferry::resources.transform.timestamp_string'),
-                            'unix' => __('phpinnacle-ferry::resources.transform.timestamp_unix'),
-                            'Date' => __('phpinnacle-ferry::resources.transform.timestamp_date'),
-                            'Time' => __('phpinnacle-ferry::resources.transform.timestamp_time'),
-                            'Timestamp' => __('phpinnacle-ferry::resources.transform.timestamp_timestamp'),
+                            'string' => __('phpinnacle-ferry::transforms.timestamp_string'),
+                            'unix' => __('phpinnacle-ferry::transforms.timestamp_unix'),
+                            'Date' => __('phpinnacle-ferry::transforms.timestamp_date'),
+                            'Time' => __('phpinnacle-ferry::transforms.timestamp_time'),
+                            'Timestamp' => __('phpinnacle-ferry::transforms.timestamp_timestamp'),
                         ])
                         ->live()
                         ->required(),
                     TextInput::make('format')
-                        ->label(__('phpinnacle-ferry::resources.transform.timestamp_format'))
-                        ->helperText(__('phpinnacle-ferry::resources.transform.timestamp_format_help'))
+                        ->label(__('phpinnacle-ferry::transforms.timestamp_format'))
+                        ->helperText(__('phpinnacle-ferry::transforms.timestamp_format_help'))
                         ->placeholder("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
                         ->rules(['string'])
                         ->required(fn (Get $get) => $stringInput || $get('target_type') === 'string')
                         ->dehydrated(fn (mixed $state) => filled($state)),
                     Select::make('unix_precision')
-                        ->label(__('phpinnacle-ferry::resources.transform.timestamp_unix_precision'))
-                        ->helperText(__('phpinnacle-ferry::resources.transform.timestamp_unix_precision_help'))
+                        ->label(__('phpinnacle-ferry::transforms.timestamp_unix_precision'))
+                        ->helperText(__('phpinnacle-ferry::transforms.timestamp_unix_precision_help'))
                         ->options([
-                            'seconds' => __('phpinnacle-ferry::resources.transform.timestamp_seconds'),
-                            'milliseconds' => __('phpinnacle-ferry::resources.transform.timestamp_milliseconds'),
-                            'microseconds' => __('phpinnacle-ferry::resources.transform.timestamp_microseconds'),
-                            'nanoseconds' => __('phpinnacle-ferry::resources.transform.timestamp_nanoseconds'),
+                            'seconds' => __('phpinnacle-ferry::transforms.timestamp_seconds'),
+                            'milliseconds' => __('phpinnacle-ferry::transforms.timestamp_milliseconds'),
+                            'microseconds' => __('phpinnacle-ferry::transforms.timestamp_microseconds'),
+                            'nanoseconds' => __('phpinnacle-ferry::transforms.timestamp_nanoseconds'),
                         ])
                         ->default('milliseconds')
                         ->formatStateUsing(fn (mixed $state) => $state ?? 'milliseconds')
                         ->selectablePlaceholder(false)
                         ->required(),
                     Select::make('replace_null_with_default')
-                        ->label(__('phpinnacle-ferry::resources.transform.timestamp_replace_null_with_default'))
+                        ->label(__('phpinnacle-ferry::transforms.timestamp_replace_null_with_default'))
                         ->helperText(__(
-                            'phpinnacle-ferry::resources.transform.timestamp_replace_null_with_default_help',
+                            'phpinnacle-ferry::transforms.timestamp_replace_null_with_default_help',
                         ))
                         ->options([
                             'true' => __('filament-forms::components.select.boolean.true'),
@@ -121,12 +137,14 @@ final class TimestampConverter implements Transform
             });
     }
 
-    /** @param array<string, string> $params */
-    public function connector(string $field, array $params): array
+    /**
+     * @param array<string, string> $params
+     */
+    public function connector(array $params): array
     {
         return [
             'type' => 'org.apache.kafka.connect.transforms.TimestampConverter$Value',
-            'field' => $field,
+            'field' => $params['field'],
             'target.type' => $params['target_type'],
             ...(
                 array_key_exists('format', $params)

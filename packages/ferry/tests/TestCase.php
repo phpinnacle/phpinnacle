@@ -2,42 +2,67 @@
 
 namespace PHPinnacle\Ferry\Tests;
 
+use Filament\Schemas\Schema as FilamentSchema;
 use Illuminate\Support\Facades\DB;
 use Mockery;
-use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Ferry\Data\FieldMapping;
 use PHPinnacle\Ferry\Models\Connector;
 use PHPinnacle\Ferry\Models\Replica;
 use PHPinnacle\Ferry\Models\StructureItem;
 use PHPinnacle\Ferry\Models\Upstream;
 use PHPinnacle\Ferry\Resources\Replicas\Schemas\ReplicaForm;
-use PHPinnacle\Ferry\Services\DestinationFactory;
 use PHPinnacle\Ferry\Services\OriginFactory;
 use PHPinnacle\Ferry\Tests\Fakes\Origin;
+use PHPinnacle\Ferry\Tests\Fixtures\SchemaHost;
 use PHPinnacle\Ferry\Tests\Fixtures\StructureItems;
+use PHPinnacle\Jason\Schema;
 use Tests\TestCase as ApplicationTestCase;
 
 require_once __DIR__ . '/Fakes/Origin.php';
 require_once __DIR__ . '/Fixtures/StructureItems.php';
+require_once __DIR__ . '/Fixtures/SchemaHost.php';
 
-/**
- * @phpstan-import-type CreateState from ReplicaForm
- * @phpstan-import-type EditState from ReplicaForm
- */
 abstract class TestCase extends ApplicationTestCase
 {
     /**
-     * @param CreateState&EditState $data
+     * @param array<string, mixed> $data
+     */
+    public static function replicaForm(
+        array $data,
+        ?Replica $record = null,
+        ?SchemaHost $livewire = null,
+    ): FilamentSchema {
+        $record ??= self::makeReplica([...$data, 'mapping' => [], 'transforms' => []]);
+        $form = ReplicaForm::configure(
+            FilamentSchema::make($livewire ?? SchemaHost::make())
+                ->statePath('data')
+                ->record($record)
+                ->operation('edit'),
+        );
+        $form->fill([...$record->attributesToArray(), ...$data]);
+
+        return $form;
+    }
+
+    /**
+     * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    public static function mappedReplicaAttributes(array $data, DestinationFactory $destinations): array
+    public static function replicaFormState(array $data, ?Replica $record = null): array
     {
-        $attributes = ReplicaForm::forCreate($data, $destinations);
+        return self::replicaForm($data, $record)->getState();
+    }
 
-        $record = new Replica($attributes);
-        $data['schema'] ??= $record->sourceObject()->schema->toArray();
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public static function replicaCreationState(array $data): array
+    {
+        $form = ReplicaForm::creation(FilamentSchema::make(SchemaHost::make())->statePath('data')->operation('create'));
+        $form->fill($data);
 
-        return [...$attributes, ...ReplicaForm::forUpdate($data, $record, $destinations)];
+        return $form->getState();
     }
 
     /**
@@ -128,9 +153,9 @@ abstract class TestCase extends ApplicationTestCase
         return new FieldMapping('_idrref', 'external_id');
     }
 
-    public static function keySchema(): JsonSchema
+    public static function keySchema(): Schema
     {
-        return JsonSchema::fromArray([
+        return Schema::fromArray([
             'type' => 'string',
             'format' => 'uuid',
             'x-ferry-reference' => true,

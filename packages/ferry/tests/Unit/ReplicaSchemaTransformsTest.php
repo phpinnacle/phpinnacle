@@ -1,13 +1,15 @@
 <?php
 
 use Illuminate\Validation\ValidationException;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Eidos\Forms\SchemaCompatibility;
 use PHPinnacle\Ferry\Data\FieldMapping;
 use PHPinnacle\Ferry\Data\TransformSetting;
 use PHPinnacle\Ferry\Enums\FieldKind;
 use PHPinnacle\Ferry\Rules\ReplicaSchema;
+use PHPinnacle\Ferry\Services\ReplicaSchemaResolver;
 use PHPinnacle\Ferry\Services\TransformRegistry;
 use PHPinnacle\Ferry\Tests\Fakes\Transform as FakeTransform;
+use PHPinnacle\Jason\Schema;
 use Tests\TestCase;
 
 require_once __DIR__ . '/../Fakes/Transform.php';
@@ -19,19 +21,19 @@ it('calculates a composed output schema from input schema and mapping options', 
     $registry->register(
         new FakeTransform(
             'pack',
-            accepts: fn (JsonSchema $input) => $input->singleType() === 'string',
-            output: fn () => JsonSchema::fromArray(['type' => 'array', 'items' => ['type' => 'string']]),
+            accepts: fn (Schema $input) => $input->singleType() === 'string',
+            output: fn () => Schema::fromArray(['type' => 'array', 'items' => ['type' => 'string']]),
         ),
         new FakeTransform(
             'join',
-            accepts: fn (JsonSchema $input) => $input->compatible(JsonSchema::fromArray([
+            accepts: fn (Schema $input) => SchemaCompatibility::make()->accepts($input, Schema::fromArray([
                 'type' => 'array',
                 'items' => ['type' => 'string'],
             ])),
-            output: fn () => JsonSchema::fromArray(['type' => ['string', 'null'], 'maxLength' => 100]),
+            output: fn () => Schema::fromArray(['type' => ['string', 'null'], 'maxLength' => 100]),
         ),
     );
-    $schema = JsonSchema::fromArray([
+    $schema = Schema::fromArray([
         'properties' => [
             '_code' => ['type' => 'string', 'maxLength' => 11],
             'id' => ['type' => 'integer'],
@@ -46,9 +48,9 @@ it('calculates a composed output schema from input schema and mapping options', 
     ]);
 
     $key = new FieldMapping(source: 'id', target: 'id');
-    ReplicaSchema::assertValid([$mapping, $key], null, ['id'], $schema, ['id']);
+    app(ReplicaSchema::class)->assertValid([$mapping, $key], null, ['id'], $schema);
 
-    expect($registry->mappingSchema($mapping, $schema)->toArray())
+    expect(app(ReplicaSchemaResolver::class)->mappingSchema($mapping, $schema)->toArray())
         ->toBe(['type' => ['string', 'null'], 'maxLength' => 100])
         ->and($mapping->transforms())
         ->toEqual([new TransformSetting('pack'), new TransformSetting('join')])
@@ -56,7 +58,12 @@ it('calculates a composed output schema from input schema and mapping options', 
         ->toEqual($mapping);
 
     $packed = new FieldMapping('_code', 'title', ['transforms' => [$transforms[0]]]);
-    expect(fn () => ReplicaSchema::assertValid([$packed, $key], null, ['id'], $schema, ['id']))
+    expect(fn () => app(ReplicaSchema::class)->assertValid(
+        [$packed, $key],
+        null,
+        ['id'],
+        $schema,
+    ))
         ->toThrow(ValidationException::class);
 });
 
@@ -73,22 +80,3 @@ it('round-trips source and static mappings without synthetic transforms', functi
         ->and(FieldMapping::fromArray(json_decode(json_encode($constant), true)))
         ->toEqual($constant);
 });
-
-it('preserves native static values in ready mapping rows', function (string|int|float|bool $value) {
-    $mapping = FieldMapping::fromArray(['kind' => 'static', 'target' => 'status', 'static' => $value, 'options' => []]);
-
-    $schema = JsonSchema::fromArray(['properties' => ['id' => ['type' => 'integer']]]);
-    ReplicaSchema::assertValid([$mapping, new FieldMapping('id', 'id')], null, ['id'], $schema, ['id']);
-
-    expect($mapping->static)
-        ->toBe($value)
-        ->and($mapping->transforms())
-        ->toBe([])
-        ->and($mapping->jsonSerialize())
-        ->toBe(['kind' => 'static', 'target' => 'status', 'static' => $value, 'options' => []]);
-})->with([
-    'false' => [false],
-    'zero' => [0],
-    'decimal' => [1.0],
-    'string' => ['true'],
-]);

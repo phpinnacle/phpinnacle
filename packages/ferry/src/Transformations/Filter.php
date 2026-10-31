@@ -6,10 +6,11 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Components\Group;
 use Filament\Support\Icons\Heroicon;
-use PHPinnacle\Common\Forms\InlineBuilder\Block;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Common\Forms\InlineBuilder\Block as InlineBlock;
 use PHPinnacle\Ferry\Contracts\Transform;
+use PHPinnacle\Ferry\Enums\TransformScope;
 use PHPinnacle\Ferry\Enums\TransformTarget;
+use PHPinnacle\Jason\Schema;
 
 final class Filter implements Transform
 {
@@ -23,29 +24,39 @@ final class Filter implements Transform
         return 'filter';
     }
 
+    public function getScope(): TransformScope
+    {
+        return TransformScope::Field;
+    }
+
+    public function sourceFields(array $params): array
+    {
+        return [];
+    }
+
     public function getTarget(): TransformTarget
     {
         return TransformTarget::Value;
     }
 
-    public function accepts(JsonSchema $input): bool
+    public function accepts(Schema $input): bool
     {
         return true;
     }
 
     /** @param array<string, string> $params */
-    public function output(JsonSchema $input, array $params): JsonSchema
+    public function output(Schema $input, array $params): Schema
     {
         return $input;
     }
 
-    public function block(): Block
+    public function block(): InlineBlock
     {
-        return Block::make($this->getKey())
-            ->label(fn () => __('phpinnacle-ferry::resources.transform.filter'))
+        return InlineBlock::make($this->getKey())
+            ->label(fn () => __('phpinnacle-ferry::transforms.filter'))
             ->icon(Heroicon::Funnel)
-            ->description(fn () => __('phpinnacle-ferry::resources.transform.filter_description'))
-            ->schema(function (?JsonSchema $input) {
+            ->description(fn () => __('phpinnacle-ferry::transforms.filter_description'))
+            ->schema(function (?Schema $input) {
                 $example = match ($input?->singleType()) {
                     'string' => "@ == 'value'",
                     'integer' => '@ >= 100',
@@ -60,28 +71,28 @@ final class Filter implements Transform
                 return [
                     Group::make([
                         Select::make('mode')
-                            ->label(__('phpinnacle-ferry::resources.transform.filter_mode'))
+                            ->label(__('phpinnacle-ferry::transforms.filter_mode'))
                             ->options([
-                                'exclude' => __('phpinnacle-ferry::resources.transform.filter_exclude'),
-                                'include' => __('phpinnacle-ferry::resources.transform.filter_include'),
+                                'exclude' => __('phpinnacle-ferry::transforms.filter_exclude'),
+                                'include' => __('phpinnacle-ferry::transforms.filter_include'),
                             ])
                             ->default('exclude')
                             ->selectablePlaceholder(false)
                             ->required(),
                         Select::make('missing_or_null_behavior')
-                            ->label(__('phpinnacle-ferry::resources.transform.filter_missing_or_null_behavior'))
+                            ->label(__('phpinnacle-ferry::transforms.filter_missing_or_null_behavior'))
                             ->options([
-                                'include' => __('phpinnacle-ferry::resources.transform.filter_missing_include'),
-                                'exclude' => __('phpinnacle-ferry::resources.transform.filter_missing_exclude'),
-                                'fail' => __('phpinnacle-ferry::resources.transform.filter_missing_fail'),
+                                'include' => __('phpinnacle-ferry::transforms.filter_missing_include'),
+                                'exclude' => __('phpinnacle-ferry::transforms.filter_missing_exclude'),
+                                'fail' => __('phpinnacle-ferry::transforms.filter_missing_fail'),
                             ])
                             ->default('include')
                             ->selectablePlaceholder(false)
                             ->required(),
                     ])->columns(2)->columnSpanFull(),
                     Textarea::make('condition')
-                        ->label(__('phpinnacle-ferry::resources.transform.filter_condition'))
-                        ->helperText(__('phpinnacle-ferry::resources.transform.filter_condition_help', [
+                        ->label(__('phpinnacle-ferry::transforms.filter_condition'))
+                        ->helperText(__('phpinnacle-ferry::transforms.filter_condition_help', [
                             'example' => $example,
                         ]))
                         ->placeholder($example)
@@ -92,12 +103,14 @@ final class Filter implements Transform
             });
     }
 
-    /** @param array<string, string> $params */
-    public function connector(string $field, array $params): array
+    /**
+     * @param array<string, string> $params
+     */
+    public function connector(array $params): array
     {
         return [
             'type' => 'io.confluent.connect.transforms.Filter$Value',
-            'filter.condition' => $this->condition($field, $params['condition']),
+            'filter.condition' => $this->condition($params['field'], $params['condition']),
             'filter.type' => $params['mode'],
             'missing.or.null.behavior' => $params['missing_or_null_behavior'],
             'predicate' => 'tombstone',
@@ -129,6 +142,7 @@ final class Filter implements Transform
             } elseif ($match['reference'] !== null && ($fragment === '$' || $filters === 0)) {
                 $fragment .= $path;
             }
+
             $condition .= $fragment;
         }
 

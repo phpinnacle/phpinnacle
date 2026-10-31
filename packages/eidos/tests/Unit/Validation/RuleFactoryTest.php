@@ -299,7 +299,7 @@ it('validates each wildcard alternative independently and keeps sibling-dependen
             'choice' => [
                 'oneOf' => [
                     ['type' => 'integer'],
-                    ['type' => 'string', 'format' => 'email'],
+                    ['type' => 'string', 'format' => 'email', 'x-validation' => ['same:confirmation']],
                 ],
             ],
         ],
@@ -318,7 +318,11 @@ it('validates each wildcard alternative independently and keeps sibling-dependen
 
     expect(Validator::make(['choices' => [1, 'user@example.com']], $rules)->passes())->toBeTrue();
     expect(Validator::make(['choices' => [1, 'invalid']], $rules)->fails())->toBeTrue();
-    expect(Validator::make(['choice' => 'user@example.com'], new RuleFactory()->make($schema))->passes())->toBeTrue();
+    $rules = new RuleFactory()->make($schema);
+    expect(Validator::make(['choice' => 'user@example.com', 'confirmation' => 'user@example.com'], $rules)->passes())
+        ->toBeTrue();
+    expect(Validator::make(['choice' => 'user@example.com', 'confirmation' => 'other@example.com'], $rules)->fails())
+        ->toBeTrue();
 });
 
 it('validates nullable multi-type unions and scalar enums', function () {

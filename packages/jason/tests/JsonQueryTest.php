@@ -35,7 +35,6 @@ it('selects JSON values with the webhook query syntax', function (string $path, 
     'recursive bracket' => ["$..['name']", ['Alice', 'Bob', 'Ada', 'child']],
     'boolean filter' => ['$.items[?(@.active == true)].name', ['Alice', 'Ada']],
     'root reference' => ['$.items[?(@.price > $.limit)].name', ['Bob', 'Ada']],
-    'logical precedence' => ['$.items[?(@.price < 15 or @.price > 25 and @.active)].name', ['Alice', 'Ada']],
     'logical symbols' => ['$.items[?(@.active && @.price >= 20)].name', ['Ada']],
     'negation' => ['$.items[?(not @.active)].name', ['Bob']],
     'regex value' => ['$.items[?(@.name =~ /^a/i)].name', ['Alice', 'Ada']],
@@ -43,14 +42,36 @@ it('selects JSON values with the webhook query syntax', function (string $path, 
     'membership' => ['$.items[?(@.name in ["Alice", $.items[2].name])].name', ['Alice', 'Ada']],
     'numeric equality' => ['$.items[?(@.price == 20.0)].name', ['Bob']],
     'numeric membership' => ['$.items[?(@.price in [10.0, 30])].name', ['Alice', 'Ada']],
-    'fractional literal without a leading zero' => ['$.items[?(@.price > .5)].name', ['Alice', 'Bob', 'Ada']],
-    'negative fractional literal' => ['$.items[?(@.price > -.5)].name', ['Alice', 'Bob', 'Ada']],
     'string length' => ['$.items[?(@.name.length > 3)].name', ['Alice']],
     'array length' => ['$.items.length', [3]],
     'null value' => ['$.items[0].tag', [null]],
     'missing values do not compare to null' => ['$.items[?(@.tag != null)].name', []],
     'missing values do not compare to numbers' => ['$.items[?(@.tag < 5)].name', ['Alice']],
     'missing' => ['$.absent.name', []],
+]);
+
+it('evaluates and before or in query filters', function (string $path) {
+    $data = [
+        ['name' => 'cheap inactive', 'price' => 10, 'active' => false],
+        ['name' => 'expensive active', 'price' => 30, 'active' => true],
+        ['name' => 'expensive inactive', 'price' => 30, 'active' => false],
+        ['name' => 'middle active', 'price' => 20, 'active' => true],
+    ];
+
+    expect(new JsonQuery($path)->find($data))->toBe(['cheap inactive', 'expensive active']);
+})->with([
+    'words' => ['$[?(@.price < 15 or @.price > 25 and @.active)].name'],
+    'symbols' => ['$[?(@.price < 15 || @.price > 25 && @.active)].name'],
+]);
+
+it('compares fractional literals without a leading zero at their numeric boundary', function (
+    string $path,
+    array $expected,
+) {
+    expect(new JsonQuery($path)->find([-0.75, -0.25, 0.25, 0.75]))->toBe($expected);
+})->with([
+    'positive' => ['$[?(@ > .5)]', [0.75]],
+    'negative' => ['$[?(@ > -.5)]', [-0.25, 0.25, 0.75]],
 ]);
 
 it('rejects invalid query syntax before looking at the payload', function (string $path) {

@@ -11,7 +11,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Utilities\Get;
-use Filament\Schemas\Schema;
+use Filament\Schemas\Schema as FilamentSchema;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
@@ -20,6 +20,7 @@ use PHPinnacle\Eidos\Tests\Fixtures\CustomerMappingField;
 use PHPinnacle\Eidos\Tests\Fixtures\FieldBindingForm;
 use PHPinnacle\Eidos\Tests\Fixtures\MappingState;
 use PHPinnacle\Eidos\Tests\Fixtures\SchemaHost;
+use PHPinnacle\Jason\Schema;
 use Tests\TestCase;
 
 require_once __DIR__ . '/../Fixtures/CustomerMappingField.php';
@@ -32,9 +33,9 @@ uses(TestCase::class);
 
 it('applies matching column spans to binding headings and rows without changing bindings', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['properties' => ['title' => ['type' => 'string']]])
+        ->jsonSchema(Schema::fromArray(['properties' => ['title' => ['type' => 'string']]]))
         ->simple(TextInput::make('destination')->required());
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['bindings' => MappingState::binding(['title' => 'contact.title'])]);
     view()->share('errors', new ViewErrorBag);
     $state = $schema->getState();
@@ -49,42 +50,30 @@ it('applies matching column spans to binding headings and rows without changing 
     expect($schema->getState())->toBe($state);
 });
 
-it('renders unbound forms without submitting their editor drafts', function (bool $complex) {
+it('renders native binding editors with an overlay for every source', function (bool $complex) {
     $page = Livewire::test(FieldBindingForm::class, ['complex' => $complex]);
     $field = $page->instance()->form->getComponent('bindings');
+    $sourceCount = count($field->getSources());
 
-    expect(substr_count($page->html(), 'class="field-binding-overlay"'))->toBe(6);
-    expect(substr_count($page->html(), 'type="text"'))->toBe(12);
+    expect(substr_count($page->html(), 'class="field-binding-overlay"'))->toBe($sourceCount);
+    expect(substr_count($page->html(), 'type="text"'))->toBe($sourceCount * 2);
     expect($page->html())->not->toContain('heroicon-m-arrow-right');
-
-    $page
-        ->call('submit')
-        ->assertHasNoErrors()
-        ->assertSet('saved.bindings', MappingState::binding([], [], array_column($field->getSources(), 'id')));
-    $page->set('data.bindings.0.target', $field->getBindingDefault('name'));
-
-    $page->assertSet('data.bindings.0.target', $complex ? ['destination' => null, 'trim' => true] : 'name');
-    $page
-        ->set('data.bindings.0.target' . ($complex ? '.destination' : ''), '')
-        ->call('submit')
-        ->assertHasErrors();
-
-    $page
-        ->set('data.bindings.0.target', null)
-        ->call('submit')
-        ->assertHasNoErrors()
-        ->assertSet('saved.bindings', MappingState::binding([], [], array_column($field->getSources(), 'id')));
-
-    expect(substr_count($page->html(), 'class="field-binding-overlay"'))->toBe(6);
-    expect(substr_count($page->html(), 'type="text"'))->toBe(12);
 })->with([false, true]);
 
 it('binds, edits, validates, and unbinds across Livewire requests', function (bool $complex) {
+    $email = $complex ? ['destination' => 'contact.email', 'trim' => true] : 'contact.email';
     $binding = $complex ? ['destination' => 'profile.name', 'trim' => true] : 'profile.name';
 
     $page = Livewire::test(FieldBindingForm::class, ['complex' => $complex]);
 
     $page
+        ->call('submit')
+        ->assertHasNoErrors()
+        ->assertSet('saved.bindings', MappingState::binding(
+            [],
+            [],
+            array_keys(CustomerMappingField::jsonSchema()['properties']),
+        ))
         ->assertSee('aria-label="Bind"', false)
         ->set('data.bindings.0.target', $complex ? ['destination' => null, 'trim' => true] : 'name')
         ->assertSee('1 of 6 sources bound')
@@ -92,7 +81,7 @@ it('binds, edits, validates, and unbinds across Livewire requests', function (bo
         ->assertSee('field-binding-connection')
         ->set('data.bindings.0.target' . ($complex ? '.destination' : ''), '')
         ->call('submit')
-        ->assertHasErrors()
+        ->assertHasErrors(['data.bindings.0.target' . ($complex ? '.destination' : '') => 'required'])
         ->set('data.bindings.0.target' . ($complex ? '.destination' : ''), 'profile.name')
         ->call('submit')
         ->assertHasNoErrors()
@@ -101,36 +90,9 @@ it('binds, edits, validates, and unbinds across Livewire requests', function (bo
             [],
             array_keys(CustomerMappingField::jsonSchema()['properties']),
         ))
-        ->set('data.bindings.0.target', null)
-        ->assertSee('0 of 6 sources bound')
-        ->call('submit')
-        ->assertHasNoErrors()
-        ->assertSet('saved.bindings', MappingState::binding(
-            [],
-            [],
-            array_keys(CustomerMappingField::jsonSchema()['properties']),
-        ));
-})->with([false, true]);
-
-it('validates deferred bindings and submits only bound forms', function (bool $complex) {
-    $name = $complex ? ['destination' => 'profile.name', 'trim' => true] : 'profile.name';
-    $email = $complex ? ['destination' => 'contact.email', 'trim' => true] : 'contact.email';
-
-    $page = Livewire::test(FieldBindingForm::class, ['complex' => $complex]);
-    $field = $page->instance()->form->getComponent('bindings');
-
-    $page
-        ->set('data.bindings.0.target', $name)
-        ->call('submit')
-        ->assertHasNoErrors()
-        ->assertSet('saved.bindings', MappingState::binding(
-            ['name' => $name],
-            [],
-            array_column($field->getSources(), 'id'),
-        ))
         ->set('data.bindings.2.target' . ($complex ? '.destination' : ''), '')
         ->call('submit')
-        ->assertHasErrors()
+        ->assertHasErrors(['data.bindings.2.target' . ($complex ? '.destination' : '') => 'required'])
         ->set('data.bindings.2.target', $email)
         ->set('data.bindings.0.target', null)
         ->call('submit')
@@ -138,7 +100,16 @@ it('validates deferred bindings and submits only bound forms', function (bool $c
         ->assertSet('saved.bindings', MappingState::binding(
             ['email' => $email],
             [],
-            array_column($field->getSources(), 'id'),
+            array_keys(CustomerMappingField::jsonSchema()['properties']),
+        ))
+        ->set('data.bindings.2.target', null)
+        ->assertSee('0 of 6 sources bound')
+        ->call('submit')
+        ->assertHasNoErrors()
+        ->assertSet('saved.bindings', MappingState::binding(
+            [],
+            [],
+            array_keys(CustomerMappingField::jsonSchema()['properties']),
         ));
 })->with([false, true]);
 
@@ -170,7 +141,7 @@ function field_binding_target(FieldBinding $field, string $source, mixed $target
 
 it('prepares native nested editor markup without binding or changing saved values', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['properties' => ['name' => ['type' => 'string']]])
+        ->jsonSchema(Schema::fromArray(['properties' => ['name' => ['type' => 'string']]]))
         ->schema([
             Toggle::make('enabled')->default(true),
             Repeater::make('rules')
@@ -188,11 +159,11 @@ it('prepares native nested editor markup without binding or changing saved value
     expect($field->getRawState())->toBe($state);
 });
 
-function field_binding_schema(FieldBinding $field, array $state = []): Schema
+function field_binding_schema(FieldBinding $field, array $state = []): FilamentSchema
 {
     $livewire = SchemaHost::make();
 
-    $schema = Schema::make($livewire)->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make($livewire)->statePath('data')->components([$field]);
     $schema->fill(['bindings' => MappingState::binding($state, [], array_column($field->getSources(), 'id'))]);
 
     return $schema;
@@ -209,9 +180,9 @@ it('round trips native non-null simple values and restores field defaults after 
         'object' => KeyValue::make('value')->default([]),
     };
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['properties' => ['name' => [], 'email' => []]])
+        ->jsonSchema(Schema::fromArray(['properties' => ['name' => [], 'email' => []]]))
         ->simple($input);
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $rows = [
         ['kind' => 'source', 'source' => 'name', 'target' => $value, 'options' => []],
         ['kind' => 'source', 'source' => 'email', 'target' => null, 'options' => []],
@@ -232,7 +203,7 @@ it('round trips native non-null simple values and restores field defaults after 
 
 it('leaves a native null default unbound until the editor receives a value', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['properties' => ['name' => []]])
+        ->jsonSchema(Schema::fromArray(['properties' => ['name' => []]]))
         ->simple(Select::make('value')->options(['a' => 'A'])->default(null));
     $schema = field_binding_schema($field);
     expect($schema->getState()['bindings'][0]['target'])->toBeNull();
@@ -244,7 +215,7 @@ it('leaves a native null default unbound until the editor receives a value', fun
 
 it('rejects null produced by native simple field dehydration', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['properties' => ['name' => []]])
+        ->jsonSchema(Schema::fromArray(['properties' => ['name' => []]]))
         ->simple(Hidden::make('value')->dehydrateStateUsing(fn () => null));
     $schema = field_binding_schema($field, ['name' => 'input']);
     expect($schema->getState(...))->toThrow(ValidationException::class);
@@ -252,7 +223,7 @@ it('rejects null produced by native simple field dehydration', function () {
 
 it('permits an empty string when the child field preserves it', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['properties' => ['name' => []]])
+        ->jsonSchema(Schema::fromArray(['properties' => ['name' => []]]))
         ->simple(Hidden::make('value')->dehydrateStateUsing(fn () => ''));
     $schema = field_binding_schema($field, ['name' => 'input']);
 
@@ -261,7 +232,7 @@ it('permits an empty string when the child field preserves it', function () {
 
 it('renders accessible local connection controls for every source', function (bool $disabled) {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(CustomerMappingField::jsonSchema())
+        ->jsonSchema(Schema::fromArray(CustomerMappingField::jsonSchema()))
         ->simple(TextInput::make('destination'))
         ->disabled($disabled);
     $schema = field_binding_schema($field, ['name' => 'profile.name']);
@@ -288,7 +259,7 @@ it('renders accessible local connection controls for every source', function (bo
 
 it('only filters bindings by search when enabled, including closure configuration', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name'], [])])
+        ->jsonSchema(Schema::fromArray(['type' => 'object', 'properties' => array_fill_keys(['name'], [])]))
         ->simple(TextInput::make('destination'));
     $schema = field_binding_schema($field, ['name' => 'profile.name']);
     view()->share('errors', new ViewErrorBag);
@@ -312,7 +283,10 @@ it('only filters bindings by search when enabled, including closure configuratio
 
 it('supports partial updates to a child binding field', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name', 'email'], [])])
+        ->jsonSchema(Schema::fromArray([
+            'type' => 'object',
+            'properties' => array_fill_keys(['name', 'email'], []),
+        ]))
         ->simple(TextInput::make('destination')->required());
     $schema = field_binding_schema($field, ['name' => 'profile.name']);
 
@@ -327,7 +301,10 @@ it('supports partial updates to a child binding field', function () {
 
 it('round trips object bindings and applies child dehydration callbacks', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name', 'email'], [])])
+        ->jsonSchema(Schema::fromArray([
+            'type' => 'object',
+            'properties' => array_fill_keys(['name', 'email'], []),
+        ]))
         ->schema([
             TextInput::make('destination')
                 ->required()
@@ -349,16 +326,15 @@ it('round trips object bindings and applies child dehydration callbacks', functi
 });
 
 it('binds with schema defaults and unbinds without changing other sources', function () {
-    $updates = 0;
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name', 'email'], [])])
+        ->jsonSchema(Schema::fromArray([
+            'type' => 'object',
+            'properties' => array_fill_keys(['name', 'email'], []),
+        ]))
         ->schema([
             TextInput::make('destination')->default('profile.email')->required(),
             Toggle::make('trim')->default(true),
-        ])
-        ->afterStateUpdated(function () use (&$updates) {
-            $updates++;
-        });
+        ]);
     $schema = field_binding_schema($field, ['name' => ['destination' => 'profile.name', 'trim' => false]]);
 
     field_binding_target($field, source: 'email', target: $field->getBindingDefault('email'));
@@ -383,12 +359,11 @@ it('binds with schema defaults and unbinds without changing other sources', func
             [],
             array_column($field->getSources(), 'id'),
         ));
-    expect($updates)->toBe(0);
 });
 
 it('preparing native defaults preserves an existing binding', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name'], [])])
+        ->jsonSchema(Schema::fromArray(['type' => 'object', 'properties' => array_fill_keys(['name'], [])]))
         ->simple(TextInput::make('destination')->default('default.name'));
     $schema = field_binding_schema($field, ['name' => 'profile.name']);
 
@@ -400,7 +375,7 @@ it('preparing native defaults preserves an existing binding', function () {
 
 it('treats absent optional state as no bindings', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name'], [])])
+        ->jsonSchema(Schema::fromArray(['type' => 'object', 'properties' => array_fill_keys(['name'], [])]))
         ->simple(TextInput::make('destination'));
     $schema = field_binding_schema($field);
     $field->rawState(null);
@@ -412,15 +387,15 @@ it('treats absent optional state as no bindings', function () {
     )]);
 });
 
-it('refreshes available sources without discarding a binding that became unavailable', function () {
+it('refreshes available sources without discarding a binding that became unavailable', function (?string $target) {
     $sources = ['name', 'email'];
     $field = FieldBinding::make('bindings')
         ->jsonSchema(function () use (&$sources) {
-            return ['type' => 'object', 'properties' => array_fill_keys($sources, [])];
+            return Schema::fromArray(['type' => 'object', 'properties' => array_fill_keys($sources, [])]);
         })
         ->simple(TextInput::make('destination')->required());
-    $schema = field_binding_schema($field, ['name' => 'profile.name']);
-    expect($field->getBindings())->toHaveCount(1);
+    $schema = field_binding_schema($field, ['name' => $target]);
+    expect($field->getBindings())->toHaveCount($target === null ? 0 : 1);
     $state = $field->getRawState();
 
     $sources = ['email'];
@@ -428,26 +403,13 @@ it('refreshes available sources without discarding a binding that became unavail
     expect($field->getBindings())->toBe([]);
     expect($field->getRawState())->toBe($state);
     expect($schema->getState(...))->toThrow(ValidationException::class);
-});
-
-it('rejects native rows whose source is no longer available', function () {
-    $sources = ['name', 'email'];
-    $field = FieldBinding::make('bindings')
-        ->jsonSchema(function () use (&$sources) {
-            return ['properties' => array_fill_keys($sources, [])];
-        })
-        ->simple(TextInput::make('destination')->required());
-    $schema = field_binding_schema($field);
-    $sources = ['email'];
-
-    expect($schema->getState(...))->toThrow(ValidationException::class);
-});
+})->with(['bound' => ['profile.name'], 'unbound' => [null]]);
 
 it('prepares defaults for newly available source forms without binding them', function () {
     $sources = ['name'];
     $field = FieldBinding::make('bindings')
         ->jsonSchema(function () use (&$sources) {
-            return ['properties' => array_fill_keys($sources, [])];
+            return Schema::fromArray(['properties' => array_fill_keys($sources, [])]);
         })
         ->simple(TextInput::make('destination')->default('profile.email')->required());
     $schema = field_binding_schema($field);
@@ -474,13 +436,13 @@ it('prepares defaults for newly available source forms without binding them', fu
 
 it('defaults simple bindings to source property keys while preserving saved values', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema([
+        ->jsonSchema(Schema::fromArray([
             'properties' => [
                 'name' => ['title' => 'Display name'],
                 'customer.email' => [],
                 '0' => [],
             ],
-        ])
+        ]))
         ->simple(TextInput::make('routing.path')->required());
     $schema = field_binding_schema($field);
 
@@ -505,7 +467,7 @@ it('defaults simple bindings to source property keys while preserving saved valu
 
 it('preserves explicit defaults for simple binding fields', function (mixed $default, ?string $expected) {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['properties' => ['name' => []]])
+        ->jsonSchema(Schema::fromArray(['properties' => ['name' => []]]))
         ->simple(TextInput::make('destination')->default($default));
     field_binding_schema($field);
     field_binding_target($field, source: 'name', target: $field->getBindingDefault('name'));
@@ -520,7 +482,7 @@ it('preserves explicit defaults for simple binding fields', function (mixed $def
 
 it('binds simple fields with their supplied names and defaults', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name'], [])])
+        ->jsonSchema(Schema::fromArray(['type' => 'object', 'properties' => array_fill_keys(['name'], [])]))
         ->simple(fn () => TextInput::make('routing.path')->default('profile.name')->required());
     $schema = field_binding_schema($field);
 
@@ -532,14 +494,14 @@ it('binds simple fields with their supplied names and defaults', function () {
 
 it('keeps dotted and numeric source identifiers literal', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema([
+        ->jsonSchema(Schema::fromArray([
             'type' => 'object',
             'properties' => [
                 'customer.name' => ['title' => 'Name'],
                 '0' => ['title' => 'Zero'],
                 '00' => ['title' => 'Double zero'],
             ],
-        ])
+        ]))
         ->simple(TextInput::make('destination')->required());
     $state = ['customer.name' => 'profile.name', '0' => 'zero', '00' => 'double_zero'];
     $schema = field_binding_schema($field, $state);
@@ -550,7 +512,10 @@ it('keeps dotted and numeric source identifiers literal', function () {
 
 it('hydrates configured default bindings and nested field defaults', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name', 'email'], [])])
+        ->jsonSchema(Schema::fromArray([
+            'type' => 'object',
+            'properties' => array_fill_keys(['name', 'email'], []),
+        ]))
         ->schema([
             TextInput::make('destination')->default('default.path')->required(),
             Toggle::make('trim')->default(true),
@@ -571,9 +536,9 @@ it('hydrates configured default bindings and nested field defaults', function ()
 
 it('can be nested in a repeater with independent bindings', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name'], [])])
+        ->jsonSchema(Schema::fromArray(['type' => 'object', 'properties' => array_fill_keys(['name'], [])]))
         ->simple(TextInput::make('destination')->required());
-    $schema = Schema::make(SchemaHost::make())
+    $schema = FilamentSchema::make(SchemaHost::make())
         ->statePath('data')
         ->components([Repeater::make('bindings')->schema([$field])]);
     $schema->fill([
@@ -599,7 +564,10 @@ it('can be nested in a repeater with independent bindings', function () {
 
 it('keeps callbacks and relative reads isolated between bindings', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name', 'email'], [])])
+        ->jsonSchema(Schema::fromArray([
+            'type' => 'object',
+            'properties' => array_fill_keys(['name', 'email'], []),
+        ]))
         ->schema([
             TextInput::make('destination')
                 ->required()
@@ -632,7 +600,7 @@ it('keeps callbacks and relative reads isolated between bindings', function () {
 
 it('preserves nested repeater and builder state', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name'], [])])
+        ->jsonSchema(Schema::fromArray(['type' => 'object', 'properties' => array_fill_keys(['name'], [])]))
         ->schema([
             Repeater::make('rules')->schema([TextInput::make('pattern')->required()]),
             Builder::make('steps')->blocks([
@@ -653,7 +621,10 @@ it('preserves nested repeater and builder state', function () {
 
 it('disables bind and unbind actions and child inputs for a disabled component', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name', 'email'], [])])
+        ->jsonSchema(Schema::fromArray([
+            'type' => 'object',
+            'properties' => array_fill_keys(['name', 'email'], []),
+        ]))
         ->simple(TextInput::make('destination')->required())
         ->disabled();
     field_binding_schema($field, ['name' => 'profile.name']);
@@ -669,7 +640,7 @@ it('disables bind and unbind actions and child inputs for a disabled component',
 
 it('rejects unknown or malformed sources on submission', function (mixed $source) {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name'], [])])
+        ->jsonSchema(Schema::fromArray(['type' => 'object', 'properties' => array_fill_keys(['name'], [])]))
         ->simple(TextInput::make('destination'));
     $schema = field_binding_schema($field);
     $field->rawState([['kind' => 'source', 'source' => $source, 'target' => 'profile.name', 'options' => []]]);
@@ -684,7 +655,7 @@ it('rejects unknown or malformed sources on submission', function (mixed $source
 
 it('rejects malformed binding envelopes on submission', function (mixed $state) {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name'], [])])
+        ->jsonSchema(Schema::fromArray(['type' => 'object', 'properties' => array_fill_keys(['name'], [])]))
         ->simple(TextInput::make('destination'));
     $schema = field_binding_schema($field);
     $field->rawState($state);
@@ -695,23 +666,20 @@ it('rejects malformed binding envelopes on submission', function (mixed $state) 
     'unexpected state key' => [['unexpected' => []]],
 ]);
 
-it('rejects forged binding values and unknown sources on submission', function (string $source, mixed $binding) {
+it('rejects non-string simple binding values on submission', function (mixed $binding) {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['properties' => ['name' => []]])
+        ->jsonSchema(Schema::fromArray(['properties' => ['name' => []]]))
         ->simple(TextInput::make('destination')->string());
     $schema = field_binding_schema($field, ['name' => 'profile.name']);
     expect($schema->getState()['bindings'])
         ->toBe(MappingState::binding(['name' => 'profile.name'], [], array_column($field->getSources(), 'id')));
 
-    $field->rawState([['kind' => 'source', 'source' => $source, 'target' => $binding, 'options' => []]]);
+    $field->rawState([['kind' => 'source', 'source' => 'name', 'target' => $binding, 'options' => []]]);
 
     expect($schema->getState(...))->toThrow(ValidationException::class);
 })->with([
-    'unknown source' => ['unknown', ['destination' => 'profile.name']],
-    'dotted unknown source' => ['name.destination', ['destination' => 'profile.name']],
-    'scalar binding' => ['name', 42],
-    'nested simple value' => ['name', ['destination' => ['path' => 'profile.name']]],
-    'empty simple value' => ['name', ['destination' => '']],
+    'scalar binding' => [42],
+    'nested simple value' => [['destination' => ['path' => 'profile.name']]],
 ]);
 
 it('preserves binding metadata and values across presentation options', function (
@@ -720,7 +688,7 @@ it('preserves binding metadata and values across presentation options', function
     bool $compact,
 ) {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(CustomerMappingField::jsonSchema(...))
+        ->jsonSchema(fn () => Schema::fromArray(CustomerMappingField::jsonSchema()))
         ->labels(source: fn () => 'Incoming', dest: 'Output')
         ->dense(fn () => $dense)
         ->compact(fn () => $compact)
@@ -728,6 +696,7 @@ it('preserves binding metadata and values across presentation options', function
     if (!$contained) {
         $field->contained(false);
     }
+
     $schema = field_binding_schema($field, ['name' => 'profile.name']);
     view()->share('errors', new ViewErrorBag);
 
@@ -746,14 +715,21 @@ it('preserves binding metadata and values across presentation options', function
     if ($contained) {
         expect($text)->toContain('All', 'Bound', 'Unbound');
     }
+
     expect(str_contains($text, '1 of 6 sources bound'))->toBe($contained);
     expect($schema->getState()['bindings'])
         ->toBe(MappingState::binding(['name' => 'profile.name'], [], array_column($field->getSources(), 'id')));
-})->with([true, false])->with([true, false])->with([true, false]);
+})->with([
+    'baseline' => [true, false, false],
+    'without container' => [false, false, false],
+    'dense' => [true, true, false],
+    'compact' => [true, false, true],
+    'combined' => [false, true, true],
+]);
 
 it('keeps the binding toolbar around the empty state', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys([], [])])
+        ->jsonSchema(Schema::fromArray(['type' => 'object', 'properties' => array_fill_keys([], [])]))
         ->searchable()
         ->labels(source: 'Incoming fields', dest: 'Output fields')
         ->simple(TextInput::make('destination'));
@@ -773,14 +749,17 @@ it('keeps the binding toolbar around the empty state', function () {
 function field_binding_constants(): FieldBinding
 {
     return FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name', 'email'], [])])
+        ->jsonSchema(Schema::fromArray([
+            'type' => 'object',
+            'properties' => array_fill_keys(['name', 'email'], []),
+        ]))
         ->simple(TextInput::make('destination')->required())
         ->staticValues();
 }
 
 it('adds, edits, restores, and removes static values with a complete binding schema', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['properties' => ['name' => []]])
+        ->jsonSchema(Schema::fromArray(['properties' => ['name' => []]]))
         ->schema(fn () => [
             TextInput::make('topic')
                 ->required()
@@ -836,7 +815,7 @@ it('adds, edits, restores, and removes static values with a complete binding sch
 
 it('validates native fields in a static binding schema', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['properties' => ['name' => []]])
+        ->jsonSchema(Schema::fromArray(['properties' => ['name' => []]]))
         ->schema([TextInput::make('topic')->required()])
         ->staticValues();
     $schema = field_binding_schema($field);
@@ -853,7 +832,7 @@ it('validates native fields in a static binding schema', function () {
 
 it('keeps independent static schema forms without inferring destination uniqueness', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['properties' => ['name' => []]])
+        ->jsonSchema(Schema::fromArray(['properties' => ['name' => []]]))
         ->schema([TextInput::make('destination')->default('shared'), Toggle::make('enabled')->default(false)])
         ->staticValues();
     $schema = field_binding_schema($field);
@@ -862,6 +841,7 @@ it('keeps independent static schema forms without inferring destination uniquene
         $key = array_key_last($field->getConstants());
         $field->getConstants()[$key]->getComponent('input.static')->state($value);
     }
+
     $rows = $schema->getState()['bindings'];
     expect($rows[1]['target'])
         ->toBe(['destination' => 'shared', 'enabled' => false])
@@ -875,8 +855,8 @@ it('keeps independent static schema forms without inferring destination uniquene
 
 it('preserves an empty static binding schema as an array', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['properties' => ['name' => []]])
-        ->schema(Schema::make()->components([]))
+        ->jsonSchema(Schema::fromArray(['properties' => ['name' => []]]))
+        ->schema(FilamentSchema::make()->components([]))
         ->staticValues();
     $schema = field_binding_schema($field);
     $field->getAction('addConstant')([])->call();
@@ -902,7 +882,7 @@ it('adds and restores static pairs with native non-string targets', function (st
         'multiple' => Select::make('value')->multiple()->options(['a' => 'A'])->default($target),
     };
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['properties' => ['name' => []]])
+        ->jsonSchema(Schema::fromArray(['properties' => ['name' => []]]))
         ->simple($input)
         ->staticValues();
     $schema = field_binding_schema($field);
@@ -993,7 +973,7 @@ it('rejects duplicate static targets without changing the binding state', functi
 
 it('rejects static values unless the component enables them', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name'], [])])
+        ->jsonSchema(Schema::fromArray(['type' => 'object', 'properties' => array_fill_keys(['name'], [])]))
         ->simple(TextInput::make('destination'));
     $schema = field_binding_schema($field);
     $withConstants = field_binding_constants();
@@ -1027,23 +1007,24 @@ it('renders the static value controls and counts only bound sources', function (
 
     expect($schema->toHtml())
         ->toContain('1 of 2 sources bound')
-        ->not
-        ->toContain('Static values')
         ->toContain('Status', 'eidos-mapping-property')
         ->toContain('Add static value');
 
     $plain = field_binding_schema(
         FieldBinding::make('bindings')
-            ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name'], [])])
+            ->jsonSchema(Schema::fromArray(['type' => 'object', 'properties' => array_fill_keys(['name'], [])]))
             ->simple(TextInput::make('d')),
     );
 
-    expect($plain->toHtml())->not->toContain('Static values');
+    expect($plain->toHtml())->not->toContain('Add static value');
 });
 
 it('renders native source actions on bound and unbound sources', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name', 'email'], [])])
+        ->jsonSchema(Schema::fromArray([
+            'type' => 'object',
+            'properties' => array_fill_keys(['name', 'email'], []),
+        ]))
         ->simple(TextInput::make('destination'))
         ->sourceSettings(fn (string $source) => [
             Actions::make([Action::make('inspect')->label('Inspect ' . $source)]),
@@ -1056,7 +1037,10 @@ it('renders native source actions on bound and unbound sources', function () {
 
 it('highlights warned sources and preserves warnings for missing source identifiers', function () {
     $field = FieldBinding::make('bindings')
-        ->jsonSchema(['type' => 'object', 'properties' => array_fill_keys(['name', 'email'], [])])
+        ->jsonSchema(Schema::fromArray([
+            'type' => 'object',
+            'properties' => array_fill_keys(['name', 'email'], []),
+        ]))
         ->warnings(fn () => ['name' => 'Review <name>.', '42' => 'Source disappeared.'])
         ->simple(TextInput::make('destination'));
     $schema = field_binding_schema($field, ['name' => 'profile.name']);

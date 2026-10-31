@@ -1,15 +1,16 @@
 <?php
 
-use Filament\Schemas\Schema;
+use Filament\Schemas\Schema as FilamentSchema;
 use Illuminate\Validation\ValidationException;
-use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Ferry\Data\FieldMapping;
 use PHPinnacle\Ferry\Models\Replica;
 use PHPinnacle\Ferry\Origins\Kafka\TransformFactory;
+use PHPinnacle\Ferry\Services\ReplicaSchemaResolver;
 use PHPinnacle\Ferry\Services\TransformRegistry;
 use PHPinnacle\Ferry\Tests\Fixtures\SchemaHost;
 use PHPinnacle\Ferry\Tests\Fixtures\StructureItems;
 use PHPinnacle\Ferry\Transformations\TimestampConverter;
+use PHPinnacle\Jason\Schema;
 use Tests\TestCase;
 
 require_once __DIR__ . '/../Fixtures/SchemaHost.php';
@@ -18,7 +19,7 @@ require_once __DIR__ . '/../Fixtures/StructureItems.php';
 uses(TestCase::class);
 
 it('offers timestamp conversion for supported field types', function (array $input, bool $accepted) {
-    expect(TimestampConverter::make()->accepts(JsonSchema::fromArray($input)))->toBe($accepted);
+    expect(TimestampConverter::make()->accepts(Schema::fromArray($input)))->toBe($accepted);
 })->with([
     'text' => [['type' => 'string'], true],
     'epoch' => [['type' => 'integer'], true],
@@ -33,9 +34,9 @@ it('offers timestamp conversion for supported field types', function (array $inp
 ]);
 
 it('projects timestamp output types without retaining input constraints', function (string $target, array $output) {
-    $transform = app(TransformRegistry::class)->getOrFail('timestamp_converter');
+    $transform = app(TransformRegistry::class)->get('timestamp_converter');
     foreach ([false, true] as $nullable) {
-        $input = JsonSchema::fromArray([
+        $input = Schema::fromArray([
             'type' => $nullable ? ['string', 'null'] : 'string',
             'format' => 'date-time',
             'minLength' => 20,
@@ -49,7 +50,8 @@ it('projects timestamp output types without retaining input constraints', functi
 
         expect($transform->output($input, ['target_type' => $target])?->toArray())->toBe($expected);
     }
-    expect($transform->output(JsonSchema::fromArray(['type' => 'integer']), []))->toBeNull();
+
+    expect($transform->output(Schema::fromArray(['type' => 'integer']), []))->toBeNull();
 })->with([
     'text' => ['string', ['type' => 'string']],
     'epoch' => ['unix', ['type' => 'integer']],
@@ -59,10 +61,10 @@ it('projects timestamp output types without retaining input constraints', functi
 ]);
 
 it('validates and dehydrates native timestamp settings', function (array $input, array $params, ?array $expected) {
-    $schema = Schema::make(SchemaHost::make())
+    $schema = FilamentSchema::make(SchemaHost::make())
         ->statePath('data')
         ->components(
-            SchemaHost::transformSchema(TimestampConverter::make(), JsonSchema::fromArray($input)),
+            SchemaHost::transformSchema(TimestampConverter::make(), Schema::fromArray($input)),
         );
     $schema->fill($params);
 
@@ -109,12 +111,12 @@ it('validates and dehydrates native timestamp settings', function (array $input,
 
 it('refreshes format requirements and keeps repeated timestamp forms independent', function () {
     $transform = TimestampConverter::make();
-    $input = JsonSchema::fromArray(['type' => 'integer']);
-    $first = Schema::make(SchemaHost::make())
+    $input = Schema::fromArray(['type' => 'integer']);
+    $first = FilamentSchema::make(SchemaHost::make())
         ->statePath('data')
         ->components(SchemaHost::transformSchema($transform, $input));
     $first->fill(['target_type' => 'Timestamp']);
-    $second = Schema::make(SchemaHost::make())
+    $second = FilamentSchema::make(SchemaHost::make())
         ->statePath('data')
         ->components(SchemaHost::transformSchema($transform, $input));
     $second->fill(['target_type' => 'string', 'format' => 'yyyy-MM-dd']);
@@ -134,7 +136,7 @@ it('refreshes format requirements and keeps repeated timestamp forms independent
 });
 
 it('runs timestamp chains before renaming while preserving tombstone deletes', function () {
-    $object = StructureItems::make(['fields' => ['created' => JsonSchema::fromArray(['type' => 'integer'])]]);
+    $object = StructureItems::make(['fields' => ['created' => Schema::fromArray(['type' => 'integer'])]]);
     $settings = [
         ['type' => 'timestamp_converter', 'data' => ['target_type' => 'Timestamp', 'unix_precision' => 'microseconds']],
         [
@@ -146,7 +148,7 @@ it('runs timestamp chains before renaming while preserving tombstone deletes', f
     $replica = new Replica(['schema' => $object->schema, 'mapping' => [$mapping]]);
     $config = app(TransformFactory::class)->pipeline($replica, $object);
 
-    expect($replica->outputSchema($mapping)?->toArray())->toBe(['type' => 'string']);
+    expect(app(ReplicaSchemaResolver::class)->outputSchema($replica, $mapping)?->toArray())->toBe(['type' => 'string']);
     expect($config)
         ->toMatchArray([
             'transforms' => 'field_0_0,field_0_1,rename_values',

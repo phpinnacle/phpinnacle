@@ -6,6 +6,7 @@
     $targets = $getTargets();
     $outputPresentation = $getSourcePresentations();
     $connectionModes = $getConnectionModes();
+    $targetModes = $getTargetModes();
     $sourceLabel = $getSourceLabel();
     $targetLabel = $getTargetLabel();
     $hasFields = ($sources !== [] || $hasStaticForms()) && $targets !== [];
@@ -25,7 +26,7 @@
     $compact = $isCompact();
     $columnSpans = $getColumnSpans();
     $statePath = $getStatePath();
-    $configurationKey = md5(serialize([$sources, $targets, $outputPresentation, $connectionModes, $multipleTargets, $stateKeys, $staticDefaults, $inverse, $disabled, $searchable, $contained, $dense, $compact, $columnSpans, $sourceLabel, $targetLabel, $sourceWarnings, $targetWarnings]));
+    $configurationKey = md5(serialize([$sources, $targets, $outputPresentation, $connectionModes, $targetModes, $multipleTargets, $stateKeys, $staticDefaults, $inverse, $disabled, $searchable, $contained, $dense, $compact, $columnSpans, $sourceLabel, $targetLabel, $sourceWarnings, $targetWarnings]));
     $panels = ['source' => ['label' => $sourceLabel, 'items' => $sources, 'warnings' => $sourceWarnings], 'target' => ['label' => $targetLabel, 'items' => $targets, 'warnings' => $targetWarnings]];
 
     if ($inverse) {
@@ -46,6 +47,8 @@
             '--eidos-right-column: '.$columnSpans[$inverse ? 'source' : 'target'].'fr',
         ]) }}
         wire:key="{{ $getId() }}-{{ $configurationKey }}"
+        wire:loading.class="eidos-mapping-loading"
+        wire:loading.attr="inert"
         @if (! $hasStaticForms() && ! $hasSourceSettings() && $getHeaderActions() === [])
             wire:ignore
         @endif
@@ -58,6 +61,7 @@
             inverse: @js($inverse),
             requiredTargets: @js($requiredTargets),
             connectionModes: @js($connectionModes),
+            targetModes: @js($targetModes),
             staticDefaults: @js((object) $staticDefaults),
         })"
         x-on:keydown.escape.window="cancel()"

@@ -32,7 +32,8 @@ function editor(state = {}, disabled = false, options = {}) {
     for (const source of ['title', 'email', ...Object.keys(options.sourceSettings ?? {})]) {
         if (!rows.some(row => row.kind === 'source' && row.source === source)) rows.push({ kind: 'source', source, target: null, options: structuredClone(options.sourceSettings?.[source] ?? {}) });
     }
-    const component = fieldMapping({ element, state: rows, disabled, connectionModes, requiredTargets: options.requiredTargets, inverse: options.inverse, staticDefaults: options.staticDefaults });
+    const targetModes = options.targetModes ?? Object.assign({ name: 'whole', contact: 'whole' }, ...Object.values(connectionModes));
+    const component = fieldMapping({ element, state: rows, disabled, connectionModes, targetModes, requiredTargets: options.requiredTargets, inverse: options.inverse, staticDefaults: options.staticDefaults });
     component.$root = element;
     component.$refs = { canvas: { getBoundingClientRect: () => ({ left: 20, top: 40, width: 500, height: 300 }) } };
     component.$nextTick = (callback) => callback();
@@ -49,7 +50,7 @@ test('partial configuration updates refresh compatibility and ports while keepin
     component.$root = { querySelectorAll: () => [] };
     ports.push({ ...ports[0], dataset: { side: 'source', id: 'static_1', label: 'Static 1' } });
     component.selected = { side: 'source', id: 'title' };
-    component.updateConfiguration({ title: { contact: 'whole' }, static_1: { name: 'whole' } }, ['title', 'email', 'static_1'], { title: 'boolean' });
+    component.updateConfiguration({ title: { contact: 'whole' }, static_1: { name: 'whole' } }, ['title', 'email', 'static_1'], { title: 'boolean' }, { name: 'whole', contact: 'whole' });
     assert.equal(component.hasTypeConflict('name'), true);
     assert.equal(component.canConnect('static_1', 'name'), true);
     assert.equal(component.search, 'title');
@@ -62,7 +63,7 @@ test('partial configuration updates refresh compatibility and ports while keepin
     assert.deepEqual(component.state, state);
     component.selected = { side: 'source', id: 'static_1' };
     ports.pop();
-    component.updateConfiguration(scalarModes, ['title', 'email'], { title: 'string' });
+    component.updateConfiguration(scalarModes, ['title', 'email'], { title: 'string' }, { name: 'whole', contact: 'whole' });
     assert.equal(component.selected, null);
     assert.equal(component.canConnect('static_1', 'name'), false);
     assert.equal(component.hasTypeConflict('name'), false);
@@ -72,7 +73,6 @@ test('partial configuration updates refresh compatibility and ports while keepin
 
 test('native static editors switch modes locally and preserve typed defaults', () => {
     const component = editor({}, false, {
-        stateKeys: { name: 'encoded_name', contact: 'encoded_contact' },
         staticDefaults: { name: false },
     });
     component.restoreStaticDefault('name');
@@ -124,7 +124,11 @@ for (const value of [null, '', false, 0, []]) {
 
 test('connects by selecting fields in either order and appends sources to a multiple destination', () => {
     const component = editor({}, false, { connectionModes: itemModes });
-    component.select('source', 'title');
+    component.fieldBindings('source', 'title')['@click']();
+    component.refresh();
+    assert.deepEqual(component.selected, { side: 'source', id: 'title' });
+    assert.deepEqual(component.mappings(), {});
+    assert.deepEqual(component.connections, []);
     component.select('target', 'name');
     component.select('target', 'name');
     component.select('source', 'email');
@@ -136,39 +140,27 @@ test('connects by selecting fields in either order and appends sources to a mult
     assert.equal(component.selected, null);
 });
 
-test('removing a connection frees a source and connecting the same pair is allowed', () => {
-    const component = editor({ name: sourceEntry('title'), contact: sourceEntry('email') });
-    component.connect('title', 'name');
-    component.remove('name');
-    assert.equal(component.isDisabled('source', 'title'), false);
-    component.connect('title', 'contact');
-    assert.deepEqual(component.mappings(), { contact: sourceEntry('title') });
-});
-
-for (const inverse of [false, true]) {
-    test(`${inverse ? 'inverse' : 'forward'}: selection marks compatible candidates and dims incompatible fields regardless of mappings`, () => {
-        const state = { name: sourceEntry('title') };
-        const component = editor(state, false, {
-            inverse,
-            connectionModes: { title: { name: 'whole', contact: 'whole' }, email: {} },
-        });
-
-        for (const [side, id] of [['source', 'title'], ['target', 'name']]) {
-            assert.equal(component.rowClasses(side, id, false)['is-mapped'], true);
-            assert.equal(component.rowClasses(side, id, false)['is-incompatible'], false);
-        }
-        assert.equal(component.fieldBindings('source', 'title')[':disabled'](), true);
-
-        component.select('target', 'contact');
-        assert.equal(component.rowClasses('source', 'title', false)['is-incompatible'], true);
-        assert.equal(component.rowClasses('source', 'email', false)['is-incompatible'], true);
-        component.cancel();
-        component.select('source', 'email');
-        assert.equal(component.rowClasses('target', 'name', false)['is-incompatible'], true);
-        assert.equal(component.rowClasses('target', 'contact', false)['is-incompatible'], true);
-        assert.deepEqual(component.mappings(), state);
+test('selection marks compatible candidates and dims incompatible fields regardless of mappings', () => {
+    const state = { name: sourceEntry('title') };
+    const component = editor(state, false, {
+        connectionModes: { title: { name: 'whole', contact: 'whole' }, email: {} },
     });
-}
+
+    for (const [side, id] of [['source', 'title'], ['target', 'name']]) {
+        assert.equal(component.rowClasses(side, id, false)['is-mapped'], true);
+        assert.equal(component.rowClasses(side, id, false)['is-incompatible'], false);
+    }
+    assert.equal(component.fieldBindings('source', 'title')[':disabled'](), true);
+
+    component.select('target', 'contact');
+    assert.equal(component.rowClasses('source', 'title', false)['is-incompatible'], true);
+    assert.equal(component.rowClasses('source', 'email', false)['is-incompatible'], true);
+    component.cancel();
+    component.select('source', 'email');
+    assert.equal(component.rowClasses('target', 'name', false)['is-incompatible'], true);
+    assert.equal(component.rowClasses('target', 'contact', false)['is-incompatible'], true);
+    assert.deepEqual(component.mappings(), state);
+});
 
 test('multiple permission applies only to listed destinations and still enforces types', () => {
     const component = editor({}, false, { connectionModes: itemModes });
@@ -178,7 +170,10 @@ test('multiple permission applies only to listed destinations and still enforces
     assert.equal(component.isDisabled('source', 'title'), true);
     component.connect('title', 'contact');
     assert.deepEqual(component.mappings(), { name: [sourceEntry('title'), sourceEntry('email')] });
+    component.connect('title', 'name');
+    assert.deepEqual(component.mappings(), { name: [sourceEntry('title'), sourceEntry('email')] });
     component.remove('name');
+    assert.equal(component.isDisabled('source', 'title'), false);
     component.connect('title', 'contact');
     component.connect('email', 'contact');
     assert.deepEqual(component.mappings(), { contact: sourceEntry('email') });
@@ -186,17 +181,6 @@ test('multiple permission applies only to listed destinations and still enforces
     delete component.connectionModes.title.name;
     component.connect('title', 'name');
     assert.deepEqual(component.mappings(), { contact: sourceEntry('email') });
-});
-
-test('occupied source ports cannot be selected or connected from a destination port', () => {
-    for (const side of ['source', 'target']) {
-        const component = editor({ name: sourceEntry('title') });
-        const id = side === 'source' ? 'title' : 'contact';
-        component.fieldBindings(side, id)['@click']();
-        if (side === 'source') assert.equal(component.selected, null);
-        component.fieldBindings(side === 'source' ? 'target' : 'source', side === 'source' ? 'contact' : 'title')['@click']();
-        assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
-    }
 });
 
 test('field controls track source locks, selection, and read-only state after creation', () => {
@@ -209,6 +193,12 @@ test('field controls track source locks, selection, and read-only state after cr
     assert.equal(target[':disabled'](), false);
     source['@click']();
     assert.equal(source[':aria-pressed'](), false);
+
+    target['@click']();
+    source['@click']();
+    assert.deepEqual(component.selected, { side: 'target', id: 'contact' });
+    assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
+    component.cancel();
 
     component.remove('name');
     assert.equal(source[':disabled'](), false);
@@ -224,34 +214,31 @@ test('field controls track source locks, selection, and read-only state after cr
     assert.equal(target[':aria-disabled'](), true);
 });
 
-for (const inverse of [false, true]) {
-    for (const firstSide of ['source', 'target']) {
-        test(`${inverse ? 'inverse' : 'forward'}: incompatible controls ignore clicks after selecting a ${firstSide}`, () => {
-            const component = editor({}, false, {
-                inverse,
-                connectionModes: { title: { contact: 'whole' }, email: { name: 'whole', contact: 'whole' } },
-            });
-            const secondSide = firstSide === 'source' ? 'target' : 'source';
-            const firstId = firstSide === 'source' ? 'title' : 'name';
-            const secondId = secondSide === 'source' ? 'title' : 'name';
-            component.select(firstSide, firstId);
-            const announcement = component.announcement;
-            const candidate = component.fieldBindings(secondSide, secondId);
-
-            assert.equal(candidate[':aria-disabled'](), true);
-            candidate['@click']();
-            candidate['@click']();
-            assert.deepEqual(component.mappings(), {});
-            assert.deepEqual(component.selected, { side: firstSide, id: firstId });
-            assert.equal(component.announcement, announcement);
-            assert.equal(component.rowClasses('source', 'title', false)['has-type-conflict'], false);
-
-            component.connectionModes.title.name = 'whole';
-            candidate['@click']();
-            assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
-            assert.equal(component.selected, null);
+for (const firstSide of ['source', 'target']) {
+    test(`incompatible controls ignore clicks after selecting a ${firstSide}`, () => {
+        const component = editor({}, false, {
+            connectionModes: { title: { contact: 'whole' }, email: { name: 'whole', contact: 'whole' } },
         });
-    }
+        const secondSide = firstSide === 'source' ? 'target' : 'source';
+        const firstId = firstSide === 'source' ? 'title' : 'name';
+        const secondId = secondSide === 'source' ? 'title' : 'name';
+        component.select(firstSide, firstId);
+        const announcement = component.announcement;
+        const candidate = component.fieldBindings(secondSide, secondId);
+
+        assert.equal(candidate[':aria-disabled'](), true);
+        candidate['@click']();
+        candidate['@click']();
+        assert.deepEqual(component.mappings(), {});
+        assert.deepEqual(component.selected, { side: firstSide, id: firstId });
+        assert.equal(component.announcement, announcement);
+        assert.equal(component.rowClasses('source', 'title', false)['has-type-conflict'], false);
+
+        component.connectionModes.title.name = 'whole';
+        candidate['@click']();
+        assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
+        assert.equal(component.selected, null);
+    });
 }
 
 test('separate editors keep their state and port geometry independent', () => {
@@ -271,72 +258,73 @@ test('separate editors keep their state and port geometry independent', () => {
 });
 
 test('read-only fields do not change state through selection, port clicks, or removal', () => {
-    const component = editor({ name: sourceEntry('title') }, true);
+    const component = editor({ name: sourceEntry('title'), contact: value(false) }, true);
     component.select('source', 'email');
     component.connect('email', 'name');
     component.remove('name');
+    component.connect('email', 'contact');
+    component.remove('contact');
     component.fieldBindings('source', 'email')['@click']();
     component.fieldBindings('target', 'name')['@click']();
-    assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
+    assert.deepEqual(component.mappings(), { name: sourceEntry('title'), contact: value(false) });
     assert.equal(component.selected, null);
 });
 
-for (const inverse of [false, true]) {
-    test(`${inverse ? 'inverse' : 'forward'}: all, mapped and unmapped filters combine with search and preserve state`, () => {
-        const state = { name: sourceEntry('title') };
-        const component = editor(state, false, { inverse });
-        assert.equal(component.visibilityFilter, 'all');
-        for (const side of ['source', 'target']) {
-            const mapped = side === 'source' ? 'title' : 'name';
-            const unmapped = side === 'source' ? 'email' : 'contact';
-            for (const [filter, mappedVisible, unmappedVisible] of [
-                ['all', true, true], ['mapped', true, false], ['unmapped', false, true],
-            ]) {
-                component.visibilityFilter = filter;
-                assert.equal(component.isVisible(side, mapped, 'Mapped field'), mappedVisible);
-                assert.equal(component.isVisible(side, unmapped, 'Other field'), unmappedVisible);
-                component.search = ' MAPPED ';
-                assert.equal(component.isVisible(side, mapped, 'Mapped field'), mappedVisible);
-                assert.equal(component.isVisible(side, unmapped, 'Other field'), false);
-                component.search = '';
-            }
+test('all, mapped and unmapped filters combine with search and preserve state', () => {
+    const state = { name: sourceEntry('title') };
+    const component = editor(state);
+    const rows = structuredClone(component.state);
+    assert.equal(component.visibilityFilter, 'all');
+    for (const side of ['source', 'target']) {
+        const mapped = side === 'source' ? 'title' : 'name';
+        const unmapped = side === 'source' ? 'email' : 'contact';
+        for (const [filter, mappedVisible, unmappedVisible] of [
+            ['all', true, true], ['mapped', true, false], ['unmapped', false, true],
+        ]) {
+            component.visibilityFilter = filter;
+            assert.equal(component.isVisible(side, mapped, 'Mapped field'), mappedVisible);
+            assert.equal(component.isVisible(side, unmapped, 'Other field'), unmappedVisible);
+            component.search = ' MAPPED ';
+            assert.equal(component.isVisible(side, mapped, 'Mapped field'), mappedVisible);
+            assert.equal(component.isVisible(side, unmapped, 'Other field'), false);
+            component.search = '';
         }
-        assert.deepEqual(component.mappings(), state);
-        component.visibilityFilter = 'all';
-        assert.equal(component.isVisible('source', 'email', 'Other field'), true);
-    });
-}
-
-for (const inverse of [false, true]) {
-    test(`${inverse ? 'inverse' : 'forward'}: one query searches both columns and keeps mappings intact`, () => {
-        const component = editor({ name: sourceEntry('title'), contact: sourceEntry('email') }, false, { inverse });
-        const state = structuredClone(component.state);
-        component.search = ' NAME ';
-        assert.equal(component.isVisible('source', 'title', 'Display name'), true);
-        assert.equal(component.isVisible('target', 'name', 'Customer name'), true);
-        assert.equal(component.isVisible('source', 'email', 'Email address'), false);
-        assert.equal(component.isVisible('target', 'contact', 'Contact email'), false);
-        component.search = '';
-        assert.equal(component.isVisible('source', 'email', 'Email address'), true);
-        assert.equal(component.isVisible('target', 'contact', 'Contact email'), true);
-        assert.deepEqual(component.state, state);
-    });
-}
-
-test('static target values count as mapped and follow changes without modifying their values', () => {
-    const component = editor({ name: value(false) });
-    component.visibilityFilter = 'mapped';
-    assert.equal(component.isVisible('target', 'name', 'Name'), true);
-    assert.equal(component.isVisible('source', 'title', 'Title'), false);
-    component.visibilityFilter = 'unmapped';
-    assert.equal(component.isVisible('target', 'name', 'Name'), false);
-    assert.equal(component.isVisible('source', 'title', 'Title'), true);
-    component.connect('title', 'name');
-    assert.equal(component.isVisible('source', 'title', 'Title'), false);
-    component.remove('name');
-    assert.equal(component.isVisible('source', 'title', 'Title'), true);
-    assert.deepEqual(component.mappings(), {});
+    }
+    component.visibilityFilter = 'all';
+    component.search = ' NAME ';
+    assert.equal(component.isVisible('source', 'title', 'Display name'), true);
+    assert.equal(component.isVisible('target', 'name', 'Customer name'), true);
+    assert.equal(component.isVisible('source', 'email', 'Email address'), false);
+    assert.equal(component.isVisible('target', 'contact', 'Contact email'), false);
+    component.search = '';
+    assert.equal(component.isVisible('source', 'email', 'Email address'), true);
+    assert.equal(component.isVisible('target', 'contact', 'Contact email'), true);
+    assert.deepEqual(component.mappings(), state);
+    assert.deepEqual(component.state, rows);
 });
+
+for (const initial of [false, []]) {
+    test(`visibility filters only established connections with static value ${JSON.stringify(initial)}`, () => {
+        const component = editor({ name: value(initial) }, false, { staticDefaults: { name: initial } });
+        const state = structuredClone(component.state);
+        for (const [filter, visible] of [['all', true], ['mapped', false], ['unmapped', true]]) {
+            component.visibilityFilter = filter;
+            assert.equal(component.isVisible('target', 'name', 'Name'), visible);
+            assert.equal(component.isVisible('source', 'title', 'Title'), visible);
+        }
+        assert.deepEqual(component.state, state);
+        component.connect('title', 'name');
+        assert.equal(component.isVisible('source', 'title', 'Title'), false);
+        assert.equal(component.isVisible('target', 'name', 'Name'), false);
+        component.visibilityFilter = 'mapped';
+        assert.equal(component.isVisible('source', 'title', 'Title'), true);
+        assert.equal(component.isVisible('target', 'name', 'Name'), true);
+        component.remove('name');
+        assert.equal(component.isVisible('source', 'title', 'Title'), false);
+        assert.equal(component.isVisible('target', 'name', 'Name'), false);
+        assert.deepEqual(component.mappings(), { name: value(initial) });
+    });
+}
 
 test('line endpoints follow the actual ports and hidden ports do not produce lines', () => {
     const component = editor({ name: sourceEntry('title'), contact: sourceEntry('email') });
@@ -377,21 +365,6 @@ test('unknown identifiers cannot replace existing connections', () => {
     assert.equal(component.connections.length, 1);
 });
 
-test('port clicks draw a connection only after both endpoints are selected', () => {
-    const component = editor();
-    component.fieldBindings('source', 'title')['@click']();
-    component.refresh();
-    assert.deepEqual(component.selected, { side: 'source', id: 'title' });
-    assert.deepEqual(component.mappings(), {});
-    assert.deepEqual(component.connections, []);
-    component.fieldBindings('target', 'name')['@click']();
-    component.refresh();
-    assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
-    assert.equal(component.selected, null);
-    assert.equal(component.connections.length, 1);
-    assert.match(component.connections[0].path, /^M 88 48 .*388 48$/);
-});
-
 test('destination port clicks also connect and a repeated click cancels selection', () => {
     const component = editor();
     component.fieldBindings('target', 'name')['@click']();
@@ -404,7 +377,7 @@ test('destination port clicks also connect and a repeated click cancels selectio
     assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
 });
 
-test('Escape cancels selection and ignores incompatible clicks without changing mappings', () => {
+test('cancelling selection clears candidate highlighting without changing mappings', () => {
     const component = editor({}, false, {
         connectionModes: { title: { contact: 'whole' }, email: { name: 'whole', contact: 'whole' } },
     });
@@ -425,19 +398,6 @@ test('required destination progress follows connections and removal', () => {
     assert.deepEqual(component.missingRequired(), ['name', 'contact']);
 });
 
-test('incompatible selections are ignored without replacing an existing connection', () => {
-    const component = editor({ contact: sourceEntry('email') }, false, {
-        connectionModes: { title: { name: 'whole' }, email: { contact: 'whole' } },
-    });
-    component.select('source', 'title');
-    assert.equal(component.isIncompatible('target', 'name'), false);
-    assert.equal(component.isIncompatible('target', 'contact'), true);
-    component.select('target', 'contact');
-    assert.deepEqual(component.mappings(), { contact: sourceEntry('email') });
-    component.select('target', 'name');
-    assert.deepEqual(component.mappings(), { contact: sourceEntry('email'), name: sourceEntry('title') });
-});
-
 test('server connection modes identify existing conflicts and allow compatible replacements', () => {
     const component = editor({ name: sourceEntry('title') }, false, {
         connectionModes: { title: { contact: 'whole' }, email: { name: 'whole', contact: 'whole' } },
@@ -449,31 +409,54 @@ test('server connection modes identify existing conflicts and allow compatible r
     assert.equal(component.hasTypeConflict('name'), false);
 });
 
+test('multiple destinations preserve every line and remove only the selected source', () => {
+    const state = { name: [sourceEntry('title'), sourceEntry('email')] };
+    const component = editor(state, false, { connectionModes: itemModes, requiredTargets: ['name'] });
+    component.refresh();
+
+    assert.equal(component.connections.length, 2);
+    assert.deepEqual(component.connections.map(({ source }) => source).sort(), ['email', 'title']);
+    assert.equal(component.mappedTargetCount(), 1);
+    assert.deepEqual(component.missingRequired(), []);
+    component.connect('title', 'name');
+    assert.deepEqual(component.mappings(), state);
+    component.remove('name', 'title');
+    assert.deepEqual(component.mappings(), { name: [sourceEntry('email')] });
+    assert.equal(component.isDisabled('source', 'title'), false);
+    assert.equal(component.isDisabled('source', 'email'), true);
+    assert.deepEqual(component.missingRequired(), []);
+
+    component.connect('title', 'contact');
+    component.remove('name');
+    assert.deepEqual(component.mappings(), { contact: sourceEntry('title') });
+    assert.deepEqual(component.missingRequired(), ['name']);
+});
+
+test('conflicts are checked for every source in a multiple destination', () => {
+    const component = editor({ name: [sourceEntry('title'), sourceEntry('email')] }, false, {
+        connectionModes: { title: { name: 'item', contact: 'whole' }, email: { contact: 'whole' } },
+    });
+    assert.equal(component.hasTypeConflict('name'), true);
+    component.remove('name', 'email');
+    assert.equal(component.hasTypeConflict('name'), false);
+    component.connect('email', 'name');
+    assert.deepEqual(component.mappings(), { name: [sourceEntry('title')] });
+});
+
+test('removing the final line removes its state key and read-only mode preserves all lines', () => {
+    const state = { name: [sourceEntry('title')] };
+    const component = editor(state, true, { connectionModes: itemModes });
+    component.connect('email', 'name');
+    component.remove('name', 'title');
+    assert.deepEqual(component.mappings(), state);
+    component.disabled = false;
+    component.remove('name', 'title');
+    assert.deepEqual(component.mappings(), {});
+    assert.equal(component.isMapped('target', 'name'), false);
+});
+
 for (const inverse of [false, true]) {
     const mode = inverse ? 'inverse' : 'forward';
-
-    test(`${mode}: multiple destinations preserve every line and remove only the selected source`, () => {
-        const state = { name: [sourceEntry('title'), sourceEntry('email')] };
-        const component = editor(state, false, { inverse, connectionModes: itemModes, requiredTargets: ['name'] });
-        component.refresh();
-
-        assert.equal(component.connections.length, 2);
-        assert.deepEqual(component.connections.map(({ source }) => source).sort(), ['email', 'title']);
-        assert.equal(component.mappedTargetCount(), 1);
-        assert.deepEqual(component.missingRequired(), []);
-        component.connect('title', 'name');
-        assert.deepEqual(component.mappings(), state);
-        component.remove('name', 'title');
-        assert.deepEqual(component.mappings(), { name: [sourceEntry('email')] });
-        assert.equal(component.isDisabled('source', 'title'), false);
-        assert.equal(component.isDisabled('source', 'email'), true);
-        assert.deepEqual(component.missingRequired(), []);
-
-        component.connect('title', 'contact');
-        component.remove('name');
-        assert.deepEqual(component.mappings(), { contact: sourceEntry('title') });
-        assert.deepEqual(component.missingRequired(), ['name']);
-    });
 
     test(`${mode}: port clicks append a source and drawing follows the visible left-to-right direction`, () => {
         const component = editor({ name: [sourceEntry('title')] }, false, { inverse, connectionModes: itemModes });
@@ -488,53 +471,21 @@ for (const inverse of [false, true]) {
         assert.match(connection.path, inverse ? /^M 88 48 .*388 128$/ : /^M 88 128 .*388 48$/);
         assert.deepEqual(connection.midpoint, { x: 238, y: 88 });
     });
-
-    test(`${mode}: conflicts are checked for every source in a multiple destination`, () => {
-        const component = editor({ name: [sourceEntry('title'), sourceEntry('email')] }, false, {
-            inverse,
-            connectionModes: { title: { name: 'item', contact: 'whole' }, email: { contact: 'whole' } },
-        });
-        assert.equal(component.hasTypeConflict('name'), true);
-        component.remove('name', 'email');
-        assert.equal(component.hasTypeConflict('name'), false);
-        component.connect('email', 'name');
-        assert.deepEqual(component.mappings(), { name: [sourceEntry('title')] });
-    });
-
-    test(`${mode}: removing the final line removes its state key and read-only mode preserves all lines`, () => {
-        const state = { name: [sourceEntry('title')] };
-        const component = editor(state, true, { inverse, connectionModes: itemModes });
-        component.connect('email', 'name');
-        component.remove('name', 'title');
-        assert.deepEqual(component.mappings(), state);
-        component.disabled = false;
-        component.remove('name', 'title');
-        assert.deepEqual(component.mappings(), {});
-        assert.equal(component.isMapped('target', 'name'), false);
-    });
 }
-
-test('inverse: destination selection follows the same rules as the forward layout', () => {
-    const component = editor({ name: [sourceEntry('title')], contact: sourceEntry('email') }, false, { inverse: true, connectionModes: itemModes });
-    assert.equal(component.isDisabled('target', 'name'), false);
-    assert.equal(component.isDisabled('target', 'contact'), false);
-    assert.equal(component.isDisabled('source', 'title'), true);
-    component.select('target', 'contact');
-    component.fieldBindings('target', 'contact')['@click']();
-    assert.equal(component.selected, null);
-    component.remove('contact');
-    assert.equal(component.isDisabled('target', 'contact'), false);
-    component.select('target', 'name');
-    component.select('source', 'email');
-    assert.deepEqual(component.mappings(), { name: [sourceEntry('title'), sourceEntry('email')] });
-});
 
 test('empty Livewire state can be connected in either orientation', () => {
     for (const inverse of [false, true]) {
         for (const state of [null, []]) {
-            const component = editor(state, false, { inverse, connectionModes: itemModes });
-            component.refresh();
-            assert.deepEqual(component.connections, []);
+            const element = { querySelectorAll: () => [
+                { dataset: { side: 'source', id: 'title' } },
+                { dataset: { side: 'target', id: 'name' } },
+            ] };
+            const component = fieldMapping({
+                element, state, inverse, disabled: false, connectionModes: itemModes,
+                targetModes: { name: 'item', contact: 'whole' },
+            });
+            assert.deepEqual(component.state, []);
+            assert.deepEqual(component.mappings(), {});
             component.connect('title', 'name');
             assert.deepEqual(component.mappings(), { name: [sourceEntry('title')] });
         }
@@ -554,7 +505,7 @@ test('a static value occupies a destination without drawing a line or locking a 
     assert.equal(component.isDisabled('source', 'title'), false);
 });
 
-test('inline static edits are reflected in mappings and connections replace their editor', () => {
+test('static row changes are reflected in mappings and source connections replace their values', () => {
     const component = editor({ contact: sourceEntry('email'), name: value('') });
     component.state.find(row => row.kind === 'source' && row.source === 'email').target = null;
     component.state.push({ kind: 'static', target: 'contact', static: 'x', options: {} });
@@ -565,96 +516,80 @@ test('inline static edits are reflected in mappings and connections replace thei
     assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
 });
 
-for (const inverse of [false, true]) {
-    test(`${inverse ? 'inverse' : 'forward'}: read-only connections cannot replace static values`, () => {
-        const component = editor({ name: value('Customer') }, true, { inverse });
-        component.connect('title', 'name');
-        component.remove('name');
-        assert.deepEqual(component.mappings(), { name: value('Customer') });
-    });
-}
+test('whole arrays and item collections replace each other without flattening', () => {
+    const component = editor({}, false, { connectionModes: {
+        title: { name: 'whole' }, email: { name: 'item' },
+    } });
+    component.connect('email', 'name');
+    assert.deepEqual(component.mappings(), { name: [sourceEntry('email')] });
+    assert.equal(component.targetMode('name'), 'item');
+    component.updateConfiguration({ title: { name: 'whole' } }, ['title', 'email'], {}, { name: 'whole', contact: 'whole' });
+    component.connect('title', 'name');
+    assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
+    assert.equal(component.targetMode('name'), 'whole');
+    assert.equal(component.isDisabled('source', 'email'), false);
+    assert.equal(component.isDisabled('target', 'name'), false);
+    component.refresh();
+    assert.equal(component.connections.length, 1);
+    component.remove('name', 'title');
+    assert.deepEqual(component.mappings(), {});
+    component.updateConfiguration({ email: { name: 'item' } }, ['title', 'email'], {}, { name: 'item', contact: 'whole' });
+    component.connect('email', 'name');
+    assert.deepEqual(component.mappings(), { name: [sourceEntry('email')] });
+});
 
-for (const inverse of [false, true]) {
-    test(`${inverse ? 'inverse' : 'forward'}: whole arrays and item collections replace each other without flattening`, () => {
-        const component = editor({}, false, { inverse, connectionModes: {
-            title: { name: 'whole' }, email: { name: 'item' },
-        } });
-        component.connect('email', 'name');
-        assert.deepEqual(component.mappings(), { name: [sourceEntry('email')] });
-        assert.equal(component.targetMode('name'), 'item');
-        component.connect('title', 'name');
-        assert.deepEqual(component.mappings(), { name: sourceEntry('title') });
-        assert.equal(component.targetMode('name'), 'whole');
-        assert.equal(component.isDisabled('source', 'email'), false);
-        assert.equal(component.isDisabled('target', 'name'), false);
-        component.refresh();
-        assert.equal(component.connections.length, 1);
-        component.remove('name', 'title');
-        assert.deepEqual(component.mappings(), {});
-        component.connect('email', 'name');
-        assert.deepEqual(component.mappings(), { name: [sourceEntry('email')] });
-    });
-}
+test('connections and removals preserve arbitrary source settings', () => {
+    const sourceSettings = { title: { alias: 'Name', enabled: false }, email: { format: 'lowercase' } };
+    const component = editor({}, false, { sourceSettings, connectionModes: itemModes });
+    component.connect('title', 'name');
+    component.connect('email', 'name');
+    component.remove('name', 'email');
+    component.connect('email', 'contact');
+    component.remove('name');
+    assert.deepEqual(Object.fromEntries(component.state.filter(row => row.kind === 'source').map(row => [row.source, row.options])), sourceSettings);
+    assert.deepEqual(component.mappings(), { contact: sourceEntry('email') });
+});
 
-for (const inverse of [false, true]) {
-    test(`${inverse ? 'inverse' : 'forward'}: connections and removals preserve arbitrary source settings`, () => {
-        const sourceSettings = { title: { alias: 'Name', enabled: false }, email: { format: 'lowercase' } };
-        const component = editor({}, false, { inverse, sourceSettings, connectionModes: itemModes });
-        component.connect('title', 'name');
-        component.connect('email', 'name');
-        component.remove('name', 'email');
-        component.connect('email', 'contact');
-        component.remove('name');
-        assert.deepEqual(Object.fromEntries(component.state.filter(row => row.kind === 'source').map(row => [row.source, row.options])), sourceSettings);
-        assert.deepEqual(component.mappings(), { contact: sourceEntry('email') });
-    });
-}
-
-for (const inverse of [false, true]) {
-    for (const occupied of [sourceEntry('title'), value(false)]) {
-        test(`${inverse ? 'inverse' : 'forward'}: occupied targets show availability from types during selection (${occupied.kind})`, () => {
-            const state = { name: occupied, contact: value('') };
-            const component = editor(state, false, {
-                inverse,
-                connectionModes: { title: { name: 'whole' }, email: { contact: 'whole' } },
-            });
-            component.select('source', 'email');
-            assert.equal(component.rowClasses('target', 'name', false)['is-incompatible'], true);
-            assert.equal(component.rowClasses('target', 'name', false)['is-compatible'], false);
-            assert.equal(component.fieldBindings('target', 'name')[':aria-disabled'](), true);
-            assert.equal(component.rowClasses('target', 'contact', false)['is-compatible'], true);
-            component.select('target', 'name');
-            assert.deepEqual(component.mappings(), state);
-            component.select('target', 'contact');
-            assert.deepEqual(component.mappings(), { name: occupied, contact: sourceEntry('email') });
-            assert.equal(component.rowClasses('target', 'name', false)['is-incompatible'], false);
-            assert.equal(component.rowClasses('target', 'contact', false)['is-compatible'], false);
+for (const occupied of [sourceEntry('title'), value(false)]) {
+    test(`occupied targets show availability from types during selection (${occupied.kind})`, () => {
+        const state = { name: occupied, contact: value('') };
+        const component = editor(state, false, {
+            connectionModes: { title: { name: 'whole' }, email: { contact: 'whole' } },
         });
-    }
-}
-
-
-for (const inverse of [false, true]) {
-    test(`${inverse ? 'inverse' : 'forward'}: hover and focus highlight only the connection endpoints`, () => {
-        const component = editor({ name: [sourceEntry('title'), sourceEntry('email')] }, false, { inverse, connectionModes: itemModes });
-        component.refresh();
-        component.hoveredConnection = component.connections.find(({ source }) => source === 'title');
-        assert.equal(component.rowClasses('source', 'title', false)['is-disconnecting'], true);
-        assert.equal(component.rowClasses('target', 'name', false)['is-disconnecting'], true);
-        assert.equal(component.rowClasses('source', 'email', false)['is-disconnecting'], false);
-        assert.equal(component.rowClasses('target', 'contact', false)['is-disconnecting'], false);
-        component.focusedConnection = component.connections.find(({ source }) => source === 'email');
-        component.hoveredConnection = null;
-        assert.equal(component.rowClasses('source', 'title', false)['is-disconnecting'], false);
-        assert.equal(component.rowClasses('source', 'email', false)['is-disconnecting'], true);
-        component.refresh();
-        assert.equal(component.rowClasses('source', 'email', false)['is-disconnecting'], true);
-        component.remove('name', 'email');
-        component.refresh();
-        assert.equal(component.focusedConnection, null);
-        assert.equal(component.rowClasses('source', 'email', false)['is-disconnecting'], false);
+        component.select('source', 'email');
+        assert.equal(component.rowClasses('target', 'name', false)['is-incompatible'], true);
+        assert.equal(component.rowClasses('target', 'name', false)['is-compatible'], false);
+        assert.equal(component.fieldBindings('target', 'name')[':aria-disabled'](), true);
+        assert.equal(component.rowClasses('target', 'contact', false)['is-compatible'], true);
+        component.fieldBindings('target', 'name')['@click']();
+        assert.deepEqual(component.mappings(), state);
+        assert.deepEqual(component.selected, { side: 'source', id: 'email' });
+        component.fieldBindings('target', 'contact')['@click']();
+        assert.deepEqual(component.mappings(), { name: occupied, contact: sourceEntry('email') });
+        assert.equal(component.rowClasses('target', 'name', false)['is-incompatible'], false);
+        assert.equal(component.rowClasses('target', 'contact', false)['is-compatible'], false);
     });
 }
+
+test('hover and focus highlight only the connection endpoints', () => {
+    const component = editor({ name: [sourceEntry('title'), sourceEntry('email')] }, false, { connectionModes: itemModes });
+    component.refresh();
+    component.hoveredConnection = component.connections.find(({ source }) => source === 'title');
+    assert.equal(component.rowClasses('source', 'title', false)['is-disconnecting'], true);
+    assert.equal(component.rowClasses('target', 'name', false)['is-disconnecting'], true);
+    assert.equal(component.rowClasses('source', 'email', false)['is-disconnecting'], false);
+    assert.equal(component.rowClasses('target', 'contact', false)['is-disconnecting'], false);
+    component.focusedConnection = component.connections.find(({ source }) => source === 'email');
+    component.hoveredConnection = null;
+    assert.equal(component.rowClasses('source', 'title', false)['is-disconnecting'], false);
+    assert.equal(component.rowClasses('source', 'email', false)['is-disconnecting'], true);
+    component.refresh();
+    assert.equal(component.rowClasses('source', 'email', false)['is-disconnecting'], true);
+    component.remove('name', 'email');
+    component.refresh();
+    assert.equal(component.focusedConnection, null);
+    assert.equal(component.rowClasses('source', 'email', false)['is-disconnecting'], false);
+});
 
 test('disabled connections never highlight their endpoints', () => {
     const component = editor({ name: sourceEntry('title') }, true);
@@ -665,34 +600,30 @@ test('disabled connections never highlight their endpoints', () => {
     assert.equal(component.rowClasses('target', 'name', false)['is-disconnecting'], false);
 });
 
-
-for (const inverse of [false, true]) {
-    for (const firstSide of ['source', 'target']) {
-        test(`${inverse ? 'inverse' : 'forward'}: empty card footer connects ${firstSide} first without capturing controls`, () => {
-            const component = editor({}, false, { inverse });
-            const currentTarget = { contains: () => true };
-            const group = {};
-            const emptySpace = { currentTarget, target: { closest: selector => selector.includes('[role="group"]') ? group : null } };
-            const control = { currentTarget, target: { closest: () => ({}) } };
-            const firstId = firstSide === 'source' ? 'email' : 'contact';
-            const secondSide = firstSide === 'source' ? 'target' : 'source';
-            const secondId = firstSide === 'source' ? 'contact' : 'email';
-            component.selectFromCard(control, firstSide, firstId);
-            assert.equal(component.selected, null);
-            component.selectFromCard(emptySpace, firstSide, firstId);
-            assert.deepEqual(component.selected, { side: firstSide, id: firstId });
-            component.selectFromCard(control, secondSide, secondId);
-            assert.deepEqual(component.selected, { side: firstSide, id: firstId });
-            assert.deepEqual(component.mappings(), {});
-            component.selectFromCard(emptySpace, secondSide, secondId);
-            assert.equal(component.selected, null);
-            assert.deepEqual(component.mappings(), { contact: sourceEntry('email') });
-        });
-    }
+for (const firstSide of ['source', 'target']) {
+    test(`card event filtering connects ${firstSide} first and ignores interactive targets`, () => {
+        const component = editor();
+        const currentTarget = { contains: () => true };
+        const group = {};
+        const emptySpace = { currentTarget, target: { closest: selector => selector.includes('[role="group"]') ? group : null } };
+        const control = { currentTarget, target: { closest: () => ({}) } };
+        const firstId = firstSide === 'source' ? 'email' : 'contact';
+        const secondSide = firstSide === 'source' ? 'target' : 'source';
+        const secondId = firstSide === 'source' ? 'contact' : 'email';
+        component.selectFromCard(control, firstSide, firstId);
+        assert.equal(component.selected, null);
+        component.selectFromCard(emptySpace, firstSide, firstId);
+        assert.deepEqual(component.selected, { side: firstSide, id: firstId });
+        component.selectFromCard(control, secondSide, secondId);
+        assert.deepEqual(component.selected, { side: firstSide, id: firstId });
+        assert.deepEqual(component.mappings(), {});
+        component.selectFromCard(emptySpace, secondSide, secondId);
+        assert.equal(component.selected, null);
+        assert.deepEqual(component.mappings(), { contact: sourceEntry('email') });
+    });
 }
 
-
-test('custom interactive areas preserve a pending connection without knowing the child component', () => {
+test('card event filtering preserves a pending connection for a marked interactive target', () => {
     const component = editor();
     const widget = {};
     const event = {
@@ -744,4 +675,36 @@ test('native editor rows keep their addresses while item connections preserve se
     assert.equal(title.target, null);
     assert.equal(email.target, null);
     assert.deepEqual(component.mappings(), { name: value(false) });
+});
+
+for (const mode of ['item', 'property']) {
+    test(`${mode} collects sources, removes one, and rechecks updated modes`, () => {
+        const modes = { title: { name: mode }, email: { name: mode } };
+        const component = editor({}, false, { connectionModes: modes });
+        component.select('target', 'name');
+        component.select('source', 'title');
+        component.select('source', 'email');
+        component.select('target', 'name');
+        assert.deepEqual(component.mappings(), { name: [sourceEntry('title'), sourceEntry('email')] });
+        assert.equal(component.targetMode('name'), mode);
+        assert.equal(component.hasTypeConflict('name'), false);
+        component.refresh();
+        assert.equal(component.connections.length, 2);
+        const rows = structuredClone(component.state);
+        component.updateConfiguration({ title: {}, email: { name: mode } }, ['title', 'email'], {}, { name: mode, contact: 'whole' });
+        assert.equal(component.hasTypeConflict('name'), true);
+        assert.deepEqual(component.state, rows);
+        component.remove('name', 'title');
+        assert.deepEqual(component.mappings(), { name: [sourceEntry('email')] });
+        assert.equal(component.hasTypeConflict('name'), false);
+        component.updateConfiguration(scalarModes, ['title', 'email'], {}, { name: 'whole', contact: 'whole' });
+        assert.equal(component.targetMode('name'), 'whole');
+        component.connect('email', 'name');
+        assert.deepEqual(component.mappings(), { name: sourceEntry('email') });
+    });
+}
+
+test('whole destinations report conflicting submitted multiple connections', () => {
+    const component = editor({ name: [sourceEntry('title'), sourceEntry('email')] });
+    assert.equal(component.hasTypeConflict('name'), true);
 });

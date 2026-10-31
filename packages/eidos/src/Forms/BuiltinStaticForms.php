@@ -13,12 +13,14 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Illuminate\Translation\PotentiallyTranslatedString;
+use PHPinnacle\Eidos\JsonSchema\SchemaPresentation;
+use PHPinnacle\Jason\Schema;
 
 final class BuiltinStaticForms
 {
-    public static function make(JsonSchema $property, bool $required): ?Field
+    public static function make(Schema $property, bool $required): ?Field
     {
-        $definition = $property->toArray();
+        $definition = $property->keywords();
         $field = match ($property->singleType()) {
             'string' => self::string($property),
             'integer' => TextInput::make('value')
@@ -51,9 +53,9 @@ final class BuiltinStaticForms
             ->required($required && !in_array('null', $property->types(), true) && !$field instanceof Repeater);
     }
 
-    private static function array(JsonSchema $property): ?Repeater
+    private static function array(Schema $property): ?Repeater
     {
-        $items = $property->items();
+        $items = $property->arrayItems();
         $type = $items?->singleType();
         // shortcut: omit composite items and nullable arrays until Filament can hydrate them without changing values.
         if (
@@ -63,7 +65,7 @@ final class BuiltinStaticForms
             return null;
         }
 
-        $definition = $property->toArray();
+        $definition = $property->keywords();
         /** @var Field $item */
         $item = $type === 'boolean'
             ? Select::make('value')
@@ -83,21 +85,21 @@ final class BuiltinStaticForms
             );
     }
 
-    private static function string(JsonSchema $property): Field
+    private static function string(Schema $property): Field
     {
-        $definition = $property->toArray();
+        $definition = $property->keywords();
         if (array_key_exists('enum', $definition)) {
             $options = [];
             foreach ($definition['enum'] as $value) {
                 if (is_string($value)) {
-                    $options[$value] = $property->enumLabel($value) ?? $value;
+                    $options[$value] = SchemaPresentation::enumLabel($property, $value) ?? $value;
                 }
             }
 
             return Select::make('value')->options($options);
         }
 
-        $field = match ($property->format()) {
+        $field = match ($property->effectiveFormat()) {
             'text' => Textarea::make('value'),
             'uuid' => TextInput::make('value')->uuid(),
             'phone' => TextInput::make('value')->tel(),

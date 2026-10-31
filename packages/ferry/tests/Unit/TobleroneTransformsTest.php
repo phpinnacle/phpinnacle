@@ -1,18 +1,19 @@
 <?php
 
 use Filament\Forms\Components\KeyValue;
-use Filament\Schemas\Schema;
+use Filament\Schemas\Schema as FilamentSchema;
 use Illuminate\Validation\ValidationException;
-use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Ferry\Data\FieldMapping;
 use PHPinnacle\Ferry\Enums\FieldKind;
 use PHPinnacle\Ferry\Models\Replica;
 use PHPinnacle\Ferry\Origins\Kafka\TransformFactory;
+use PHPinnacle\Ferry\Services\ReplicaSchemaResolver;
 use PHPinnacle\Ferry\Tests\Fixtures\SchemaHost;
 use PHPinnacle\Ferry\Tests\Fixtures\StructureItems;
 use PHPinnacle\Ferry\Transformations\BooleanToString;
 use PHPinnacle\Ferry\Transformations\StringMap;
 use PHPinnacle\Ferry\Transformations\Toggle;
+use PHPinnacle\Jason\Schema;
 use Tests\TestCase;
 
 require_once __DIR__ . '/../Fixtures/SchemaHost.php';
@@ -22,7 +23,7 @@ uses(TestCase::class);
 
 it('offers Toblerone transforms only for their supported input types', function (array $input, array $accepted) {
     foreach ([BooleanToString::make(), StringMap::make(), Toggle::make()] as $transform) {
-        expect($transform->accepts(JsonSchema::fromArray($input)))
+        expect($transform->accepts(Schema::fromArray($input)))
             ->toBe(in_array($transform->getKey(), $accepted, true));
     }
 })->with([
@@ -38,26 +39,26 @@ it('offers Toblerone transforms only for their supported input types', function 
 
 it('maps boolean schemas to exact string enums including empty strings and null', function () {
     $transform = BooleanToString::make();
-    expect($transform->output(JsonSchema::fromArray(['type' => ['boolean', 'null']]), [
+    expect($transform->output(Schema::fromArray(['type' => ['boolean', 'null']]), [
         'true' => '',
         'false' => 'no',
     ])?->toArray())
         ->toBe(['type' => ['string', 'null'], 'enum' => ['', 'no', null], 'minLength' => 0, 'maxLength' => 2]);
-    expect($transform->output(JsonSchema::fromArray(['type' => 'boolean']), [
+    expect($transform->output(Schema::fromArray(['type' => 'boolean']), [
         'true' => 'same',
         'false' => 'same',
     ])?->toArray())
         ->toBe(['type' => 'string', 'enum' => ['same'], 'minLength' => 4, 'maxLength' => 4]);
-    expect($transform->output(JsonSchema::fromArray(['type' => 'boolean', 'enum' => [false]]), [
+    expect($transform->output(Schema::fromArray(['type' => 'boolean', 'enum' => [false]]), [
         'true' => 'yes',
         'false' => 'no',
     ])?->toArray())
         ->toBe(['type' => 'string', 'enum' => ['no'], 'minLength' => 2, 'maxLength' => 2]);
-    expect($transform->output(JsonSchema::fromArray(['type' => 'boolean']), []))->toBeNull();
+    expect($transform->output(Schema::fromArray(['type' => 'boolean']), []))->toBeNull();
 });
 
 it('inverts effective boolean enums and preserves nullability', function () {
-    $input = JsonSchema::fromArray([
+    $input = Schema::fromArray([
         'type' => ['boolean', 'null'],
         'allOf' => [
             ['enum' => [true, false, null]],
@@ -70,17 +71,16 @@ it('inverts effective boolean enums and preserves nullability', function () {
     ]);
     expect(
         Toggle::make()
-            ->output(JsonSchema::fromArray(['type' => 'boolean']), [])
+            ->output(Schema::fromArray(['type' => 'boolean']), [])
             ->toArray(),
     )->toBe(['type' => 'boolean']);
 });
 
 it('projects exact one-pass string replacements and discards obsolete string constraints', function () {
-    $input = JsonSchema::fromArray([
+    $input = Schema::fromArray([
         'type' => ['string', 'null'],
-        'format' => 'email',
-        'maxLength' => 4,
-        'pattern' => '^draft$',
+        'maxLength' => 9,
+        'pattern' => '^[a-zA-Z]*$',
         'enum' => ['draft', 'published', 'unknown', 'Draft', '', null],
     ]);
     $params = ['mapping' => ['draft' => 'published', 'published' => '', '' => 'empty']];
@@ -92,15 +92,32 @@ it('projects exact one-pass string replacements and discards obsolete string con
     ]);
     expect(
         StringMap::make()
-            ->output(JsonSchema::fromArray(['type' => 'string', 'maxLength' => 4]), $params)
+            ->output(Schema::fromArray(['type' => 'string', 'maxLength' => 4]), [
+                'mapping' => ['new' => 'published', 'done' => ''],
+            ])
             ?->toArray(),
     )
         ->toBe(['type' => 'string', 'maxLength' => 9]);
     expect(StringMap::make()->output($input, []))->toBeNull();
 });
 
+it('drops the source format when mapping formatted strings to plain text', function () {
+    $input = Schema::fromArray(['type' => 'string', 'format' => 'email', 'enum' => ['user@example.com']]);
+
+    expect(
+        StringMap::make()
+            ->output($input, ['mapping' => ['user@example.com' => 'ready']])
+            ->toArray(),
+    )->toBe([
+        'type' => 'string',
+        'enum' => ['ready'],
+        'minLength' => 5,
+        'maxLength' => 5,
+    ]);
+});
+
 it('preserves empty and whitespace boolean labels through native forms', function () {
-    $schema = Schema::make(SchemaHost::make())
+    $schema = FilamentSchema::make(SchemaHost::make())
         ->statePath('data')
         ->components(SchemaHost::transformSchema(BooleanToString::make()));
     $schema->fill(['true' => '', 'false' => '   ']);
@@ -110,7 +127,7 @@ it('preserves empty and whitespace boolean labels through native forms', functio
 });
 
 it('edits the replacement dictionary using native KeyValue while preserving exact text', function () {
-    $schema = Schema::make(SchemaHost::make())
+    $schema = FilamentSchema::make(SchemaHost::make())
         ->statePath('data')
         ->components(SchemaHost::transformSchema(StringMap::make()));
     expect($schema->getComponent('mapping'))->toBeInstanceOf(KeyValue::class);
@@ -120,7 +137,7 @@ it('edits the replacement dictionary using native KeyValue while preserving exac
 });
 
 it('validates replacement dictionary values at the native form boundary', function (array $mapping) {
-    $schema = Schema::make(SchemaHost::make())
+    $schema = FilamentSchema::make(SchemaHost::make())
         ->statePath('data')
         ->components(SchemaHost::transformSchema(StringMap::make()));
     $schema->fill(['mapping' => $mapping]);
@@ -133,7 +150,7 @@ it('validates replacement dictionary values at the native form boundary', functi
 ]);
 
 it('compiles the new Toblerone chain before renames without changing the key', function () {
-    $object = StructureItems::make(['fields' => ['active' => JsonSchema::fromArray(['type' => ['boolean', 'null']])]]);
+    $object = StructureItems::make(['fields' => ['active' => Schema::fromArray(['type' => ['boolean', 'null']])]]);
     $mapping = new FieldMapping('active', 'status', [
         'transforms' => [
             ['type' => 'toggle'],
@@ -142,7 +159,7 @@ it('compiles the new Toblerone chain before renames without changing the key', f
         ],
     ]);
     $replica = new Replica(['schema' => $object->schema, 'mapping' => [$mapping]]);
-    expect($replica->outputSchema($mapping)?->toArray())->toBe([
+    expect(app(ReplicaSchemaResolver::class)->outputSchema($replica, $mapping)?->toArray())->toBe([
         'type' => ['string', 'null'],
         'enum' => ['active', '', null],
         'minLength' => 0,
@@ -163,7 +180,7 @@ it('compiles the new Toblerone chain before renames without changing the key', f
     ]);
 });
 
-it('applies the Toblerone chain to constants after inserting their typed value', function () {
+it('applies the Toblerone chain to constants before renames after inserting their typed value', function () {
     $mapping = new FieldMapping(
         null,
         'status',
@@ -180,20 +197,20 @@ it('applies the Toblerone chain to constants after inserting their typed value',
     $object = StructureItems::make();
     $replica = new Replica(['schema' => $object->schema, 'mapping' => [$mapping]]);
 
-    expect($replica->outputSchema($mapping)?->toArray())->toBe([
+    expect(app(ReplicaSchemaResolver::class)->outputSchema($replica, $mapping)?->toArray())->toBe([
         'type' => 'string',
         'enum' => [''],
         'minLength' => 0,
         'maxLength' => 0,
     ]);
     expect(app(TransformFactory::class)->pipeline($replica, $object))->toMatchArray([
-        'transforms' => 'rename_values,field_0_0,field_0_0_cast,field_0_1,field_0_2,field_0_3',
-        'transforms.field_0_0.static.field' => 'status',
+        'transforms' => 'field_0_0,field_0_0_cast,field_0_1,field_0_2,field_0_3,rename_values',
+        'transforms.field_0_0.static.field' => '__ferry_static_0',
         'transforms.field_0_0.static.value' => 'true',
-        'transforms.field_0_0_cast.spec' => 'status:boolean',
-        'transforms.field_0_1.fields' => 'status',
-        'transforms.field_0_2.fields' => 'status',
-        'transforms.field_0_3.field' => 'status',
+        'transforms.field_0_0_cast.spec' => '__ferry_static_0:boolean',
+        'transforms.field_0_1.fields' => '__ferry_static_0',
+        'transforms.field_0_2.fields' => '__ferry_static_0',
+        'transforms.field_0_3.field' => '__ferry_static_0',
         'transforms.field_0_3.mapping.no' => '',
     ]);
 });

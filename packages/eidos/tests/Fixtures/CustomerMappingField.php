@@ -29,7 +29,13 @@ enum CustomerMappingField: string implements HasDescription, HasIcon, HasLabel
                 'type' => $field === self::Active ? 'boolean' : 'string',
             ];
         }
-        $properties['phone'] = [...$properties['phone'], 'type' => 'array', 'items' => ['type' => 'string']];
+
+        $properties['phone'] = [
+            ...$properties['phone'],
+            'type' => 'array',
+            'x-mapping' => 'item',
+            'items' => ['type' => 'string'],
+        ];
         $properties['external_id']['x-badges'] = [['label' => 'Unique', 'color' => 'success']];
 
         return ['type' => 'object', 'properties' => $properties, 'required' => ['name', 'email', 'external_id']];

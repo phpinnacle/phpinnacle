@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use PHPinnacle\Ferry\Contracts\Origin;
 use PHPinnacle\Ferry\Data\FieldMapping;
+use PHPinnacle\Ferry\Data\StructurePlan;
 use PHPinnacle\Ferry\Enums\ConnectorStatus;
 use PHPinnacle\Ferry\Enums\ReplicaStatus;
 use PHPinnacle\Ferry\Exceptions\ConnectorOperationFailed;
@@ -14,6 +15,7 @@ use PHPinnacle\Ferry\Jobs\Structure\FinishStructureJob;
 use PHPinnacle\Ferry\Jobs\Structure\PrepareStructureJob;
 use PHPinnacle\Ferry\Models\Connector;
 use PHPinnacle\Ferry\Models\Replica;
+use PHPinnacle\Ferry\Models\Structure;
 use PHPinnacle\Ferry\Models\Upstream;
 use PHPinnacle\Ferry\Services\ConnectorManager;
 use PHPinnacle\Ferry\Services\OriginFactory;
@@ -99,6 +101,50 @@ it('queues connector jobs only after the owner transaction commits', function (b
         ->not->toContain('secret');
 })->with(['commit' => true, 'rollback' => false]);
 
+it('queues one structure preparation after its run commits', function (
+    bool $commit,
+    bool $restart,
+    bool $separateConnection,
+) {
+    if ($separateConnection) {
+        config([
+            'phpinnacle-ferry.connection' => 'ferry-test',
+            'database.connections.ferry-test' => config('database.connections.sqlite'),
+        ]);
+        $migration = require __DIR__ . '/../../database/migrations/create_ferry_tables.php';
+        app(\Illuminate\Database\Migrations\Migrator::class)->usingConnection(
+            $migration->getConnection(),
+            $migration->up(...),
+        );
+    }
+
+    $upstream = $restart ? TestCase::makeUpstream() : null;
+    $previousRun = $upstream?->structure->run_id;
+    $database = new Structure()->getConnection();
+    Queue::fake()->except(PrepareStructureJob::class);
+    $database->beginTransaction();
+
+    if ($upstream === null) {
+        $upstream = TestCase::makeUpstream();
+    } else {
+        $upstream->structure->restart();
+    }
+
+    $structure = $upstream->structure;
+    $structure->save();
+    $structure->plan(new StructurePlan(1, []));
+    $structure->progressTo(1);
+    expect(DB::table('jobs')->count())->toBe(0);
+
+    $commit ? $database->commit() : $database->rollBack();
+
+    expect(DB::table('jobs')->count())->toBe($commit ? 1 : 0);
+    expect($upstream->fresh()?->structure->run_id)->toBe($commit ? $structure->run_id : $previousRun);
+})
+    ->with(['commit' => true, 'rollback' => false])
+    ->with(['creation' => false, 'restart' => true])
+    ->with(['shared database' => false, 'separate database' => true]);
+
 it('applies source before sinks and activates the replica after success', function () {
     $origin = app(OriginFactory::class)->create('kafka');
     $replica = TestCase::makeReplica();
@@ -127,6 +173,7 @@ it('starts new replicas, resumes paused replicas and retries failed connectors',
     if ($deployed) {
         ferry_drain_connectors();
     }
+
     $replica->refresh()->forceFill(['status' => $status])->saveQuietly();
     if ($connectorStatus !== null) {
         $replica->connector->recordStatus($connectorStatus);
@@ -204,6 +251,41 @@ it('uses current configuration when old jobs are still pending', function () {
         ->toBe($expected);
 });
 
+it('compiles both configurations before saving either connector', function () {
+    $replica = TestCase::makeReplica();
+    $source = $replica->upstream->connector;
+    $sink = $replica->connector;
+    $previousSource = $source->config;
+    $previousSink = $sink->config;
+    $previousJobs = DB::table('jobs')->count();
+    $origin = Mockery::mock(Origin::class);
+    $origin
+        ->shouldReceive('make')
+        ->once()
+        ->with($replica->upstream)
+        ->andReturn(
+            $source->fill(['config' => [...$previousSource, 'revision' => 'changed']]),
+        );
+    $origin
+        ->shouldReceive('make')
+        ->once()
+        ->with($replica)
+        ->andReturnUsing(function () use ($source, $previousSource) {
+            expect($source->fresh()->config)->toBe($previousSource);
+
+            throw new RuntimeException('Sink compilation failed');
+        });
+    ferry_use_origin($origin);
+
+    expect(fn () => $replica->update(['name' => 'Changed']))
+        ->toThrow(RuntimeException::class, 'Sink compilation failed');
+
+    expect($source->fresh()->config)->toBe($previousSource);
+    expect($sink->fresh()->config)->toBe($previousSink);
+    expect($replica->fresh()->name)->toBe('Test replica');
+    expect(DB::table('jobs')->count())->toBe($previousJobs);
+});
+
 it('keeps pending state and retries after an external failure', function () {
     $replica = TestCase::makeReplica();
     $sinkId = $replica->connector_id;
@@ -259,6 +341,15 @@ it('removes sinks before dropping tables and keeps sibling capture', function (b
     $upstream = $replica->upstream;
     $sibling = $keepSibling ? TestCase::makeReplica(['code' => 'sibling', 'upstream_id' => $upstream->id]) : null;
     ferry_drain_connectors();
+    $origin = Mockery::mock(FakeOrigin::class)->makePartial();
+    $origin
+        ->shouldReceive('remove')
+        ->once()
+        ->andReturnUsing(function (Connector $connector) use ($replica) {
+            expect($connector->id)->toBe($replica->connector_id);
+            expect(Schema::hasTable($replica->destination))->toBeTrue();
+        });
+    ferry_use_origin($origin);
     $replica->refresh()->delete();
     expect(Schema::hasTable($replica->destination))
         ->toBeTrue()

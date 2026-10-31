@@ -276,6 +276,7 @@ it('executes bePaid operations using persisted transaction identifiers', functio
             ),
         );
     }
+
     Http::assertSent(fn ($request) => ($request['request']['reason'] ?? null) === 'Returned item');
     expect($authorization->balanceImpact()->amount)
         ->toBe(0)

@@ -7,10 +7,11 @@ use Filament\Forms\Components\KeyValue;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Translation\PotentiallyTranslatedString;
-use PHPinnacle\Common\Forms\InlineBuilder\Block;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Common\Forms\InlineBuilder\Block as InlineBlock;
 use PHPinnacle\Ferry\Contracts\Transform;
+use PHPinnacle\Ferry\Enums\TransformScope;
 use PHPinnacle\Ferry\Enums\TransformTarget;
+use PHPinnacle\Jason\Schema;
 
 final class StringMap implements Transform
 {
@@ -24,22 +25,32 @@ final class StringMap implements Transform
         return 'string_map';
     }
 
+    public function getScope(): TransformScope
+    {
+        return TransformScope::Field;
+    }
+
+    public function sourceFields(array $params): array
+    {
+        return [];
+    }
+
     public function getTarget(): TransformTarget
     {
         return TransformTarget::Value;
     }
 
-    public function accepts(JsonSchema $input): bool
+    public function accepts(Schema $input): bool
     {
         return (
             $input->singleType() === 'string'
-            && !in_array($input->format(), ['date', 'time', 'date-time'], true)
+            && !in_array($input->effectiveFormat(), ['date', 'time', 'date-time'], true)
             && $input->annotation('x-ferry-reference') !== true
         );
     }
 
     /** @param array{mapping?: array<array-key, string>} $params */
-    public function output(JsonSchema $input, array $params): ?JsonSchema
+    public function output(Schema $input, array $params): ?Schema
     {
         if (($params['mapping'] ?? []) === []) {
             return null;
@@ -56,6 +67,7 @@ final class StringMap implements Transform
                     $schema['enum'][] = $output;
                 }
             }
+
             $lengths = array_map(
                 mb_strlen(...),
                 array_filter($schema['enum'], static fn (?string $value) => $value !== null),
@@ -64,26 +76,29 @@ final class StringMap implements Transform
                 $schema['minLength'] = min($lengths);
                 $schema['maxLength'] = max($lengths);
             }
-        } elseif ($input->maxLength() !== null) {
-            $schema['maxLength'] = max($input->maxLength(), max(array_map(mb_strlen(...), $params['mapping'])));
+        } elseif ($input->effectiveMaxLength() !== null) {
+            $schema['maxLength'] = max(
+                $input->effectiveMaxLength(),
+                max(array_map(mb_strlen(...), $params['mapping'])),
+            );
         }
 
-        return JsonSchema::fromArray($schema);
+        return Schema::fromArray($schema);
     }
 
-    public function block(): Block
+    public function block(): InlineBlock
     {
-        return Block::make($this->getKey())
+        return InlineBlock::make($this->getKey())
             ->color('info')
-            ->label(fn () => __('phpinnacle-ferry::resources.transform.string_map'))
-            ->description(fn () => __('phpinnacle-ferry::resources.transform.string_map_description'))
+            ->label(fn () => __('phpinnacle-ferry::transforms.string_map'))
+            ->description(fn () => __('phpinnacle-ferry::transforms.string_map_description'))
             ->icon(Heroicon::ArrowsRightLeft)
             ->schema(fn () => [
                 KeyValue::make('mapping')
-                    ->label(__('phpinnacle-ferry::resources.transform.string_map_mapping'))
-                    ->keyLabel(__('phpinnacle-ferry::resources.transform.string_map_source'))
-                    ->valueLabel(__('phpinnacle-ferry::resources.transform.string_map_replacement'))
-                    ->helperText(__('phpinnacle-ferry::resources.transform.string_map_help'))
+                    ->label(__('phpinnacle-ferry::transforms.string_map_mapping'))
+                    ->keyLabel(__('phpinnacle-ferry::transforms.string_map_source'))
+                    ->valueLabel(__('phpinnacle-ferry::transforms.string_map_replacement'))
+                    ->helperText(__('phpinnacle-ferry::transforms.string_map_help'))
                     ->required()
                     ->rules(fn (Get $get) => [
                         'array',
@@ -103,12 +118,14 @@ final class StringMap implements Transform
             ]);
     }
 
-    /** @param array{mapping: array<array-key, string>} $params */
-    public function connector(string $field, array $params): array
+    /**
+     * @param array{field: string, mapping: array<array-key, string>} $params
+     */
+    public function connector(array $params): array
     {
         $config = [
             'type' => 'org.phpinnacle.toblerone.StringMapTransform$Value',
-            'field' => $field,
+            'field' => $params['field'],
         ];
         foreach ($params['mapping'] as $source => $replacement) {
             $config['mapping.' . $source] = $replacement;

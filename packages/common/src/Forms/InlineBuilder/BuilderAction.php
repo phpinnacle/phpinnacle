@@ -85,6 +85,7 @@ class BuilderAction
                         ],
                     ])->validate();
                 }
+
                 /** @var array{data?: array<string, mixed>} $data */
                 $settings = self::apply($component, $arguments, $data, $available);
                 $component->state($settings);
@@ -92,6 +93,7 @@ class BuilderAction
                     $index = self::position($settings, $arguments) ?? array_key_last($settings);
                     $component->getItemSchema($settings[$index]['type'], $index)->fill($data['data'] ?? []);
                 }
+
                 $component->callAfterStateUpdated();
             });
     }

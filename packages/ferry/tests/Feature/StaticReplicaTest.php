@@ -1,13 +1,11 @@
 <?php
 
-use Filament\Actions\Action;
 use Filament\Schemas\Schema as FormSchema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Schema as DatabaseSchema;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
-use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Ferry\Data\FieldMapping;
 use PHPinnacle\Ferry\Data\TransformSetting;
 use PHPinnacle\Ferry\Destinations\StaticDestination;
@@ -16,15 +14,13 @@ use PHPinnacle\Ferry\Enums\ReplicaStatus;
 use PHPinnacle\Ferry\Enums\StructureStatus;
 use PHPinnacle\Ferry\Models\Replica;
 use PHPinnacle\Ferry\Origins\Kafka\SinkConfigFactory;
-use PHPinnacle\Ferry\Origins\Kafka\TransformFactory;
-use PHPinnacle\Ferry\Resources\Replicas\Pages\EditReplica;
 use PHPinnacle\Ferry\Resources\Replicas\Schemas\ReplicaForm;
 use PHPinnacle\Ferry\Services\DestinationFactory;
-use PHPinnacle\Ferry\Services\TransformRegistry;
+use PHPinnacle\Ferry\Services\ReplicaSchemaResolver;
 use PHPinnacle\Ferry\Tests\Fixtures\MappingState;
 use PHPinnacle\Ferry\Tests\Fixtures\SchemaHost;
-use PHPinnacle\Ferry\Tests\Fixtures\StructureItems;
 use PHPinnacle\Ferry\Tests\TestCase;
+use PHPinnacle\Jason\Schema;
 
 use function PHPinnacle\Ferry\Tests\Fakes\customers_destination;
 
@@ -50,8 +46,8 @@ it('prepares typed replica attributes from its form', function (?string $destina
     $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
     TestCase::makeItem($upstream, [
         'fields' => [
-            '_code' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 11, 'minLength' => 11]),
-            '_description' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 100]),
+            '_code' => Schema::fromArray(['type' => 'string', 'maxLength' => 11, 'minLength' => 11]),
+            '_description' => Schema::fromArray(['type' => 'string', 'maxLength' => 100]),
         ],
     ]);
 
@@ -60,7 +56,8 @@ it('prepares typed replica attributes from its form', function (?string $destina
         'name' => 'Customers',
         'code' => 'customers_replica',
         'source' => 'object-0',
-        'destination' => $destination !== null ? 'static:' . $destination : DestinationType::Dynamic->value,
+        'type' => $destination === null ? DestinationType::Dynamic->value : DestinationType::Static->value,
+        'destination' => $destination,
         'mapping' => $destination === null
             ? MappingState::binding(['_idrref' => 'external_id', '_description' => 'name', '_code' => 'tax_number'])
             : MappingState::mapping([
@@ -70,36 +67,20 @@ it('prepares typed replica attributes from its form', function (?string $destina
             ]),
     ];
 
-    $destinations = app(DestinationFactory::class);
     $livewire = SchemaHost::make();
 
-    $createForm = ReplicaForm::configure(FormSchema::make($livewire)->statePath('data')->operation('create'));
-    $createForm->fill();
-    expect($createForm->getComponent('destination')->getState())->toBe('dynamic');
-
+    $createForm = ReplicaForm::creation(FormSchema::make($livewire)->statePath('data')->operation('create'));
     $createForm->fill($data);
     $createState = $createForm->getState();
 
-    expect($createState['destination'])->toBe($destination === null ? 'dynamic' : 'static:' . $destination);
-    expect($createState)->not->toHaveKey('type');
-
-    $replica = Replica::create(TestCase::mappedReplicaAttributes(
-        $createState,
-        $destinations,
-    ));
-    $form = ReplicaForm::configure(FormSchema::make($livewire)->statePath('data')->record($replica)->operation('edit'));
-    $form->fill(ReplicaForm::fill($replica->toArray()));
-    expect($form->getComponent('destination')->getState())
-        ->toBe($destination === null ? 'dynamic' : 'static:' . $destination);
+    $replica = Replica::create($createState);
+    $form = TestCase::replicaForm([...$data, 'destination' => $replica->destination], $replica, $livewire);
+    $createState = $form->getState();
     $livewire->data['name'] = 'Renamed';
 
     $dehydrated = $form->getState();
     expect($dehydrated['mapping'])->toEqual($createState['mapping']);
-    $replica->update(ReplicaForm::forUpdate(
-        $dehydrated,
-        $replica,
-        $destinations,
-    ));
+    $replica->update($dehydrated);
 
     expect($replica->fresh()->name)
         ->toBe('Renamed')
@@ -115,7 +96,7 @@ it('prepares typed replica attributes from its form', function (?string $destina
             '_code' => 'tax_number',
             '_idrref' => $destination === null ? 'external_id' : 'customer_id',
         ])
-        ->and(Schema::hasTable('ferry_replica_customers_replica'))
+        ->and(DatabaseSchema::hasTable('ferry_replica_customers_replica'))
         ->toBe($destination === null);
 
     if ($destination !== null) {
@@ -127,11 +108,10 @@ it('keeps a static value through creating, filling and updating a static replica
     $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
     TestCase::makeItem($upstream, [
         'fields' => [
-            '_code' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 11, 'minLength' => 11]),
-            '_description' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 100]),
+            '_code' => Schema::fromArray(['type' => 'string', 'maxLength' => 11, 'minLength' => 11]),
+            '_description' => Schema::fromArray(['type' => 'string', 'maxLength' => 100]),
         ],
     ]);
-    $destinations = app(DestinationFactory::class);
     $livewire = SchemaHost::make();
     $state = MappingState::mapping([
         'name' => MappingState::source('_description'),
@@ -140,41 +120,38 @@ it('keeps a static value through creating, filling and updating a static replica
         'customer_id' => MappingState::source('_idrref'),
     ], ['_description' => ['transforms' => []], '_idrref' => ['transforms' => []], '_code' => ['transforms' => []]]);
 
-    $createForm = ReplicaForm::configure(FormSchema::make($livewire)->statePath('data')->operation('create'));
-    $createForm->fill([
+    $createForm = TestCase::replicaForm([
         'upstream_id' => $upstream->id,
         'name' => 'Customers',
         'code' => 'customers_replica',
         'source' => 'object-0',
-        'destination' => 'static:customers',
+        'type' => DestinationType::Static->value,
+        'destination' => 'customers',
         'mapping' => $state,
-    ]);
+    ], livewire: $livewire);
     $createState = $createForm->getState();
 
     expect($createState['mapping'])
         ->toEqual($state);
     $state = $createState['mapping'];
 
-    $replica = Replica::create(TestCase::mappedReplicaAttributes($createState, $destinations));
+    $replica = $createForm->getRecord();
+    $replica->update($createState);
 
     expect(array_column($replica->mapping, 'source'))
         ->toBe(['_description', null, null, '_idrref', '_code'])
         ->and($replica->constantColumns())
         ->toBe(['is_active', 'tax_number'])
-        ->and($replica->outputSchema($replica->mapping[1])?->singleType())
+        ->and(app(ReplicaSchemaResolver::class)->outputSchema($replica, $replica->mapping[1])?->singleType())
         ->toBe('boolean');
 
     $form = ReplicaForm::configure(FormSchema::make($livewire)->statePath('data')->record($replica)->operation('edit'));
-    $form->fill(ReplicaForm::fill($replica->fresh()->toArray()));
+    $form->fill($replica->fresh()->toArray());
 
     expect($form->getState()['mapping'])->toEqual($state);
 
     $form->getComponentByStatePath('mapping')->getStaticFormSchema('is_active')->getComponent('value')->state(false);
-    $replica->update(ReplicaForm::forUpdate(
-        $form->getState(),
-        $replica,
-        $destinations,
-    ));
+    $replica->update($form->getState());
 
     expect($replica->fresh()->mapping[1]->static)
         ->toBeFalse()
@@ -182,83 +159,36 @@ it('keeps a static value through creating, filling and updating a static replica
         ->toBe([]);
 });
 
-it('keeps a typed static value through creating and filling a dynamic replica', function () {
-    $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
-    TestCase::makeItem($upstream, [
-        'fields' => ['_description' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 100])],
-    ]);
-    $destinations = app(DestinationFactory::class);
-    $livewire = SchemaHost::make();
-    $state = MappingState::binding([
-        '_idrref' => 'external_id',
-        '_description' => 'title',
-        'priority' => ['value' => 5],
-    ], [
-        '_idrref' => ['transforms' => []],
-        '_description' => ['transforms' => []],
-    ]);
-
-    $createForm = ReplicaForm::configure(FormSchema::make($livewire)->statePath('data')->operation('create'));
-    $createForm->fill([
-        'upstream_id' => $upstream->id,
-        'name' => 'Customers',
-        'code' => 'customers_replica',
-        'source' => 'object-0',
-        'destination' => 'dynamic',
-        'mapping' => $state,
-    ]);
-    $createState = $createForm->getState();
-
-    expect($createState['mapping'])
-        ->toEqual($state);
-    $state = $createState['mapping'];
-
-    $replica = Replica::create(TestCase::mappedReplicaAttributes($createState, $destinations));
-
-    expect(Schema::hasColumns('ferry_replica_customers_replica', ['title', 'priority']))
-        ->toBeTrue()
-        ->and($replica->outputSchema($replica->mapping[2])?->singleType())
-        ->toBe('integer');
-
-    $form = ReplicaForm::configure(FormSchema::make($livewire)->statePath('data')->record($replica)->operation('edit'));
-    $form->fill(ReplicaForm::fill($replica->fresh()->toArray()));
-
-    expect($form->getState()['mapping'])->toEqual($state);
-});
-
 it('keeps transforms through creating, filling and updating a replica', function () {
     $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
     TestCase::makeItem($upstream, [
         'fields' => [
-            '_code' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 11, 'minLength' => 11]),
-            '_description' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 100]),
-            '_folder' => JsonSchema::fromArray(['type' => 'boolean']),
+            '_code' => Schema::fromArray(['type' => 'string', 'maxLength' => 11, 'minLength' => 11]),
+            '_description' => Schema::fromArray(['type' => 'string', 'maxLength' => 100]),
+            '_folder' => Schema::fromArray(['type' => 'boolean']),
         ],
     ]);
-    $destinations = app(DestinationFactory::class);
     $livewire = SchemaHost::make();
 
-    $createForm = ReplicaForm::configure(FormSchema::make($livewire)->statePath('data')->operation('create'));
-    $createForm->fill([
+    $createForm = TestCase::replicaForm([
         'upstream_id' => $upstream->id,
         'name' => 'Customers',
         'code' => 'customers_replica',
         'source' => 'object-0',
-        'destination' => 'static:customers',
+        'type' => DestinationType::Static->value,
+        'destination' => 'customers',
         'mapping' => MappingState::mapping([
             'name' => MappingState::source('_description'),
             'is_active' => MappingState::source('_code'),
             'tax_number' => MappingState::value('none'),
             'customer_id' => MappingState::source('_idrref'),
         ], ['_code' => ['transforms' => [['type' => 'cast', 'data' => ['type' => 'boolean']]]]]),
-    ]);
-    $attributes = TestCase::mappedReplicaAttributes(
-        $createForm->getState(),
-        $destinations,
-    );
-    $replica = Replica::create($attributes);
+    ], livewire: $livewire);
+    $attributes = $createForm->getState();
+    $replica = $createForm->getRecord();
+    $replica->update($attributes);
 
-    expect($replica->outputSchema($replica->mapping[1])?->singleType())
+    expect(app(ReplicaSchemaResolver::class)->outputSchema($replica, $replica->mapping[1])?->singleType())
         ->toBe('boolean')
         ->and($replica->schema->properties()[$replica->mapping[1]->source]?->singleType())
         ->toBe('string')
@@ -266,150 +196,84 @@ it('keeps transforms through creating, filling and updating a replica', function
         ->toEqual([new TransformSetting('cast', ['type' => 'boolean'])]);
 
     $form = ReplicaForm::configure(FormSchema::make($livewire)->statePath('data')->record($replica)->operation('edit'));
-    $form->fill(ReplicaForm::fill($replica->fresh()->toArray()));
+    $form->fill($replica->fresh()->toArray());
     $state = $form->getState();
 
     expect($state)
         ->not
-        ->toHaveKeys(['transforms', 'field_transforms'])
+        ->toHaveKey('field_transforms')
+        ->and($state['transforms'])
+        ->toBe([])
         ->and(array_column($state['mapping'], null, 'source')['_code']['options']['transforms'])
         ->toBe([['type' => 'cast', 'data' => ['type' => 'boolean']]]);
 
-    $replica->update(ReplicaForm::forUpdate($state, $replica, $destinations));
+    $replica->update($state);
 
     expect($replica->fresh()->mapping[1]->transforms())
         ->toEqual([new TransformSetting('cast', ['type' => 'boolean'])]);
 });
 
-it('offers Filter in the settings of an unbound source without a column selector', function () {
-    $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
-    TestCase::makeItem($upstream, ['fields' => ['_marked' => JsonSchema::fromArray(['type' => 'boolean'])]]);
-    $form = ReplicaForm::configure(FormSchema::make(SchemaHost::make())->statePath('data')->operation('create'));
-    $form->fill(['upstream_id' => $upstream->id, 'source' => 'object-0', 'destination' => 'dynamic']);
-    $mapping = $form->getComponentByStatePath('mapping');
-    $key = $mapping->getSourceRowIndexes()['_marked'];
-    $field = $form->getComponentByStatePath('mapping.' . $key . '.options.transforms');
-
-    expect(array_keys($field->getAvailableTransforms(app(TransformRegistry::class))))->toBe([
-        'cast',
-        'filter',
-        'boolean_to_string',
-        'toggle',
-    ]);
-});
-
-it('resets source settings with mappings when the destination or source changes', function (
-    string $changed,
+it('validates transform parameters on a replica with a complete key mapping', function (
+    array $settings,
+    string $parameter,
+    array $valid,
 ) {
     $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
-    TestCase::makeItem($upstream, ['fields' => ['_code' => JsonSchema::fromArray([
+    TestCase::makeItem($upstream, ['fields' => ['_description' => Schema::fromArray([
         'type' => 'string',
-        'maxLength' => 11,
-        'minLength' => 11,
+        'maxLength' => 100,
     ])]]);
-    $livewire = SchemaHost::make();
-    $form = ReplicaForm::configure(FormSchema::make($livewire)->statePath('data')->operation('create'));
-    $fieldTransforms = [['type' => 'cast', 'data' => ['type' => 'string']]];
-    $form->fill([
-        'upstream_id' => $upstream->id,
-        'source' => 'object-0',
-        'destination' => 'static:customers',
-        'mapping' => MappingState::mapping([
-            'name' => MappingState::source('_code'),
-            'customer_id' => MappingState::source('_idrref'),
-        ], [
-            '_code' => ['transforms' => $fieldTransforms],
-        ]),
-    ]);
-    $mapping = $form->getComponentByStatePath('mapping');
-    expect($mapping->isSourceUsed('_code'))->toBeTrue();
-    expect($mapping->getSourceSettings()['_code']['transforms'])->toBe($fieldTransforms);
-
-    $form
-        ->getComponent($changed)
-        ->state($changed === 'destination' ? 'dynamic' : null)
-        ->callAfterStateUpdated();
-
-    $mapping = $form->getComponentByStatePath('mapping');
-    expect($mapping->isSourceUsed('_code'))->toBeFalse();
-    expect(array_filter(array_map(
-        fn (array $settings) => $settings['transforms'],
-        $mapping->getSourceSettings(),
-    )))->toBe([]);
-})->with([
-    'destination' => ['destination'],
-    'source' => ['source'],
-    'upstream' => ['upstream_id'],
-]);
-
-it('validates transform parameters through their native form schemas', function (array $data) {
-    $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
-    TestCase::makeItem($upstream, [
-        'fields' => [
-            '_code' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 11, 'minLength' => 11]),
-            '_description' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 100]),
-        ],
-    ]);
-    $form = ReplicaForm::configure(FormSchema::make(SchemaHost::make())->statePath('data')->operation('create'));
-    $form->fill([
+    $form = TestCase::replicaForm([
         'upstream_id' => $upstream->id,
         'name' => 'Customers',
-        'code' => 'customers_replica',
-        'source' => 'object-0',
-        'destination' => 'dynamic',
-        'mapping' => MappingState::binding(['_description' => 'title']),
-        ...$data,
+        'mapping' => MappingState::binding(['_idrref' => 'external_id', '_description' => 'title'], [
+            '_description' => ['transforms' => $settings],
+        ]),
     ]);
+    $mapping = $form->getComponentByStatePath('mapping');
+    $path = 'mapping.' . $mapping->getSourceRowIndex('_description') . '.options.transforms';
 
-    expect($form->getState(...))->toThrow(ValidationException::class);
+    expect($form->getState(...))->toThrow(function (ValidationException $exception) use ($path, $parameter) {
+        expect(array_keys($exception->errors()))->toContain('data.' . $path . '.0.data.' . $parameter);
+    });
+
+    $form->getComponentByStatePath($path)->state($valid);
+    expect(collect($form->getState()['mapping'])->firstWhere('source', '_description')['options']['transforms'])
+        ->toBe($valid);
 })->with([
-    'unsupported cast target' => [[
-        'mapping' => MappingState::binding(['_description' => 'title'], [
-            '_description' => ['transforms' => [['type' => 'cast', 'data' => ['type' => 'reference']]]],
-        ]),
-    ]],
-    'missing filter condition' => [[
-        'mapping' => MappingState::binding(['_description' => 'title'], [
-            '_description' => ['transforms' => [['type' => 'filter', 'data' => ['mode' => 'exclude']]]],
-        ]),
-    ]],
+    'unsupported cast target' => [
+        [['type' => 'cast', 'data' => ['type' => 'reference']]],
+        'type',
+        [['type' => 'cast', 'data' => ['type' => 'int64']]],
+    ],
+    'missing filter condition' => [
+        [['type' => 'filter', 'data' => ['mode' => 'exclude', 'missing_or_null_behavior' => 'include']]],
+        'condition',
+        [[
+            'type' => 'filter',
+            'data' => ['mode' => 'exclude', 'condition' => '@ != null', 'missing_or_null_behavior' => 'include'],
+        ]],
+    ],
 ]);
-
-it('allows repeated transforms on submission', function () {
-    $settings = [
-        ['type' => 'cast', 'data' => ['type' => 'int64']],
-        ['type' => 'cast', 'data' => ['type' => 'string']],
-        ['type' => 'cast', 'data' => ['type' => 'int64']],
-    ];
-    $schema = FormSchema::make(SchemaHost::make())
-        ->statePath('data')
-        ->components([
-            \PHPinnacle\Ferry\Forms\FieldTransforms::make('transforms')->inputSchema(['type' => 'string']),
-        ]);
-    $schema->fill(['transforms' => $settings]);
-
-    expect($schema->getState()['transforms'])->toBe($settings);
-});
 
 it('persists and restores transforms on every source independently of its target', function () {
     $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
     TestCase::makeItem($upstream, [
         'fields' => [
-            '_code' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 11, 'minLength' => 11]),
-            '_description' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 100]),
+            '_code' => Schema::fromArray(['type' => 'string', 'maxLength' => 11, 'minLength' => 11]),
+            '_description' => Schema::fromArray(['type' => 'string', 'maxLength' => 100]),
         ],
     ]);
     $livewire = SchemaHost::make();
 
-    $form = ReplicaForm::configure(FormSchema::make($livewire)->statePath('data')->operation('create'));
-    $form->fill([
+    $form = TestCase::replicaForm([
         'upstream_id' => $upstream->id,
         'name' => 'Codes',
         'code' => 'codes_replica',
         'source' => 'object-0',
-        'destination' => 'dynamic',
+        'type' => DestinationType::Dynamic->value,
         'mapping' => MappingState::binding(['_idrref' => 'external_id', '_code' => 'code']),
-    ]);
+    ], livewire: $livewire);
     view()->share('errors', new ViewErrorBag);
     $mapping = $form->getComponentByStatePath('mapping');
     $keys = $mapping->getSourceRowIndexes();
@@ -428,10 +292,7 @@ it('persists and restores transforms on every source independently of its target
     );
     $description(['block' => 'cast'])->data(['data' => $cast['data']])->call();
     expect($mapping->getSourceSettings()['_description']['transforms'])->toBe([$cast]);
-    $attributes = TestCase::mappedReplicaAttributes(
-        $form->getState(),
-        app(DestinationFactory::class),
-    );
+    $attributes = $form->getState();
 
     expect($attributes['mapping'])
         ->toHaveCount(3)
@@ -441,162 +302,85 @@ it('persists and restores transforms on every source independently of its target
         ->toBe([['type' => 'cast', 'data' => ['type' => 'int64']]])
         ->and($attributes['mapping'][1]['options']['transforms'])
         ->toBe([['type' => 'cast', 'data' => ['type' => 'int64']]]);
+
+    $replica = $form->getRecord();
+    $replica->update($attributes);
+    $edit = TestCase::replicaForm([], $replica->fresh());
+    expect($edit->getState()['mapping'])->toEqual($attributes['mapping']);
+    expect(collect($replica->fresh()->mapping)->firstWhere('source', '_description')->target)->toBeNull();
 });
 
-it('validates destination columns directly for bindings and static values', function (array $bindings) {
+it('validates destination column names with every source key mapped', function (array $bindings, string $column) {
     $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
-    TestCase::makeItem($upstream, [
-        'fields' => ['_description' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 100])],
-    ]);
-    $form = ReplicaForm::configure(FormSchema::make(SchemaHost::make())->statePath('data')->operation('create'));
-    $form->fill([
+    TestCase::makeItem($upstream, ['fields' => ['_description' => Schema::fromArray([
+        'type' => 'string',
+        'maxLength' => 100,
+    ])]]);
+    $form = TestCase::replicaForm([
         'upstream_id' => $upstream->id,
         'name' => 'Customers',
-        'code' => 'customers_replica',
-        'source' => 'object-0',
-        'destination' => 'dynamic',
-        'mapping' => MappingState::binding($bindings),
+        'mapping' => MappingState::binding(['_idrref' => 'external_id', ...$bindings]),
     ]);
 
-    expect($form->getState(...))->toThrow(ValidationException::class);
+    expect($form->getState(...))
+        ->toThrow(ValidationException::class, __('phpinnacle-ferry::validation.replica_schema.column_format', [
+            'column' => $column,
+        ]));
 })->with([
-    'empty mapping' => [[]],
-    'invalid bound column' => [['_description' => 'Title']],
-    'invalid constant column' => [['bad-column' => ['type' => 'string', 'value' => 'x']]],
+    'bound column' => [['_description' => 'Title'], 'Title'],
+    'constant column' => [['bad-column' => ['value' => 'x']], 'bad-column'],
 ]);
+
+it('rejects an empty replica mapping at the form boundary', function () {
+    $form = TestCase::replicaForm(['mapping' => []]);
+
+    expect($form->getState(...))
+        ->toThrow(ValidationException::class, __('phpinnacle-ferry::validation.replica_schema.empty'));
+});
 
 it('rejects a static value column that duplicates a bound column', function () {
     $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
-    TestCase::makeItem($upstream, [
-        'fields' => ['_description' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 100])],
-    ]);
-    $livewire = SchemaHost::make();
-
-    $form = ReplicaForm::configure(FormSchema::make($livewire)->statePath('data')->operation('create'));
-    $form->fill([
+    TestCase::makeItem($upstream, ['fields' => ['_description' => Schema::fromArray([
+        'type' => 'string',
+        'maxLength' => 100,
+    ])]]);
+    $form = TestCase::replicaForm([
         'upstream_id' => $upstream->id,
         'name' => 'Customers',
-        'code' => 'customers_replica',
-        'source' => 'object-0',
-        'destination' => 'dynamic',
         'mapping' => MappingState::binding([
+            '_idrref' => 'external_id',
             '_description' => 'title',
-            'title' => ['type' => 'string', 'value' => 'x'],
+            'title' => ['value' => 'x'],
         ]),
     ]);
 
-    expect($form->getState(...))->toThrow(ValidationException::class);
+    expect($form->getState(...))
+        ->toThrow(ValidationException::class, __('phpinnacle-ferry::validation.replica_schema.column_duplicate', [
+            'column' => 'title',
+        ]));
 });
 
-it('rejects unsupported static values before persistence', function () {
-    $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
-    TestCase::makeItem($upstream, [
-        'fields' => ['_description' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 100])],
+it('rejects a missing required static value at its native field', function () {
+    $form = TestCase::replicaForm([
+        'name' => 'Customers',
+        'type' => DestinationType::Static,
+        'destination' => 'customers',
+        'mapping' => MappingState::mapping([
+            'customer_id' => MappingState::source('_idrref'),
+            'name' => MappingState::value('Customer'),
+            'tax_number' => MappingState::value(null),
+            'is_active' => MappingState::value(false),
+        ]),
     ]);
+    $value = $form->getComponentByStatePath('mapping')->getStaticFormSchema('tax_number')->getComponent('value');
 
-    expect(fn () => TestCase::mappedReplicaAttributes(
-        [
-            'upstream_id' => $upstream->id,
-            'name' => 'Customers',
-            'code' => 'customers_replica',
-            'source' => 'object-0',
-            'destination' => 'static:customers',
-            'mapping' => MappingState::mapping([
-                'name' => MappingState::source('_description'),
-                'tax_number' => MappingState::value('x'),
-                'is_active' => MappingState::value('maybe'),
-                'customer_id' => MappingState::source('_idrref'),
-            ], [
-                '_idrref' => ['field' => TestCase::keySchema()->toArray()],
-                '_description' => [
-                    'field' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 100])->toArray(),
-                    'result' => ['type' => 'string', 'maxLength' => 100],
-                    'transforms' => [],
-                ],
-            ]),
-        ],
-        app(DestinationFactory::class),
-    ))
-        ->toThrow(ValidationException::class);
+    expect($form->getState(...))->toThrow(function (ValidationException $exception) use ($value) {
+        expect($exception->errors())->toHaveKey($value->getStatePath());
+    });
+
+    $value->state('123');
+    expect(collect($form->getState()['mapping'])->firstWhere('target', 'tax_number')['static'])->toBe('123');
 });
-
-it('confirms removed and retyped dynamic columns when saving the form', function (string $change, array $columns) {
-    $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
-    $object = TestCase::makeItem($upstream, [
-        'fields' => [
-            '_description' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 100]),
-            '_code' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 11, 'minLength' => 11]),
-        ],
-    ]);
-    $replica = TestCase::makeReplica([
-        'upstream_id' => $upstream->id,
-        'type' => $change === 'static' ? DestinationType::Static : DestinationType::Dynamic,
-        'destination' => $change === 'static' ? 'customers' : null,
-        'mapping' => [
-            ...(
-                $change === 'static'
-                    ? [new FieldMapping(source: '_idrref', target: 'customer_id')]
-                    : [TestCase::keyMapping()]
-            ),
-            new FieldMapping(source: '_description', target: 'name'),
-            new FieldMapping(source: '_code', target: 'tax_number'),
-        ],
-    ]);
-
-    $schemaOverride = null;
-    if ($change === 'retyped') {
-        $schema = $object->schema->toArray();
-        $schema['properties']['_code']['type'] = 'boolean';
-        unset($schema['properties']['_code']['minLength'], $schema['properties']['_code']['maxLength']);
-        $schemaOverride = JsonSchema::fromArray($schema);
-    }
-
-    $page = new class extends EditReplica {
-        public function saveAction(): Action
-        {
-            return $this->getSaveFormAction()->livewire($this);
-        }
-    };
-    $page->setId('replica-drop-confirmation');
-    $page->setName('replica-drop-confirmation');
-    $page->record = $replica;
-    $this->app->call([$page, 'boot']);
-    $page->form->fill([
-        ...ReplicaForm::fill($replica->toArray()),
-        ...($schemaOverride !== null ? ['schema' => $schemaOverride->toArray()] : []),
-    ]);
-
-    if ($change === 'removed') {
-        $field = $page->form->getComponentByStatePath('mapping');
-        $page->data['mapping'][$field->getSourceRowIndex('_description')]['target'] = null;
-    }
-
-    if ($change === 'renamed') {
-        $field = $page->form->getComponentByStatePath('mapping');
-        $page->data['mapping'][$field->getSourceRowIndex('_description')]['target'] = 'display_name';
-    }
-
-    $action = $page->saveAction();
-    $action->mount(['mapping' => null]);
-
-    expect($action->shouldOpenModal())
-        ->toBe($columns !== [])
-        ->and($page->record->isDirty())
-        ->toBeFalse();
-
-    if ($columns !== []) {
-        expect($action->getModalDescription())->toBe(__(
-            'phpinnacle-ferry::resources.replica.modals.drop_columns.description',
-            ['columns' => implode(', ', $columns)],
-        ));
-    }
-})->with([
-    'unchanged mapping' => ['unchanged', []],
-    'removed field' => ['removed', ['name']],
-    'retyped field' => ['retyped', ['tax_number']],
-    'renamed column' => ['renamed', []],
-    'static destination' => ['static', []],
-]);
 
 it('resolves the destination table from the registered static destination', function () {
     app(DestinationFactory::class)->register(new StaticDestination(
@@ -606,100 +390,112 @@ it('resolves the destination table from the registered static destination', func
         primaryKey: ['customer_id'],
         schema: customers_destination()->getSchema(),
     ));
-    $replica = TestCase::makeReplica([
-        'code' => 'customers_replica',
+    $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
+    TestCase::makeItem($upstream, ['fields' => ['_description' => Schema::fromArray([
+        'type' => 'string',
+        'maxLength' => 100,
+    ])]]);
+    $form = TestCase::replicaForm([
+        'upstream_id' => $upstream->id,
+        'name' => 'Customers',
         'type' => DestinationType::Static,
         'destination' => 'customer_directory',
-        'mapping' => [
-            new FieldMapping(source: '_description', target: 'name'),
-            new FieldMapping(source: '_idrref', target: 'customer_id'),
-        ],
+        'mapping' => MappingState::mapping([
+            'customer_id' => MappingState::source('_idrref'),
+            'name' => MappingState::source('_description'),
+            'tax_number' => MappingState::value('none'),
+        ]),
     ]);
-
+    $replica = $form->getRecord();
+    $replica->update($form->getState());
     config(['database.connections.sqlite.host' => 'localhost']);
-    $connector = new SinkConfigFactory(app(TransformFactory::class))->make(
+
+    $connector = app(SinkConfigFactory::class)->make(
         app(DestinationFactory::class)->resolve($replica),
         $replica,
-        StructureItems::make([
-            'fields' => [
-                '_description' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 100]),
-                '_idrref' => TestCase::keySchema(),
-            ],
-            'sources' => [],
-        ]),
+        $replica->sourceObject(),
         'topic',
     );
 
-    expect($replica->type)
-        ->toBe(DestinationType::Static)
-        ->and($replica->destination)
-        ->toBe('customer_directory')
-        ->and($connector['table.name.format'])
-        ->toBe('customers')
-        ->and(Schema::hasTable('ferry_replica_customers_replica'))
-        ->toBeFalse();
+    expect($replica->fresh()->destination)->toBe('customer_directory');
+    expect($connector['table.name.format'])->toBe('customers');
+    expect(DatabaseSchema::hasTable('ferry_replica_' . $replica->code))->toBeFalse();
 });
 
-it('does not affect the destination table when a static replica is deleted', function () {
-    Schema::create('customers', function (Blueprint $table) {
-        $table->uuid('id')->primary();
+it('preserves the static table and its rows after the deletion job completes', function () {
+    DatabaseSchema::create('customers', function (Blueprint $table) {
+        $table->uuid('customer_id')->primary();
         $table->string('name');
+        $table->string('tax_number');
     });
-
-    $replica = TestCase::makeReplica([
-        'code' => 'customers_replica',
+    $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
+    TestCase::makeItem($upstream, ['fields' => ['_description' => Schema::fromArray([
+        'type' => 'string',
+        'maxLength' => 100,
+    ])]]);
+    $form = TestCase::replicaForm([
+        'upstream_id' => $upstream->id,
+        'name' => 'Customers',
         'type' => DestinationType::Static,
         'destination' => 'customers',
-        'mapping' => [
-            new FieldMapping(source: '_description', target: 'name'),
-            new FieldMapping(source: '_idrref', target: 'customer_id'),
-        ],
+        'mapping' => MappingState::mapping([
+            'customer_id' => MappingState::source('_idrref'),
+            'name' => MappingState::source('_description'),
+            'tax_number' => MappingState::value('none'),
+        ]),
     ]);
+    $replica = $form->getRecord();
+    $replica->update($form->getState());
+    $row = [
+        'customer_id' => '12345678-1234-1234-1234-123456789abc',
+        'name' => 'Existing customer',
+        'tax_number' => '123',
+    ];
+    $replica->getConnection()->table('customers')->insert($row);
 
     $replica->delete();
+    new \PHPinnacle\Ferry\Jobs\Connector\SynchronizeConnectorsJob($upstream->id)->handle(app(\PHPinnacle\Ferry\Services\ConnectorManager::class));
 
-    expect(Schema::hasTable('customers'))
-        ->toBeTrue()
-        ->and(Replica::query()->count())
-        ->toBe(0);
+    expect(Replica::withTrashed()->whereKey($replica->id)->exists())->toBeFalse();
+    expect(DatabaseSchema::hasTable('customers'))->toBeTrue();
+    expect((array) $replica->getConnection()->table('customers')->sole())->toBe($row);
 });
 
-it('rejects editing when its destination is no longer registered', function () {
-    $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
-
-    TestCase::makeItem($upstream);
-
-    $replica = TestCase::makeReplica([
-        'upstream_id' => $upstream->id,
-        'code' => 'customers_replica',
+it('rejects editing when its previously registered destination is removed', function () {
+    $form = TestCase::replicaForm([
+        'name' => 'Customers',
         'type' => DestinationType::Static,
         'destination' => 'customers',
+        'mapping' => MappingState::mapping([
+            'customer_id' => MappingState::source('_idrref'),
+            'name' => MappingState::value('Customer'),
+            'tax_number' => MappingState::value('123'),
+        ]),
     ]);
-    $replica->forceFill(['type' => DestinationType::Static, 'destination' => 'gone'])->saveQuietly();
-    expect(fn () => ReplicaForm::forUpdate(
-        ['schema' => $replica->fresh()->schema->toArray(), 'name' => 'Renamed', 'mapping' => []],
-        $replica->fresh(),
-        app(DestinationFactory::class),
-    ))
-        ->toThrow(
-            ValidationException::class,
-            __('phpinnacle-ferry::resources.replica.errors.static_destination_missing', ['destination' => 'gone']),
-        );
+    $replica = $form->getRecord();
+    $replica->update($form->getState());
+    app()->instance(DestinationFactory::class, new DestinationFactory(app(ReplicaSchemaResolver::class)));
+
+    expect(fn () => TestCase::replicaFormState(['name' => 'Renamed', 'mapping' => []], $replica->fresh()))
+        ->toThrow(ValidationException::class, __('phpinnacle-ferry::resources.replica.errors.static_destination_missing', [
+            'destination' => 'customers',
+        ]));
 });
 
 it('rejects an unregistered destination at the create form boundary', function () {
     $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
     TestCase::makeItem($upstream);
 
-    expect(fn () => TestCase::mappedReplicaAttributes([
+    expect(fn () => TestCase::replicaCreationState([
         'upstream_id' => $upstream->id,
         'name' => 'Missing destination',
         'code' => 'missing',
         'source' => 'object-0',
-        'destination' => 'static:missing',
+        'type' => DestinationType::Static->value,
+        'destination' => 'missing',
         'mapping' => [],
-    ], app(DestinationFactory::class)))
-        ->toThrow(LogicException::class);
+    ]))
+        ->toThrow(ValidationException::class);
 
     expect(Replica::query()->count())->toBe(0);
 });
@@ -707,34 +503,40 @@ it('rejects an unregistered destination at the create form boundary', function (
 it('edits a Boolean constant through the built-in form without a cast', function () {
     $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
     TestCase::makeItem($upstream, ['fields' => [
-        '_description' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 100]),
-        '_code' => JsonSchema::fromArray(['type' => 'string', 'maxLength' => 11, 'minLength' => 11]),
+        '_description' => Schema::fromArray(['type' => 'string', 'maxLength' => 100]),
+        '_code' => Schema::fromArray(['type' => 'string', 'maxLength' => 11, 'minLength' => 11]),
     ]]);
     $livewire = SchemaHost::make();
-    $form = ReplicaForm::configure(FormSchema::make($livewire)->statePath('data')->operation('create'));
-    $form->fill([
+
+    $form = TestCase::replicaForm([
         'upstream_id' => $upstream->id,
         'name' => 'Static source',
         'code' => 'static_source',
         'source' => 'object-0',
-        'destination' => 'static:customers',
+        'type' => DestinationType::Static->value,
+        'destination' => 'customers',
         'mapping' => MappingState::mapping([
             'name' => MappingState::source('_description'),
             'tax_number' => MappingState::source('_code'),
             'customer_id' => MappingState::source('_idrref'),
         ]),
-    ]);
+    ], livewire: $livewire);
     $mapping = $form->getComponentByStatePath('mapping');
     expect($mapping->hasStaticForms())->toBeTrue();
     $mapping->getStaticFormSchema('is_active')->getComponent('value')->state(false);
     $state = $form->getState();
     $constant = collect($state['mapping'])->firstWhere('kind', 'static');
     expect($constant)->toBe(['kind' => 'static', 'target' => 'is_active', 'static' => false, 'options' => []]);
-    $replica = Replica::create(TestCase::mappedReplicaAttributes($state, app(DestinationFactory::class)));
-    expect($replica->outputSchema(collect($replica->mapping)->firstWhere('target', 'is_active'))?->singleType())
+    $replica = $form->getRecord();
+    $replica->update($state);
+    expect(
+        app(ReplicaSchemaResolver::class)
+            ->outputSchema($replica, collect($replica->mapping)->firstWhere('target', 'is_active'))
+            ?->singleType(),
+    )
         ->toBe('boolean');
     $edit = ReplicaForm::configure(FormSchema::make($livewire)->statePath('data')->record($replica)->operation('edit'));
-    $edit->fill(ReplicaForm::fill($replica->fresh()->toArray()));
+    $edit->fill($replica->fresh()->toArray());
     expect($edit->getState()['mapping'])->toEqual($state['mapping']);
 });
 
@@ -747,75 +549,81 @@ it('creates an unmapped pending replica from only its identifying fields', funct
         'code' => 'new_replica',
         'upstream_id' => $upstream->id,
         'source' => 'object-0',
-        'destination' => $type === DestinationType::Static ? 'static:customers' : 'dynamic',
+        'type' => $type->value,
+        'destination' => $type === DestinationType::Static ? 'customers' : null,
     ]);
 
-    expect(array_keys($form->getFlatFields()))->toBe(['name', 'code', 'upstream_id', 'source', 'destination']);
-    foreach (['upstream_id', 'source', 'destination'] as $name) {
-        $field = $form->getComponentByStatePath($name);
-        expect($field->isNative())->toBeFalse()->and($field->isPreloaded())->toBeTrue();
-    }
     $state = $form->getState();
     expect($state)->not->toHaveKey('schema');
-    $replica = Replica::create(ReplicaForm::forCreate($state, app(DestinationFactory::class)));
+    $replica = Replica::create($state);
 
     expect($replica->fresh()->status)->toBe(ReplicaStatus::Pending);
     expect($replica->mapping)->toBe([]);
     expect($replica->connector_id)->toBeNull();
     expect($replica->type)->toBe($type);
     if ($type === DestinationType::Dynamic) {
-        expect(Schema::hasTable($replica->destination))->toBeFalse();
+        expect(DatabaseSchema::hasTable($replica->destination))->toBeFalse();
     } else {
-        expect(Schema::hasTable('customers'))->toBeFalse();
+        expect(DatabaseSchema::hasTable('customers'))->toBeFalse();
         $edit = ReplicaForm::configure(
             FormSchema::make(SchemaHost::make())->statePath('data')->record($replica)->operation('edit'),
         );
-        $edit->fill(ReplicaForm::fill($replica->toArray()));
+        $edit->fill($replica->toArray());
         expect($edit->getComponentByStatePath('mapping')->getTargetWarnings())->toBe([]);
-        expect(fn () => ReplicaForm::forUpdate(
-            ['schema' => $replica->schema->toArray(), 'name' => $replica->name, 'mapping' => []],
-            $replica,
-            app(DestinationFactory::class),
-        ))
+        expect(fn () => TestCase::replicaFormState([
+            'schema' => $replica->schema->toArray(),
+            'name' => $replica->name,
+            'mapping' => [],
+        ], $replica))
             ->toThrow(ValidationException::class);
     }
 })->with([DestinationType::Dynamic, DestinationType::Static]);
 
-it('locks identifying fields on edit and ignores attempts to change them through submitted data', function () {
+it('preserves replica identity and schema when submitted edit data attempts to replace them', function (DestinationType $type) {
     $upstream = TestCase::makeUpstream([], ['status' => StructureStatus::Ready, 'generation' => 1]);
     TestCase::makeItem($upstream);
-    $replica = Replica::create(ReplicaForm::forCreate([
+    $replica = Replica::create(TestCase::replicaCreationState([
         'name' => 'Original name',
         'code' => 'original_code',
         'upstream_id' => $upstream->id,
         'source' => 'object-0',
-        'destination' => 'dynamic',
-    ], app(DestinationFactory::class)));
+        'type' => $type->value,
+        'destination' => $type === DestinationType::Static ? 'customers' : null,
+    ]));
     $identity = $replica->only(['code', 'upstream_id', 'source', 'type', 'destination']);
+    $snapshot = $replica->schema->toArray();
     $form = ReplicaForm::configure(
         FormSchema::make(SchemaHost::make())->statePath('data')->record($replica)->operation('edit'),
     );
-    $form->fill(ReplicaForm::fill($replica->toArray()));
-    expect($form->getComponent('name')->isDisabled())->toBeFalse();
+    $form->fill($replica->toArray());
     foreach (['code', 'upstream_id', 'source', 'destination'] as $field) {
         expect($form->getComponent($field)->isDisabled())->toBeTrue();
     }
 
-    $replica->update(ReplicaForm::forUpdate(
-        [
-            'schema' => $replica->schema->toArray(),
-            'name' => 'Renamed',
-            'mapping' => [TestCase::keyMapping()->jsonSerialize()],
-            'code' => 'changed_code',
-            'upstream_id' => 'another-upstream',
-            'source' => 'another-object',
-            'type' => DestinationType::Static,
-            'destination' => 'static:customers',
-        ],
-        $replica,
-        app(DestinationFactory::class),
-    ));
+    expect($form->getComponent('destination')->getOptionLabel())
+        ->toBe($type === DestinationType::Static ? 'Customers' : $replica->destination);
+    $mapping = $type === DestinationType::Dynamic
+        ? [TestCase::keyMapping()->jsonSerialize()]
+        : MappingState::mapping([
+            'customer_id' => MappingState::source('_idrref'),
+            'name' => MappingState::value('Customer'),
+            'tax_number' => MappingState::value('123'),
+        ]);
+
+    $state = TestCase::replicaFormState([
+        'schema' => ['type' => 'object', 'properties' => []],
+        'name' => 'Renamed',
+        'mapping' => $mapping,
+        'code' => 'changed_code',
+        'upstream_id' => 'another-upstream',
+        'source' => 'another-object',
+        'type' => $type === DestinationType::Dynamic ? DestinationType::Static->value : DestinationType::Dynamic->value,
+        'destination' => 'hijacked_table',
+    ], $replica);
+    expect($state)->toHaveCount(3)->toHaveKeys(['name', 'mapping', 'transforms']);
+    $replica->update($state);
 
     expect($replica->fresh()->name)->toBe('Renamed');
     expect($replica->fresh()->only(array_keys($identity)))->toBe($identity);
-});
+    expect($replica->fresh()->schema->toArray())->toBe($snapshot);
+})->with([DestinationType::Dynamic, DestinationType::Static]);

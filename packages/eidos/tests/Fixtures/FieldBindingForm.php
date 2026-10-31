@@ -8,9 +8,10 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
-use Filament\Schemas\Schema;
+use Filament\Schemas\Schema as FilamentSchema;
 use Livewire\Component;
 use PHPinnacle\Eidos\Forms\FieldBinding;
+use PHPinnacle\Jason\Schema;
 
 class FieldBindingForm extends Component implements HasActions, HasSchemas
 {
@@ -35,9 +36,9 @@ class FieldBindingForm extends Component implements HasActions, HasSchemas
         $this->form->fill(['bindings' => MappingState::binding($bindings)]);
     }
 
-    public function form(Schema $schema): Schema
+    public function form(FilamentSchema $schema): FilamentSchema
     {
-        $field = FieldBinding::make('bindings')->jsonSchema(CustomerMappingField::jsonSchema());
+        $field = FieldBinding::make('bindings')->jsonSchema(Schema::fromArray(CustomerMappingField::jsonSchema()));
 
         if ($this->complex) {
             $field->schema([

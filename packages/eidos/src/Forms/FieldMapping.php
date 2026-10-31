@@ -9,21 +9,23 @@ use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Concerns\CanBeCompact;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\View;
-use Filament\Schemas\Schema;
+use Filament\Schemas\Schema as FilamentSchema;
 use Filament\Support\Concerns\CanBeContained;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Js;
 use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\Rule;
+use PHPinnacle\Eidos\Enums\MappingMode;
 use PHPinnacle\Eidos\Forms\Concerns\HasColumnSpans;
 use PHPinnacle\Eidos\Forms\Concerns\HasHeaderActions;
 use PHPinnacle\Eidos\Forms\Concerns\HasSourceSettings;
 use PHPinnacle\Eidos\Forms\Concerns\Searchable;
+use PHPinnacle\Eidos\JsonSchema\SchemaPresentation;
+use PHPinnacle\Jason\Schema;
 
 /**
- * @phpstan-import-type MappingItem from JsonSchema
- * @phpstan-import-type Definition from JsonSchema
- * @phpstan-import-type Presentation from JsonSchema
+ * @phpstan-import-type MappingItem from SchemaPresentation
+ * @phpstan-import-type Presentation from SchemaPresentation
  * @phpstan-type SourceEntry array{kind: 'source', source: string}
  * @phpstan-type ValueEntry array{kind: 'value', value: mixed}
  * @phpstan-type Entry SourceEntry|ValueEntry
@@ -44,18 +46,18 @@ class FieldMapping extends Field
 
     protected string $view = 'phpinnacle-eidos::forms.field-mapping';
 
-    /** @var Definition|Closure(): Definition */
-    protected array|Closure $sourceSchema = [];
+    /** @var Schema|Closure(): Schema */
+    protected Schema|Closure $sourceSchema;
 
-    /** @var Definition|Closure(): Definition */
-    protected array|Closure $targetSchema = [];
+    /** @var Schema|Closure(): Schema */
+    protected Schema|Closure $targetSchema;
 
-    /** @var Definition|Closure(): Definition|null */
-    protected array|Closure|null $outputSchema = null;
+    /** @var Schema|Closure(): Schema|null */
+    protected Schema|Closure|null $outputSchema = null;
 
     protected ?SchemaCompatibility $compatibility = null;
 
-    /** @var Closure(JsonSchema, JsonSchema, string, string): bool|null */
+    /** @var Closure(Schema, Schema, string, string): bool|null */
     protected ?Closure $canConnectUsing = null;
 
     /** @var string|Closure(): string */
@@ -75,8 +77,7 @@ class FieldMapping extends Field
     /** @var array<string, string>|Closure(): array<string, string> */
     protected array|Closure $targetWarnings = [];
 
-    /** @var Definition|null */
-    private ?array $cachedSourceDefinition = null;
+    private ?Schema $cachedSourceSchema = null;
 
     /** @var list<MappingItem> */
     private array $cachedSources = [];
@@ -117,16 +118,34 @@ class FieldMapping extends Field
     /** @return list<string> */
     public function getRequiredTargets(): array
     {
-        return JsonSchema::fromArray($this->getTargetSchema())->required();
+        return $this->getTargetSchema()->resolveReferences()->effectiveRequired();
     }
 
     /** @return list<string> */
     public function getMultipleTargets(): array
     {
         return array_keys(array_filter(
-            JsonSchema::fromArray($this->getTargetSchema())->properties(),
-            fn (JsonSchema $property) => $property->items() !== null,
+            $this->getTargetModes(),
+            fn (MappingMode $mode) => $mode !== MappingMode::Whole,
         ));
+    }
+
+    /** @return array<string, MappingMode> */
+    public function getTargetModes(): array
+    {
+        return array_map(
+            self::mappingMode(...),
+            $this->getTargetSchema()->resolveReferences()->effectiveProperties(),
+        );
+    }
+
+    private static function mappingMode(Schema $schema): MappingMode
+    {
+        return match ([$schema->singleType(), $schema->annotation('x-mapping')]) {
+            ['array', MappingMode::Item->value] => MappingMode::Item,
+            ['object', MappingMode::Property->value] => MappingMode::Property,
+            default => MappingMode::Whole,
+        };
     }
 
     /** @param Closure $forms Factory returning a Field named value or null, with target, property and other Filament-injected arguments. */
@@ -143,7 +162,7 @@ class FieldMapping extends Field
         return $this->staticForms(fn (
             FieldMapping $component,
             string $target,
-            JsonSchema $property,
+            Schema $property,
         ) => BuiltinStaticForms::make(
             $property,
             in_array($target, $component->getRequiredTargets(), true),
@@ -153,20 +172,6 @@ class FieldMapping extends Field
     public function hasStaticForms(): bool
     {
         return $this->staticForms !== null;
-    }
-
-    public function getSourceRowIndex(string $source): ?int
-    {
-        foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
-            if (!is_array($row) || ($row['kind'] ?? null) === null) {
-                continue;
-            }
-            if ($row['kind'] === 'source' && $row['source'] === $source) {
-                return $index;
-            }
-        }
-
-        return null;
     }
 
     /** @return array<Component> */
@@ -193,7 +198,7 @@ class FieldMapping extends Field
         return $keys;
     }
 
-    public function getStaticFormSchema(string $target): ?Schema
+    public function getStaticFormSchema(string $target): ?FilamentSchema
     {
         $field = $this->makeStaticField($target);
         if ($field === null) {
@@ -231,13 +236,14 @@ class FieldMapping extends Field
         return $defaults;
     }
 
-    /** @return array<Schema> */
+    /** @return array<FilamentSchema> */
     public function getDefaultChildSchemas(): array
     {
         $state = $this->getRawState();
         if ($state !== null && (!is_array($state) || !array_is_list($state))) {
             return ['sourceCards' => $this->makeChildSchema('sourceCards')->inline()->components($this->sourceCards())];
         }
+
         $this->initializeSourceRows();
         $this->sourcePresentationsBeforeUpdate ??= $this->getSourcePresentations();
         $this->cachedStaticTargets = $this->getStaticTargets();
@@ -246,14 +252,25 @@ class FieldMapping extends Field
             if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
+
+            $names = array_keys($row);
+            if (
+                $row['kind'] === 'static'
+                && in_array($row['target'], $this->cachedStaticTargets, true)
+                && $this->makeStaticField($row['target']) !== null
+            ) {
+                $names = array_values(array_diff($names, ['static']));
+            }
+
             $schemas['row_' . $index] = $this
                 ->makeChildSchema('row_' . $index)
                 ->statePath((string) $index)
                 ->components(array_map(
                     fn (string $name) => Hidden::make($name)->default($row[$name])->rules(['present']),
-                    array_keys($row),
+                    $names,
                 ));
         }
+
         $schemas += $this->makeSourceSettingsSchemas();
         foreach ($this->cachedStaticTargets as $target) {
             $schema = $this->getStaticFormSchema($target);
@@ -261,6 +278,7 @@ class FieldMapping extends Field
                 $schemas[self::stateKey($target)] = $schema;
             }
         }
+
         $schemas['sourceCards'] = $this->makeChildSchema('sourceCards')->inline()->components($this->sourceCards());
 
         return $schemas;
@@ -282,15 +300,9 @@ class FieldMapping extends Field
         array &$appliedStateCastPaths = [],
     ): void {
         $this->hydrateDefaultState($hydratedDefaultState);
+        $this->initializeSourceRows();
         /** @var State $rows */
         $rows = $this->getRawState() ?? [];
-        $sources = array_column(array_filter($rows, fn (array $row) => $row['kind'] === 'source'), 'source');
-        foreach (array_keys($this->evaluate($this->sourceSchema)['properties'] ?? []) as $source) {
-            if (!in_array((string) $source, $sources, true)) {
-                $rows[] = ['kind' => 'source', 'source' => (string) $source, 'target' => null, 'options' => []];
-            }
-        }
-        $this->rawState($rows);
         foreach ($this->getStaticDefaults() as $target => $value) {
             if ($this->getStaticRowIndex((string) $target, includeDrafts: true) === null) {
                 $row = ['kind' => 'static', 'target' => (string) $target, 'static' => $value, 'options' => []];
@@ -298,17 +310,14 @@ class FieldMapping extends Field
                     $row['target'] = null;
                     $row['draftTarget'] = (string) $target;
                 }
+
                 $rows[] = $row;
             }
         }
+
         $this->rawState($rows);
-        $this->clearCachedChildSchemas();
-        foreach ($this->getSources() as $source) {
-            $index = $this->getSourceRowIndex($source['id']);
-            if ($this->hasSourceSettings() && $index !== null && ($rows[$index]['options'] ?? []) === []) {
-                $this->getChildSchemas()['settings_' . $this->getSourceStateKeys()[$source['id']]]->fill();
-            }
-        }
+        $this->hydrateSourceSettings();
+
         parent::hydrateState(
             $hydratedDefaultState,
             $shouldCallHydrationHooks,
@@ -324,9 +333,11 @@ class FieldMapping extends Field
             if (!is_int($index) || !is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
+
             if ($row['kind'] === 'static' && $row['target'] === $target) {
                 return $index;
             }
+
             if ($includeDrafts && $row['kind'] === 'static' && ($row['draftTarget'] ?? null) === $target) {
                 $draftIndex = $index;
             }
@@ -357,43 +368,41 @@ class FieldMapping extends Field
     }
 
     /**
-     * @param Definition|Closure $source
-     * @param Definition|Closure $dest
+     * @param Schema|Closure|null $source
+     * @param Schema|Closure|null $target
      */
-    public function jsonSchema(array|Closure|null $source = null, array|Closure|null $dest = null): static
+    public function jsonSchema(Schema|Closure|null $source = null, Schema|Closure|null $target = null): static
     {
         if ($source !== null) {
             $this->sourceSchema = $source;
         }
-        if ($dest !== null) {
-            $this->targetSchema = $dest;
+
+        if ($target !== null) {
+            $this->targetSchema = $target;
         }
 
         return $this;
     }
 
-    /** @param Definition|Closure $schema */
-    public function outputSchema(array|Closure $schema): static
+    /** @param Schema|Closure $schema Schema or Filament-evaluated callback returning Schema. */
+    public function outputSchema(Schema|Closure $schema): static
     {
         $this->outputSchema = $schema;
 
         return $this;
     }
 
-    /** @return Definition */
-    public function getSourceSchema(): array
+    public function getSourceSchema(): Schema
     {
         return $this->evaluate($this->sourceSchema);
     }
 
-    /** @return Definition */
-    public function getTargetSchema(): array
+    public function getTargetSchema(): Schema
     {
         return $this->evaluate($this->targetSchema);
     }
 
-    /** @return Definition */
-    public function getOutputSchema(): array
+    public function getOutputSchema(): Schema
     {
         return $this->outputSchema === null ? $this->getSourceSchema() : $this->evaluate($this->outputSchema);
     }
@@ -405,7 +414,7 @@ class FieldMapping extends Field
         return $this;
     }
 
-    /** @param Closure(JsonSchema, JsonSchema, string, string): bool $callback */
+    /** @param Closure(Schema, Schema, string, string): bool $callback */
     public function canConnectUsing(Closure $callback): static
     {
         $this->canConnectUsing = $callback;
@@ -414,35 +423,37 @@ class FieldMapping extends Field
     }
 
     private function canConnect(
-        JsonSchema $source,
-        JsonSchema $target,
+        Schema $source,
+        Schema $target,
         string $sourceName,
         string $targetName,
     ): bool {
         return (
-            $source->compatible($target, $this->compatibility)
+            ($this->compatibility ?? SchemaCompatibility::make())->accepts($source, $target)
             && ($this->canConnectUsing === null || ($this->canConnectUsing)($source, $target, $sourceName, $targetName))
         );
     }
 
-    /** @return array<string, array<string, 'whole'|'item'>> */
+    /** @return array<string, array<string, MappingMode>> */
     public function getConnectionModes(): array
     {
         $modes = [];
-        $outputs = JsonSchema::fromArray($this->getOutputSchema())->properties();
-        $targets = JsonSchema::fromArray($this->getTargetSchema())->properties();
-        foreach (array_keys(JsonSchema::fromArray($this->getSourceSchema())->properties()) as $source) {
-            $output = $outputs[$source] ?? JsonSchema::fromArray([]);
+        $outputs = $this->getOutputSchema()->resolveReferences()->effectiveProperties();
+        $targets = $this->getTargetSchema()->resolveReferences()->effectiveProperties();
+        foreach (array_keys($this->getSourceSchema()->resolveReferences()->effectiveProperties()) as $source) {
+            $output = $outputs[$source] ?? Schema::fromArray([]);
             foreach ($targets as $target => $destination) {
-                $items = $destination->items();
+                $mode = self::mappingMode($destination);
+                $targetSchema = match ($mode) {
+                    MappingMode::Item => $destination->arrayItems(),
+                    MappingMode::Property => $destination->property((string) $source),
+                    MappingMode::Whole => $destination,
+                };
                 if (
-                    ($items === null
-                    || $output->items() !== null)
-                    && $this->canConnect($output, $destination, $source, $target)
+                    $targetSchema !== null
+                    && $this->canConnect($output, $targetSchema, (string) $source, (string) $target)
                 ) {
-                    $modes[$source][$target] = 'whole';
-                } elseif ($items !== null && $this->canConnect($output, $items, $source, $target)) {
-                    $modes[$source][$target] = 'item';
+                    $modes[$source][$target] = $mode;
                 }
             }
         }
@@ -475,10 +486,10 @@ class FieldMapping extends Field
     /** @return list<MappingItem> */
     public function getSources(): array
     {
-        $definition = $this->getSourceSchema();
-        if ($this->cachedSourceDefinition !== $definition) {
-            $this->cachedSources = JsonSchema::fromArray($definition)->toMappingItems();
-            $this->cachedSourceDefinition = $definition;
+        $schema = $this->getSourceSchema();
+        if ($this->cachedSourceSchema?->toArray() !== $schema->toArray()) {
+            $this->cachedSources = SchemaPresentation::toMappingItems($schema);
+            $this->cachedSourceSchema = $schema;
         }
 
         return $this->cachedSources;
@@ -487,12 +498,15 @@ class FieldMapping extends Field
     /** @return list<MappingItem> */
     public function getTargets(): array
     {
-        return JsonSchema::fromArray($this->getTargetSchema())->toMappingItems();
+        return SchemaPresentation::toMappingItems($this->getTargetSchema());
     }
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->sourceSchema = Schema::fromArray([]);
+        $this->targetSchema = Schema::fromArray([]);
 
         $this->schema([]);
         $this->childComponents([
@@ -500,10 +514,11 @@ class FieldMapping extends Field
         ], 'mappingUi');
         $this->default([]);
         $this->mutateDehydratedStateUsing(function (array $state) {
-            /** @var State $state */
+            /** @var list<SourceState|array{kind: 'static', target: string|null, static?: mixed, options: array<string, mixed>, position?: int, draftTarget?: string}> $state */
             foreach ($state as $index => &$row) {
                 $row['position'] ??= $index;
             }
+
             unset($row);
             usort($state, fn (array $a, array $b) => $a['position'] <=> $b['position']);
 
@@ -511,13 +526,24 @@ class FieldMapping extends Field
                 function (array $row) {
                     unset($row['position'], $row['draftTarget']);
 
-                    return $row;
+                    return (
+                        $row['kind'] === 'source'
+                            ? $row
+                            : [
+                                'kind' => 'static',
+                                'target' => $row['target'],
+                                'static' => $row['static'],
+                                'options' => $row['options'],
+                            ]
+                    );
                 },
                 array_filter(
                     $state,
-                    fn (array $row) => $row['kind'] !== 'static'
-                    || $row['target'] !== null
-                    || !array_key_exists('draftTarget', $row),
+                    fn (array $row) => (
+                        $row['kind'] !== 'static'
+                        || array_key_exists('static', $row)
+                        && ($row['target'] !== null || !array_key_exists('draftTarget', $row))
+                    ),
                 ),
             ));
         });
@@ -535,8 +561,8 @@ class FieldMapping extends Field
     public function getSourcePresentations(): array
     {
         return array_map(
-            fn (JsonSchema $property) => $property->presentation(),
-            JsonSchema::fromArray($this->getOutputSchema())->properties(),
+            SchemaPresentation::presentation(...),
+            $this->getOutputSchema()->resolveReferences()->effectiveProperties(),
         );
     }
 
@@ -558,7 +584,8 @@ class FieldMapping extends Field
                 . implode(' ', array_column($item['badges'], 'label'));
             $data = [
                 'item' => $item,
-                'presentation' => $presentations[$item['id']] ?? JsonSchema::fromArray([])->presentation(),
+                'presentation' =>
+                    $presentations[$item['id']] ?? SchemaPresentation::presentation(Schema::fromArray([])),
             ];
             $components[] = View::make('phpinnacle-eidos::forms.field-mapping-source-card')
                 ->key('card_' . $keys[$item['id']])
@@ -588,6 +615,7 @@ class FieldMapping extends Field
 
             return;
         }
+
         // Live updates can reach the parent before its child schemas have been resolved.
         $refreshHeadings = $this->sourcePresentationsBeforeUpdate === null;
         $presentations = $this->getSourcePresentations();
@@ -595,7 +623,7 @@ class FieldMapping extends Field
         $keys = $this->getSourceStateKeys();
         foreach ($this->getSources() as $item) {
             $source = $item['id'];
-            $presentation = $presentations[$source] ?? JsonSchema::fromArray([])->presentation();
+            $presentation = $presentations[$source] ?? SchemaPresentation::presentation(Schema::fromArray([]));
             if (
                 !array_key_exists($source, $this->updatedSources)
                 && $presentation === ($this->sourcePresentationsBeforeUpdate[$source] ?? null)
@@ -603,6 +631,7 @@ class FieldMapping extends Field
             ) {
                 continue;
             }
+
             /** @var View $heading */
             $heading = $schemas['sourceCards']->getComponent('heading_' . $keys[$source]);
             $heading->viewData(['item' => $item, 'presentation' => $presentation]);
@@ -610,6 +639,7 @@ class FieldMapping extends Field
             $card = $schemas['sourceCards']->getComponent(($refreshHeadings ? 'heading_' : 'card_') . $keys[$source]);
             $card->viewData(['item' => $item, 'presentation' => $presentation])->partiallyRender();
         }
+
         /** @var View $configuration */
         $configuration = $schemas['mappingUi']->getComponent('configuration');
         $configuration->partiallyRender();
@@ -623,6 +653,7 @@ class FieldMapping extends Field
         if (!is_array($value)) {
             return;
         }
+
         $validator = Validator::make(['rows' => $value], [
             'rows' => ['array', 'list'],
             'rows.*' => Rule::forEach(fn (mixed $row) => [Rule::array(
@@ -651,6 +682,7 @@ class FieldMapping extends Field
 
             return;
         }
+
         /** @var array{rows: State} $validated */
         $validated = $validator->validated();
         $value = $validated['rows'];
@@ -665,12 +697,14 @@ class FieldMapping extends Field
 
                     return;
                 }
+
                 $usedSources[$source] = true;
                 if ($row['target'] !== null && ($modes[$source][$row['target']] ?? null) === null) {
                     $fail('The :attribute field contains incompatible source and destination schemas.')->translate();
 
                     return;
                 }
+
                 $mode = $row['target'] === null ? null : $modes[$source][$row['target']];
             } else {
                 if (
@@ -681,6 +715,7 @@ class FieldMapping extends Field
 
                     return;
                 }
+
                 if (
                     $row['target'] !== null
                     && $this->makeStaticField($row['target']) === null
@@ -691,22 +726,27 @@ class FieldMapping extends Field
 
                     return;
                 }
-                $mode = 'whole';
+
+                $mode = MappingMode::Whole;
             }
+
             if ($row['target'] === null) {
                 continue;
             }
+
             if (
                 array_key_exists($row['target'], $usedTargets)
-                && ($mode !== 'item'
-                || $usedTargets[$row['target']] !== 'item')
+                && ($mode === MappingMode::Whole
+                || $usedTargets[$row['target']] !== $mode)
             ) {
                 $fail('The :attribute field reuses a destination that only permits one connection.')->translate();
 
                 return;
             }
+
             $usedTargets[$row['target']] = $mode;
         }
+
         $targets = array_column($this->getTargets(), null, 'id');
         foreach ($this->getRequiredTargets() as $target) {
             if (!array_key_exists($target, $usedTargets)) {
@@ -715,16 +755,6 @@ class FieldMapping extends Field
                 )->translate();
             }
         }
-    }
-
-    public function isSourceUsed(string $source): bool
-    {
-        $index = $this->getSourceRowIndex($source);
-
-        /** @var State $rows */
-        $rows = $this->getRawState() ?? [];
-
-        return $index !== null && $rows[$index]['target'] !== null;
     }
 
     /** @return list<string> */
@@ -751,7 +781,7 @@ class FieldMapping extends Field
             return null;
         }
 
-        $property = JsonSchema::fromArray($this->getTargetSchema())->properties()[$target];
+        $property = $this->getTargetSchema()->resolveReferences()->effectiveProperties()[$target];
 
         /** @var Field|null */
         return $this->evaluate($this->staticForms, ['target' => $target, 'property' => $property]);

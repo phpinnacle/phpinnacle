@@ -8,11 +8,11 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Lang;
-use PHPinnacle\Eidos\Forms\JsonSchema;
 use PHPinnacle\Ferry\Casts\JsonSchemaCast;
+use PHPinnacle\Jason\Schema;
 
 /**
- * @phpstan-import-type Definition from JsonSchema
+ * @phpstan-import-type Keywords from Schema
  *
  * @property string $id
  * @property string $upstream_id
@@ -26,7 +26,7 @@ use PHPinnacle\Ferry\Casts\JsonSchemaCast;
  * @property string $title
  * @property list<string> $primary_key
  * @property int $priority
- * @property JsonSchema $schema
+ * @property Schema $schema
  * @property list<array{id: string, label: string, title: string}> $values
  * @property int $position
  * @property int $revision
@@ -73,9 +73,9 @@ class StructureItem extends Model
         'revision',
     ];
 
-    private ?JsonSchema $cachedSchema = null;
+    private ?Schema $cachedSchema = null;
 
-    /** @var array<string, JsonSchema> */
+    /** @var array<string, Schema> */
     private array $cachedProperties = [];
 
     /** @return HasMany<StructureItem, $this> */
@@ -105,24 +105,25 @@ class StructureItem extends Model
         };
     }
 
-    public function field(string $source): ?JsonSchema
+    public function field(string $source): ?Schema
     {
         $field = $this->properties()[$source] ?? null;
 
         if ($field === null) {
             return null;
         }
+
         /** @var array<string, mixed> $definition */
-        $definition = array_diff_key($field->toArray(), [
+        $definition = array_diff_key($field->keywords(), [
             'title' => true,
             'description' => true,
             'x-ferry-trans' => true,
         ]);
 
-        return JsonSchema::fromArray($definition);
+        return Schema::fromArray($definition);
     }
 
-    /** @return array<string, Definition&array{title: string}> */
+    /** @return array<string, Keywords&array{title: string}> */
     public function mappableFields(bool $withKey = true): array
     {
         $fields = [];
@@ -135,6 +136,7 @@ class StructureItem extends Model
             ) {
                 continue;
             }
+
             /** @var string $title */
             $title = $field->annotation('title') ?? $source;
             /** @var string|null $translation */
@@ -142,7 +144,8 @@ class StructureItem extends Model
             if ($translation !== null) {
                 $title = Lang::get($translation);
             }
-            $definition = $field->toArray();
+
+            $definition = $field->keywords();
             unset($definition['x-ferry-trans']);
             $definition['title'] = $title;
             $fields[$source] = $definition;
@@ -151,13 +154,13 @@ class StructureItem extends Model
         return $fields;
     }
 
-    /** @return array<string, JsonSchema> */
+    /** @return array<string, Schema> */
     private function properties(): array
     {
         $schema = $this->schema;
         if ($this->cachedSchema !== $schema) {
             $this->cachedSchema = $schema;
-            $this->cachedProperties = $schema->properties();
+            $this->cachedProperties = $schema->resolveReferences()->effectiveProperties();
         }
 
         return $this->cachedProperties;

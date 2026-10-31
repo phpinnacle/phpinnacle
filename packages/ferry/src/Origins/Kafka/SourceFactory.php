@@ -6,12 +6,17 @@ use Illuminate\Support\Facades\Config;
 use PHPinnacle\Ferry\Models\Replica;
 use PHPinnacle\Ferry\Models\StructureItem;
 use PHPinnacle\Ferry\Models\Upstream;
+use PHPinnacle\Ferry\Services\TransformRegistry;
 
 class SourceFactory
 {
     private const string DEFAULT_SCHEMA = 'public';
 
     private const int IDENTIFIER_LENGTH = 63;
+
+    public function __construct(
+        private readonly TransformRegistry $transforms,
+    ) {}
 
     /**
      * @param array{
@@ -57,6 +62,16 @@ class SourceFactory
                 if ($mapping->source !== null && $mapping->isUsed()) {
                     if ($object->field($mapping->source) !== null) {
                         $sourceColumns[] = $mapping->source;
+                    }
+                }
+            }
+
+            foreach ($replica->transforms as $setting) {
+                foreach ($this->transforms
+                    ->get($setting->type)
+                    ->sourceFields($setting->data) as $column) {
+                    if ($object->field($column) !== null) {
+                        $sourceColumns[] = $column;
                     }
                 }
             }

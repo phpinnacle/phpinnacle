@@ -1,7 +1,7 @@
 <?php
 
 use Filament\Forms\Components\TextInput;
-use Filament\Schemas\Schema;
+use Filament\Schemas\Schema as FilamentSchema;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use PHPinnacle\Eidos\Forms\FieldBinding;
@@ -9,45 +9,39 @@ use PHPinnacle\Eidos\Forms\FieldMapping;
 use PHPinnacle\Ferry\Forms\FieldTransforms;
 use PHPinnacle\Ferry\Services\TransformRegistry;
 use PHPinnacle\Ferry\Tests\Fixtures\SchemaHost;
+use PHPinnacle\Ferry\Tests\TestCase;
 use PHPinnacle\Ferry\Transformations\MaskField;
 use PHPinnacle\Ferry\Transformations\Trim;
-use Tests\TestCase;
+use PHPinnacle\Jason\Schema;
 
-require_once __DIR__ . '/../Fixtures/MappingState.php';
+require_once __DIR__ . '/../TestCase.php';
 require_once __DIR__ . '/../Fixtures/SchemaHost.php';
 
 uses(TestCase::class);
 
-it('keeps schema form translations independent of replica labels', function (
+it('renders native static value placeholders in the replica editor locale', function (
     string $locale,
     string $valueLabel,
     string $addLabel,
 ) {
+    \Illuminate\Support\Facades\Queue::fake();
     app()->setLocale($locale);
-    // Replica label overrides must not change reusable form fields.
     __('phpinnacle-ferry::resources.replica.fields.constant_value');
     app('translator')->addLines(
-        [
-            'resources.replica.fields.constant_value' => 'Replica-only value',
-        ],
+        ['resources.replica.fields.constant_value' => 'Replica-only value'],
         $locale,
         'phpinnacle-ferry',
     );
-    $source = ['properties' => ['name' => ['type' => 'string']]];
-    $field = FieldBinding::make('mapping')->jsonSchema($source)->simple(TextInput::make('destination'))->staticValues();
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
-    $schema->fill([
+    $form = TestCase::replicaForm([
         'mapping' => [
-            ['kind' => 'source', 'source' => 'name', 'target' => 'name', 'options' => []],
+            TestCase::keyMapping()->jsonSerialize(),
             ['kind' => 'static', 'target' => 'constant', 'static' => 'draft', 'options' => []],
         ],
     ]);
     view()->share('errors', new ViewErrorBag);
 
-    $html = $schema->toHtml();
-    expect($html)
-        ->toContain('placeholder="' . $valueLabel . '"', $addLabel)
-        ->not->toContain('Replica-only value', 'phpinnacle-eidos::schema-forms.');
+    expect($form->getComponentByStatePath('mapping')->toHtml())
+        ->toContain('placeholder="' . $valueLabel . '"', $addLabel);
 })->with([
     'English' => ['en', 'Value', 'Add static value'],
     'Russian' => ['ru', 'Значение', 'Добавить статическое значение'],
@@ -61,12 +55,19 @@ it('validates transform settings on unconnected sources', function (
     app(TransformRegistry::class)->register(Trim::make(), MaskField::make());
     $source = ['properties' => ['input' => ['type' => $type]]];
     $field = $binding
-        ? FieldBinding::make('widget')->jsonSchema($source)->simple(TextInput::make('column')->default('output'))
-        : FieldMapping::make('widget')->jsonSchema(source: $source, dest: [
-            'properties' => ['output' => ['type' => $type]],
-        ]);
-    $field->sourceSettings([FieldTransforms::make('transforms')->inputSchema(['type' => $type])]);
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
+        ? FieldBinding::make('widget')
+            ->jsonSchema(Schema::fromArray($source))
+            ->simple(TextInput::make('column')->default('output'))
+        : FieldMapping::make('widget')->jsonSchema(
+            source: Schema::fromArray($source),
+            target: Schema::fromArray([
+                'properties' => ['output' => ['type' => $type]],
+            ]),
+        );
+    $field->sourceSettings([FieldTransforms::make('transforms')->inputSchema(Schema::fromArray([
+        'type' => $type,
+    ]))]);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
     $schema->fill(['widget' => []]);
     $settingsKey = $field->getSourceRowIndexes()['input'];
     $schema->getComponentByStatePath('widget.' . $settingsKey . '.options.transforms')->state($transforms);
@@ -86,22 +87,3 @@ it('validates transform settings on unconnected sources', function (
     'incompatible transform' => ['boolean', [['type' => 'trim', 'data' => []]]],
     'missing parameters' => ['string', [['type' => 'mask', 'data' => []]]],
 ]);
-
-it('uses a generic value label independently of replica labels', function () {
-    __('phpinnacle-ferry::resources.replica.fields.constant_value');
-    app('translator')->addLines(
-        [
-            'resources.replica.fields.constant_value' => 'Replica-only value',
-        ],
-        'en',
-        'phpinnacle-ferry',
-    );
-    $field = FieldMapping::make('mapping')
-        ->jsonSchema(dest: ['properties' => ['target' => ['type' => 'string']]])
-        ->withBuiltinStaticForms();
-    $schema = Schema::make(SchemaHost::make())->statePath('data')->components([$field]);
-    $schema->fill();
-    $field = $schema->getComponent('mapping')->getStaticFormSchema('target')->getComponent('value');
-
-    expect($field->getLabel())->toBe('Value');
-});

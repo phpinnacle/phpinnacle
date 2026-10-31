@@ -39,7 +39,7 @@ return [
             'pattern' => 'Шаблон',
             'unique' => 'уникальные',
         ],
-        'whole_array' => 'Массив целиком',
+        'object_properties' => 'Отдельные свойства',
         'array_items' => 'Отдельные элементы',
         'multiple' => 'Множественное',
         'incompatible' => 'Несовместимые типы',

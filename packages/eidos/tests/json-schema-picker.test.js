@@ -70,6 +70,11 @@ test('renders local references to boolean schemas like inline definitions', () =
     const options = { includeRoot: false, descendArrays: true, format: true, constraints: true, required: true }
 
     assert.deepEqual(schemaSources(document, options), schemaSources(inline, options))
+    const fields = schemaSources(document, options)
+    assert.deepEqual(fields.slice(0, 2).map(field => field.type), ['any', 'never'])
+    assert.equal(fields.find(field => field.fieldName === 'titledAllowed').title, 'Available')
+    assert.equal(fields.find(field => field.fieldName === 'titledForbidden').title, 'Unavailable')
+    assert.equal(fields.find(field => field.fieldName === 'items').type, 'never[]')
     assert.deepEqual(document, original)
 })
 
@@ -82,7 +87,7 @@ test('rejects local references to values that are not schema objects or booleans
 test('rebuilds adapter groups from current display options while preserving exact selection and readonly items', () => {
     const tools = jsonSchemaTools()
     const document = { properties: {
-        'metadata.version': { type: 'string', format: 'uuid', minLength: 1, 'x-icon': 'version', 'x-color': '#abc' },
+        'metadata.version': { type: 'string', format: 'uuid', enum: ['sample-id'], minLength: 1, 'x-icon': 'version', 'x-color': '#abc' },
         tags: { type: 'array', items: { type: 'string' } },
     }, required: ['metadata.version'] }
     tools.schemaIcons = { version: '<svg></svg>' }
@@ -90,7 +95,6 @@ test('rebuilds adapter groups from current display options while preserving exac
     tools.schemaSelectedKey = "$['metadata.version']"
     const rebuild = () => {
         tools.schemaData = tools.schemaBuildGroups(document, 'Schema')
-        tools.schemaSyncSelection()
     }
     rebuild()
     assert.equal(tools.schemaData[0].sources.some(source => source.key === '[]'), false)
@@ -101,18 +105,27 @@ test('rebuilds adapter groups from current display options while preserving exac
     assert.equal(tools.schemaSelectedSource.title, 'Metadata Version')
     assert.equal(tools.schemaSelectedSource.iconHtml, '<svg></svg>')
     assert.equal(tools.schemaSelectedSource.color, '#abc')
+    const picker = createPicker({ groups: () => tools.schemaData })
+    const tooltip = () => picker.jsonSchemaEnumTooltip(tools.schemaSelectedSource, { enum: 'Allowed values' })
+    assert.equal(tooltip(), '')
     tools.schemaFormat = tools.schemaRequired = tools.schemaConstraints = true
     tools.schemaColors = false
     tools.schemaIcons = false
     rebuild()
     assert.deepEqual(tools.schemaSelectedSource.value, "$['metadata.version']")
-    assert.equal(tools.schemaSelectedSource.type, 'uuid')
+    assert.equal(tools.schemaSelectedSource.type, 'enum')
+    assert.ok(tooltip().includes('"sample-id"'))
     assert.equal(tools.schemaSelectedSource.required, true)
     assert.deepEqual(tools.schemaSelectedSource.constraints[0].values, [{ kind: 'length', value: '≥ 1' }])
     assert.equal(tools.schemaSelectedSource.color, undefined)
     assert.equal(tools.schemaSelectedSource.iconHtml, null)
     assert.equal(tools.schemaSelectedSource.icon, undefined)
     assert.equal(tools.schemaSelectedSource.schema['x-color'], '#abc')
+    tools.schemaFormat = false
+    rebuild()
+    assert.equal(tools.schemaSelectedSource.type, 'string')
+    assert.deepEqual(tools.schemaSelectedSource.enums, [])
+    assert.equal(tooltip(), '')
 })
 
 test('keeps schema icon names available automatically after replacing a schema without a server SVG catalog', () => {
@@ -139,6 +152,9 @@ test('returns exact path segments and distinguishes dotted names from nested fie
         'metadata.version': { type: 'integer' },
         metadata: { properties: { version: { type: 'integer' } } },
     } }
+    const exact = schemaSources({ properties: { 'literal.key': { properties: { 'slash/key': { type: 'boolean' } } } } })
+    assert.equal(exact[2].key, '["literal.key","slash/key"]')
+    assert.equal(exact[2].value, "$['literal.key']['slash/key']")
     let value = null
     const picker = createPicker({
         groups: () => schemaGroups(document, 'Result', { includeRoot: false }),
@@ -163,12 +179,23 @@ test('returns exact path segments and distinguishes dotted names from nested fie
 })
 
 test('omits the root row while keeping exact paths, depths and field selection', () => {
+    const rootFields = schemaSources(schema)
+    assert.equal(rootFields[0].value, '$')
+    assert.equal(rootFields.some(field => field.key === '["tags",null,"name"]'), false)
+    assert.equal(schemaSelectionLabel(null, 'Select a field'), 'Select a field')
     const fields = schemaSources(schema, { includeRoot: false, descendArrays: true })
     assert.equal(fields.some(field => field.key === '[]'), false)
     assert.equal(fields[0].key, '["customer"]')
     assert.equal(fields[0].depth, 0)
     assert.equal(fields[0].hasChildren, true)
     const email = fields.find(field => field.key === '["customer","email"]')
+    assert.equal(email.fieldName, 'email')
+    assert.equal(email.fieldLabel, 'customer → email')
+    assert.equal(email.schema.description, 'Delivery address')
+    assert.equal(email.description, 'Delivery address')
+    assert.equal(email.type, 'string')
+    assert.equal(schemaNullable(email.schema), true)
+    assert.equal(email.nullable, true)
     assert.equal(email.depth, 1)
     assert.deepEqual(email.ancestors, ['["customer"]'])
     const array = fields.find(field => field.key === '["tags",null,"name"]')
@@ -239,7 +266,6 @@ test('shows titles and parent-object required markers independently while preser
     assert.equal(fields[3].required, false)
     assert.deepEqual(fields[2].value, "$['literal.key']['slash/key']")
     assert.equal(fields[2].fieldLabel, 'literal.key → slash/key')
-    assert.equal(schemaSources(document, { required: true })[1].title, 'Contact details')
 })
 
 test('always uses explicit titles before generated property titles and keeps both searchable', () => {
@@ -272,7 +298,6 @@ test('resolves selected metadata from current schema and resets it when cleared 
     } }
     tools.schemaSelectedKey = "$['metadata']['version']"
     tools.schemaData = schemaGroups(document, 'Result', { includeRoot: false, format: true, constraints: true, icons: { code: '<svg></svg>' } })
-    tools.schemaSyncSelection()
     assert.equal(tools.schemaSelectedSource.fieldLabel, 'metadata → version')
     assert.equal(tools.schemaSelectedSource.description, 'API version')
     assert.equal(tools.schemaSelectedSource.type, 'enum')
@@ -281,17 +306,13 @@ test('resolves selected metadata from current schema and resets it when cleared 
     assert.deepEqual(tools.schemaSelectedSource.constraints[0].values, [{ kind: 'length', value: '≥ 1' }])
     assert.deepEqual(tools.schemaSelectedSource.enums[0].values, ['"v1"'])
     tools.schemaData = schemaGroups(document, 'Result', { includeRoot: false })
-    tools.schemaSyncSelection()
     assert.equal(tools.schemaSelectedSource.type, 'string')
     assert.deepEqual(tools.schemaSelectedSource.constraints, [])
     tools.schemaSelectedKey = null
-    tools.schemaSyncSelection()
     assert.equal(tools.schemaSelectedSource, null)
     tools.schemaSelectedKey = "$['metadata.version']"
-    tools.schemaSyncSelection()
     assert.equal(tools.schemaSelectedSource.type, 'integer')
     tools.schemaData = []
-    tools.schemaSyncSelection()
     assert.equal(tools.schemaSelectedSource, null)
 })
 
@@ -496,7 +517,6 @@ test('applies palette, HEX and RGBA colors to field presentation with scoped uni
     assert.deepEqual(picker.jsonSchemaColorStyles('success'), tools.jsonSchemaColorStyles('success'))
     tools.schemaData = schemaGroups(document, 'Result', { includeRoot: false })
     tools.schemaSelectedKey = "$['email']"
-    tools.schemaSyncSelection()
     assert.equal(tools.schemaSelectedSource.color, '#3b82f680')
     assert.deepEqual(tools.schemaSelectedSource.value, "$['email']")
 })
@@ -511,7 +531,6 @@ test('toggles palette and literal colors without changing schema annotations, ic
     tools.schemaSelectedKey = "$['email']"
     for (const colors of [true, false, true]) {
         tools.schemaData = schemaGroups(document, 'Result', { ...options, colors })
-        tools.schemaSyncSelection()
         assert.equal(tools.schemaSelectedSource.color, colors ? '#2563eb' : undefined)
         assert.deepEqual(tools.schemaSelectedSource.value, "$['email']")
         assert.equal(tools.schemaSelectedSource.iconHtml, '<svg></svg>')
@@ -550,28 +569,6 @@ test('uses registered icon markup for root, nested, union and array item fields'
     assert.deepEqual(merged.value, "$['value']")
     assert.equal(schemaSources({ properties: { value: { type: 'string', 'x-icon': '<img onerror="alert(1)">' } } })[1].iconHtml, null)
     assert.equal(schemaSources({ properties: { value: { type: 'string', 'x-icon': 'constructor' } } })[1].iconHtml, null)
-})
-
-test('uses exact property paths with descriptions, nullable types and separate array entry rendering', () => {
-    const fields = schemaSources(schema)
-    assert.deepEqual(fields[0].value, "$")
-    const email = fields.find(field => field.key === '["customer","email"]')
-    assert.equal(email.fieldName, 'email')
-    assert.equal(email.fieldLabel, 'customer → email')
-    assert.equal(email.schema.description, 'Delivery address')
-    assert.equal(email.description, 'Delivery address')
-    assert.equal(email.type, 'string')
-    assert.equal(schemaNullable(email.schema), true)
-    assert.equal(email.nullable, true)
-    assert.deepEqual(email.ancestors, ['["customer"]'])
-    assert.equal(fields.find(field => field.key === '["customer"]').hasChildren, true)
-    assert.equal(fields.some(field => field.key === '["tags",null,"name"]'), false)
-    assert.equal(schemaSources(schema, { descendArrays: true }).some(field => field.key === '["tags",null,"name"]'), true)
-    const exact = schemaSources({ properties: { 'literal.key': { properties: { 'slash/key': { type: 'boolean' } } } } })
-    assert.equal(exact[2].key, '["literal.key","slash/key"]')
-    assert.deepEqual(exact[2].value, "$['literal.key']['slash/key']")
-    assert.equal(schemaSelectionLabel(exact[2].value, 'Select a field'), "$['literal.key']['slash/key']")
-    assert.equal(schemaSelectionLabel(null, 'Select a field'), 'Select a field')
 })
 
 test('combines union fields without synthetic variant path segments', () => {
@@ -658,23 +655,6 @@ test('searches field and array item metadata with enabled restrictions', () => {
     }
 })
 
-test('updates enum badges and tooltip values together when formats change', () => {
-    const tools = jsonSchemaTools()
-    const document = { properties: { id: { type: 'string', format: 'uuid', enum: ['sample-id'] } } }
-    const picker = createPicker({ groups: () => tools.schemaGroups(document, 'Result', { format: tools.schemaFormat }) })
-    const field = () => picker.jsonSchemaData[0].sources[1]
-    assert.equal(field().type, 'string')
-    assert.deepEqual(field().enums, [])
-    tools.schemaFormat = true
-    picker.jsonSchemaSync()
-    assert.equal(field().type, 'enum')
-    assert.deepEqual(field().enums[0].values, ['"sample-id"'])
-    tools.schemaFormat = false
-    picker.jsonSchemaSync()
-    assert.equal(field().type, 'string')
-    assert.deepEqual(field().enums, [])
-})
-
 test('reveals the selected path and allows its parent to be collapsed manually', () => {
     const groups = schemaGroups(schema, 'Result')
     const picker = createPicker({ groups: () => groups, selected: field => field.key === '["customer","email"]' })
@@ -687,19 +667,18 @@ test('reveals the selected path and allows its parent to be collapsed manually',
     assert.equal(picker.jsonSchemaVisible(email), true)
 })
 
-test('reveals a selected field in a large tree while keeping unrelated branches collapsed', () => {
-    const document = { type: 'object', properties: Object.fromEntries(Array.from({ length: 100 }, (_, index) => [
-        `object${index}`, { type: 'object', properties: {
-            first: { type: 'string' }, second: { type: 'string' }, third: { type: 'string' },
-        } },
-    ])) }
+test('reveals a selected field while keeping unrelated branches collapsed', () => {
+    const document = { properties: {
+        selected: { properties: { child: { type: 'string' } } },
+        other: { properties: { child: { type: 'string' } } },
+    } }
     const groups = schemaGroups(document, 'Result')
-    const picker = createPicker({ groups: () => groups, selected: field => field.key === '["object99","third"]' })
+    const picker = createPicker({ groups: () => groups, selected: field => field.key === '["selected","child"]' })
 
     const visible = picker.jsonSchemaMatches[0].sources.filter(source => picker.jsonSchemaVisible(source))
     assert.equal(visible.some(source => picker.jsonSchemaSelected(source)), true)
-    assert.equal(visible.some(source => source.fieldLabel === 'object99 → third'), true)
-    assert.equal(visible.some(source => source.fieldLabel === 'object0 → third'), false)
+    assert.equal(visible.some(source => source.fieldLabel === 'selected → child'), true)
+    assert.equal(visible.some(source => source.fieldLabel === 'other → child'), false)
 })
 
 test('reveals an externally selected path and lets readonly branches expand without a selected path', () => {
@@ -714,9 +693,23 @@ test('reveals an externally selected path and lets readonly branches expand with
 
     assert.equal(picker.jsonSchemaVisible(email), true)
     assert.equal(picker.jsonSchemaSelected(email), true)
-    const entry = createPicker({ groups: () => groups, disabled: true })
+    const entry = createPicker({
+        groups: () => groups, disabled: true, selected: field => field.value === value,
+        choose: () => assert.fail('Readonly fields cannot be chosen'),
+    })
+    const phone = groups[0].sources.find(field => field.key === '["customer","phone"]')
+    assert.equal(entry.jsonSchemaSelected(email), true)
+    assert.equal(entry.jsonSchemaVisible(email), true)
+    assert.equal(entry.jsonSchemaChoose(phone), false)
+    assert.equal(value, "$['customer']['email']")
+    value = "$['customer']['phone']"
     entry.jsonSchemaSyncSelection()
     assert.equal(entry.jsonSchemaSelected(email), false)
+    assert.equal(entry.jsonSchemaSelected(phone), true)
+    value = null
+    entry.jsonSchemaSyncSelection()
+    assert.equal(entry.jsonSchemaSelected(email), false)
+    assert.equal(entry.jsonSchemaSelected(phone), false)
     assert.equal(entry.jsonSchemaVisible(email), false)
     entry.jsonSchemaToggle(groups[0].sources.find(field => field.key === '["customer"]'))
     assert.equal(entry.jsonSchemaVisible(email), true)
@@ -784,37 +777,6 @@ function createPicker(options) {
     picker.jsonSchemaSyncSearch()
     return picker
 }
-
-test('highlights and reveals the current readonly path without allowing another field to be chosen', () => {
-    let value = "$['customer']['email']"
-    const groups = schemaGroups(schema, 'Schema', { includeRoot: false, descendArrays: true })
-    const entry = createPicker({
-        groups: () => groups,
-        selected: source => source.value === value,
-        choose: source => { value = source.value },
-        disabled: true,
-    })
-    const email = groups[0].sources.find(source => source.fieldName === 'email')
-    const phone = groups[0].sources.find(source => source.fieldName === 'phone')
-    const arrayItem = groups[0].sources.find(source => source.fieldName === 'name')
-
-    assert.equal(entry.jsonSchemaSelected(email), true)
-    assert.equal(entry.jsonSchemaSelected(phone), false)
-    assert.equal(entry.jsonSchemaVisible(email), true)
-    assert.equal(entry.jsonSchemaChoose(phone), false)
-    assert.deepEqual(value, "$['customer']['email']")
-    assert.equal(entry.jsonSchemaSelected(arrayItem), false)
-
-    value = "$['customer']['phone']"
-    entry.jsonSchemaSyncSelection()
-    assert.equal(entry.jsonSchemaSelected(email), false)
-    assert.equal(entry.jsonSchemaSelected(phone), true)
-
-    value = null
-    entry.jsonSchemaSyncSelection()
-    assert.equal(entry.jsonSchemaSelected(phone), false)
-})
-
 
 test('traverses oneOf and allOf properties with scoped limits and required markers', () => {
     const definition = { type: 'object', properties: {
@@ -965,7 +927,6 @@ test('enables wildcard selection through the shared option', () => {
     tools.schemaSelectedKey = "$['tags'][*]['name']"
     const rebuild = () => {
         tools.schemaData = tools.schemaBuildGroups(schema, 'Schema')
-        tools.schemaSyncSelection()
         return tools.schemaSelectedSource
     }
     assert.equal(rebuild().compatible, false)
@@ -978,7 +939,6 @@ test('enables wildcard selection through the shared option', () => {
     assert.equal(rebuild().compatible, false)
     assert.equal(tools.schemaSelectedKey, "$['tags'][*]['name']")
 })
-
 
 test('presents boolean schemas without treating false as unconstrained', () => {
     assert.equal(schemaType(false), 'never')
@@ -995,7 +955,6 @@ test('presents boolean schemas without treating false as unconstrained', () => {
     assert.equal(item.compatible, false)
     assert.ok(jsonSchemaPicker({ groups: () => [] }).jsonSchemaArrayTooltip(array, { items: 'Items' }).includes('Items: never'))
 })
-
 
 test('uses x-enum labels in picker presentations and escapes labels in popovers', () => {
     const document = { properties: { status: {
@@ -1015,8 +974,36 @@ test('uses x-enum labels in picker presentations and escapes labels in popovers'
     assert.deepEqual(document, original)
 })
 
-
 test('uses JSON keys for numeric, Boolean and null x-enum labels', () => {
     const enumerations = schemaEnums({ enum: [0, true, null], 'x-enum': { 0: 'Zero', true: 'Yes', null: 'None' } }, true)
     assert.deepEqual(enumerations[0].values, ['Zero', 'Yes', 'None'])
+})
+
+test('toggles multiple paths and refreshes selected metadata without changing other pickers', () => {
+    const tools = jsonSchemaTools()
+    tools.schemaData = schemaGroups(schema, 'Record', { includeRoot: false })
+    tools.schemaSelectedKey = tools.schemaToggleSelection([], "$['customer']['email']")
+    tools.schemaSelectedKey = tools.schemaToggleSelection(tools.schemaSelectedKey, "$['tags']")
+    assert.deepEqual(tools.schemaSelections.map(selection => selection.source.fieldLabel), ['customer → email', 'tags'])
+    assert.deepEqual(jsonSchemaTools().schemaSelections, [])
+
+    tools.schemaSelectedKey = tools.schemaToggleSelection(tools.schemaSelectedKey, "$['customer']['email']")
+    assert.deepEqual(tools.schemaSelections.map(selection => selection.value), ["$['tags']"])
+
+    tools.schemaData = []
+    assert.deepEqual(tools.schemaSelections, [{ value: "$['tags']", source: null }])
+    tools.schemaSelectedKey = []
+    assert.deepEqual(tools.schemaSelections, [])
+})
+
+test('preserves scalar schema metadata and handles absent or unconstrained schemas', () => {
+    const schema = { type: ['string', 'null'], 'x-custom': { retained: true } }
+    const [source] = schemaSources(schema)
+
+    assert.equal(source.fieldName, 'All data')
+    assert.deepEqual(source.schema, schema)
+    assert.equal(schemaType(schema), 'string')
+    assert.equal(schemaNullable(schema), true)
+    assert.deepEqual(schemaSources(null), [])
+    assert.equal(schemaSources({})[0].type, 'any')
 })

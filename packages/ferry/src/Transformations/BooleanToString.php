@@ -5,10 +5,11 @@ namespace PHPinnacle\Ferry\Transformations;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Icons\Heroicon;
-use PHPinnacle\Common\Forms\InlineBuilder\Block;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Common\Forms\InlineBuilder\Block as InlineBlock;
 use PHPinnacle\Ferry\Contracts\Transform;
+use PHPinnacle\Ferry\Enums\TransformScope;
 use PHPinnacle\Ferry\Enums\TransformTarget;
+use PHPinnacle\Jason\Schema;
 
 final class BooleanToString implements Transform
 {
@@ -22,18 +23,28 @@ final class BooleanToString implements Transform
         return 'boolean_to_string';
     }
 
+    public function getScope(): TransformScope
+    {
+        return TransformScope::Field;
+    }
+
+    public function sourceFields(array $params): array
+    {
+        return [];
+    }
+
     public function getTarget(): TransformTarget
     {
         return TransformTarget::Value;
     }
 
-    public function accepts(JsonSchema $input): bool
+    public function accepts(Schema $input): bool
     {
         return $input->singleType() === 'boolean';
     }
 
     /** @param array<string, string> $params */
-    public function output(JsonSchema $input, array $params): ?JsonSchema
+    public function output(Schema $input, array $params): ?Schema
     {
         if (!array_key_exists('true', $params) || !array_key_exists('false', $params)) {
             return null;
@@ -60,19 +71,19 @@ final class BooleanToString implements Transform
             $schema['maxLength'] = max($lengths);
         }
 
-        return JsonSchema::fromArray($schema);
+        return Schema::fromArray($schema);
     }
 
-    public function block(): Block
+    public function block(): InlineBlock
     {
-        return Block::make($this->getKey())
+        return InlineBlock::make($this->getKey())
             ->color('info')
-            ->label(fn () => __('phpinnacle-ferry::resources.transform.boolean_to_string'))
-            ->description(fn () => __('phpinnacle-ferry::resources.transform.boolean_to_string_description'))
+            ->label(fn () => __('phpinnacle-ferry::transforms.boolean_to_string'))
+            ->description(fn () => __('phpinnacle-ferry::transforms.boolean_to_string_description'))
             ->icon(Heroicon::Language)
             ->schema(fn () => array_map(
                 fn (string $name) => TextInput::make($name)
-                    ->label(__('phpinnacle-ferry::resources.transform.boolean_string_' . $name))
+                    ->label(__('phpinnacle-ferry::transforms.boolean_string_' . $name))
                     ->default($name)
                     ->trim(false)
                     ->rules(['string'])
@@ -83,12 +94,14 @@ final class BooleanToString implements Transform
             ));
     }
 
-    /** @param array<string, string> $params */
-    public function connector(string $field, array $params): array
+    /**
+     * @param array<string, string> $params
+     */
+    public function connector(array $params): array
     {
         return [
             'type' => 'org.phpinnacle.toblerone.BooleanToStringTransform$Value',
-            'fields' => $field,
+            'fields' => $params['field'],
             'true' => $params['true'],
             'false' => $params['false'],
         ];

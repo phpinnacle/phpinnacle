@@ -3,10 +3,11 @@
 namespace PHPinnacle\Ferry\Transformations;
 
 use Filament\Support\Icons\Heroicon;
-use PHPinnacle\Common\Forms\InlineBuilder\Block;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Common\Forms\InlineBuilder\Block as InlineBlock;
 use PHPinnacle\Ferry\Contracts\Transform;
+use PHPinnacle\Ferry\Enums\TransformScope;
 use PHPinnacle\Ferry\Enums\TransformTarget;
+use PHPinnacle\Jason\Schema;
 
 final class Toggle implements Transform
 {
@@ -20,17 +21,27 @@ final class Toggle implements Transform
         return 'toggle';
     }
 
+    public function getScope(): TransformScope
+    {
+        return TransformScope::Field;
+    }
+
+    public function sourceFields(array $params): array
+    {
+        return [];
+    }
+
     public function getTarget(): TransformTarget
     {
         return TransformTarget::Value;
     }
 
-    public function accepts(JsonSchema $input): bool
+    public function accepts(Schema $input): bool
     {
         return $input->singleType() === 'boolean';
     }
 
-    public function output(JsonSchema $input, array $params): JsonSchema
+    public function output(Schema $input, array $params): Schema
     {
         $schema = ['type' => in_array('null', $input->types(), true) ? ['boolean', 'null'] : 'boolean'];
         /** @var list<bool|null>|null $values */
@@ -39,23 +50,24 @@ final class Toggle implements Transform
             $schema['enum'] = array_map(static fn (?bool $value) => $value === null ? null : !$value, $values);
         }
 
-        return JsonSchema::fromArray($schema);
+        return Schema::fromArray($schema);
     }
 
-    public function block(): Block
+    public function block(): InlineBlock
     {
-        return Block::make($this->getKey())
+        return InlineBlock::make($this->getKey())
             ->color('success')
-            ->label(fn () => __('phpinnacle-ferry::resources.transform.toggle'))
-            ->description(fn () => __('phpinnacle-ferry::resources.transform.toggle_description'))
+            ->label(fn () => __('phpinnacle-ferry::transforms.toggle'))
+            ->description(fn () => __('phpinnacle-ferry::transforms.toggle_description'))
             ->icon(Heroicon::ArrowsRightLeft);
     }
 
-    public function connector(string $field, array $params): array
+    /** @param array{field: string} $params */
+    public function connector(array $params): array
     {
         return [
             'type' => 'org.phpinnacle.toblerone.ToggleTransform$Value',
-            'fields' => $field,
+            'fields' => $params['field'],
         ];
     }
 }

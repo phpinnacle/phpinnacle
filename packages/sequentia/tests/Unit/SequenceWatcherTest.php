@@ -356,6 +356,7 @@ it('rolls back every replacement chunk if a database write fails', function () {
     foreach ($rows as &$row) {
         $row['value'] = 10;
     }
+
     unset($row);
 
     expect(fn () => $store->replace($rows))->toThrow(RuntimeException::class, 'Interrupted replacement');

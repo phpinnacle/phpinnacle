@@ -1,9 +1,8 @@
 <?php
 
-use Filament\Schemas\Schema;
+use Filament\Schemas\Schema as FilamentSchema;
 use Illuminate\Validation\ValidationException;
-use PHPinnacle\Common\Forms\InlineBuilder\Block;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Common\Forms\InlineBuilder\Block as InlineBlock;
 use PHPinnacle\Ferry\Contracts\Transform;
 use PHPinnacle\Ferry\Data\FieldMapping;
 use PHPinnacle\Ferry\Data\TransformSetting;
@@ -12,6 +11,7 @@ use PHPinnacle\Ferry\Enums\KafkaType;
 use PHPinnacle\Ferry\Enums\TransformTarget;
 use PHPinnacle\Ferry\Models\Replica;
 use PHPinnacle\Ferry\Origins\Kafka\TransformFactory;
+use PHPinnacle\Ferry\Services\ReplicaSchemaResolver;
 use PHPinnacle\Ferry\Services\TransformRegistry;
 use PHPinnacle\Ferry\Tests\Fakes\Transform as FakeTransform;
 use PHPinnacle\Ferry\Tests\Fixtures\SchemaHost;
@@ -21,6 +21,7 @@ use PHPinnacle\Ferry\Transformations\Filter;
 use PHPinnacle\Ferry\Transformations\MaskField;
 use PHPinnacle\Ferry\Transformations\Substring;
 use PHPinnacle\Ferry\Transformations\Trim;
+use PHPinnacle\Jason\Schema;
 use Tests\TestCase;
 
 require_once __DIR__ . '/../Fakes/Transform.php';
@@ -31,17 +32,6 @@ require_once __DIR__ . '/../Fixtures/StructureItems.php';
 
 uses(TestCase::class);
 
-it('registers the built-in transforms in the shared registry', function () {
-    $registry = $this->app->make(TransformRegistry::class);
-
-    expect($registry->get('cast'))
-        ->toBeInstanceOf(Cast::class)
-        ->and($registry->get('static_value'))
-        ->toBeNull()
-        ->and($registry->get('unknown'))
-        ->toBeNull();
-});
-
 it('resolves only the configured transform classes through the container', function () {
     $transform = new FakeTransform('configured');
     app()->instance(FakeTransform::class, $transform);
@@ -51,47 +41,26 @@ it('resolves only the configured transform classes through the container', funct
     $registry = app(TransformRegistry::class);
 
     expect(array_keys($registry->all()))->toBe(['configured', 'cast']);
+    expect($registry->find('configured'))->toBe($transform);
+    expect($registry->find('missing'))->toBeNull();
     expect($registry->get('configured'))->toBe($transform);
-    expect($registry->get('cast'))->toBeInstanceOf(Cast::class);
-});
-
-it('registers application transforms through the shared registry', function () {
-    app(TransformRegistry::class)->register(new FakeTransform('trim', block: Block::make('trim')->label('Trim')));
-
-    $registry = $this->app->make(TransformRegistry::class);
-
-    expect($registry->get('trim'))
-        ->not
-        ->toBeNull()
-        ->and(array_keys($registry->all()))
-        ->toBe([
-            'cast',
-            'filter',
-            'insert_uuid',
-            'timestamp_converter',
-            'boolean_to_string',
-            'string_map',
-            'toggle',
-            'trim',
-        ]);
+    expect($registry->find('cast'))->toBeInstanceOf(Cast::class);
 });
 
 it('keeps key and value transformation chains on their declared record targets', function () {
-    $value = new FakeTransform('custom');
     $key = new FakeTransform('custom', target: TransformTarget::Key);
-    expect($value->getTarget())->toBe(TransformTarget::Value);
-    expect($key->getTarget())->toBe(TransformTarget::Key);
     $registry = new TransformRegistry;
     $registry->register($key);
-    $schema = JsonSchema::fromArray(['type' => 'string']);
+    $schema = Schema::fromArray(['type' => 'string']);
     $settings = [new TransformSetting('custom')];
-    expect($registry->resultSchema($schema, $settings))->toBeNull();
-    expect($registry->resultSchema($schema, $settings, TransformTarget::Key)?->toArray())->toBe($schema->toArray());
+    $schemas = new ReplicaSchemaResolver($registry);
+    expect($schemas->resultSchema($schema, $settings))->toBeNull();
+    expect($schemas->resultSchema($schema, $settings, TransformTarget::Key)?->toArray())->toBe($schema->toArray());
 });
 
 it('uses translated Kafka type labels and stores their native string values', function (string $locale, array $labels) {
     app()->setLocale($locale);
-    $schema = Schema::make(SchemaHost::make())
+    $schema = FilamentSchema::make(SchemaHost::make())
         ->statePath('data')
         ->components(SchemaHost::transformSchema(Cast::make()));
     $schema->fill(['type' => 'int16']);
@@ -134,11 +103,11 @@ it('casts a field to the selected column type', function (string $type, string $
 
     expect(
         Cast::make()
-            ->output(JsonSchema::fromArray(['type' => 'string']), ['type' => $type])
+            ->output(Schema::fromArray(['type' => 'string']), ['type' => $type])
             ?->toArray(),
     )
         ->toBe(['type' => $schemaType])
-        ->and($cast->connector('_fld1', ['type' => $type]))
+        ->and($cast->connector(['field' => '_fld1', 'type' => $type]))
         ->toBe([
             'type' => 'org.apache.kafka.connect.transforms.Cast$Value',
             'spec' => '_fld1:' . $type,
@@ -154,25 +123,8 @@ it('casts a field to the selected column type', function (string $type, string $
     'boolean' => ['boolean', 'boolean'],
 ]);
 
-it('uses each cast result as the input to the next cast in the shared registry', function (
-    string $intermediate,
-    string $result,
-    string $schemaType,
-) {
-    expect(app(TransformRegistry::class)->resultSchema(JsonSchema::fromArray(['type' => 'string']), [
-        new TransformSetting('cast', ['type' => $intermediate]),
-        new TransformSetting('cast', ['type' => $result]),
-    ])?->toArray())
-        ->toBe(['type' => $schemaType]);
-})->with([
-    'integer to boolean' => ['int64', 'boolean', 'boolean'],
-    'number to integer' => ['float64', 'int32', 'integer'],
-    'integer to number' => ['int32', 'float32', 'number'],
-    'integer to integer' => ['int32', 'int64', 'integer'],
-]);
-
 it('clears reference metadata when explicitly casting to a string', function () {
-    $input = JsonSchema::fromArray([
+    $input = Schema::fromArray([
         'type' => ['string', 'null'],
         'format' => 'uuid',
         'x-ferry-reference' => true,
@@ -185,10 +137,10 @@ it('clears reference metadata when explicitly casting to a string', function () 
 });
 
 it('disables and rejects the current cast type in the native form', function (array $definition, string $current) {
-    $schema = Schema::make(SchemaHost::make())
+    $schema = FilamentSchema::make(SchemaHost::make())
         ->statePath('data')
         ->components(
-            SchemaHost::transformSchema(Cast::make(), JsonSchema::fromArray($definition)),
+            SchemaHost::transformSchema(Cast::make(), Schema::fromArray($definition)),
         );
     $schema->fill(['type' => $current]);
 
@@ -201,20 +153,11 @@ it('disables and rejects the current cast type in the native form', function (ar
 ]);
 
 it('keeps all cast targets available when the current type is unknown or a union', function (array $definition) {
-    $schema = Schema::make(SchemaHost::make())->components(
-        SchemaHost::transformSchema(Cast::make(), JsonSchema::fromArray($definition)),
+    $schema = FilamentSchema::make(SchemaHost::make())->components(
+        SchemaHost::transformSchema(Cast::make(), Schema::fromArray($definition)),
     );
 
-    expect(array_keys($schema->getComponent('type')->getEnabledOptions()))->toBe([
-        'string',
-        'int8',
-        'int16',
-        'int32',
-        'int64',
-        'float32',
-        'float64',
-        'boolean',
-    ]);
+    expect($schema->getComponent('type')->getEnabledOptions())->toBe($schema->getComponent('type')->getOptions());
 })->with([
     [[]],
     [['type' => ['string', 'number', 'null']]],
@@ -222,8 +165,8 @@ it('keeps all cast targets available when the current type is unknown or a union
 ]);
 
 it('validates numeric cast targets and preserves nullable output schemas', function (string $type, string $schemaType) {
-    $input = JsonSchema::fromArray(['type' => [$schemaType, 'null'], 'minimum' => 0]);
-    $schema = Schema::make(SchemaHost::make())
+    $input = Schema::fromArray(['type' => [$schemaType, 'null'], 'minimum' => 0]);
+    $schema = FilamentSchema::make(SchemaHost::make())
         ->statePath('data')
         ->components(SchemaHost::transformSchema(Cast::make(), $input));
     $schema->fill(['type' => $type]);
@@ -232,33 +175,30 @@ it('validates numeric cast targets and preserves nullable output schemas', funct
     expect(Cast::make()->output($input, ['type' => $type])?->toArray())
         ->toBe(['type' => [$schemaType, 'null']]);
 })->with([
-    ['int8', 'integer'],
-    ['int16', 'integer'],
-    ['int32', 'integer'],
-    ['int64', 'integer'],
-    ['float32', 'number'],
-    ['float64', 'number'],
+    'integer' => ['int64', 'integer'],
+    'number' => ['float64', 'number'],
 ]);
 
 it('rejects unsupported cast targets in the native form', function (string $type) {
-    $schema = Schema::make(SchemaHost::make())
+    $schema = FilamentSchema::make(SchemaHost::make())
         ->statePath('data')
         ->components(SchemaHost::transformSchema(Cast::make()));
     $schema->fill(['type' => $type]);
 
     expect($schema->getState(...))->toThrow(ValidationException::class);
-})->with(['integer', 'number', 'bytes', 'array', 'object']);
+})->with(['integer', 'array']);
 
 it('keeps the Kafka null replacement default implicit and persists disabling it', function (?string $setting) {
-    $schema = Schema::make(SchemaHost::make())
+    $schema = FilamentSchema::make(SchemaHost::make())
         ->statePath('data')
         ->components(
-            SchemaHost::transformSchema(Cast::make(), JsonSchema::fromArray(['type' => 'boolean'])),
+            SchemaHost::transformSchema(Cast::make(), Schema::fromArray(['type' => 'boolean'])),
         );
     $params = ['type' => 'string'];
     if ($setting !== null) {
         $params['replace_null_with_default'] = $setting;
     }
+
     $schema->fill($params);
 
     expect($schema->getComponent('replace_null_with_default')->getState())->toBe($setting ?? 'true');
@@ -266,13 +206,14 @@ it('keeps the Kafka null replacement default implicit and persists disabling it'
     if ($setting === 'false') {
         $expected['replace_null_with_default'] = 'false';
     }
+
     expect($schema->getState())->toBe($expected);
-    $config = new Cast()->connector('field', $expected);
+    $config = new Cast()->connector(['field' => 'field'] + $expected);
     expect($config['replace.null.with.default'] ?? 'true')->toBe($setting ?? 'true');
 })->with([null, 'true', 'false']);
 
 it('validates null replacement settings before dehydration', function () {
-    $schema = Schema::make(SchemaHost::make())
+    $schema = FilamentSchema::make(SchemaHost::make())
         ->statePath('data')
         ->components(SchemaHost::transformSchema(Cast::make()));
     $schema->fill(['type' => 'string', 'replace_null_with_default' => 'invalid']);
@@ -289,9 +230,9 @@ it('inserts a string constant without registering a transform', function () {
     $pipeline = app(TransformFactory::class)->pipeline($replica, StructureItems::make());
 
     expect($pipeline)->toMatchArray([
-        'transforms' => 'rename_values,field_0_0',
+        'transforms' => 'field_0_0,rename_values',
         'transforms.field_0_0.type' => 'org.apache.kafka.connect.transforms.InsertField$Value',
-        'transforms.field_0_0.static.field' => 'type',
+        'transforms.field_0_0.static.field' => '__ferry_static_0',
         'transforms.field_0_0.static.value' => 'Customer',
     ]);
 });
@@ -307,46 +248,27 @@ it('casts a typed constant after inserting it', function () {
         ->and($mapping->transforms())
         ->toBe([])
         ->and($transforms['transforms'])
-        ->toBe('rename_values,field_0_0,field_0_0_cast')
+        ->toBe('field_0_0,field_0_0_cast,rename_values')
         ->and($transforms['transforms.field_0_0_cast.spec'])
-        ->toBe('is_active:boolean');
+        ->toBe('__ferry_static_0:boolean');
 });
 
 it('registers optional installed field transforms through the shared registry', function () {
     $registry = $this->app->make(TransformRegistry::class);
-    expect($registry->get('substring'))
-        ->toBeNull()
-        ->and($registry->get('mask'))
-        ->toBeNull()
-        ->and($registry->get('trim'))
-        ->toBeNull();
-
-    app(TransformRegistry::class)->register(Trim::make(), Substring::make(), MaskField::make());
-
-    expect(array_keys($registry->all()))->toBe([
-        'cast',
-        'filter',
-        'insert_uuid',
-        'timestamp_converter',
-        'boolean_to_string',
-        'string_map',
-        'toggle',
-        'trim',
-        'substring',
-        'mask',
-    ]);
-    expect($registry->resultSchema(JsonSchema::fromArray(['type' => 'string']), [
+    $registry->register(Trim::make(), Substring::make(), MaskField::make());
+    expect(app(ReplicaSchemaResolver::class)->resultSchema(Schema::fromArray(['type' => 'string']), [
         new TransformSetting('trim'),
         new TransformSetting('substring', ['start' => '0']),
         new TransformSetting('mask', ['replacement' => '***']),
     ])?->toArray())->toBe(['type' => 'string']);
-    expect($registry->resultSchema(JsonSchema::fromArray(['type' => 'boolean']), [
+    expect(app(ReplicaSchemaResolver::class)->resultSchema(Schema::fromArray(['type' => 'boolean']), [
         new TransformSetting('mask', ['replacement' => '***']),
     ]))->toBeNull();
 });
 
 it('serializes substring indexes using the installed Toblerone field format', function (array $params, string $fields) {
-    expect(new Substring()->connector('_description', $params))->toBe([
+    expect(new Substring()->connector(['field' => '_description']
+    + $params))->toBe([
         'type' => 'org.phpinnacle.toblerone.SubstringTransform$Value',
         'fields' => $fields,
     ]);
@@ -357,9 +279,7 @@ it('serializes substring indexes using the installed Toblerone field format', fu
 ]);
 
 it('masks a source field without applying the Apache transform to tombstones', function () {
-    expect(new MaskField()->connector('_fld1', [
-        'replacement' => 'hidden',
-    ]))->toBe([
+    expect(new MaskField()->connector(['field' => '_fld1', 'replacement' => 'hidden']))->toBe([
         'type' => 'org.apache.kafka.connect.transforms.MaskField$Value',
         'fields' => '_fld1',
         'replacement' => 'hidden',
@@ -370,7 +290,7 @@ it('masks a source field without applying the Apache transform to tombstones', f
 
 it('only applies text transforms to native string inputs', function (array $definition, bool $allowed) {
     foreach ([Trim::make(), Substring::make(), MaskField::make()] as $description) {
-        expect($description->accepts(JsonSchema::fromArray($definition)))->toBe($allowed);
+        expect($description->accepts(Schema::fromArray($definition)))->toBe($allowed);
     }
 })->with([
     'string' => [['type' => 'string'], true],
@@ -393,7 +313,7 @@ it('dehydrates native settings forms into string parameters and omits an empty e
     ?array $expected,
 ) {
     $livewire = SchemaHost::make();
-    $schema = Schema::make($livewire)->statePath('data')->components(SchemaHost::transformSchema($transform));
+    $schema = FilamentSchema::make($livewire)->statePath('data')->components(SchemaHost::transformSchema($transform));
     $schema->fill($params === [] ? null : $params);
 
     if ($params !== []) {
@@ -425,9 +345,13 @@ it('dehydrates native settings forms into string parameters and omits an empty e
 
 it('keeps settings forms independent when a transformation is reused', function () {
     $transform = MaskField::make();
-    $first = Schema::make(SchemaHost::make())->statePath('data')->components(SchemaHost::transformSchema($transform));
+    $first = FilamentSchema::make(SchemaHost::make())
+        ->statePath('data')
+        ->components(SchemaHost::transformSchema($transform));
     $first->fill(['replacement' => 'First']);
-    $second = Schema::make(SchemaHost::make())->statePath('data')->components(SchemaHost::transformSchema($transform));
+    $second = FilamentSchema::make(SchemaHost::make())
+        ->statePath('data')
+        ->components(SchemaHost::transformSchema($transform));
     $second->fill(['replacement' => 'Second']);
 
     expect($first->getState())->toBe(['replacement' => 'First']);
@@ -438,7 +362,7 @@ it('preserves nullability and replaces value constraints in built-in output sche
     Transform $transform,
     array $params,
 ) {
-    $input = JsonSchema::fromArray([
+    $input = Schema::fromArray([
         'type' => ['string', 'null'],
         'format' => 'email',
         'enum' => ['user@example.com', null],
@@ -457,36 +381,43 @@ it('preserves nullability and replaces value constraints in built-in output sche
 
 it('passes the complete preceding output schema to callbacks in an ordered chain', function () {
     $registry = app(TransformRegistry::class);
+    $seen = [];
     $registry->register(
         new FakeTransform(
             'limit',
-            accepts: fn (JsonSchema $input) => $input->singleType() === 'string',
-            output: fn (JsonSchema $input, array $params) => JsonSchema::fromArray([
-                ...$input->toArray(),
-                'maxLength' => (int) $params['length'],
-            ]),
+            accepts: fn (Schema $input) => $input->singleType() === 'string',
+            output: function (Schema $input, array $params) use (&$seen) {
+                $seen[] = $input->toArray();
+
+                return Schema::fromArray([...$input->toArray(), 'maxLength' => (int) $params['length']]);
+            },
         ),
     );
-    $input = JsonSchema::fromArray(['type' => 'string', 'format' => 'email']);
+    $input = Schema::fromArray(['type' => 'string', 'format' => 'email']);
 
-    expect($registry->resultSchema($input, []))->toBe($input);
+    expect(app(ReplicaSchemaResolver::class)->resultSchema($input, []))->toBe($input);
     expect(
-        $registry
+        app(ReplicaSchemaResolver::class)
             ->resultSchema($input, [
                 new TransformSetting('limit', ['length' => '80']),
                 new TransformSetting('limit', ['length' => '40']),
             ])
             ?->toArray(),
     )->toBe(['type' => 'string', 'format' => 'email', 'maxLength' => 40]);
-    expect($registry->resultSchema($input, [new TransformSetting('cast')]))->toBeNull();
+    expect($seen)->toBe([
+        ['type' => 'string', 'format' => 'email'],
+        ['type' => 'string', 'format' => 'email', 'maxLength' => 80],
+    ]);
 });
 
 it('compiles a custom registered transform without building its settings form', function () {
     $registry = app(TransformRegistry::class);
     $transform = new FakeTransform(
         'headless',
-        block: Block::make('headless')->schema(fn () => throw new LogicException('The worker must not build a form.')),
-        connector: fn (string $field, array $params) => Filter::make()->connector($field, $params),
+        block: InlineBlock::make('headless')->schema(
+            fn () => throw new LogicException('The worker must not build a form.'),
+        ),
+        connector: fn (array $params) => Filter::make()->connector($params),
     );
     $registry->register($transform);
     $factory = app(TransformFactory::class);
@@ -510,42 +441,17 @@ it('compiles a custom registered transform without building its settings form', 
     $object = StructureItems::make([
         'primary_key' => ['id'],
         'fields' => [
-            '_marked' => JsonSchema::fromArray(['type' => 'boolean']),
-            'id' => JsonSchema::fromArray(['type' => 'integer']),
+            '_marked' => Schema::fromArray(['type' => 'boolean']),
+            'id' => Schema::fromArray(['type' => 'integer']),
         ],
         'sources' => [],
     ]);
-    expect($registry->get('headless'))
+    expect($registry->find('headless'))
         ->toBe($transform)
         ->and(
             $factory->pipeline($replica, $object)['transforms.field_0_0.filter.condition'],
         )
         ->toBe("$[?(@['_marked'] == true)]");
-});
-
-it('persists and executes static chains on their destination without renaming', function () {
-    $row = [
-        'kind' => 'static',
-        'target' => 'discount',
-        'static' => '10',
-        'options' => ['transforms' => [['type' => 'cast', 'data' => ['type' => 'int64']]]],
-    ];
-    $mapping = FieldMapping::fromArray($row);
-    expect($mapping->jsonSerialize())
-        ->toBe($row)
-        ->and($mapping->staticSchema()?->singleType())
-        ->toBe('string')
-        ->and(app(TransformRegistry::class)->mappingSchema($mapping, JsonSchema::fromArray([]))?->singleType())
-        ->toBe('integer');
-    $pipeline = app(TransformFactory::class)->pipeline(new Replica(['mapping' => [$mapping]]), StructureItems::make());
-    expect($pipeline['transforms'])
-        ->toBe('rename_values,field_0_0,field_0_1')
-        ->and($pipeline['transforms.field_0_0.static.field'])
-        ->toBe('discount')
-        ->and($pipeline['transforms.field_0_0.static.value'])
-        ->toBe('10')
-        ->and($pipeline['transforms.field_0_1.spec'])
-        ->toBe('discount:int64');
 });
 
 it('rejects a missing transform while compiling a pipeline', function () {

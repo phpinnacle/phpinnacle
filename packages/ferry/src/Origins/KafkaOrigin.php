@@ -13,7 +13,6 @@ use PHPinnacle\Ferry\Models\Upstream;
 use PHPinnacle\Ferry\Origins\Kafka\KafkaConnectFactory;
 use PHPinnacle\Ferry\Origins\Kafka\SinkConfigFactory;
 use PHPinnacle\Ferry\Origins\Kafka\SourceFactory;
-use PHPinnacle\Ferry\Rules\ReplicaSchema;
 use PHPinnacle\Ferry\Services\DestinationFactory;
 use PHPinnacle\Franz\Exception\ApiException;
 use PHPinnacle\Franz\Request\ConnectorConfigRequest;
@@ -184,14 +183,6 @@ class KafkaOrigin implements Origin
                 'code' => $replica->code,
             ]));
         }
-
-        ReplicaSchema::assertValid(
-            $replica->mapping,
-            $this->destinations->staticFor($replica),
-            $replica->primaryKeySources($object),
-            $replica->schema,
-            $object->primary_key,
-        );
 
         return $object;
     }

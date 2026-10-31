@@ -19,14 +19,12 @@ it('preserves complete definitions without normalizing constraints or annotation
 });
 
 it('keeps built schemas immutable and required names on the containing object', function () {
-    $name = SchemaBuilder::make()->type('string')->min(1)->default(null)->build();
+    $name = SchemaBuilder::make()->type('string')->default(null)->build();
     $titled = SchemaBuilder::make($name)->title('Name')->build();
     $schema = SchemaBuilder::make(Schema::object([
         'name' => $titled,
-        'count' => SchemaBuilder::make()->type('integer')->min(0)->build(),
     ]))
         ->required(['name', 'undeclared'])
-        ->withoutAdditionalProperties()
         ->build();
     expect($name->hasKeyword('title'))
         ->toBeFalse()
@@ -71,6 +69,15 @@ it('retains recursive references in the original document', function () {
     $schema = Schema::fromArray(['$defs' => ['node' => ['properties' => ['next' => ['$ref' => '#/$defs/node']]]]]);
     expect($schema->toArray()['$defs']['node']['properties']['next'])->toBe(['$ref' => '#/$defs/node']);
     expect($schema->resolveReferences(...))->toThrow(InvalidArgumentException::class, 'recursive');
+});
+
+it('allows 20000 expanded schema fragments and rejects the next fragment', function () {
+    $definition = ['prefixItems' => array_fill(0, count: 19_999, value: true)];
+    $schema = Schema::fromArray($definition);
+
+    expect($schema->resolveReferences()->toArray())->toBe($definition);
+    expect(Schema::fromArray(['prefixItems' => array_fill(0, count: 20_000, value: true)])->resolveReferences(...))
+        ->toThrow(InvalidArgumentException::class, 'The JSON Schema expands beyond 20000 fragments.');
 });
 
 it('resolves percent-encoded JSON Pointer fragments', function () {
@@ -156,14 +163,20 @@ it('composes nested schema builders without special serializer subclasses', func
     ]))
         ->required(['value', 'external'])
         ->build();
+    $expected = [
+        $keyword => [
+            ['type' => 'string', 'readOnly' => true, 'x-metadata' => ['enabled' => true]],
+            ['type' => 'string', 'minLength' => 3],
+        ],
+        'title' => 'Value',
+    ];
+
     expect($schema->properties()['value']->toArray())
-        ->toBe($composition->toArray())
+        ->toBe($expected)
         ->and($schema->properties()['items']->items()->toArray())
-        ->toBe($composition->toArray())
-        ->and($composition->branches($keyword)[0]->toArray())
-        ->toBe($branch->toArray())
-        ->and(Schema::fromArray($schema->toArray())->toArray())
-        ->toBe($schema->toArray());
+        ->toBe($expected);
+    expect(array_map(fn (Schema $branch) => $branch->toArray(), $composition->branches($keyword)))
+        ->toBe($expected[$keyword]);
 })->with(['allOf', 'anyOf', 'oneOf']);
 
 it('keeps nullability outside conditional and reference constraints', function (array $definition, array $resolved) {

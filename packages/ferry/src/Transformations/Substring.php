@@ -5,10 +5,11 @@ namespace PHPinnacle\Ferry\Transformations;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Group;
 use Filament\Support\Icons\Heroicon;
-use PHPinnacle\Common\Forms\InlineBuilder\Block;
-use PHPinnacle\Eidos\Forms\JsonSchema;
+use PHPinnacle\Common\Forms\InlineBuilder\Block as InlineBlock;
 use PHPinnacle\Ferry\Contracts\Transform;
+use PHPinnacle\Ferry\Enums\TransformScope;
 use PHPinnacle\Ferry\Enums\TransformTarget;
+use PHPinnacle\Jason\Schema;
 
 final class Substring implements Transform
 {
@@ -22,40 +23,50 @@ final class Substring implements Transform
         return 'substring';
     }
 
+    public function getScope(): TransformScope
+    {
+        return TransformScope::Field;
+    }
+
+    public function sourceFields(array $params): array
+    {
+        return [];
+    }
+
     public function getTarget(): TransformTarget
     {
         return TransformTarget::Value;
     }
 
-    public function accepts(JsonSchema $input): bool
+    public function accepts(Schema $input): bool
     {
         return (
             $input->singleType() === 'string'
-            && !in_array($input->format(), ['date', 'time', 'date-time'], true)
+            && !in_array($input->effectiveFormat(), ['date', 'time', 'date-time'], true)
             && $input->annotation('x-ferry-reference') !== true
         );
     }
 
     /** @param array<string, string> $params */
-    public function output(JsonSchema $input, array $params): JsonSchema
+    public function output(Schema $input, array $params): Schema
     {
-        return JsonSchema::fromArray([
+        return Schema::fromArray([
             'type' => in_array('null', $input->types(), true) ? ['string', 'null'] : 'string',
         ]);
     }
 
-    public function block(): Block
+    public function block(): InlineBlock
     {
-        return Block::make($this->getKey())
+        return InlineBlock::make($this->getKey())
             ->color('info')
-            ->label(fn () => __('phpinnacle-ferry::resources.transform.substring'))
+            ->label(fn () => __('phpinnacle-ferry::transforms.substring'))
             ->icon(Heroicon::Scissors)
             ->schema(fn () => [
                 Group::make()
                     ->schema([
                         TextInput::make('start')
-                            ->label(__('phpinnacle-ferry::resources.transform.substring_start'))
-                            ->helperText(__('phpinnacle-ferry::resources.transform.substring_start_help'))
+                            ->label(__('phpinnacle-ferry::transforms.substring_start'))
+                            ->helperText(__('phpinnacle-ferry::transforms.substring_start_help'))
                             ->integer()
                             ->minValue(0)
                             ->maxValue(2_147_483_647)
@@ -63,8 +74,8 @@ final class Substring implements Transform
                             ->required()
                             ->dehydrateStateUsing(fn (int|string $state) => (string) $state),
                         TextInput::make('end')
-                            ->label(__('phpinnacle-ferry::resources.transform.substring_end'))
-                            ->helperText(__('phpinnacle-ferry::resources.transform.substring_end_help'))
+                            ->label(__('phpinnacle-ferry::transforms.substring_end'))
+                            ->helperText(__('phpinnacle-ferry::transforms.substring_end_help'))
                             ->integer()
                             ->minValue(0)
                             ->maxValue(2_147_483_647)
@@ -76,13 +87,18 @@ final class Substring implements Transform
             ]);
     }
 
-    /** @param array<string, string> $params */
-    public function connector(string $field, array $params): array
+    /**
+     * @param array<string, string> $params
+     */
+    public function connector(array $params): array
     {
         return [
             'type' => 'org.phpinnacle.toblerone.SubstringTransform$Value',
             'fields' =>
-                $field . ':' . $params['start'] . (array_key_exists('end', $params) ? ':' . $params['end'] : ''),
+                $params['field']
+                    . ':'
+                    . $params['start']
+                    . (array_key_exists('end', $params) ? ':' . $params['end'] : ''),
         ];
     }
 }
