@@ -53,16 +53,16 @@ function visualOrder(component) {
 }
 
 for (const inverse of [false, true]) {
-    test(`arranging ${inverse ? 'inverse' : 'normal'} connections removes crossings without changing editor values`, () => {
+    test(`${inverse ? 'inverse' : 'normal'} connections are arranged by default without changing editor values`, () => {
         const component = editor({ name: sourceEntry('email'), contact: sourceEntry('title') }, false, {
             inverse,
             sourceSettings: { title: { transforms: [{ type: 'trim' }] } },
         });
         const state = structuredClone(component.state);
 
-        component.arranged = true;
         component.refresh();
 
+        assert.equal(component.arranged, true);
         assert.deepEqual(visualOrder(component), [['email', 'title'], ['name', 'contact']]);
         assert.deepEqual(component.state, state);
 
@@ -100,6 +100,7 @@ test('arranging puts connected fields first and follows connection changes while
 test('arranging multiple sources keeps the submitted item order and independent editor layouts', () => {
     const component = editor({ name: [sourceEntry('email'), sourceEntry('title')] }, false, { connectionModes: itemModes });
     const other = editor({ name: sourceEntry('email') });
+    other.arranged = false;
     const state = structuredClone(component.state);
     component.arranged = true;
 
@@ -110,6 +111,21 @@ test('arranging multiple sources keeps the submitted item order and independent 
     assert.deepEqual(component.mappings().name, [sourceEntry('email'), sourceEntry('title')]);
     assert.deepEqual(component.state, state);
     assert.deepEqual(visualOrder(other), [['title', 'email'], ['name', 'contact']]);
+});
+
+test('connections follow the anchors after pending layout updates finish', () => {
+    const component = editor({ name: sourceEntry('email'), contact: sourceEntry('title') });
+    const pending = [];
+    component.$nextTick = callback => pending.push(callback);
+
+    component.refresh();
+    component.port('source', 'email').getBoundingClientRect = () => ({ left: 100, top: 80, width: 16, height: 16 });
+    component.port('source', 'title').getBoundingClientRect = () => ({ left: 100, top: 160, width: 16, height: 16 });
+    pending.forEach(callback => callback());
+
+    assert.equal(component.connections.length, 2);
+    assert.match(component.connections.find(({ source }) => source === 'email').path, /^M 88 48 .*388 48$/);
+    assert.match(component.connections.find(({ source }) => source === 'title').path, /^M 88 128 .*388 128$/);
 });
 
 test('partial configuration updates refresh compatibility and ports while keeping drafts and filters', () => {

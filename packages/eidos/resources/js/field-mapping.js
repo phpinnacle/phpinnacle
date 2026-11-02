@@ -12,7 +12,7 @@ export default function fieldMapping({ element, state, disabled, inverse = false
         sourceTypes: {},
         search: '',
         visibilityFilter: 'all',
-        arranged: false,
+        arranged: true,
         selected: null,
         connections: [],
         hoveredConnection: null,
@@ -292,28 +292,30 @@ export default function fieldMapping({ element, state, disabled, inverse = false
         refresh() {
             ports = undefined;
             this.arrangeRows();
-            const canvas = this.$refs.canvas.getBoundingClientRect();
-            this.width = Math.max(1, canvas.width);
-            this.height = Math.max(1, canvas.height);
-            this.connections = this.pairs().flatMap(({ target, source }) => {
-                const sourcePort = this.port('source', source);
-                const targetPort = this.port('target', target);
-                const start = this.point(sourcePort, canvas);
-                const end = this.point(targetPort, canvas);
-                return start && end ? [{
-                    source,
-                    target,
-                    path: this.inverse ? this.path(end, start) : this.path(start, end),
-                    midpoint: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
-                    label: `Disconnect ${sourcePort.dataset.label} from ${targetPort.dataset.label}`,
-                }] : [];
-            });
-            for (const property of ['hoveredConnection', 'focusedConnection']) {
-                const highlighted = this[property];
-                if (highlighted && !this.connections.some(connection => connection.source === highlighted.source && connection.target === highlighted.target)) {
-                    this[property] = null;
+            this.$nextTick(() => {
+                const canvas = this.$refs.canvas.getBoundingClientRect();
+                this.width = Math.max(1, canvas.width);
+                this.height = Math.max(1, canvas.height);
+                this.connections = this.pairs().flatMap(({ target, source }) => {
+                    const sourcePort = this.port('source', source);
+                    const targetPort = this.port('target', target);
+                    const start = this.point(sourcePort, canvas);
+                    const end = this.point(targetPort, canvas);
+                    return start && end ? [{
+                        source,
+                        target,
+                        path: this.inverse ? this.path(end, start) : this.path(start, end),
+                        midpoint: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
+                        label: `Disconnect ${sourcePort.dataset.label} from ${targetPort.dataset.label}`,
+                    }] : [];
+                });
+                for (const property of ['hoveredConnection', 'focusedConnection']) {
+                    const highlighted = this[property];
+                    if (highlighted && !this.connections.some(connection => connection.source === highlighted.source && connection.target === highlighted.target)) {
+                        this[property] = null;
+                    }
                 }
-            }
+            });
         },
     };
 }
