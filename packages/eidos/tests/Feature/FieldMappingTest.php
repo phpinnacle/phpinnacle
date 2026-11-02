@@ -94,6 +94,25 @@ it('defers mapping changes with native static forms and source settings', functi
         ->not->toContain("\$entangle('data.mapping').live");
 });
 
+it('renders a local arrangement toggle at the right of the mapping toolbar', function () {
+    $definition = Schema::object(['name' => Schema::string()]);
+    $field = FieldMapping::make('mapping')->jsonSchema(source: $definition, target: $definition);
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema->fill();
+    view()->share('errors', new ViewErrorBag);
+
+    $document = new DOMDocument;
+    $document->loadHTML($schema->toHtml(), LIBXML_NOERROR | LIBXML_NOWARNING);
+    $xpath = new DOMXPath($document);
+    $button = $xpath->query('//div[contains(@class, "eidos-mapping-status")]/button[last()]')->item(0);
+
+    expect($button->getAttribute('aria-label'))->toBe('Arrange connections');
+    expect($button->getAttribute('type'))->toBe('button');
+    expect($button->getAttribute('x-on:click'))->toBe('arranged = !arranged');
+    expect($button->getAttribute('x-bind:aria-pressed'))->toBe('arranged');
+    expect($xpath->query('//*[@data-mapping-items]')->length)->toBe(2);
+});
+
 it('keeps native editor addresses and submits ordered connections without inactive static drafts', function () {
     $field = FieldMapping::make('mapping')
         ->jsonSchema(

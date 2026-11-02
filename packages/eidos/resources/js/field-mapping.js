@@ -12,6 +12,7 @@ export default function fieldMapping({ element, state, disabled, inverse = false
         sourceTypes: {},
         search: '',
         visibilityFilter: 'all',
+        arranged: false,
         selected: null,
         connections: [],
         hoveredConnection: null,
@@ -25,7 +26,7 @@ export default function fieldMapping({ element, state, disabled, inverse = false
             this.observer = new ResizeObserver(() => this.refresh());
             this.observer.observe(this.$refs.canvas);
             element.querySelectorAll('[data-mapping-row], [data-mapping-anchor]').forEach((element) => this.observer.observe(element));
-            ['state', 'search', 'visibilityFilter'].forEach((property) => {
+            ['state', 'search', 'visibilityFilter', 'arranged'].forEach((property) => {
                 this.$watch(property, () => {
                     if (property !== 'state') this.cancel();
                     this.$nextTick(() => this.refresh());
@@ -268,8 +269,29 @@ export default function fieldMapping({ element, state, disabled, inverse = false
             return `M ${source.x} ${source.y} C ${source.x + bend} ${source.y}, ${target.x - bend} ${target.y}, ${target.x} ${target.y}`;
         },
 
+        arrangeRows() {
+            const targets = Array.from(element.querySelectorAll('[data-mapping-port]'))
+                .filter(port => port.dataset.side === 'target');
+            const targetOrder = new Map(targets.map((port, index) => [port.dataset.id, index]));
+            const pairs = this.pairs();
+            const sourceTargets = new Map(pairs.map(pair => [pair.source, pair.target]));
+            const connectedTargets = new Set(pairs.map(pair => pair.target));
+
+            element.querySelectorAll('[data-mapping-items]').forEach(container => {
+                Array.from(container.children).forEach((row, index) => {
+                    const { side, id } = row.querySelector('[data-mapping-port]').dataset;
+                    const target = side === 'source' ? sourceTargets.get(id) : id;
+                    const order = connectedTargets.has(target) ? targetOrder.get(target) : undefined;
+                    row.style.order = this.arranged
+                        ? String(order ?? targets.length + index)
+                        : '';
+                });
+            });
+        },
+
         refresh() {
             ports = undefined;
+            this.arrangeRows();
             const canvas = this.$refs.canvas.getBoundingClientRect();
             this.width = Math.max(1, canvas.width);
             this.height = Math.max(1, canvas.height);

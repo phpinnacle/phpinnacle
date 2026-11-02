@@ -20,7 +20,13 @@ function editor(state = {}, disabled = false, options = {}) {
         querySelector() { return this; },
     }));
     const connectionModes = structuredClone(options.connectionModes ?? scalarModes);
-    const element = { querySelectorAll: (selector) => selector === '[data-mapping-port]' ? ports : [] };
+    const containers = ['source', 'target'].map(side => ({
+        children: ports.filter(port => port.dataset.side === side).map(port => ({
+            style: { order: '' },
+            querySelector: () => port,
+        })),
+    }));
+    const element = { querySelectorAll: (selector) => selector === '[data-mapping-port]' ? ports : selector === '[data-mapping-items]' ? containers : [] };
     const rows = [];
     for (const [target, mapped] of Object.entries(state ?? {})) {
         for (const entry of Array.isArray(mapped) ? mapped : [mapped]) {
@@ -39,6 +45,72 @@ function editor(state = {}, disabled = false, options = {}) {
     component.$nextTick = (callback) => callback();
     return component;
 }
+
+function visualOrder(component) {
+    return component.$root.querySelectorAll('[data-mapping-items]').map(container => [...container.children]
+        .sort((a, b) => Number(a.style.order) - Number(b.style.order))
+        .map(row => row.querySelector('[data-mapping-port]').dataset.id));
+}
+
+for (const inverse of [false, true]) {
+    test(`arranging ${inverse ? 'inverse' : 'normal'} connections removes crossings without changing editor values`, () => {
+        const component = editor({ name: sourceEntry('email'), contact: sourceEntry('title') }, false, {
+            inverse,
+            sourceSettings: { title: { transforms: [{ type: 'trim' }] } },
+        });
+        const state = structuredClone(component.state);
+
+        component.arranged = true;
+        component.refresh();
+
+        assert.deepEqual(visualOrder(component), [['email', 'title'], ['name', 'contact']]);
+        assert.deepEqual(component.state, state);
+
+        component.arranged = false;
+        component.refresh();
+
+        assert.deepEqual(visualOrder(component), [['title', 'email'], ['name', 'contact']]);
+        assert.deepEqual(component.state, state);
+    });
+}
+
+test('arranging puts connected fields first and follows connection changes while preserving static drafts', () => {
+    const component = editor({ name: value('Draft'), contact: sourceEntry('email') });
+    const state = structuredClone(component.state);
+    component.arranged = true;
+
+    component.refresh();
+
+    assert.deepEqual(visualOrder(component), [['email', 'title'], ['contact', 'name']]);
+    assert.deepEqual(component.state, state);
+
+    component.connect('title', 'name');
+    component.refresh();
+
+    assert.deepEqual(visualOrder(component), [['title', 'email'], ['name', 'contact']]);
+    assert.equal(component.state.find(row => row.kind === 'static').static, 'Draft');
+
+    component.remove('name');
+    component.remove('contact');
+    component.refresh();
+
+    assert.deepEqual(visualOrder(component), [['title', 'email'], ['name', 'contact']]);
+});
+
+test('arranging multiple sources keeps the submitted item order and independent editor layouts', () => {
+    const component = editor({ name: [sourceEntry('email'), sourceEntry('title')] }, false, { connectionModes: itemModes });
+    const other = editor({ name: sourceEntry('email') });
+    const state = structuredClone(component.state);
+    component.arranged = true;
+
+    component.refresh();
+    other.refresh();
+
+    assert.deepEqual(visualOrder(component), [['title', 'email'], ['name', 'contact']]);
+    assert.deepEqual(component.mappings().name, [sourceEntry('email'), sourceEntry('title')]);
+    assert.deepEqual(component.state, state);
+    assert.deepEqual(visualOrder(other), [['title', 'email'], ['name', 'contact']]);
+});
 
 test('partial configuration updates refresh compatibility and ports while keeping drafts and filters', () => {
     const component = editor({ name: sourceEntry('title') }, false, { sourceSettings: { title: { transforms: [{ type: 'trim' }] } } });

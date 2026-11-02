@@ -114,6 +114,18 @@
                                 </label>
                             @endforeach
                         </fieldset>
+                        @if ($hasFields)
+                            <x-filament::icon-button
+                                class="eidos-mapping-arrange"
+                                icon="heroicon-m-bars-3-bottom-left"
+                                color="gray"
+                                :size="$dense ? Size::Small : Size::Medium"
+                                :label="__('phpinnacle-eidos::schema-forms.mapping.arrange')"
+                                :tooltip="__('phpinnacle-eidos::schema-forms.mapping.arrange')"
+                                x-on:click="arranged = !arranged"
+                                x-bind:aria-pressed="arranged"
+                            />
+                        @endif
                     </div>
                 @endif
             </div>
@@ -144,7 +156,7 @@
                         @endphp
                         <section class="{{ $isLeft ? 'col-start-1' : 'col-start-3' }} row-start-1 min-w-0" aria-label="{{ $panel['label'] }}" wire:key="{{ $getId() }}-{{ $side }}">
                             <h3 class="eidos-mapping-label eidos-mapping-panel-label">{{ $panel['label'] }}</h3>
-                            <div class="eidos-mapping-items">
+                            <div class="eidos-mapping-items" data-mapping-items>
                                 @foreach ($panel['items'] as $item)
                                     @if ($side === 'source')
                                         {!! $staticSchemas['sourceCards']->getComponent('card_'.$sourceStateKeys[$item['id']])->toSchemaHtml() !!}

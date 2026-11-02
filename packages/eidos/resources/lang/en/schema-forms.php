@@ -20,6 +20,7 @@ return [
         'remove_constant' => 'Remove',
     ],
     'mapping' => [
+        'arrange' => 'Arrange connections',
         'filter' => [
             'label' => 'Field visibility',
             'all' => 'All',

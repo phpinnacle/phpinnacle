@@ -97,6 +97,15 @@
     max-width: 100%;
 }
 
+.eidos-mapping-arrange[aria-pressed="true"] {
+    color: var(--primary-600);
+    background: color-mix(in oklab, var(--primary-600) 10%, transparent);
+}
+
+.dark .eidos-mapping-arrange[aria-pressed="true"] {
+    color: var(--primary-400);
+}
+
 .eidos-mapping-search .fi-input {
     /* Include the filter padding and leave room for the input wrapper's 1 px ring. */
     height: calc(var(--eidos-toolbar-control-height) + 0.25rem - 2px);

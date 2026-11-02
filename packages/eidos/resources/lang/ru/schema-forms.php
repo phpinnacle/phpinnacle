@@ -20,6 +20,7 @@ return [
         'remove_constant' => 'Удалить',
     ],
     'mapping' => [
+        'arrange' => 'Упорядочить связи',
         'filter' => [
             'label' => 'Отображение полей',
             'all' => 'Все',
