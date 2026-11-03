@@ -1,6 +1,6 @@
 <?php
 
-namespace PHPinnacle\Cerber\Http\Controllers\OAuth\API;
+namespace PHPinnacle\Cerber\Http\Controllers\OAuth;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -8,7 +8,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Str;
 use PHPinnacle\Cerber\Contracts\SocialAccountContext;
 use PHPinnacle\Cerber\Exceptions\OAuthException;
-use PHPinnacle\Cerber\Http\Resources\OAuth\AuthResource;
+use PHPinnacle\Cerber\Http\Resources\Auth\AuthResource;
 use PHPinnacle\Cerber\Http\Resources\OAuth\OAuthProviderResource;
 use PHPinnacle\Cerber\Models\Provider;
 use PHPinnacle\Cerber\Models\User;

@@ -1,9 +1,10 @@
 <?php
 
-namespace PHPinnacle\Cerber\Http\Resources\OAuth;
+namespace PHPinnacle\Cerber\Http\Resources\Auth;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use PHPinnacle\Cerber\Enums\Prerequisite;
 use PHPinnacle\Cerber\Models\User;
 
 class AuthResource extends JsonResource
@@ -26,11 +27,11 @@ class AuthResource extends JsonResource
             'access_token' => $this->token,
             'token_type' => 'bearer',
             'expires_in' => (int) config('jwt.ttl') * 60,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'status' => $user->status,
-            ],
+            'prerequisites' => array_map(
+                fn (Prerequisite $prerequisite) => $prerequisite->value,
+                $user->prerequisites(),
+            ),
+            'user' => new UserResource($user),
         ];
     }
 }

@@ -19,6 +19,7 @@ use Illuminate\Support\Str;
 use PHPinnacle\Cerber\Cerberus;
 use PHPinnacle\Cerber\Contracts\Viewer;
 use PHPinnacle\Cerber\Enums\LoginType;
+use PHPinnacle\Cerber\Enums\Prerequisite;
 use PHPinnacle\Cerber\Enums\UserStatus;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 use Stringable;
@@ -54,7 +55,7 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
 
     protected $table = 'users';
 
-    protected $attributes = ['two_factor_email' => false];
+    protected $attributes = ['two_factor_email' => false, 'is_password_temporary' => false];
 
     protected $casts = [
         'password' => 'hashed',
@@ -115,6 +116,12 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
     public function defaultLogin(LoginType $type): ?Login
     {
         return $this->logins()->where('type', $type)->where('is_default', true)->first();
+    }
+
+    /** @return list<Prerequisite> */
+    public function prerequisites(): array
+    {
+        return $this->is_password_temporary ? [Prerequisite::Password] : [];
     }
 
     public function getEmailForPasswordReset(): ?string

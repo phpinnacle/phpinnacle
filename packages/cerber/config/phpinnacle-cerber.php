@@ -28,6 +28,8 @@ return [
         'resources' => [],
     ],
     'api' => [
+        'enabled' => false,
+        'frontend_url' => env('CERBER_API_FRONTEND_URL', ''),
         'callback_url' => env('CERBER_API_CALLBACK_URL', ''),
     ],
 

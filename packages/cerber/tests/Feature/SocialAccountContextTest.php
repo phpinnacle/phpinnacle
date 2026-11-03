@@ -202,7 +202,9 @@ it('issues a frontend JWT without signing in to the panel session', function () 
             'code_verifier' => $this->verifier,
         ])
         ->assertOk()
-        ->assertJsonPath('user.id', $this->customer->id);
+        ->assertJsonPath('user.id', $this->customer->id)
+        ->assertJsonPath('user.email', 'same@example.test')
+        ->assertJsonPath('user.email_verified_at', null);
 
     expect($response->json('access_token'))
         ->toBeString()

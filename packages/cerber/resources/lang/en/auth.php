@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'password_reset' => [
+        'sent' => 'If an account with this email exists, a password reset link has been sent.',
+        'success' => 'Password has been reset successfully.',
+    ],
     'login' => [
         'or_login_with' => 'or sign in with:',
     ],

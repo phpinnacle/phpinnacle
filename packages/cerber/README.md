@@ -74,6 +74,7 @@ Configure Laravel authentication with the application User subclass when applica
 ```php
 'guards' => [
     'web' => ['driver' => 'session', 'provider' => 'users'],
+    'api' => ['driver' => 'jwt', 'provider' => 'users'],
 ],
 'providers' => [
     'users' => ['driver' => 'cerber', 'model' => User::class],
@@ -249,7 +250,52 @@ $provider->unlink($user);
 
 `linked()` returns provider IDs. `Provider::unlink()` deletes the local binding; it does not revoke tokens at the external provider. Only pass identities obtained through a verified OAuth flow to `Provider::link()`, and authorize the target user and provider context in the calling application. An external identity already bound to another user through the same provider cannot be reassigned by linking.
 
-## Frontend JWT flow
+## Password authentication API
+
+Enable the password authentication routes in `config/phpinnacle-cerber.php`:
+
+```php
+'user_model' => App\Models\User::class,
+'api' => [
+    'enabled' => true,
+    'frontend_url' => env('CERBER_API_FRONTEND_URL'),
+    'callback_url' => env('CERBER_API_CALLBACK_URL'),
+],
+```
+
+Set `CERBER_API_FRONTEND_URL` to the frontend base URL for verification and password recovery pages. `CERBER_API_CALLBACK_URL` is the separate OAuth callback page described below.
+
+Configure the `api` guard with the `jwt` driver and a `cerber` user provider, as described above, and generate the signing secret with `php artisan jwt:secret`. The provider's `model` must match `phpinnacle-cerber.user_model`. The default Laravel password broker must use the same provider. When Cerber uses a separate database connection, set that broker's `connection` to the same configured connection name so its reset tokens use the Cerber database.
+
+| Method | URL | Input |
+| --- | --- | --- |
+| POST | `/api/auth/register` | `email`, `password` |
+| POST | `/api/auth/login` | `email`, `password` |
+| GET | `/api/auth/verify-email` | The complete query string from the verification email |
+| POST | `/api/auth/password/forgot` | `email` |
+| POST | `/api/auth/password/reset` | `email`, `token`, `password` |
+| POST | `/api/auth/password/change` | Bearer token; `current`, `password` |
+| POST | `/api/auth/refresh` | Bearer token |
+| POST | `/api/auth/logout` | Bearer token |
+| GET | `/api/profile` | Bearer token |
+
+Route names use the `cerber.api.` prefix: `register`, `login`, `verify-email`, `password.forgot`, `password.reset`, `password.change`, `refresh`, `logout`, and `profile`. Password API routes are disabled by default; OAuth routes remain independently available. Remove application-owned routes for these URLs when enabling Cerber's routes.
+
+Registration creates a user of the configured `user_model` with `panels: ['web']`, a shared password and an unverified email login in one transaction. Email uniqueness uses canonical local email logins. Registration, password reset and password change accept a `password` string of at least eight characters without `password_confirmation`; confirmation belongs to the frontend form. Registration returns HTTP 201 and a JWT immediately; subsequent password sign-in requires email verification. Applications needing additional registration eligibility rules should supply their own registration endpoint instead of enabling this complete public API.
+
+Verification mail goes to the new login after commit. The link opens `{frontend_url}/auth/verify-email`; the frontend must forward **all** query parameters unchanged to `/api/auth/verify-email`. The signed query identifies a login, expires after one hour and becomes invalid if its email changes. Successful verification returns the user profile.
+
+Password recovery sends Laravel's reset notification to the user's default email, with a link to `{frontend_url}/auth/reset-password`. Requests using any registered email resolve the same user. Missing accounts and throttled mail requests receive the same HTTP 200 response as successful requests. Reset tokens follow Laravel's configured expiry and are consumed after a successful reset; invalid tokens return HTTP 422. The notifications use Filament's queued mail notifications and the application's mail/queue configuration.
+
+Authenticated users can change their shared password through `/api/auth/password/change`. The `current` password is required and checked when one exists; passwordless users can set their first password without it. Success returns HTTP 204; invalid input returns HTTP 422. Password changes rotate the user's remember token, preserve existing JWTs until expiry or logout, and leave the administrative `is_password_temporary` marker unchanged.
+
+Registration, login, refresh and OAuth callbacks return `access_token`, `token_type: bearer`, `expires_in` in seconds, `prerequisites`, and `user`. `prerequisites` is a list of string values from `PHPinnacle\Cerber\Enums\Prerequisite`: `['password']` (`Prerequisite::Password`) when `is_password_temporary` is set, otherwise `[]`. This marker does not block API authentication.
+
+The shared `user` profile contains `id`, `name`, `status`, `email`, `email_verified_at` and `created_at`; email fields describe the default email login and can be null. `/api/profile` returns this profile directly.
+
+Bearer-protected routes in this API use `auth:api`. Refresh requires an unexpired bearer token and rotates it; logout returns HTTP 204 and invalidates the token when JWT blacklisting is enabled. Login, registration and password endpoints allow six requests per minute; verification allows ten. Blocked and archived users cannot authenticate through the `cerber` provider, including with previously issued bearer tokens.
+
+## Frontend OAuth JWT flow
 
 Set `CERBER_API_CALLBACK_URL` to the frontend callback page. Register the exact callback URLs, including their `context` and `provider` query parameters, in the OAuth provider console. Panel callback URLs remain `/auth/{provider}/callback` under the panel path. OAuth2 providers must support the authorization-code flow; Cerber sends S256 PKCE parameters.
 
@@ -267,13 +313,13 @@ DELETE /api/auth/oauth/{socialAccountContext}/{provider}/link
 1. Generate a cryptographically random PKCE verifier in the browser (43–128 characters from `A-Z`, `a-z`, `0-9`, `-`, `.`, `_`, `~`). Compute its SHA-256 hash and encode it as unpadded base64url to obtain the 43-character `code_challenge`.
 2. Send the challenge to the redirect endpoint. Store the verifier in the originating tab's `sessionStorage`, indexed by the `state` from the returned `redirect_url`, then navigate to that URL. Never put the verifier in the authorization URL.
 3. On the frontend callback page, retrieve that locally stored verifier. If it is missing, reject the callback. POST `state`, `code`, and `code_verifier` to the matching context/provider callback endpoint, then remove the saved verifier.
-4. The response contains `access_token`, `token_type`, `expires_in` in seconds, and `user` with `id`, `name`, and `status`. It does not sign in to a panel session.
+4. The response contains `access_token`, `token_type`, `expires_in` in seconds, the `prerequisites` list, and the shared `user` profile described above. It does not sign in to a panel session.
 
 Attempts expire after ten minutes and can be exchanged once. The callback verifies the context, provider, callback URL, and browser verifier before contacting the provider.
 
 The cache store must persist attempts between requests and support atomic locks. Workers serving the OAuth flow must share that store.
 
-JWTs include the `social_account_context` claim. Protect application routes with the context middleware so tokens cannot be reused in a different context that shares the signing key and user model:
+OAuth-issued JWTs include the `social_account_context` claim. Protect application routes that require an OAuth context with the context middleware so tokens cannot be reused in a different context that shares the signing key and user model:
 
 ```php
 Route::middleware('cerber.context:web')->group(function () {
@@ -281,11 +327,11 @@ Route::middleware('cerber.context:web')->group(function () {
 });
 ```
 
-`DELETE .../link` requires a bearer token issued for the selected context and removes only the authenticated user's binding in that context. Provider secrets, access tokens, and browser verifiers are credentials; do not log or expose them.
+`DELETE .../link` requires a bearer token issued for the selected context and removes only the authenticated user's binding in that context. Tokens from password registration or login omit `social_account_context` and cannot access context-protected routes or this unlink endpoint. Provider secrets, access tokens, and browser verifiers are credentials; do not log or expose them.
 
 ## Sanctum integration
 
-The service provider registers `Models\AccessToken` as Sanctum's token model, and the migrations create its `access_tokens` table. The bundled `User` model does not include Sanctum's `HasApiTokens` trait or token-management methods. Applications using personal access tokens must supply that user integration. Cerber does not provide token issuance, revocation endpoints, or a token-management page; its OAuth API issues JWTs.
+The service provider registers `Models\AccessToken` as Sanctum's token model, and the migrations create its `access_tokens` table. The bundled `User` model does not include Sanctum's `HasApiTokens` trait or token-management methods. Applications using personal access tokens must supply that user integration. Cerber does not provide personal access token issuance, revocation endpoints, or a token-management page; its password and OAuth APIs issue JWTs.
 
 ## Schema and authentication changes
 

@@ -122,6 +122,16 @@ class Login extends Model
         return $this->type === LoginType::Email && $this->verified_at === null;
     }
 
+    public function verificationHash(): string
+    {
+        return hash('sha256', $this->value);
+    }
+
+    public function matchesVerificationHash(string $hash): bool
+    {
+        return $this->type === LoginType::Email && hash_equals($this->verificationHash(), $hash);
+    }
+
     public function isAvailable(): bool
     {
         return (

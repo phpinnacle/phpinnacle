@@ -27,7 +27,7 @@ readonly class UserService
         $notification->url = URL::temporarySignedRoute(
             'filament.' . $panel->getId() . '.cerber.logins.verify',
             now()->addHour(),
-            ['login' => $login->id, 'hash' => hash('sha256', $login->value)],
+            ['login' => $login->id, 'hash' => $login->verificationHash()],
         );
         $login->notify($notification->afterCommit());
     }

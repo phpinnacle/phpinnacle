@@ -16,6 +16,12 @@ use Tests\TestCase;
 
 uses(TestCase::class);
 
+it('does not expose password authentication routes by default', function () {
+    $this->postJson('/api/auth/register', [])->assertNotFound();
+    $this->postJson('/api/auth/login', [])->assertNotFound();
+    $this->getJson('/api/profile')->assertNotFound();
+});
+
 it('registers developer login only when configured outside production', function (
     string $environment,
     array $developers,
