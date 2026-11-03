@@ -145,7 +145,7 @@ it('leaves impersonation safely after the original user was deleted', function (
     expect($manager->take($this->user, $target, 'web'))->toBeTrue();
     $this->user->delete();
 
-    expect(app(\PHPinnacle\Cerber\Auth\ImpersonationSession::class)->leave($manager))
+    expect(app(\PHPinnacle\Cerber\Services\ImpersonationSession::class)->leave($manager))
         ->toBeFalse()
         ->and($manager->isImpersonating())
         ->toBeFalse()

@@ -20,6 +20,7 @@ Cerber is the authentication and authorization layer for PHPinnacle Filament app
 ## Requirements and installation
 
 - PHP `^8.4`
+- PostgreSQL or SQLite; local login uniqueness uses a partial index.
 - Filament `^4.0|^5.0`, Sanctum `^4.0`, Socialite `^5.0`, and `php-open-source-saver/jwt-auth` `^2.9`
 - `phpinnacle/common` and `phpinnacle/tempo` `^1.0`
 
@@ -50,7 +51,7 @@ On a fresh database, create the default tenant once with `PHPinnacle\Cerber\Mode
 
 ## Users and logins
 
-`User` is the authenticated identity and owns one password, remember token, profile, permissions, tenants and MFA settings. `Login` stores identifiers in the `logins` relationship. `LoginType` defines `email`, `phone`, `login` and `oauth`; several identifiers of the same type may belong to one user. Local identifiers use provider `default`, while OAuth identifiers use the configured provider ID and the external subject as their value. `(type, provider, value)` is globally unique.
+`User` is the authenticated identity and owns one password, remember token, profile, permissions, tenants and MFA settings. `Login` stores identifiers in the `logins` relationship. `LoginType` defines `email`, `phone`, `login` and `oauth`; several identifiers of the same type may belong to one user. Local identifiers have a null `provider_id`, while OAuth identifiers store the configured provider UUID and the external subject as their value. Local `(type, value)` pairs are globally unique; OAuth `(type, provider_id, value)` pairs are unique within each provider.
 
 ```php
 use PHPinnacle\Cerber\Enums\LoginType;
@@ -93,7 +94,7 @@ Cerber uses Laravel's native session driver and a stateless Eloquent user provid
 
 Password recovery accepts any registered email identifier, sends the link to the user's default email and changes the shared password. Unverified email identifiers can receive recovery mail, but still require ordinary email verification before password sign-in. Changing the default email invalidates reset tokens issued for the previous address. Impersonation operates on users directly, including users without login identifiers, and does not restore access after the impersonator's password or remember token changes.
 
-User cards and profiles show logins grouped by type; the profile uses aside sections. Add and Edit dialogs manage local values without passwords, and types cannot be changed. Edit and Delete remain inline icons. Administrative email rows also have an ellipsis menu for verification and recovery actions. Profile rows do not expose these administrative actions. Login actions save immediately and preserve drafts in the main form. The shared password is edited in the user form or profile. Create a user before adding its logins.
+User cards and profiles show logins grouped by type; the profile uses aside sections. Add and Edit dialogs manage local values without passwords, and types cannot be changed. Edit and Delete remain inline icons. Administrative email rows also have an ellipsis menu for verification and recovery actions. Profile rows do not expose these administrative actions. Login actions save immediately and preserve drafts in the main form. The shared password is edited in the user form or a separate aside section in the profile. `EmailAction` and `PasswordAction` build the administrative actions; `UserService` sends verification for a `Login` and password recovery for a `User`. Create a user before adding its logins.
 
 OAuth remains a login type. Linking an identity creates an unverified email login when its email is available and not already registered. An existing email login is preserved, and an address owned by another user never links or merges those users. The nullable JSON `metadata` map stores OAuth display fields (`email`, `name`, `nickname`, `avatar`) and other application data; updating display fields preserves other keys. External provider access and refresh tokens are not persisted. Cerber issues its own JWT for API authentication.
 
@@ -187,7 +188,7 @@ final class AdminSocialAccountContext implements SocialAccountContext
         return User::query()
             ->whereHas('logins', fn ($query) => $query
                 ->where('type', LoginType::Email)
-                ->where('provider', Login::DEFAULT_PROVIDER)
+                ->whereNull('provider_id')
                 ->where('value', Login::canonicalValue(LoginType::Email, $user->getEmail()))
                 ->whereNotNull('verified_at'))
             ->whereJsonContains('panels', 'admin')
@@ -198,7 +199,7 @@ final class AdminSocialAccountContext implements SocialAccountContext
 
 Implement `WebSocialAccountContext` with `name()` returning `web`, `guard()` returning `api`, and its own `resolve()` policy. For example, it can find users whose `panels` contains `web`, or create a user according to the application's registration rules. Both contexts return persisted `Cerber\Models\User` instances. Contexts share the global login uniqueness constraint.
 
-`resolve()` runs only when the provider identity has no existing binding for that provider. It owns user lookup, registration, email/domain eligibility, and initial role assignment. Cerber saves the binding in the same database transaction; later logins use that binding directly. There is no global email lookup across contexts. Resolution and binding persistence happen before the final sign-in access check.
+`resolve()` runs only when the provider identity has no existing binding for that provider. It owns user lookup, registration, email/domain eligibility, and initial role assignment. `UserLinker::findOrCreateUser()` saves the binding in the same database transaction and returns its owning `User`; later logins use that binding directly. There is no global email lookup across contexts. Resolution and binding persistence happen before the final sign-in access check.
 
 Panel OAuth login authenticates the user who owns the matching `LoginType::OAuth` record. `Login::canAccessPanel()` checks login availability and delegates panel access to its owner; the base owner's check requires active status. Neither OAuth flow requires a password, an email address, a role, or a particular `panels` value. The resolver owns registration and eligibility rules for new identities; resource permissions remain separate from sign-in. Matching provider email addresses do not automatically merge credentials.
 

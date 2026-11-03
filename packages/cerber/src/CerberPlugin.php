@@ -181,6 +181,7 @@ class CerberPlugin implements Plugin
                 )
                 : $schema->components([
                     $page->getProfileContentComponent(),
+                    $page->getPasswordContentComponent(),
                 ])
         );
     }
@@ -215,7 +216,7 @@ class CerberPlugin implements Plugin
                     ->action(
                         $manager->isImpersonating()
                             ? function (Component $livewire) use ($manager, $panel) {
-                                app(\PHPinnacle\Cerber\Auth\ImpersonationSession::class)->leave($manager);
+                                app(\PHPinnacle\Cerber\Services\ImpersonationSession::class)->leave($manager);
 
                                 $livewire->redirect(session()->pull('impersonate.back_to', $panel->getUrl()));
                             } : null,

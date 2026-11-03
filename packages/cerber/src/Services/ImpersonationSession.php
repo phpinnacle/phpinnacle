@@ -1,6 +1,6 @@
 <?php
 
-namespace PHPinnacle\Cerber\Auth;
+namespace PHPinnacle\Cerber\Services;
 
 use Filament\Exceptions\NoDefaultPanelSetException;
 use Filament\Facades\Filament;

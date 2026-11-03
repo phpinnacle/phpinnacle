@@ -9,13 +9,14 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Notifications\Notification;
 use Filament\Support\Contracts\HasLabel;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Validation\Rules\Unique;
 use PHPinnacle\Cerber\Models\Login as LoginModel;
 use PHPinnacle\Cerber\Models\User;
-use PHPinnacle\Cerber\Services\LoginService;
+use PHPinnacle\Cerber\Resources\Users\Actions\EmailAction;
+use PHPinnacle\Cerber\Resources\Users\Actions\PasswordAction;
+use PHPinnacle\Cerber\Services\UserService;
 
 enum LoginType: string implements HasLabel
 {
@@ -37,9 +38,9 @@ enum LoginType: string implements HasLabel
             ->model(LoginModel::class)
             ->createAnother(false)
             ->schema([$this->valueField()])
-            ->using(function (array $data, LoginService $service) use ($owner) {
+            ->using(function (array $data, UserService $service) use ($owner) {
                 $login = LoginModel::register($owner, $this, $data['value']);
-                $service->sendVerification($login);
+                $service->resendVerification($login);
 
                 return $login;
             });
@@ -67,58 +68,25 @@ enum LoginType: string implements HasLabel
                         ->disabled($record->is_default),
                 ])
                 ->fillForm(fn (LoginModel $record) => ['value' => $record->value, 'is_default' => $record->is_default])
-                ->using(function (LoginModel $record, array $data, LoginService $service) {
+                ->using(function (LoginModel $record, array $data, UserService $service) {
                     if ($data['is_default'] ?? false) {
                         $record->is_default = true;
                     }
 
                     $record->update(['value' => $data['value']]);
-                    $service->sendVerification($record);
+                    $service->resendVerification($record);
                 }),
             DeleteAction::make('delete')->iconButton()->icon(Heroicon::Trash)->keyBindings([]),
         ];
         $additional = [];
 
         if ($this === self::Email && $administrative) {
-            $additional[] = Action::make('verify')
-                ->icon(Heroicon::CheckBadge)
-                ->label(__('phpinnacle-cerber::resources.user.actions.mark_as_verified'))
-                ->visible(fn (LoginModel $record) => $record->requiresVerification())
-                ->requiresConfirmation()
-                ->successNotificationTitle(__('phpinnacle-cerber::logins.verified'))
-                ->action(function (LoginModel $record, Action $action) {
-                    $record->markVerified();
-                    $action->success();
-                });
-
-            $additional[] = Action::make('dropVerification')
-                ->icon(Heroicon::ShieldExclamation)
-                ->label(__('phpinnacle-cerber::resources.user.actions.drop_verification'))
-                ->visible(fn (LoginModel $record) => $record->verified_at !== null)
-                ->requiresConfirmation()
-                ->successNotificationTitle(__('phpinnacle-cerber::logins.saved'))
-                ->action(function (LoginModel $record, Action $action) {
-                    $record->dropVerification();
-                    $action->success();
-                });
-
-            $additional[] = Action::make('resendVerification')
-                ->icon(Heroicon::Envelope)
-                ->label(__('phpinnacle-cerber::logins.resend_verification'))
-                ->visible(fn (LoginModel $record) => $record->requiresVerification())
-                ->successNotificationTitle(__('phpinnacle-cerber::logins.verification_sent'))
-                ->action(function (LoginModel $record, LoginService $service, Action $action) {
-                    $service->sendVerification($record);
-                    $action->success();
-                });
-            $additional[] = Action::make('resetPassword')
-                ->icon(Heroicon::Key)
-                ->label(__('phpinnacle-cerber::logins.reset_password'))
-                ->requiresConfirmation()
-                ->action(function (LoginModel $record, LoginService $service) {
-                    $status = $service->resetPassword($record);
-                    Notification::make()->title(__($status))->send();
-                });
+            $additional = [
+                EmailAction::markAsVerified(),
+                EmailAction::dropVerification(),
+                EmailAction::resendVerification(),
+                PasswordAction::reset(),
+            ];
         }
 
         if ($additional !== []) {
@@ -149,10 +117,7 @@ enum LoginType: string implements HasLabel
                 table: LoginModel::class,
                 column: 'value',
                 ignorable: $login,
-                modifyRuleUsing: fn (Unique $rule) => $rule->where('type', $this->value)->where(
-                    'provider',
-                    LoginModel::DEFAULT_PROVIDER,
-                ),
+                modifyRuleUsing: fn (Unique $rule) => $rule->where('type', $this->value)->whereNull('provider_id'),
             );
     }
 }

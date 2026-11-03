@@ -57,7 +57,7 @@ class LoginUserProvider extends EloquentUserProvider
             return Login::lookup(
                 LoginType::from($credentials['type']),
                 $credentials['value'],
-                $credentials['provider'] ?? Login::DEFAULT_PROVIDER,
+                $credentials['provider_id'] ?? null,
             );
         }
 

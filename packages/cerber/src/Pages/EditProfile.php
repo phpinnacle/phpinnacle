@@ -42,10 +42,7 @@ class EditProfile extends BasePage
     public function content(Schema $schema): Schema
     {
         $components = [
-            Section::make(__('phpinnacle-cerber::pages.profile.sections.general'))
-                ->aside()
-                ->description(__('phpinnacle-cerber::pages.profile.descriptions.general'))
-                ->schema([$this->getFormContentComponent()]),
+            $this->getFormContentComponent(),
             Logins::make()->aside(),
         ];
 
@@ -60,16 +57,25 @@ class EditProfile extends BasePage
 
     public function getProfileContentComponent(): ?Component
     {
-        return Flex::make([])
-            ->verticalAlignment(VerticalAlignment::Center)
+        return Section::make(__('phpinnacle-cerber::pages.profile.sections.general'))
+            ->aside()
+            ->description(__('phpinnacle-cerber::pages.profile.descriptions.general'))
             ->schema([
-                $this->getAvatarFormComponent(),
-                Group::make()
-                    ->schema([
-                        $this->getNameFormComponent()->inlineLabel(false),
-                        $this->getPasswordFormComponent(),
-                        $this->getPasswordConfirmationFormComponent(),
-                    ]),
+                Flex::make([
+                    $this->getAvatarFormComponent(),
+                    Group::make([$this->getNameFormComponent()->inlineLabel(false)]),
+                ])->verticalAlignment(VerticalAlignment::Center),
+            ]);
+    }
+
+    public function getPasswordContentComponent(): ?Component
+    {
+        return Section::make(__('phpinnacle-cerber::pages.profile.sections.password'))
+            ->aside()
+            ->description(__('phpinnacle-cerber::pages.profile.descriptions.password'))
+            ->schema([
+                $this->getPasswordFormComponent(),
+                $this->getPasswordConfirmationFormComponent(),
             ]);
     }
 

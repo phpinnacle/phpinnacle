@@ -6,19 +6,17 @@ use Filament\Auth\Notifications\ResetPassword;
 use Filament\Auth\Notifications\VerifyEmail;
 use Filament\Facades\Filament;
 use Illuminate\Auth\Passwords\PasswordBrokerManager;
-use Illuminate\Contracts\Auth\PasswordBroker;
 use Illuminate\Support\Facades\URL;
-use PHPinnacle\Cerber\Enums\LoginType;
 use PHPinnacle\Cerber\Models\Login;
 use PHPinnacle\Cerber\Models\User;
 
-readonly class LoginService
+readonly class UserService
 {
     public function __construct(
         private PasswordBrokerManager $passwords,
     ) {}
 
-    public function sendVerification(Login $login): void
+    public function resendVerification(Login $login): void
     {
         if (!$login->requiresVerification()) {
             return;
@@ -34,14 +32,10 @@ readonly class LoginService
         $login->notify($notification->afterCommit());
     }
 
-    public function resetPassword(Login $login): string
+    public function resetPassword(User $user): string
     {
-        if ($login->type !== LoginType::Email) {
-            return PasswordBroker::INVALID_USER;
-        }
-
         return $this->passwords->broker(Filament::getAuthPasswordBroker())->sendResetLink(
-            ['type' => LoginType::Email->value, 'value' => $login->value],
+            ['email' => $user->getEmailForPasswordReset()],
             function (User $user, #[\SensitiveParameter] string $token) {
                 $notification = new ResetPassword($token);
                 $notification->url = Filament::getResetPasswordUrl($token, $user);

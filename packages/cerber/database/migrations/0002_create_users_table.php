@@ -40,14 +40,22 @@ return new class extends Migration {
             $table->uuid('id')->primary();
             $table->foreignIdFor(User::class)->constrained()->cascadeOnDelete();
             $table->string('type');
-            $table->string('provider')->default('default');
+            $table->uuid('provider_id')->nullable();
             $table->string('value');
             $table->boolean('is_default')->default(false);
             $table->json('metadata')->nullable();
             $table->timestamp('verified_at')->nullable();
             $table->timestamps();
-            $table->unique(['type', 'provider', 'value']);
+            $table->unique(['type', 'provider_id', 'value']);
         });
+
+        $connection = Schema::getConnection();
+        $grammar = $connection->getQueryGrammar();
+        $connection->statement(sprintf(
+            'create unique index %s on %s ("type", "value") where "provider_id" is null',
+            $grammar->wrap($connection->getTablePrefix() . 'logins_local_type_value_unique'),
+            $grammar->wrapTable('logins'),
+        ));
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();

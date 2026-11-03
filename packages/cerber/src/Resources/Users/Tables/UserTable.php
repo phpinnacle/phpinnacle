@@ -10,7 +10,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use PHPinnacle\Cerber\Enums\UserStatus;
 use PHPinnacle\Cerber\Models\User;
 use PHPinnacle\Cerber\Resources\Users\Actions\ImpersonateAction;
@@ -24,7 +23,6 @@ class UserTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with('logins.oauthProvider'))
             ->heading(__('phpinnacle-cerber::resources.user.pages.list'))
             ->columns([
                 ImageColumn::make('avatar')

@@ -21,7 +21,7 @@ use PHPinnacle\Cerber\Models\User;
 use PHPinnacle\Cerber\Pages\EditProfile;
 use PHPinnacle\Cerber\Resources\Users\Pages\CreateUser;
 use PHPinnacle\Cerber\Resources\Users\Pages\EditUser;
-use PHPinnacle\Cerber\Services\LoginService;
+use PHPinnacle\Cerber\Services\UserService;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -153,6 +153,7 @@ it('preserves profile drafts while adding logins and saves profile details separ
 
 it('changes the shared password from the profile', function () {
     Livewire::test(EditProfile::class)
+        ->assertSee('Update your password')
         ->fillForm(['password' => 'changed-password', 'passwordConfirmation' => 'changed-password'])
         ->call('save')
         ->assertHasNoFormErrors();
@@ -203,6 +204,13 @@ it('limits manual verification to the user card and cannot resolve another owner
         ->callAction(TestAction::make('dropVerification')->schemaComponent('logins.email.' . $login->id, 'form'))
         ->assertHasNoErrors();
     expect($login->fresh()->verified_at)->toBeNull();
+    Livewire::test(EditUser::class, ['record' => $this->user->id])
+        ->callAction(TestAction::make('resendVerification')->schemaComponent('logins.email.' . $login->id, 'form'))
+        ->assertHasNoErrors()
+        ->callAction(TestAction::make('resetPassword')->schemaComponent('logins.email.' . $login->id, 'form'))
+        ->assertHasNoErrors();
+    Notification::assertSentTo($login, VerifyEmail::class);
+    Notification::assertSentTo($this->user, \Filament\Auth\Notifications\ResetPassword::class);
 });
 
 it('denies access to the user card without the update permission even for its owner', function () {
@@ -213,7 +221,7 @@ it('denies access to the user card without the update permission even for its ow
 
 it('verifies only the email address bound to the signed verification link', function () {
     $login = Login::register($this->user, LoginType::Email, 'first@example.test');
-    app(LoginService::class)->sendVerification($login);
+    app(UserService::class)->resendVerification($login);
     $url = Notification::sent($login, VerifyEmail::class)->sole()->url;
 
     $this->get($url)->assertRedirect();
@@ -226,7 +234,7 @@ it('verifies only the email address bound to the signed verification link', func
 
 it('rejects expired and unsigned verification requests', function () {
     $login = Login::register($this->user, LoginType::Email, 'first@example.test');
-    app(LoginService::class)->sendVerification($login);
+    app(UserService::class)->resendVerification($login);
     $url = Notification::sent($login, VerifyEmail::class)->sole()->url;
     $this->get('/admin/logins/' . $login->id . '/verify?hash=' . hash('sha256', $login->value))->assertForbidden();
     $this->travel(61)->minutes();

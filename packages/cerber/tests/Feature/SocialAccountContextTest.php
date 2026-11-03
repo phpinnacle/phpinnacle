@@ -34,10 +34,10 @@ use PHPinnacle\Cerber\Models\User;
 use PHPinnacle\Cerber\OAuth\OAuthAttempt;
 use PHPinnacle\Cerber\Resources\Providers\Schemas\ProviderForm;
 use PHPinnacle\Cerber\Resources\Providers\Tables\ProviderTable;
-use PHPinnacle\Cerber\Services\OAuthLogin;
 use PHPinnacle\Cerber\Services\ProviderRegistry;
 use PHPinnacle\Cerber\Services\SessionOAuth;
 use PHPinnacle\Cerber\Services\SocialAccountContextRepository;
+use PHPinnacle\Cerber\Services\UserLinker;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -147,18 +147,18 @@ it('registers contexts by name in the shared repository', function () {
 });
 
 it('resolves and persists the same social identity independently in two contexts', function () {
-    $linker = app(OAuthLogin::class);
-    $admin = $linker->findOrCreate($this->adminContext, $this->adminProvider, $this->identity);
-    $customer = $linker->findOrCreate($this->webContext, $this->provider, $this->identity);
+    $linker = app(UserLinker::class);
+    $admin = $linker->findOrCreateUser($this->adminContext, $this->adminProvider, $this->identity);
+    $customer = $linker->findOrCreateUser($this->webContext, $this->provider, $this->identity);
 
-    expect($admin->user->is($this->admin))
+    expect($admin->is($this->admin))
         ->toBeTrue()
-        ->and($customer->user->is($this->customer))
+        ->and($customer->is($this->customer))
         ->toBeTrue()
         ->and(Login::query()->where('type', LoginType::OAuth)->count())
         ->toBe(2);
 
-    $again = $linker->findOrCreate($this->adminContext, $this->adminProvider, $this->identity);
+    $again = $linker->findOrCreateUser($this->adminContext, $this->adminProvider, $this->identity);
     expect($again->is($admin))
         ->toBeTrue()
         ->and($this->adminContext->resolutions)
@@ -454,7 +454,7 @@ it('denies panel OAuth login for inactive users without roles', function (UserSt
     $this->admin->update(['status' => $status]);
 
     expect(fn () => app(SessionOAuth::class)->login($this->adminContext, $this->adminProvider, $this->identity))
-        ->toThrow(OAuthException::class, 'The user cannot access this panel.');
+        ->toThrow(fn (OAuthException $exception) => expect($exception->error)->toBe('access_denied'));
 
     expect(auth('admin')->guest())->toBeTrue();
 })->with([UserStatus::Blocked, UserStatus::Archived]);
@@ -693,7 +693,9 @@ it('keeps OAuth and email credentials separate even when their addresses match',
     $this->customer->update(['password' => 'email-password']);
     $email = Login::register($this->admin, LoginType::Email, 'same@example.test');
     $email->markVerified();
-    $oauth = app(OAuthLogin::class)->findOrCreate($this->webContext, $this->provider, $this->identity);
+    $user = app(UserLinker::class)->findOrCreateUser($this->webContext, $this->provider, $this->identity);
+    $oauth = Login::lookup(LoginType::OAuth, $this->identity->getId(), $this->provider->id);
+    expect($user->is($this->customer))->toBeTrue();
 
     expect($oauth->user_id)
         ->toBe($this->customer->id)
@@ -703,7 +705,7 @@ it('keeps OAuth and email credentials separate even when their addresses match',
         ->toBeNull()
         ->and(auth('admin')->attempt([
             'type' => 'oauth',
-            'provider' => $this->provider->id,
+            'provider_id' => $this->provider->id,
             'value' => $oauth->value,
             'password' => 'email-password',
         ]))

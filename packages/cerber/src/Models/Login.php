@@ -17,7 +17,7 @@ use PHPinnacle\Cerber\Exceptions\OAuthException;
  * @property string $id
  * @property string $user_id
  * @property LoginType $type
- * @property string $provider
+ * @property string|null $provider_id
  * @property string $value
  * @property bool $is_default
  * @property CarbonImmutable|null $verified_at
@@ -30,11 +30,9 @@ class Login extends Model
     use HasUuids;
     use Notifiable;
 
-    public const string DEFAULT_PROVIDER = 'default';
-
     protected $table = 'logins';
 
-    protected $attributes = ['provider' => self::DEFAULT_PROVIDER, 'is_default' => false];
+    protected $attributes = ['is_default' => false];
 
     protected $fillable = ['type', 'value', 'metadata'];
 
@@ -50,11 +48,11 @@ class Login extends Model
         return $type === LoginType::Email ? mb_strtolower($value) : $value;
     }
 
-    public static function lookup(LoginType $type, string $value, string $provider = self::DEFAULT_PROVIDER): ?self
+    public static function lookup(LoginType $type, string $value, ?string $providerId = null): ?self
     {
         return self::query()
             ->where('type', $type)
-            ->where('provider', $provider)
+            ->where('provider_id', $providerId)
             ->where('value', self::canonicalValue($type, $value))
             ->first();
     }
@@ -127,7 +125,7 @@ class Login extends Model
             ->getConnection()
             ->transaction(function () use ($provider, $user, $identity, $email) {
                 $user->newQuery()->whereKey($user->id)->lockForUpdate()->first();
-                $login = $user->logins()->where('type', LoginType::OAuth)->where('provider', $provider->id)->first();
+                $login = $user->logins()->where('type', LoginType::OAuth)->where('provider_id', $provider->id)->first();
                 if ($login !== null && $login->value !== $identity->getId()) {
                     $login->delete();
                     $login = null;
@@ -136,7 +134,7 @@ class Login extends Model
                 $login ??= new self;
                 $login->user()->associate($user);
                 $login->type = LoginType::OAuth;
-                $login->provider = $provider->id;
+                $login->provider_id = $provider->id;
                 $login->value = $identity->getId();
                 $login->metadata = [
                     ...($login->metadata ?? []),
@@ -162,13 +160,13 @@ class Login extends Model
             ->logins()
             ->where('type', LoginType::OAuth)
             ->whereHas('oauthProvider', fn ($query) => $query->where('context', $context->name()))
-            ->pluck('provider')
+            ->pluck('provider_id')
             ->all();
     }
 
     public static function unlinkOAuth(User $user, Provider $provider): void
     {
-        $user->logins()->where('type', LoginType::OAuth)->where('provider', $provider->id)->first()?->delete();
+        $user->logins()->where('type', LoginType::OAuth)->where('provider_id', $provider->id)->first()?->delete();
     }
 
     public function requiresVerification(): bool
@@ -219,7 +217,7 @@ class Login extends Model
     /** @return BelongsTo<Provider, $this> */
     public function oauthProvider(): BelongsTo
     {
-        return $this->belongsTo(Provider::class, 'provider');
+        return $this->belongsTo(Provider::class, 'provider_id');
     }
 
     protected static function booted(): void
@@ -227,7 +225,7 @@ class Login extends Model
         self::saving(function (self $login) {
             $login->value = self::canonicalValue($login->type, $login->value);
 
-            if ($login->exists && $login->isDirty(['type', 'provider', 'value'])) {
+            if ($login->exists && $login->isDirty(['type', 'provider_id', 'value'])) {
                 $login->verified_at = null;
             }
         });

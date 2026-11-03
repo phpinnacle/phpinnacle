@@ -15,14 +15,14 @@ use PHPinnacle\Cerber\Models\Provider;
 use PHPinnacle\Cerber\Models\User;
 use PHPinnacle\Cerber\OAuth\OAuthCallback;
 use PHPinnacle\Cerber\Services\OAuthFlow;
-use PHPinnacle\Cerber\Services\OAuthLogin;
+use PHPinnacle\Cerber\Services\UserLinker;
 use PHPOpenSourceSaver\JWTAuth\JWTGuard;
 
 class OAuthController extends Controller
 {
     public function __construct(
         private readonly OAuthFlow $oauth,
-        private readonly OAuthLogin $logins,
+        private readonly UserLinker $linker,
     ) {}
 
     public function providers(SocialAccountContext $socialAccountContext): JsonResponse
@@ -69,15 +69,11 @@ class OAuthController extends Controller
                 $provider->frontendCallbackUrl(),
                 new OAuthCallback($data['state'], $data['code_verifier'], $data['code']),
             );
-            $login = $this->logins->findOrCreate($socialAccountContext, $provider, $identity);
+            $user = $this->linker->findOrCreateUser($socialAccountContext, $provider, $identity);
 
-            if (!$login->isAvailable()) {
-                throw new OAuthException('access_denied', 'The user cannot sign in.');
-            }
+            $token = $guard->claims(['social_account_context' => $socialAccountContext->name()])->login($user);
 
-            $token = $guard->claims(['social_account_context' => $socialAccountContext->name()])->login($login->user);
-
-            return response()->json(new AuthResource($token, $login->user));
+            return response()->json(new AuthResource($token, $user));
         } catch (OAuthException $e) {
             return response()->json(['message' => $e->getError()], 401);
         }

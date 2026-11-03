@@ -116,6 +116,6 @@ class Provider extends Model implements HasLabel
      */
     public function logins(): HasMany
     {
-        return $this->hasMany(Login::class, 'provider')->where('type', \PHPinnacle\Cerber\Enums\LoginType::OAuth);
+        return $this->hasMany(Login::class, 'provider_id')->where('type', \PHPinnacle\Cerber\Enums\LoginType::OAuth);
     }
 }

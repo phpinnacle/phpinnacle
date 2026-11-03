@@ -10,7 +10,7 @@ return new class extends Migration {
     {
         /** @see Provider */
         Schema::create('oauth_providers', function (Blueprint $table) {
-            $table->string('id', 36)->primary();
+            $table->uuid('id')->primary();
             $table->string('name');
             $table->string('type');
             $table->text('config');
