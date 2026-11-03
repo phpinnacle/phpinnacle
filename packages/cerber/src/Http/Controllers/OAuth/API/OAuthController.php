@@ -10,7 +10,6 @@ use PHPinnacle\Cerber\Contracts\SocialAccountContext;
 use PHPinnacle\Cerber\Exceptions\OAuthException;
 use PHPinnacle\Cerber\Http\Resources\OAuth\AuthResource;
 use PHPinnacle\Cerber\Http\Resources\OAuth\OAuthProviderResource;
-use PHPinnacle\Cerber\Models\Login;
 use PHPinnacle\Cerber\Models\Provider;
 use PHPinnacle\Cerber\Models\User;
 use PHPinnacle\Cerber\OAuth\OAuthCallback;
@@ -87,7 +86,7 @@ class OAuthController extends Controller
         abort_unless($user->status->canAccess(), 403);
         abort_unless($guard->payload()->get('social_account_context') === $socialAccountContext->name(), 403);
         abort_unless($provider->context === $socialAccountContext->name(), 404);
-        Login::unlinkOAuth($user, $provider);
+        $provider->unlink($user);
 
         return response()->json(['unlinked' => true]);
     }

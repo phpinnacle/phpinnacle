@@ -168,7 +168,6 @@ Implement `PHPinnacle\Cerber\Contracts\SocialAccountContext` for each independen
 use Laravel\Socialite\Contracts\User as SocialiteUser;
 use PHPinnacle\Cerber\Contracts\SocialAccountContext;
 use PHPinnacle\Cerber\Enums\LoginType;
-use PHPinnacle\Cerber\Models\Login;
 use PHPinnacle\Cerber\Models\User;
 
 final class AdminSocialAccountContext implements SocialAccountContext
@@ -189,7 +188,7 @@ final class AdminSocialAccountContext implements SocialAccountContext
             ->whereHas('logins', fn ($query) => $query
                 ->where('type', LoginType::Email)
                 ->whereNull('provider_id')
-                ->where('value', Login::canonicalValue(LoginType::Email, $user->getEmail()))
+                ->where('value', LoginType::Email->canonical($user->getEmail()))
                 ->whereNotNull('verified_at'))
             ->whereJsonContains('panels', 'admin')
             ->firstOrFail();
@@ -244,11 +243,11 @@ Bindings are unique by provider and external account ID, with one account per us
 use PHPinnacle\Cerber\Models\Login;
 
 Login::linked($context, $user);
-Login::linkOAuth($provider, $user, $verifiedSocialiteUser);
-Login::unlinkOAuth($user, $provider);
+$provider->link($user, $verifiedSocialiteUser);
+$provider->unlink($user);
 ```
 
-`linked()` returns provider IDs. `unlinkOAuth()` deletes the local binding; it does not revoke tokens at the external provider. Only pass identities obtained through a verified OAuth flow to `linkOAuth()`, and authorize the target user and provider context in the calling application. An external identity already bound to another user through the same provider cannot be reassigned by linking.
+`linked()` returns provider IDs. `Provider::unlink()` deletes the local binding; it does not revoke tokens at the external provider. Only pass identities obtained through a verified OAuth flow to `Provider::link()`, and authorize the target user and provider context in the calling application. An external identity already bound to another user through the same provider cannot be reassigned by linking.
 
 ## Frontend JWT flow
 

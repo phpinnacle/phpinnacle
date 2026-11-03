@@ -8,8 +8,12 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Uri;
+use Laravel\Socialite\Contracts\User as SocialiteUser;
 use PHPinnacle\Cerber\Contracts\SocialAccountContext;
+use PHPinnacle\Cerber\Enums\LoginType;
+use PHPinnacle\Cerber\Exceptions\OAuthException;
 
 /**
  * @property string $id
@@ -103,6 +107,48 @@ class Provider extends Model implements HasLabel
     public function isAvailableTo(SocialAccountContext $context): bool
     {
         return $this->is_active && $this->context === $context->name() && $this->isConfigValid();
+    }
+
+    public function link(User $user, SocialiteUser $identity): Login
+    {
+        $email = $identity->getEmail();
+        if (Validator::make(['email' => $email], ['email' => ['nullable', 'string', 'email', 'max:255']])->fails()) {
+            throw new OAuthException('invalid_profile', 'The OAuth provider returned an invalid email address.');
+        }
+
+        return $this->getConnection()->transaction(function () use ($user, $identity, $email) {
+            $user->newQuery()->whereKey($user->id)->lockForUpdate()->first();
+            $login = $user->logins()->where('type', LoginType::OAuth)->where('provider_id', $this->id)->first();
+            if ($login !== null && $login->value !== $identity->getId()) {
+                $login->delete();
+                $login = null;
+            }
+
+            $login ??= new Login;
+            $login->user()->associate($user);
+            $login->type = LoginType::OAuth;
+            $login->provider_id = $this->id;
+            $login->value = $identity->getId();
+            $login->metadata = [
+                ...($login->metadata ?? []),
+                'email' => $identity->getEmail(),
+                'name' => $identity->getName(),
+                'nickname' => $identity->getNickname(),
+                'avatar' => $identity->getAvatar(),
+            ];
+            $login->save();
+
+            if ($email !== null && Login::lookup(LoginType::Email, $email) === null) {
+                Login::register($user, LoginType::Email, $email);
+            }
+
+            return $login;
+        });
+    }
+
+    public function unlink(User $user): void
+    {
+        $user->logins()->where('type', LoginType::OAuth)->where('provider_id', $this->id)->first()?->delete();
     }
 
     public function frontendCallbackUrl(): string

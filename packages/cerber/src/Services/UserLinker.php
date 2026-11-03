@@ -27,7 +27,7 @@ class UserLinker
 
                 $user = $account !== null ? $account->user : $context->resolve($socialiteUser);
 
-                return Login::linkOAuth($provider, $user, $socialiteUser);
+                return $provider->link($user, $socialiteUser);
             });
 
         if (!$login->isAvailable()) {

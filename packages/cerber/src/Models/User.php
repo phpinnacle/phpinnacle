@@ -87,7 +87,7 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
             ->whereHas('logins', fn (Builder $query) => $query
                 ->where('type', $type)
                 ->whereNull('provider_id')
-                ->where('value', Login::canonicalValue($type, $value)))
+                ->where('value', $type->canonical($value)))
             ->first();
     }
 

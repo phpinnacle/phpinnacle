@@ -25,6 +25,11 @@ enum LoginType: string implements HasLabel
     case Login = 'login';
     case OAuth = 'oauth';
 
+    public function canonical(string $value): string
+    {
+        return $this === self::Email ? mb_strtolower($value) : $value;
+    }
+
     public function getLabel(): string
     {
         return __('phpinnacle-cerber::enums.login_type.' . $this->value);
@@ -112,7 +117,7 @@ enum LoginType: string implements HasLabel
             ->email($this === self::Email)
             ->rules($this === self::Phone ? ['regex:/^\+[1-9][0-9]{6,14}$/'] : [])
             ->validationMessages(['regex' => __('phpinnacle-cerber::logins.phone_format')])
-            ->mutateStateForValidationUsing(fn (?string $state) => LoginModel::canonicalValue($this, $state ?? ''))
+            ->mutateStateForValidationUsing(fn (?string $state) => $this->canonical($state ?? ''))
             ->unique(
                 table: LoginModel::class,
                 column: 'value',

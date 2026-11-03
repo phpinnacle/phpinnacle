@@ -48,7 +48,7 @@ class Logins extends Section
     {
         $logins = $user
             ->logins()
-            ->with('oauthProvider')
+            ->with('provider')
             ->orderBy('created_at')
             ->get()
             ->groupBy(fn (Login $login) => $login->type->value);
@@ -68,7 +68,7 @@ class Logins extends Section
                 $rows[] = Flex::make([
                     Text::make(
                         $type === LoginType::OAuth
-                            ? $login->oauthProvider->getLabel() . ': ' . ($login->metadata['email'] ?? $login->value)
+                            ? $login->provider->getLabel() . ': ' . ($login->metadata['email'] ?? $login->value)
                             : $login->value,
                     )->weight(FontWeight::Medium),
                     Text::make(
