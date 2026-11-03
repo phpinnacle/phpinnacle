@@ -295,6 +295,31 @@ The shared `user` profile contains `id`, `name`, `status`, `email`, `email_verif
 
 Bearer-protected routes in this API use `auth:api`. Refresh requires an unexpired bearer token and rotates it; logout returns HTTP 204 and invalidates the token when JWT blacklisting is enabled. Login, registration and password endpoints allow six requests per minute; verification allows ten. Blocked and archived users cannot authenticate through the `cerber` provider, including with previously issued bearer tokens.
 
+## OpenAPI documentation
+
+Cerber ships `OpenApi\Spec` attributes for `swagger-php` 7 on the password API controllers and auth
+resources, with shared components in `src/OpenApi`. Add the installed package's
+`src` directory to the application's scanner sources. For L5-Swagger:
+
+```php
+'annotations' => [
+    base_path('app'),
+    base_path('vendor/phpinnacle/cerber/src'),
+],
+
+// In defaults.scanOptions while the application still has classic attributes:
+'mode' => 'hybrid',
+```
+
+The application supplies its own `Info` and `Server` attributes. For direct
+generation, use `OpenApi\Builder` with the package source and those metadata
+classes as sources. Cerber paths are
+relative to an `/api` server URL: `/auth/register`, `/auth/login`, and `/profile`,
+for example. Authentication schemas and responses use a `Cerber` prefix, and the
+JWT security scheme is `cerberBearerAuth`, so they do not depend on application
+components. Remove application-owned descriptions for these same operations
+before scanning the package to avoid duplicate paths.
+
 ## Frontend OAuth JWT flow
 
 Set `CERBER_API_CALLBACK_URL` to the frontend callback page. Register the exact callback URLs, including their `context` and `provider` query parameters, in the OAuth provider console. Panel callback URLs remain `/auth/{provider}/callback` under the panel path. OAuth2 providers must support the authorization-code flow; Cerber sends S256 PKCE parameters.

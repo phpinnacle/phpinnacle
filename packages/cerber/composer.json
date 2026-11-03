@@ -29,7 +29,8 @@
         "phpinnacle/common": "^1.0",
         "phpinnacle/tempo": "^1.0",
         "socialiteproviders/yandex": "^4.1",
-        "spatie/laravel-package-tools": "^1.92"
+        "spatie/laravel-package-tools": "^1.92",
+        "zircote/swagger-php": "^7.1"
     },
     "require-dev": {
         "orchestra/testbench": "^11.0",
