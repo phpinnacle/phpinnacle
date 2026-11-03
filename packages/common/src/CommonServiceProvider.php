@@ -26,6 +26,8 @@ class CommonServiceProvider extends PackageServiceProvider
             Css::make('inline-builder', __DIR__ . '/../resources/css/inline-builder.css'),
             AlpineComponent::make('item-picker', __DIR__ . '/../resources/js/item-picker.js'),
             Css::make('item-picker', __DIR__ . '/../resources/css/item-picker.css'),
+            AlpineComponent::make('tax-number-popup', __DIR__ . '/../resources/js/tax-number-popup.js'),
+            Css::make('tax-number-popup', __DIR__ . '/../resources/css/tax-number-popup.css'),
         ], 'phpinnacle/common');
     }
 }
