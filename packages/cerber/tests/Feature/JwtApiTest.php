@@ -4,6 +4,7 @@ namespace CerberJwtApiTests;
 
 use Filament\Auth\Notifications\ResetPassword;
 use Filament\Auth\Notifications\VerifyEmail;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use PHPinnacle\Cerber\Enums\LoginType;
@@ -102,7 +103,13 @@ it('registers the configured user and email login and sends a verifiable fronten
         ->toHaveCount(6)
         ->toHaveKeys(['id', 'name', 'status', 'email', 'email_verified_at', 'created_at']);
 
-    $notification = Notification::sent($login, VerifyEmail::class)->sole();
+    $notification = Notification::sent(new AnonymousNotifiable, VerifyEmail::class)->sole();
+    Notification::assertSentOnDemand(
+        VerifyEmail::class,
+        fn ($notification, $channels, AnonymousNotifiable $notifiable) => (
+            $notifiable->routes['mail'] === 'new@example.test'
+        ),
+    );
     expect($notification->url)->toStartWith('https://frontend.example/auth/verify-email?');
     parse_str(parse_url($notification->url, PHP_URL_QUERY), $query);
     expect($query['id'])->toBe($login->id);
@@ -158,7 +165,7 @@ it('authenticates a verified email with the shared password and returns the defa
     Login::register($user, LoginType::Email, 'secondary@example.test')->markVerified();
 
     $response = $this
-        ->postJson('/api/auth/login', ['email' => 'SECONDARY@example.test', 'password' => 'original-password'])
+        ->postJson('/api/auth/login', ['username' => 'SECONDARY@example.test', 'password' => 'original-password'])
         ->assertOk()
         ->assertJsonPath('user.id', $user->id)
         ->assertJsonPath('user.email', 'customer@example.test')
@@ -184,16 +191,71 @@ it('rejects unavailable users and invalid credentials with 401', function (strin
     }
 
     $this->postJson('/api/auth/login', [
-        'email' => $case === 'unknown' ? 'missing@example.test' : 'customer@example.test',
+        'username' => $case === 'unknown' ? 'missing@example.test' : 'customer@example.test',
         'password' => $case === 'incorrect' ? 'wrong-password' : 'original-password',
     ])->assertUnauthorized();
 })->with(['unverified', 'blocked', 'archived', 'unknown', 'incorrect']);
 
-it('validates login input with 422', function () {
+it('authenticates phone numbers and case-sensitive logins through username', function (LoginType $type, string $value) {
+    $user = $this->apiUser(false);
+    Login::register($user, $type, $value);
+
     $this
-        ->postJson('/api/auth/login', ['email' => ['invalid']])
+        ->postJson('/api/auth/login', ['username' => $value, 'password' => 'original-password'])
+        ->assertOk()
+        ->assertJsonPath('user.id', $user->id);
+
+    if ($type === LoginType::Login) {
+        $this->forgetJwt();
+        $this->postJson('/api/auth/login', ['username' => 'customer', 'password' => 'original-password'])
+            ->assertUnauthorized();
+    }
+})->with([
+    'phone' => [LoginType::Phone, '+48123456789'],
+    'login' => [LoginType::Login, 'Customer'],
+]);
+
+it('rejects ambiguous usernames matching both an email and a case-sensitive login with 401', function (
+    #[\SensitiveParameter]
+    string $password,
+) {
+    $this->apiUser();
+    $other = User::register('Other', ['web']);
+    $other->password = 'other-password';
+    $other->save();
+    Login::register($other, LoginType::Login, 'CUSTOMER@example.test');
+
+    $this->postJson('/api/auth/login', [
+        'username' => 'CUSTOMER@example.test',
+        'password' => $password,
+    ])->assertUnauthorized();
+})->with(['original-password', 'other-password']);
+
+it('validates login input with 422', function (array $data, array $errors) {
+    $this
+        ->postJson('/api/auth/login', $data)
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['email', 'password']);
+        ->assertJsonValidationErrors($errors);
+})->with([
+    'missing credentials' => [[], ['username', 'password']],
+    'username array' => [['username' => ['invalid']], ['username', 'password']],
+    'username too long' => [['username' => str_repeat('a', 256), 'password' => 'password'], ['username']],
+    'email without username' => [['email' => 'customer@example.test', 'password' => 'password'], ['username']],
+]);
+
+it('rejects registration emails already used as local usernames with 422', function () {
+    $user = $this->apiUser();
+    Login::register($user, LoginType::Login, 'taken@example.test');
+
+    $this
+        ->postJson('/api/auth/register', [
+            'email' => 'TAKEN@example.test',
+            'password' => 'new-password',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('email');
+
+    expect(User::query()->count())->toBe(1);
 });
 
 it('rejects unauthenticated protected requests with 401', function (string $method, string $url) {
@@ -245,8 +307,8 @@ it('rejects tampered expired and changed-email verification links with 403', fun
         'email' => 'new@example.test',
         'password' => 'new-password',
     ])->assertCreated();
-    $login = Login::lookup(LoginType::Email, 'new@example.test');
-    $notification = Notification::sent($login, VerifyEmail::class)->sole();
+    $login = Login::lookup('new@example.test', LoginType::Email);
+    $notification = Notification::sent(new AnonymousNotifiable, VerifyEmail::class)->sole();
     $query = parse_url($notification->url, PHP_URL_QUERY);
     if ($case === 'tampered') {
         $query .= '&extra=changed';
@@ -346,11 +408,11 @@ it('validates password recovery input with 422', function () {
 
 it('limits repeated password sign-in attempts with 429', function () {
     for ($attempt = 0; $attempt < 6; $attempt++) {
-        $this->postJson('/api/auth/login', ['email' => 'missing@example.test', 'password' => 'wrong-password'])
+        $this->postJson('/api/auth/login', ['username' => 'missing@example.test', 'password' => 'wrong-password'])
             ->assertUnauthorized();
     }
 
-    $this->postJson('/api/auth/login', ['email' => 'missing@example.test', 'password' => 'wrong-password'])
+    $this->postJson('/api/auth/login', ['username' => 'missing@example.test', 'password' => 'wrong-password'])
         ->assertTooManyRequests();
 });
 
@@ -378,10 +440,10 @@ it('changes the authenticated user password and preserves the bearer session', f
     $this->forgetJwt();
     $this->withToken($token)->getJson('/api/profile')->assertOk()->assertJsonPath('id', $user->id);
     $this->forgetJwt();
-    $this->postJson('/api/auth/login', ['email' => 'customer@example.test', 'password' => 'original-password'])
+    $this->postJson('/api/auth/login', ['username' => 'customer@example.test', 'password' => 'original-password'])
         ->assertUnauthorized();
     $this
-        ->postJson('/api/auth/login', ['email' => 'customer@example.test', 'password' => 'changed-password'])
+        ->postJson('/api/auth/login', ['username' => 'customer@example.test', 'password' => 'changed-password'])
         ->assertOk()
         ->assertJsonPath('user.id', $user->id);
 });

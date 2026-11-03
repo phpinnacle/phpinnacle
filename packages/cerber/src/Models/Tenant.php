@@ -29,8 +29,6 @@ class Tenant extends Model implements HasAvatar, HasCurrentTenantLabel, HasName
 
     public const string DEFAULT = '00000000-0000-0000-0000-000000000000';
 
-    public $timestamps = true;
-
     protected $table = 'tenants';
 
     protected $attributes = [

@@ -53,8 +53,8 @@ return new class extends Migration {
         $connection = Schema::getConnection();
         $grammar = $connection->getQueryGrammar();
         $connection->statement(sprintf(
-            'create unique index %s on %s ("type", "value") where "provider_id" is null',
-            $grammar->wrap($connection->getTablePrefix() . 'logins_local_type_value_unique'),
+            'create unique index %s on %s ("value") where "provider_id" is null',
+            $grammar->wrap($connection->getTablePrefix() . 'logins_local_value_unique'),
             $grammar->wrapTable('logins'),
         ));
 

@@ -4,10 +4,9 @@ namespace PHPinnacle\Cerber\Models;
 
 use Carbon\CarbonImmutable;
 use Filament\Panel;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Notifications\Notifiable;
-use PHPinnacle\Cerber\Contracts\SocialAccountContext;
 use PHPinnacle\Cerber\Enums\LoginType;
 
 /**
@@ -25,13 +24,12 @@ use PHPinnacle\Cerber\Enums\LoginType;
 class Login extends Model
 {
     use HasUuids;
-    use Notifiable;
 
     protected $table = 'logins';
 
-    protected $attributes = ['is_default' => false];
-
-    protected $fillable = ['type', 'value', 'metadata'];
+    protected $attributes = [
+        'is_default' => false,
+    ];
 
     protected $casts = [
         'type' => LoginType::class,
@@ -40,13 +38,30 @@ class Login extends Model
         'metadata' => 'array',
     ];
 
-    public static function lookup(LoginType $type, string $value, ?string $providerId = null): ?self
+    protected $fillable = [
+        'type',
+        'value',
+        'metadata',
+    ];
+
+    /** Resolve an unambiguous local identifier, ignoring case only for email. */
+    public static function lookup(string $value, LoginType ...$types): ?self
     {
-        return self::query()
-            ->where('type', $type)
-            ->where('provider_id', $providerId)
-            ->where('value', $type->canonical($value))
-            ->first();
+        $types = $types === [] ? LoginType::local() : $types;
+
+        $logins = self::query()
+            ->whereNull('provider_id')
+            ->where(function (Builder $query) use ($value, $types) {
+                foreach ($types as $type) {
+                    $query->orWhere(fn (Builder $query) => $query
+                        ->where('type', $type)
+                        ->where('value', $type->canonical($value)));
+                }
+            })
+            ->limit(2)
+            ->get();
+
+        return $logins->count() === 1 ? $logins->first() : null;
     }
 
     public static function register(User $user, LoginType $type, string $value): self
@@ -106,17 +121,6 @@ class Login extends Model
         });
     }
 
-    /** @return list<string> */
-    public static function linked(SocialAccountContext $context, User $user): array
-    {
-        return $user
-            ->logins()
-            ->where('type', LoginType::OAuth)
-            ->whereHas('provider', fn ($query) => $query->where('context', $context->name()))
-            ->pluck('provider_id')
-            ->all();
-    }
-
     public function requiresVerification(): bool
     {
         return $this->type === LoginType::Email && $this->verified_at === null;
@@ -156,11 +160,6 @@ class Login extends Model
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->isAvailable() && $this->user->canAccessPanel($panel);
-    }
-
-    public function routeNotificationForMail(): string
-    {
-        return $this->value;
     }
 
     /** @return BelongsTo<User, $this> */

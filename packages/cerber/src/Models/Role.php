@@ -27,8 +27,6 @@ class Role extends Model implements HasLabel
 {
     use HasUuids;
 
-    public $timestamps = true;
-
     protected $table = 'roles';
 
     protected $attributes = [

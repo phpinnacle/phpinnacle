@@ -40,7 +40,6 @@ class LoginUserProvider extends EloquentUserProvider
         return (
             $login !== null
             && $login->user_id === $user->getAuthIdentifier()
-            && $login->type !== LoginType::OAuth
             && $login->isAvailable()
             && parent::validateCredentials($user, $credentials)
         );
@@ -49,16 +48,12 @@ class LoginUserProvider extends EloquentUserProvider
     /** @param array<string, mixed> $credentials */
     private function loginForCredentials(#[\SensitiveParameter] array $credentials): ?Login
     {
-        if (($credentials['email'] ?? null) !== null) {
-            return Login::lookup(LoginType::Email, $credentials['email']);
+        if (($credentials['username'] ?? null) !== null) {
+            return Login::lookup($credentials['username']);
         }
 
-        if (($credentials['type'] ?? null) !== null && ($credentials['value'] ?? null) !== null) {
-            return Login::lookup(
-                LoginType::from($credentials['type']),
-                $credentials['value'],
-                $credentials['provider_id'] ?? null,
-            );
+        if (($credentials['email'] ?? null) !== null) {
+            return Login::lookup($credentials['email'], LoginType::Email);
         }
 
         return null;

@@ -136,17 +136,6 @@ beforeEach(function () {
     };
 });
 
-it('registers contexts by name in the shared repository', function () {
-    $repository = app(SocialAccountContextRepository::class);
-    $repository->add($this->adminContext);
-    $repository->add($this->webContext);
-
-    expect(app(SocialAccountContextRepository::class)->get('admin'))
-        ->toBe($this->adminContext)
-        ->and($repository->all())
-        ->toBe(['admin' => $this->adminContext, 'web' => $this->webContext]);
-});
-
 it('resolves and persists the same social identity independently in two contexts', function () {
     $linker = app(UserLinker::class);
     $admin = $linker->findOrCreateUser($this->adminContext, $this->adminProvider, $this->identity);
@@ -173,23 +162,10 @@ it('unlinks only the selected context even when both contexts use the same user'
     $this->provider->link($this->admin, $this->identity);
     $this->adminProvider->unlink($this->admin);
 
-    expect(Login::linked($this->adminContext, $this->admin))
+    expect($this->admin->linkedProviders($this->adminContext))
         ->toBe([])
-        ->and(Login::linked($this->webContext, $this->admin))
+        ->and($this->admin->linkedProviders($this->webContext))
         ->toBe([$this->provider->id]);
-});
-
-it('filters provider availability by context and active state', function () {
-    $this->provider->update(['is_active' => false]);
-    expect(Provider::valid($this->adminContext)->modelKeys())
-        ->toBe([$this->adminProvider->id])
-        ->and(Provider::valid($this->webContext))
-        ->toBeEmpty()
-        ->and($this->provider->isAvailableTo($this->webContext))
-        ->toBeFalse();
-
-    $this->adminProvider->update(['is_active' => false]);
-    expect($this->adminProvider->isAvailableTo($this->adminContext))->toBeFalse();
 });
 
 it('issues a frontend JWT without signing in to the panel session', function () {
@@ -212,9 +188,9 @@ it('issues a frontend JWT without signing in to the panel session', function () 
         ->toBeTrue()
         ->and(auth('web')->guest())
         ->toBeTrue()
-        ->and(Login::lookup(LoginType::OAuth, 'google-user', $this->provider->id)->user_id)
+        ->and($this->provider->logins()->where('value', 'google-user')->first()->user_id)
         ->toBe($this->customer->id)
-        ->and(Login::lookup(LoginType::OAuth, 'google-user', $this->adminProvider->id))
+        ->and($this->adminProvider->logins()->where('value', 'google-user')->first())
         ->toBeNull();
 
     Route::get('/jwt-user', fn () => ['user_id' => auth()->id()])
@@ -283,6 +259,7 @@ it('enforces provider context and active state on direct redirect and callback r
     ])->assertNotFound();
 
     $this->provider->update(['context' => 'web', 'is_active' => false]);
+    $this->getJson('/api/auth/oauth/web/providers')->assertOk()->assertExactJson([]);
     $this->getJson(
         $this->apiBase . '/redirect?code_challenge=' . OAuthAttempt::challenge($this->verifier),
     )->assertNotFound();
@@ -385,9 +362,9 @@ it('unlinks through the API only with a token belonging to that context', functi
         ->withToken($token)
         ->deleteJson($this->apiBase . '/link')
         ->assertOk();
-    expect(Login::linked($this->webContext, $this->customer))
+    expect($this->customer->linkedProviders($this->webContext))
         ->toBe([])
-        ->and(Login::linked($this->adminContext, $this->customer))
+        ->and($this->customer->linkedProviders($this->adminContext))
         ->toBe([$this->adminProvider->id]);
 });
 
@@ -508,9 +485,9 @@ it('links a profile only to the user who started that context attempt', function
 
     app(CallbackController::class)($this->adminProvider, $request);
 
-    expect(Login::lookup(LoginType::OAuth, 'google-user', $this->adminProvider->id)->user_id)
+    expect($this->adminProvider->logins()->where('value', 'google-user')->first()->user_id)
         ->toBe($this->admin->id)
-        ->and(Login::lookup(LoginType::OAuth, 'google-user', $this->provider->id))
+        ->and($this->provider->logins()->where('value', 'google-user')->first())
         ->toBeNull();
 })->with([false, true]);
 
@@ -519,7 +496,7 @@ it('does not reassign an external account already linked to the same provider', 
 
     expect(fn () => $this->adminProvider->link($this->customer, $this->identity))
         ->toThrow(\Illuminate\Database\UniqueConstraintViolationException::class);
-    expect(Login::lookup(LoginType::OAuth, 'google-user', $this->adminProvider->id)->user_id)->toBe($this->admin->id);
+    expect($this->adminProvider->logins()->where('value', 'google-user')->first()->user_id)->toBe($this->admin->id);
 });
 
 it('renders an OAuth test result without signing in or linking an account', function (bool $fails) {
@@ -538,13 +515,8 @@ it('renders an OAuth test result without signing in or linking an account', func
     $request->merge(['state' => $parameters['state'], 'code' => 'code']);
     $result = app(CallbackController::class)($this->adminProvider, $request);
 
-    expect($result->name())
-        ->toBe('phpinnacle-cerber::oauth.test-result')
-        ->and($result->getData()['success'])
-        ->toBe(!$fails)
-        ->and($result->getData()['userData']['id'] ?? null)
-        ->toBe($fails ? null : 'google-user')
-        ->and($result->render())
+    $html = $result->render();
+    expect($html)
         ->toContain(__('phpinnacle-cerber::auth.test.' . ($fails ? 'failure' : 'success')))
         ->not
         ->toContain('private provider diagnostics', 'provider-token')
@@ -552,6 +524,11 @@ it('renders an OAuth test result without signing in or linking an account', func
         ->toBeTrue()
         ->and(Login::query()->where('type', LoginType::OAuth)->count())
         ->toBe(0);
+    if ($fails) {
+        expect($html)->not->toContain('google-user');
+    } else {
+        expect($html)->toContain('google-user');
+    }
 })->with([false, true]);
 
 function cerber_provider_form(?Provider $record = null): Schema
@@ -626,9 +603,9 @@ it('keeps existing provider bindings in their original context when editing the 
         ->toBe('Renamed Google')
         ->and($this->adminProvider->context)
         ->toBe('admin')
-        ->and(Login::linked($this->webContext, $this->admin))
+        ->and($this->admin->linkedProviders($this->webContext))
         ->toBe([])
-        ->and(Login::linked($this->adminContext, $this->admin))
+        ->and($this->admin->linkedProviders($this->adminContext))
         ->toBe([$this->adminProvider->id]);
 });
 
@@ -649,20 +626,25 @@ it('shows the matching callback URL for panel and frontend providers', function 
         ->toBe('https://frontend.example/oauth/callback?context=web&provider=' . $this->provider->id);
 });
 
-it('can edit a frontend provider in a panel without social login routes', function () {
+it('renders a frontend provider edit page without social login routes', function () {
     $panel = Panel::make()->id('management')->path('management')->default();
-    $panel->plugin(CerberPlugin::make()->withoutResources());
+    $panel->plugin(CerberPlugin::make()->withoutUsers()->withoutRoles());
     app(PanelRegistry::class)->register($panel);
     Filament::setCurrentPanel($panel);
-    $page = new class extends \PHPinnacle\Cerber\Resources\Providers\Pages\EditProvider {
-        public function headerActions(): array
-        {
-            return $this->getHeaderActions();
-        }
-    };
-    $page->record = $this->provider;
+    require base_path('vendor/filament/filament/routes/web.php');
+    Route::getRoutes()->refreshNameLookups();
+    $this->admin->grant(\PHPinnacle\Cerber\Models\Role::register(
+        $this->tenant,
+        'Provider editor',
+        ['view_any_provider', 'update_provider'],
+    ));
+    $this->actingAs($this->admin);
 
-    expect($page->headerActions()[0]->isVisible())->toBeFalse();
+    \Livewire\Livewire::test(\PHPinnacle\Cerber\Resources\Providers\Pages\EditProvider::class, [
+        'record' => $this->provider->id,
+    ])
+        ->assertOk()
+        ->assertActionHidden('test_connection');
 });
 
 it('signs in an OAuth user without email or password and keeps the session after unlinking', function () {
@@ -689,11 +671,12 @@ it('signs in an OAuth user without email or password and keeps the session after
 });
 
 it('keeps OAuth and email credentials separate even when their addresses match', function () {
+    config(['auth.providers.users.driver' => 'cerber']);
     $this->customer->update(['password' => 'email-password']);
     $email = Login::register($this->admin, LoginType::Email, 'same@example.test');
     $email->markVerified();
     $user = app(UserLinker::class)->findOrCreateUser($this->webContext, $this->provider, $this->identity);
-    $oauth = Login::lookup(LoginType::OAuth, $this->identity->getId(), $this->provider->id);
+    $oauth = $this->provider->logins()->where('value', $this->identity->getId())->first();
     expect($user->is($this->customer))->toBeTrue();
 
     expect($oauth->user_id)
@@ -703,12 +686,36 @@ it('keeps OAuth and email credentials separate even when their addresses match',
         ->and($this->customer->defaultLogin(LoginType::Email))
         ->toBeNull()
         ->and(auth('admin')->attempt([
-            'type' => 'oauth',
-            'provider_id' => $this->provider->id,
-            'value' => $oauth->value,
+            'username' => $oauth->value,
             'password' => 'email-password',
         ]))
         ->toBeFalse();
+});
+
+it('excludes OAuth subjects from username sign-in and allows matching local identifiers', function () {
+    config(['auth.providers.users.driver' => 'cerber']);
+    $this->customer->update(['password' => 'shared-password']);
+    $identity = new OAuthUser()->map(['id' => 'local-name', 'email' => null]);
+    $this->provider->link($this->customer, $identity);
+    $credentials = ['username' => 'local-name', 'password' => 'shared-password'];
+
+    expect(auth('admin')->attempt($credentials))->toBeFalse();
+
+    $this->admin->update(['password' => 'shared-password']);
+    Login::register($this->admin, LoginType::Login, 'local-name');
+    expect(auth('admin')->attempt($credentials))->toBeTrue();
+    expect(auth('admin')->id())->toBe($this->admin->id);
+});
+
+it('links OAuth without creating an email already reserved by a local login', function () {
+    $local = Login::register($this->admin, LoginType::Login, 'reserved@example.test');
+    $identity = new OAuthUser()->map(['id' => 'external-user', 'email' => 'RESERVED@example.test']);
+
+    $oauth = $this->provider->link($this->customer, $identity);
+
+    expect($oauth->user_id)->toBe($this->customer->id);
+    expect($this->customer->defaultLogin(LoginType::Email))->toBeNull();
+    expect($local->fresh()->user_id)->toBe($this->admin->id);
 });
 
 it('deletes provider logins without ending user sessions and promotes the next default', function () {

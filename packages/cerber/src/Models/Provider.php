@@ -31,8 +31,6 @@ class Provider extends Model implements HasLabel
 {
     use HasUuids;
 
-    public $timestamps = true;
-
     protected $table = 'oauth_providers';
 
     protected $attributes = [
@@ -118,7 +116,7 @@ class Provider extends Model implements HasLabel
 
         return $this->getConnection()->transaction(function () use ($user, $identity, $email) {
             $user->newQuery()->whereKey($user->id)->lockForUpdate()->first();
-            $login = $user->logins()->where('type', LoginType::OAuth)->where('provider_id', $this->id)->first();
+            $login = $this->logins()->whereBelongsTo($user, 'user')->first();
             if ($login !== null && $login->value !== $identity->getId()) {
                 $login->delete();
                 $login = null;
@@ -138,7 +136,10 @@ class Provider extends Model implements HasLabel
             ];
             $login->save();
 
-            if ($email !== null && Login::lookup(LoginType::Email, $email) === null) {
+            if ($email !== null && Login::query()
+                ->whereNull('provider_id')
+                ->where('value', LoginType::Email->canonical($email))
+                ->doesntExist()) {
                 Login::register($user, LoginType::Email, $email);
             }
 
@@ -148,7 +149,7 @@ class Provider extends Model implements HasLabel
 
     public function unlink(User $user): void
     {
-        $user->logins()->where('type', LoginType::OAuth)->where('provider_id', $this->id)->first()?->delete();
+        $this->logins()->whereBelongsTo($user, 'user')->first()?->delete();
     }
 
     public function frontendCallbackUrl(): string
@@ -162,6 +163,6 @@ class Provider extends Model implements HasLabel
      */
     public function logins(): HasMany
     {
-        return $this->hasMany(Login::class, 'provider_id')->where('type', \PHPinnacle\Cerber\Enums\LoginType::OAuth);
+        return $this->hasMany(Login::class, 'provider_id')->where('type', LoginType::OAuth);
     }
 }

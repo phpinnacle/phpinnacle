@@ -3,6 +3,7 @@
 namespace PHPinnacle\Cerber\Services;
 
 use Filament\Auth\Notifications\VerifyEmail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use PHPinnacle\Cerber\Enums\LoginType;
@@ -32,7 +33,7 @@ class RegistrationService
                 rtrim(config('phpinnacle-cerber.api.frontend_url'), '/')
                 . '/auth/verify-email?'
                 . parse_url($signedUrl, PHP_URL_QUERY);
-            $login->notify($notification->afterCommit());
+            Notification::route('mail', $login->value)->notify($notification->afterCommit());
 
             return $user;
         });

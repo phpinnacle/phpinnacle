@@ -91,7 +91,7 @@ class Logins extends Section
 
             if ($type === LoginType::OAuth) {
                 if (!$this->isAdministrative && ($context = CerberPlugin::get()->getSocialAccountContext()) !== null) {
-                    $linked = Login::linked($context, $user);
+                    $linked = $user->linkedProviders($context);
                     foreach (Provider::valid($context) as $provider) {
                         if (in_array($provider->id, $linked, strict: true)) {
                             continue;

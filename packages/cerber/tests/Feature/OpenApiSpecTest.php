@@ -49,6 +49,11 @@ it('generates the authentication contract without overriding application compone
     )
         ->toBe(['password']);
     expect($specification['paths']['/auth/password/change']['post']['responses'])->toHaveKey('204');
+    $loginSchema =
+        $specification['paths']['/auth/login']['post']['requestBody']['content']['application/json']['schema'];
+    expect($loginSchema['required'])->toBe(['username', 'password']);
+    expect($loginSchema['properties'])->not->toHaveKey('email');
+    expect($loginSchema['properties']['username']['maxLength'])->toBe(255);
     expect(array_column($specification['paths']['/auth/verify-email']['get']['parameters'], 'name'))
         ->toBe(['id', 'hash', 'expires', 'signature']);
 

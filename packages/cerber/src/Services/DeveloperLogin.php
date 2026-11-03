@@ -22,7 +22,7 @@ class DeveloperLogin
             return false;
         }
 
-        if (!($login = Login::lookup(LoginType::Email, $credentials))) {
+        if (!($login = Login::lookup($credentials, LoginType::Email))) {
             return false;
         }
 

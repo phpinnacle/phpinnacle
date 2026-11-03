@@ -16,18 +16,18 @@ class AuthController
 {
     #[OA\Operation\Post(
         path: '/auth/login',
-        description: 'Sign in with a verified email login and the shared user password.',
+        description: 'Sign in with a local email, phone number, or case-sensitive login and the shared user password. Email logins must be verified.',
         summary: 'Sign in',
         requestBody: new OA\RequestBody(
             description: 'Sign-in credentials.',
             required: true,
             content: new OA\Schema(
-                required: ['email', 'password'],
+                required: ['username', 'password'],
                 properties: [
-                    'email' => new OA\Schema(
-                        description: 'Email address',
+                    'username' => new OA\Schema(
+                        description: 'Email address, phone number, or case-sensitive login',
+                        maxLength: 255,
                         type: 'string',
-                        format: 'email',
                         example: 'user@example.com',
                     ),
                     'password' => new OA\Schema(
@@ -59,9 +59,9 @@ class AuthController
     )]
     public function login(Request $request): JsonResponse
     {
-        /** @var array{email: string, password: string} $credentials */
+        /** @var array{username: string, password: string} $credentials */
         $credentials = $request->validate([
-            'email' => ['required', 'string', 'email'],
+            'username' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
         ]);
         /** @var JWTGuard $guard */

@@ -7,6 +7,7 @@ use Filament\Auth\Pages\PasswordReset\ResetPassword;
 use Filament\Facades\Filament;
 use Filament\Panel;
 use Filament\PanelRegistry;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -92,22 +93,57 @@ it('creates a user and adds several typed logins through independent dialogs', f
     expect(Hash::check('new-user-password', $user->password))->toBeTrue();
     $page->fillForm(['is_password_temporary' => false])->call('save')->assertHasNoFormErrors();
     expect($user->fresh()->is_password_temporary)->toBeFalse();
-    Notification::assertSentTo(Login::lookup(LoginType::Email, 'first@example.test'), VerifyEmail::class);
-    Notification::assertSentTo(Login::lookup(LoginType::Email, 'second@example.test'), VerifyEmail::class);
+    Notification::assertSentOnDemand(
+        VerifyEmail::class,
+        fn ($notification, $channels, AnonymousNotifiable $notifiable) => (
+            $notifiable->routes['mail'] === 'first@example.test'
+        ),
+    );
+    Notification::assertSentOnDemand(
+        VerifyEmail::class,
+        fn ($notification, $channels, AnonymousNotifiable $notifiable) => (
+            $notifiable->routes['mail'] === 'second@example.test'
+        ),
+    );
 });
 
-it('rejects an email login already owned by another user ignoring case', function () {
+it('rejects local values already owned by another user across types', function (
+    LoginType $existingType,
+    string $type,
+    string $value,
+) {
     $this->user->grant(Role::register($this->tenant, 'Editor', ['view_any_user', 'update_user']));
-    Login::register($this->user, LoginType::Email, 'duplicate@example.test');
+    Login::register($this->user, $existingType, $value);
     $other = User::register('Other');
     $other->save();
     Livewire::test(EditUser::class, ['record' => $other->id])
-        ->callAction(TestAction::make('add')->schemaComponent('logins.email.add', 'form'), [
-            'value' => 'DUPLICATE@example.test',
+        ->callAction(TestAction::make('add')->schemaComponent('logins.' . $type . '.add', 'form'), [
+            'value' => $type === 'email' ? 'DUPLICATE@example.test' : $value,
         ])
         ->assertHasActionErrors(['value' => 'unique']);
     expect($other->logins()->count())->toBe(0);
     Notification::assertNothingSent();
+})->with([
+    'canonical email' => [LoginType::Email, 'email', 'duplicate@example.test'],
+    'email used as login' => [LoginType::Email, 'login', 'duplicate@example.test'],
+    'login used as email' => [LoginType::Login, 'email', 'duplicate@example.test'],
+    'phone used as login' => [LoginType::Phone, 'login', '+48123456789'],
+]);
+
+it('rejects duplicate local values when editing and allows the current value', function () {
+    Login::register($this->user, LoginType::Phone, '+48123456789');
+    $login = Login::register($this->user, LoginType::Login, 'Username');
+    $action = TestAction::make('edit')->schemaComponent('logins.login.' . $login->id, 'content');
+
+    Livewire::test(EditProfile::class)
+        ->callAction($action, ['value' => '+48123456789', 'is_default' => true])
+        ->assertHasActionErrors(['value' => 'unique']);
+    expect($login->fresh()->value)->toBe('Username');
+
+    Livewire::test(EditProfile::class)
+        ->callAction($action, ['value' => 'Username', 'is_default' => true])
+        ->assertHasNoErrors();
+    expect($login->fresh()->value)->toBe('Username');
 });
 
 it('validates login values in the creation dialog', function (string $type, string $value) {
@@ -140,7 +176,12 @@ it('edits a login immediately without changing its type or saving the main user 
     expect($login->fresh()->verified_at)->toBeNull();
     expect($login->fresh()->is_default)->toBeTrue()->and($previous->fresh()->is_default)->toBeFalse();
     expect(Hash::check('password', $this->user->fresh()->password))->toBeTrue();
-    Notification::assertSentTo($login->fresh(), VerifyEmail::class);
+    Notification::assertSentOnDemand(
+        VerifyEmail::class,
+        fn ($notification, $channels, AnonymousNotifiable $notifiable) => (
+            $notifiable->routes['mail'] === 'changed@example.test'
+        ),
+    );
 });
 
 it('preserves profile drafts while adding logins and saves profile details separately', function () {
@@ -149,7 +190,7 @@ it('preserves profile drafts while adding logins and saves profile details separ
         'value' => '+48123456789',
     ])->assertHasNoErrors()->assertFormSet(['name' => 'Updated profile']);
     expect($this->user->fresh()->name)->toBe('User');
-    expect(Login::lookup(LoginType::Phone, '+48123456789')->user_id)->toBe($this->user->id);
+    expect(Login::lookup('+48123456789', LoginType::Phone)->user_id)->toBe($this->user->id);
     $page->call('save')->assertHasNoFormErrors();
     expect($this->user->fresh()->name)->toBe('Updated profile');
     expect($this->user->logins()->count())->toBe(1);
@@ -257,7 +298,12 @@ it('limits manual verification to the user card and cannot resolve another owner
         ->assertHasNoErrors()
         ->callAction(TestAction::make('resetPassword')->schemaComponent('logins.email.' . $login->id, 'form'))
         ->assertHasNoErrors();
-    Notification::assertSentTo($login, VerifyEmail::class);
+    Notification::assertSentOnDemand(
+        VerifyEmail::class,
+        fn ($notification, $channels, AnonymousNotifiable $notifiable) => (
+            $notifiable->routes['mail'] === 'first@example.test'
+        ),
+    );
     Notification::assertSentTo($this->user, \Filament\Auth\Notifications\ResetPassword::class);
 });
 
@@ -270,7 +316,7 @@ it('denies access to the user card without the update permission even for its ow
 it('verifies only the email address bound to the signed verification link', function () {
     $login = Login::register($this->user, LoginType::Email, 'first@example.test');
     app(UserService::class)->resendVerification($login);
-    $url = Notification::sent($login, VerifyEmail::class)->sole()->url;
+    $url = Notification::sent(new AnonymousNotifiable, VerifyEmail::class)->sole()->url;
 
     $this->get($url)->assertRedirect();
     expect($login->fresh()->verified_at)->not->toBeNull();
@@ -283,7 +329,7 @@ it('verifies only the email address bound to the signed verification link', func
 it('rejects expired and unsigned verification requests', function () {
     $login = Login::register($this->user, LoginType::Email, 'first@example.test');
     app(UserService::class)->resendVerification($login);
-    $url = Notification::sent($login, VerifyEmail::class)->sole()->url;
+    $url = Notification::sent(new AnonymousNotifiable, VerifyEmail::class)->sole()->url;
     $this->get('/admin/logins/' . $login->id . '/verify?hash=' . hash('sha256', $login->value))->assertForbidden();
     $this->travel(61)->minutes();
 

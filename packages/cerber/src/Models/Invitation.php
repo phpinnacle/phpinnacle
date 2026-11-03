@@ -17,7 +17,5 @@ class Invitation extends Model
 {
     use HasUuids;
 
-    public $timestamps = true;
-
     protected $table = 'invitations';
 }

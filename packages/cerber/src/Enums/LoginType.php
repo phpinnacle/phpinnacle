@@ -25,6 +25,12 @@ enum LoginType: string implements HasLabel
     case Login = 'login';
     case OAuth = 'oauth';
 
+    /** @return list<self> */
+    public static function local(): array
+    {
+        return [self::Email, self::Phone, self::Login];
+    }
+
     public function canonical(string $value): string
     {
         return $this === self::Email ? mb_strtolower($value) : $value;
@@ -122,7 +128,7 @@ enum LoginType: string implements HasLabel
                 table: LoginModel::class,
                 column: 'value',
                 ignorable: $login,
-                modifyRuleUsing: fn (Unique $rule) => $rule->where('type', $this->value)->whereNull('provider_id'),
+                modifyRuleUsing: fn (Unique $rule) => $rule->whereNull('provider_id'),
             );
     }
 }

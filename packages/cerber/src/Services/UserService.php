@@ -6,6 +6,7 @@ use Filament\Auth\Notifications\ResetPassword;
 use Filament\Auth\Notifications\VerifyEmail;
 use Filament\Facades\Filament;
 use Illuminate\Auth\Passwords\PasswordBrokerManager;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 use PHPinnacle\Cerber\Models\Login;
 use PHPinnacle\Cerber\Models\User;
@@ -29,7 +30,7 @@ readonly class UserService
             now()->addHour(),
             ['login' => $login->id, 'hash' => $login->verificationHash()],
         );
-        $login->notify($notification->afterCommit());
+        Notification::route('mail', $login->value)->notify($notification->afterCommit());
     }
 
     public function resetPassword(User $user): string

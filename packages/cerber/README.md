@@ -51,7 +51,7 @@ On a fresh database, create the default tenant once with `PHPinnacle\Cerber\Mode
 
 ## Users and logins
 
-`User` is the authenticated identity and owns one password, remember token, profile, permissions, tenants and MFA settings. `Login` stores identifiers in the `logins` relationship. `LoginType` defines `email`, `phone`, `login` and `oauth`; several identifiers of the same type may belong to one user. Local identifiers have a null `provider_id`, while OAuth identifiers store the configured provider UUID and the external subject as their value. Local `(type, value)` pairs are globally unique; OAuth `(type, provider_id, value)` pairs are unique within each provider.
+`User` is the authenticated identity and owns one password, remember token, profile, permissions, tenants and MFA settings. `Login` stores identifiers in the `logins` relationship. `LoginType` defines `email`, `phone`, `login` and `oauth`; several identifiers of the same type may belong to one user. Local identifiers have a null `provider_id`. Email values are lowercased on save; phone and login values are unchanged. Stored local values are globally unique across all local types, while differently cased logins remain distinct. OAuth identifiers store the configured provider UUID and the external subject as their value; `(type, provider_id, value)` pairs are unique within each provider.
 
 ```php
 use PHPinnacle\Cerber\Enums\LoginType;
@@ -66,6 +66,8 @@ $email = Login::register($user, LoginType::Email, 'jane@example.com');
 Login::register($user, LoginType::Phone, '+48123456789');
 Login::register($user, LoginType::Login, 'jane');
 ```
+
+`Login::lookup($value, ...$types)` returns an unambiguous local login. With no types, it searches `LoginType::local()` (`Email`, `Phone`, `Login`); explicit types restrict the search. Email matching ignores case, while phone and login values match exactly. Missing or ambiguous matches return `null`. For example, an email `same@example.test` and a login `SAME@example.test` can coexist, but looking up `SAME@example.test` without a type is ambiguous. `Login::lookup($email, LoginType::Email)?->user` finds the owner using the configured `user_model`. Resolve OAuth subjects through `$provider->logins()->where('value', $subject)->first()` to keep the lookup scoped to its provider.
 
 The first login of each type becomes `is_default`. Editing another local login can make it the default. Deleting the default promotes the oldest remaining login of that type. The default email receives user mail and is the password recovery address. A user without an email login cannot recover a password by email.
 
@@ -89,17 +91,15 @@ Configure Laravel authentication with the application User subclass when applica
 ],
 ```
 
-Cerber uses Laravel's native session driver and a stateless Eloquent user provider. The provider resolves standard Filament email credentials through a local email login and checks the shared user password. Email logins must be verified before password sign-in; changing their address clears verification. The standard Filament login and password-reset pages remain in use. Phone and username identifiers can be stored and managed, while the standard page accepts email and OAuth.
+Cerber uses Laravel's native session driver and a stateless Eloquent user provider. Programmatic password sign-in accepts `username` and `password`, resolving a local email, phone number, or login. The provider also resolves standard Filament `email` credentials through a local email login and checks the shared user password. Email logins must be verified before password sign-in; changing their address clears verification. The standard Filament login and password-reset pages remain in use. Phone and username identifiers can be stored and managed, while the standard page accepts email and OAuth.
 
 `auth()->user()` returns `User`; `auth()->id()`, browser sessions and JWT subjects identify that user. Sessions do not retain a selected login. Deleting or unverifying a login prevents new sign-ins through it and preserves existing user sessions. Enable Filament's session authentication middleware to revoke password sessions after changes to the shared password. Native remember me requires a user password; users who have only OAuth can sign in without one and set a password through email recovery when an email is available.
 
 Password recovery accepts any registered email identifier, sends the link to the user's default email and changes the shared password. Unverified email identifiers can receive recovery mail, but still require ordinary email verification before password sign-in. Changing the default email invalidates reset tokens issued for the previous address. Impersonation operates on users directly, including users without login identifiers, and does not restore access after the impersonator's password or remember token changes.
 
-User cards and profiles show logins grouped by type; the profile uses aside sections. Add and Edit dialogs manage local values without passwords, and types cannot be changed. Edit and Delete remain inline icons. Administrative email rows also have an ellipsis menu for verification and recovery actions. Profile rows do not expose these administrative actions. Login actions save immediately and preserve drafts in the main form. The shared password is edited in the user form or a separate aside section in the profile. Profile password changes require the current password when one exists; authenticated passwordless users can set their first password without it. User cards also expose `is_password_temporary`, a stored administrative marker that does not require a password change and is not shown in the profile. `EmailAction` and `PasswordAction` build the administrative actions; `UserService` sends verification for a `Login` and password recovery for a `User`. Create a user before adding its logins.
+User cards and profiles show logins grouped by type; the profile uses aside sections. Add and Edit dialogs manage local values without passwords, and types cannot be changed. Edit and Delete remain inline icons. Administrative email rows also have an ellipsis menu for verification and recovery actions. Profile rows do not expose these administrative actions. Login actions save immediately and preserve drafts in the main form. The shared password is edited in the user form or a separate aside section in the profile. Profile password changes require the current password when one exists; authenticated passwordless users can set their first password without it. User cards also expose `is_password_temporary`, a stored administrative marker that does not require a password change and is not shown in the profile. `EmailAction` and `PasswordAction` build the administrative actions; `UserService` sends verification explicitly to the selected login email address and password recovery for a `User`. Verification recipients are captured when dispatching the queued notification. Create a user before adding its logins.
 
-OAuth remains a login type. Linking an identity creates an unverified email login when its email is available and not already registered. An existing email login is preserved, and an address owned by another user never links or merges those users. The nullable JSON `metadata` map stores OAuth display fields (`email`, `name`, `nickname`, `avatar`) and other application data; updating display fields preserves other keys. External provider access and refresh tokens are not persisted. Cerber issues its own JWT for API authentication.
-
-`User::findByLogin(LoginType::Email, $email)` finds the owner and supports application subclasses.
+OAuth remains a login type. Linking an identity creates an unverified email login when its email is available and its canonical value is not already registered as any local identifier. An existing email login is preserved, and an address owned by another user never links or merges those users. The nullable JSON `metadata` map stores OAuth display fields (`email`, `name`, `nickname`, `avatar`) and other application data; updating display fields preserves other keys. External provider access and refresh tokens are not persisted. Cerber issues its own JWT for API authentication.
 
 ## Registering the plugin
 
@@ -241,14 +241,12 @@ The provider list shows the callback URL to register with the OAuth service and 
 Bindings are unique by provider and external account ID, with one account per user and provider. Their context comes from the provider and is not duplicated on the binding. The same external identity can belong to different local users through the separate admin and web providers. Linking or unlinking affects only the selected provider. The panel profile page lists providers for its context. For application-owned account management:
 
 ```php
-use PHPinnacle\Cerber\Models\Login;
-
-Login::linked($context, $user);
+$user->linkedProviders($context);
 $provider->link($user, $verifiedSocialiteUser);
 $provider->unlink($user);
 ```
 
-`linked()` returns provider IDs. `Provider::unlink()` deletes the local binding; it does not revoke tokens at the external provider. Only pass identities obtained through a verified OAuth flow to `Provider::link()`, and authorize the target user and provider context in the calling application. An external identity already bound to another user through the same provider cannot be reassigned by linking.
+`User::linkedProviders()` takes a `SocialAccountContext` instance and returns a list of provider IDs for that context. `Provider::unlink()` deletes the local binding; it does not revoke tokens at the external provider. Only pass identities obtained through a verified OAuth flow to `Provider::link()`, and authorize the target user and provider context in the calling application. An external identity already bound to another user through the same provider cannot be reassigned by linking.
 
 ## Password authentication API
 
@@ -270,7 +268,7 @@ Configure the `api` guard with the `jwt` driver and a `cerber` user provider, as
 | Method | URL | Input |
 | --- | --- | --- |
 | POST | `/api/auth/register` | `email`, `password` |
-| POST | `/api/auth/login` | `email`, `password` |
+| POST | `/api/auth/login` | `username`, `password` |
 | GET | `/api/auth/verify-email` | The complete query string from the verification email |
 | POST | `/api/auth/password/forgot` | `email` |
 | POST | `/api/auth/password/reset` | `email`, `token`, `password` |
@@ -281,7 +279,9 @@ Configure the `api` guard with the `jwt` driver and a `cerber` user provider, as
 
 Route names use the `cerber.api.` prefix: `register`, `login`, `verify-email`, `password.forgot`, `password.reset`, `password.change`, `refresh`, `logout`, and `profile`. Password API routes are disabled by default; OAuth routes remain independently available. Remove application-owned routes for these URLs when enabling Cerber's routes.
 
-Registration creates a user of the configured `user_model` with `panels: ['web']`, a shared password and an unverified email login in one transaction. Email uniqueness uses canonical local email logins. Registration, password reset and password change accept a `password` string of at least eight characters without `password_confirmation`; confirmation belongs to the frontend form. Registration returns HTTP 201 and a JWT immediately; subsequent password sign-in requires email verification. Applications needing additional registration eligibility rules should supply their own registration endpoint instead of enabling this complete public API.
+Password sign-in resolves `username` through the [local identifier lookup](#users-and-logins), without a type parameter; OAuth subjects are excluded. Unknown, ambiguous, or unavailable identifiers return HTTP 401. Email identifiers must be verified.
+
+Registration creates a user of the configured `user_model` with `panels: ['web']`, a shared password and an unverified email login in one transaction. Email uniqueness checks the canonical email value against every local identifier. Registration, password reset and password change accept a `password` string of at least eight characters without `password_confirmation`; confirmation belongs to the frontend form. Registration returns HTTP 201 and a JWT immediately; subsequent password sign-in requires email verification. Applications needing additional registration eligibility rules should supply their own registration endpoint instead of enabling this complete public API.
 
 Verification mail goes to the new login after commit. The link opens `{frontend_url}/auth/verify-email`; the frontend must forward **all** query parameters unchanged to `/api/auth/verify-email`. The signed query identifies a login, expires after one hour and becomes invalid if its email changes. Successful verification returns the user profile.
 
@@ -360,7 +360,7 @@ The service provider registers `Models\AccessToken` as Sanctum's token model, an
 
 ## Schema and authentication changes
 
-The current schema is for fresh installations. OAuth credentials are stored in `logins`; there is no separate `social_accounts` table. Existing databases and authenticated sessions are not converted automatically. Rewriting published migrations does not update an existing database; apply the application's chosen schema and data procedure before serving the new code. Database resets require explicit authorization.
+The current schema is for fresh installations. Local identifiers use a unique index on `value` where `provider_id` is null. Existing installations must resolve duplicate local values across types before replacing the former `(type, value)` index; editing the migration does not update an existing index. OAuth credentials are stored in `logins`; there is no separate `social_accounts` table. Existing databases and authenticated sessions are not converted automatically. Rewriting published migrations does not update an existing database; apply the application's chosen schema and data procedure before serving the new code. Database resets require explicit authorization.
 
 ## Testing
 

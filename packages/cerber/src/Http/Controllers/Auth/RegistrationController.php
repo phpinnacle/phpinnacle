@@ -69,7 +69,7 @@ class RegistrationController
                 'string',
                 'email',
                 'max:255',
-                Rule::unique(Login::class, 'value')->where('type', LoginType::Email->value)->whereNull('provider_id'),
+                Rule::unique(Login::class, 'value')->whereNull('provider_id'),
             ],
             'password' => ['required', 'string', 'min:8'],
         ]);

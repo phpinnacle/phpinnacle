@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Auth\Middleware\Authenticate;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\Route;
 use PHPinnacle\Cerber\Enums\LoginType;
@@ -24,25 +25,78 @@ beforeEach(function () {
     $this->user->save();
 });
 
-it('authenticates several typed logins with one user password', function () {
+it('authenticates local identifiers through username with one user password', function () {
     Login::register($this->user, LoginType::Email, 'first@example.test')->markVerified();
     Login::register($this->user, LoginType::Email, 'second@example.test')->markVerified();
     Login::register($this->user, LoginType::Phone, '+48123456789');
-    Login::register($this->user, LoginType::Login, 'first@example.test');
+    Login::register($this->user, LoginType::Login, 'Username');
 
     foreach ([
-        ['email', 'FIRST@example.test'],
-        ['email', 'second@example.test'],
-        ['phone', '+48123456789'],
-        ['login', 'first@example.test'],
-    ] as [$type, $value]) {
-        expect(auth()->attempt(['type' => $type, 'value' => $value, 'password' => 'shared-password']))->toBeTrue();
+        'FIRST@example.test',
+        'second@example.test',
+        '+48123456789',
+        'Username',
+    ] as $username) {
+        expect(auth()->attempt(['username' => $username, 'password' => 'shared-password']))->toBeTrue();
         expect(auth()->user())->toBeInstanceOf(User::class)->and(auth()->id())->toBe($this->user->id);
         auth()->logout();
     }
 
     expect(auth()->attempt(['email' => 'first@example.test', 'password' => 'wrong-password']))->toBeFalse();
     expect($this->user->toArray())->not->toHaveKeys(['password', 'remember_token']);
+});
+
+it('rejects type and value credentials for a registered local login', function () {
+    Login::register($this->user, LoginType::Phone, '+48123456789');
+
+    expect(auth()->attempt([
+        'type' => 'phone',
+        'value' => '+48123456789',
+        'password' => 'shared-password',
+    ]))->toBeFalse();
+});
+
+it('limits lookup to the requested local login types', function () {
+    $email = Login::register($this->user, LoginType::Email, 'first@example.test');
+    $phone = Login::register($this->user, LoginType::Phone, '+48123456789');
+    $login = Login::register($this->user, LoginType::Login, 'Username');
+
+    expect(Login::lookup('FIRST@example.test', LoginType::Email, LoginType::Login)?->id)->toBe($email->id);
+    expect(Login::lookup('+48123456789', LoginType::Email, LoginType::Phone)?->id)->toBe($phone->id);
+    expect(Login::lookup('Username', LoginType::Email, LoginType::Phone))->toBeNull();
+    expect(Login::lookup('Username', LoginType::Login)?->id)->toBe($login->id);
+    expect(Login::lookup('username', LoginType::Login))->toBeNull();
+});
+
+it('resolves ambiguous values only when the requested types select one login', function () {
+    $email = Login::register($this->user, LoginType::Email, 'same@example.test');
+    $login = Login::register($this->user, LoginType::Login, 'SAME@example.test');
+
+    expect(Login::lookup('SAME@example.test'))->toBeNull();
+    expect(Login::lookup('SAME@example.test', LoginType::Email, LoginType::Login))->toBeNull();
+    expect(Login::lookup('SAME@example.test', LoginType::Email)?->id)->toBe($email->id);
+    expect(Login::lookup('SAME@example.test', LoginType::Login)?->id)->toBe($login->id);
+});
+
+it('enforces unique local values across login types and owners', function (bool $sameOwner) {
+    Login::register($this->user, LoginType::Phone, '+48123456789');
+    $owner = $sameOwner ? $this->user : User::register('Other', ['admin']);
+    $owner->save();
+
+    expect(fn () => Login::register($owner, LoginType::Login, '+48123456789'))
+        ->toThrow(UniqueConstraintViolationException::class);
+})->with([true, false]);
+
+it('keeps differently cased local login values distinct', function () {
+    Login::register($this->user, LoginType::Login, 'Username');
+    $other = User::register('Other', ['admin']);
+    $other->password = 'other-password';
+    $other->save();
+    Login::register($other, LoginType::Login, 'username');
+
+    expect(auth()->attempt(['username' => 'username', 'password' => 'shared-password']))->toBeFalse();
+    expect(auth()->attempt(['username' => 'Username', 'password' => 'shared-password']))->toBeTrue();
+    expect(auth()->id())->toBe($this->user->id);
 });
 
 it('requires email verification and clears it when the address changes', function () {
@@ -61,7 +115,7 @@ it('requires email verification and clears it when the address changes', functio
 
 it('restores user sessions independently of their sign-in login', function () {
     $login = Login::register($this->user, LoginType::Phone, '+48123456789');
-    auth()->attempt(['type' => 'phone', 'value' => $login->value, 'password' => 'shared-password']);
+    auth()->attempt(['username' => $login->value, 'password' => 'shared-password']);
     $key = auth()->guard()->getName();
     $login->delete();
     app('auth')->forgetGuards();
@@ -71,7 +125,7 @@ it('restores user sessions independently of their sign-in login', function () {
 
 it('keeps remember tokens with the user and revokes them after a password change', function () {
     Login::register($this->user, LoginType::Login, 'username');
-    auth()->attempt(['type' => 'login', 'value' => 'username', 'password' => 'shared-password'], true);
+    auth()->attempt(['username' => 'username', 'password' => 'shared-password'], true);
     $provider = auth()->guard()->getProvider();
     $token = $this->user->fresh()->remember_token;
     expect($token)->toBeString()->not->toBeEmpty();

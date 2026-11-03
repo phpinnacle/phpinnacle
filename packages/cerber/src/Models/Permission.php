@@ -21,8 +21,6 @@ class Permission extends Model
 {
     use HasUuids;
 
-    public $timestamps = true;
-
     protected $table = 'permissions';
 
     protected $attributes = [

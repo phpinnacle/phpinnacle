@@ -17,6 +17,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use PHPinnacle\Cerber\Cerberus;
+use PHPinnacle\Cerber\Contracts\SocialAccountContext;
 use PHPinnacle\Cerber\Contracts\Viewer;
 use PHPinnacle\Cerber\Enums\LoginType;
 use PHPinnacle\Cerber\Enums\Prerequisite;
@@ -51,11 +52,12 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
     use HasUuids;
     use Notifiable;
 
-    public $timestamps = true;
-
     protected $table = 'users';
 
-    protected $attributes = ['two_factor_email' => false, 'is_password_temporary' => false];
+    protected $attributes = [
+        'two_factor_email' => false,
+        'is_password_temporary' => false,
+    ];
 
     protected $casts = [
         'password' => 'hashed',
@@ -84,16 +86,6 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
         'two_factor_secret',
         'two_factor_recovery_codes',
     ];
-
-    public static function findByLogin(LoginType $type, string $value): ?static
-    {
-        return static::query()
-            ->whereHas('logins', fn (Builder $query) => $query
-                ->where('type', $type)
-                ->whereNull('provider_id')
-                ->where('value', $type->canonical($value)))
-            ->first();
-    }
 
     /** @param list<string> $panels */
     public static function register(string|Stringable $name, array $panels = [], ?string $id = null): static
@@ -149,6 +141,17 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
     public function logins(): HasMany
     {
         return $this->hasMany(Login::class);
+    }
+
+    /** @return list<string> */
+    public function linkedProviders(SocialAccountContext $context): array
+    {
+        return $this
+            ->logins()
+            ->where('type', LoginType::OAuth)
+            ->whereHas('provider', fn ($query) => $query->where('context', $context->name()))
+            ->pluck('provider_id')
+            ->all();
     }
 
     public function able(string $ability, Tenant|string|null $tenant = null): bool
