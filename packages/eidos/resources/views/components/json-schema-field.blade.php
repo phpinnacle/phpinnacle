@@ -1,4 +1,4 @@
-@props(['compact' => 'false', 'name' => 'jsonSchemaName(source)', 'properties' => 'true', 'selected' => null, 'description' => true, 'constraints' => true])
+@props(['compact' => 'false', 'name' => 'jsonSchemaName(source)', 'properties' => 'true', 'selected' => null, 'description' => true, 'constraints' => true, 'types' => true])
 
 <span {{ $attributes->class(['eidos-json-schema-tree__content']) }} :class="{ 'eidos-json-schema-tree__content--icons': source.iconHtml || source.icon }" :style="jsonSchemaColorStyles(source.color)">
     <span class="eidos-json-schema-tree__heading">
@@ -18,6 +18,7 @@
             </span>
             <span x-show="source.title && {{ $properties }}" class="eidos-json-schema-tree__property" x-text="{{ $name }}"></span>
         </span>
+        @if ($types)
         <span class="eidos-json-schema-tree__types">
             @if ($constraints)
                 <template x-if="{{ $compact }} && source.constraints.length">
@@ -80,6 +81,7 @@
                 />
             </template>
         </span>
+        @endif
         @if ($selected !== null)
             <x-filament::icon icon="heroicon-o-check" class="eidos-json-schema-tree__check" x-show="{{ $selected }}" />
         @endif

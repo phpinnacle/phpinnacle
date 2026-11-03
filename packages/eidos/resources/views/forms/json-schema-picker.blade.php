@@ -5,6 +5,7 @@
         {{ $getExtraAttributeBag() }}
     >
         <x-phpinnacle-eidos::json-schema-picker
+            wire:key="{{ $getId() }}-{{ $isMultiple() ? 'multiple' : 'single' }}"
             schema="schemaDocument"
             value="schemaValue"
             :choose="$isMultiple() ? 'schemaValue = schemaToggleSelection(schemaValue, source.value)' : 'schemaValue = source.value'"

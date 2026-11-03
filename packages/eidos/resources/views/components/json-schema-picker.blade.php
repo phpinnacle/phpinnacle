@@ -14,16 +14,27 @@
             <x-filament::input.wrapper class="eidos-json-schema-picker__input">
                 <div class="eidos-json-schema-picker__control">
                     <button type="button" @disabled($disabled) aria-haspopup="dialog" :aria-expanded="isOpen" :aria-label="{{ $label }}" class="eidos-json-schema-picker__trigger">
-                        <span class="eidos-json-schema-picker__selection" :class="{ 'eidos-json-schema-picker__selection--placeholder': schemaSelections.length === 0 }">
+                        <span @class(['eidos-json-schema-picker__selection', 'eidos-json-schema-picker__selection--multiple' => $multiple]) :class="{ 'eidos-json-schema-picker__selection--placeholder': schemaSelections.length === 0 }">
                             <template x-for="selection in schemaSelections" :key="selection.value">
-                                <span x-data="{ get source() { return selection.source } }" class="eidos-json-schema-picker__selected-field">
-                                    <template x-if="source !== null">
-                                        <x-phpinnacle-eidos::json-schema-field name="source.fieldLabel" properties="schemaProperties" :description="false" :constraints="false" />
-                                    </template>
-                                    <template x-if="source === null">
-                                        <span x-text="schemaSelectionLabel(selection.value, '')"></span>
-                                    </template>
-                                </span>
+                                @if ($multiple)
+                                    <x-filament::badge color="gray" size="sm" class="eidos-json-schema-picker__badge" x-bind:title="selection.value" x-data="{ get source() { return selection.source } }">
+                                        <template x-if="source !== null">
+                                            <x-phpinnacle-eidos::json-schema-field name="source.fieldLabel" properties="false" :types="false" :description="false" :constraints="false" />
+                                        </template>
+                                        <template x-if="source === null">
+                                            <span x-text="selection.value"></span>
+                                        </template>
+                                    </x-filament::badge>
+                                @else
+                                    <span x-data="{ get source() { return selection.source } }" class="eidos-json-schema-picker__selected-field">
+                                        <template x-if="source !== null">
+                                            <x-phpinnacle-eidos::json-schema-field name="source.fieldLabel" properties="schemaProperties" :description="false" :constraints="false" />
+                                        </template>
+                                        <template x-if="source === null">
+                                            <span x-text="schemaSelectionLabel(selection.value, '')"></span>
+                                        </template>
+                                    </span>
+                                @endif
                             </template>
                             <template x-if="schemaSelections.length === 0">
                                 <span x-text="@js(__('phpinnacle-eidos::json-schema.placeholder'))"></span>

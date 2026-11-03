@@ -15,6 +15,31 @@ use Tests\TestCase;
 
 uses(TestCase::class);
 
+it('renders multiple selections as badges without changing single selection or dropdown details', function () {
+    $form = eidos_json_schema_form(null);
+    $picker = $form->getComponent('selection');
+    view()->share('errors', new ViewErrorBag);
+
+    foreach ([false, true] as $multiple) {
+        $picker->multiple($multiple);
+        $document = new DOMDocument;
+        $document->loadHTML($picker->toHtml(), LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new DOMXPath($document);
+        $selection = '//span[contains(@class, "eidos-json-schema-picker__selection")]';
+
+        expect($xpath->query($selection . '//span[contains(@class, "eidos-json-schema-picker__badge")]')->length)
+            ->toBe($multiple ? 1 : 0);
+        expect($xpath->query($selection . '//span[@*[name()="x-bind:title"]="selection.value"]')->length)
+            ->toBe($multiple ? 1 : 0);
+        expect($xpath->query($selection . '//span[contains(@class, "eidos-json-schema-tree__types")]')->length)
+            ->toBe($multiple ? 0 : 1);
+        expect($xpath->query(
+            '//div[contains(@class, "eidos-json-schema-picker__panel")]//span[contains(@class, "eidos-json-schema-tree__types")]',
+        )->length)
+            ->toBeGreaterThan(0);
+    }
+});
+
 it('hydrates and dehydrates multiple paths independently of a single picker', function () {
     $form = eidos_json_schema_form(null);
     $picker = $form->getComponent('selection')->multiple();

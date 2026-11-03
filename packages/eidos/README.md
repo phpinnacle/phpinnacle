@@ -277,6 +277,9 @@ a selected field. Disabled pickers cannot be cleared. The root `$` is not select
 Use `multiple()` to select a list of distinct JSONPath strings instead of one path.
 Multiple pickers default to `[]`; clicking a selected field removes it and keeps
 the dropdown open. Required multiple pickers need at least one selection.
+Selected fields appear as compact title badges with their enabled icons and colors
+in one horizontally scrollable row, without types or duplicate field names.
+Hover a badge to see its full JSONPath.
 The dropdown matches the field width and opens on the side with available space,
 including on its first opening.
 
