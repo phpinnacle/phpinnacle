@@ -9,8 +9,8 @@ use Laravel\Socialite\Contracts\User as SocialiteUser;
 use PHPinnacle\Cerber\CerberPlugin;
 use PHPinnacle\Cerber\Contracts\SocialAccountContext;
 use PHPinnacle\Cerber\Exceptions\OAuthException;
+use PHPinnacle\Cerber\Models\Login;
 use PHPinnacle\Cerber\Models\Provider;
-use PHPinnacle\Cerber\Models\SocialAccount;
 use PHPinnacle\Cerber\Models\User;
 use PHPinnacle\Cerber\Pages\EditProfile;
 use PHPinnacle\Cerber\Services\SessionOAuth;
@@ -69,7 +69,7 @@ readonly class CallbackController
         $profileUrl = Filament::getCurrentOrDefaultPanel()->getProfileUrl() ?? EditProfile::getUrl();
 
         try {
-            SocialAccount::link($provider, $user, $identity);
+            Login::linkOAuth($provider, $user, $identity);
         } catch (Throwable $e) {
             report($e);
 

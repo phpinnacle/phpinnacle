@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'user_model' => \PHPinnacle\Cerber\Models\User::class,
     'auth_providers' => [
         // Laravel\Socialite\Two\GoogleProvider::class,
         // Laravel\Socialite\Two\GithubProvider::class,

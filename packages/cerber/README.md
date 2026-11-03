@@ -29,7 +29,7 @@ Composer resolves the compatible Laravel version from these dependencies. The cu
 composer require phpinnacle/cerber
 ```
 
-The migrations create Cerber-owned `users`, `password_reset_tokens`, and `sessions` tables, among others. Reconcile existing application migrations for those tables before running them. Configure the Laravel authentication provider used by your panel to use `PHPinnacle\Cerber\Models\User`.
+The migrations create Cerber-owned `users`, `logins`, `password_reset_tokens`, and `sessions` tables, among others. Reconcile existing application migrations for those tables before running them. Configure the Laravel authentication provider used by your panel to use `PHPinnacle\Cerber\Models\User`. Set `phpinnacle-cerber.user_model` when the owning user is an application subclass.
 
 Publish configuration before running migrations when customizing the database connection or provider tenancy; it also controls navigation, permissions, and OAuth provider registration:
 
@@ -48,6 +48,57 @@ php artisan migrate
 
 On a fresh database, create the default tenant once with `PHPinnacle\Cerber\Models\Tenant::default('default')` before creating users or roles that use the default tenant ID. Migrations do not seed this record. `User::register()` returns an unsaved model; call `save()` to persist it.
 
+## Users and logins
+
+`User` is the authenticated identity and owns one password, remember token, profile, permissions, tenants and MFA settings. `Login` stores identifiers in the `logins` relationship. `LoginType` defines `email`, `phone`, `login` and `oauth`; several identifiers of the same type may belong to one user. Local identifiers use provider `default`, while OAuth identifiers use the configured provider ID and the external subject as their value. `(type, provider, value)` is globally unique.
+
+```php
+use PHPinnacle\Cerber\Enums\LoginType;
+use PHPinnacle\Cerber\Models\Login;
+use PHPinnacle\Cerber\Models\User;
+
+$user = User::register('Jane Doe', ['admin']);
+$user->password = 'a-strong-user-password';
+$user->save();
+
+$email = Login::register($user, LoginType::Email, 'jane@example.com');
+Login::register($user, LoginType::Phone, '+48123456789');
+Login::register($user, LoginType::Login, 'jane');
+```
+
+The first login of each type becomes `is_default`. Editing another local login can make it the default. Deleting the default promotes the oldest remaining login of that type. The default email receives user mail and is the password recovery address. A user without an email login cannot recover a password by email.
+
+Configure Laravel authentication with the application User subclass when applicable:
+
+```php
+'guards' => [
+    'web' => ['driver' => 'session', 'provider' => 'users'],
+],
+'providers' => [
+    'users' => ['driver' => 'cerber', 'model' => User::class],
+],
+'passwords' => [
+    'users' => [
+        'provider' => 'users',
+        'table' => 'password_reset_tokens',
+        'expire' => 60,
+        'throttle' => 60,
+    ],
+],
+```
+
+Cerber uses Laravel's native session driver and a stateless Eloquent user provider. The provider resolves standard Filament email credentials through a local email login and checks the shared user password. Email logins must be verified before password sign-in; changing their address clears verification. The standard Filament login and password-reset pages remain in use. Phone and username identifiers can be stored and managed, while the standard page accepts email and OAuth.
+
+`auth()->user()` returns `User`; `auth()->id()`, browser sessions and JWT subjects identify that user. Sessions do not retain a selected login. Deleting or unverifying a login prevents new sign-ins through it and preserves existing user sessions. Enable Filament's session authentication middleware to revoke password sessions after changes to the shared password. Native remember me requires a user password; users who have only OAuth can sign in without one and set a password through email recovery when an email is available.
+
+Password recovery accepts any registered email identifier, sends the link to the user's default email and changes the shared password. Unverified email identifiers can receive recovery mail, but still require ordinary email verification before password sign-in. Changing the default email invalidates reset tokens issued for the previous address. Impersonation operates on users directly, including users without login identifiers, and does not restore access after the impersonator's password or remember token changes.
+
+User cards and profiles show logins grouped by type; the profile uses aside sections. Add and Edit dialogs manage local values without passwords, and types cannot be changed. Edit and Delete remain inline icons. Administrative email rows also have an ellipsis menu for verification and recovery actions. Profile rows do not expose these administrative actions. Login actions save immediately and preserve drafts in the main form. The shared password is edited in the user form or profile. Create a user before adding its logins.
+
+OAuth remains a login type. Linking an identity creates an unverified email login when its email is available and not already registered. An existing email login is preserved, and an address owned by another user never links or merges those users. The nullable JSON `metadata` map stores OAuth display fields (`email`, `name`, `nickname`, `avatar`) and other application data; updating display fields preserves other keys. External provider access and refresh tokens are not persisted. Cerber issues its own JWT for API authentication.
+
+`User::findByLogin(LoginType::Email, $email)` finds the owner and supports application subclasses.
+
 ## Registering the plugin
 
 Register the `admin` OAuth context as described below before configuring this panel.
@@ -64,7 +115,7 @@ $panel->plugin(
 
 Use `withoutProviders()`, `withoutRoles()`, `withoutUsers()` or `withoutResources()` when the application supplies that UI itself. `modifyProfileForm()` receives the Filament schema and profile page for application-specific fields.
 
-`developers()` accepts a list of email addresses or an email-to-label map; `getDevelopers()` returns the configured map. Developer login is available only outside production and requires an existing user with access to the panel and requested tenant. The `DeveloperLogin` service handles authentication and session regeneration; `CerberPlugin::auth()` delegates to it.
+`developers()` accepts a list of email addresses or an email-to-label map; `getDevelopers()` returns the configured map. Developer login is available only outside production and requires an existing verified email login whose owner can access the panel and requested tenant. The `DeveloperLogin` service authenticates that user without checking the password and regenerates the session; `CerberPlugin::auth()` delegates to it.
 
 ## Tenancy
 
@@ -115,6 +166,8 @@ Implement `PHPinnacle\Cerber\Contracts\SocialAccountContext` for each independen
 ```php
 use Laravel\Socialite\Contracts\User as SocialiteUser;
 use PHPinnacle\Cerber\Contracts\SocialAccountContext;
+use PHPinnacle\Cerber\Enums\LoginType;
+use PHPinnacle\Cerber\Models\Login;
 use PHPinnacle\Cerber\Models\User;
 
 final class AdminSocialAccountContext implements SocialAccountContext
@@ -132,18 +185,22 @@ final class AdminSocialAccountContext implements SocialAccountContext
     public function resolve(SocialiteUser $user): User
     {
         return User::query()
-            ->where('email', $user->getEmail())
+            ->whereHas('logins', fn ($query) => $query
+                ->where('type', LoginType::Email)
+                ->where('provider', Login::DEFAULT_PROVIDER)
+                ->where('value', Login::canonicalValue(LoginType::Email, $user->getEmail()))
+                ->whereNotNull('verified_at'))
             ->whereJsonContains('panels', 'admin')
             ->firstOrFail();
     }
 }
 ```
 
-Implement `WebSocialAccountContext` with `name()` returning `web`, `guard()` returning `api`, and its own `resolve()` policy. For example, it can find users whose `panels` contains `web`, or create a user according to the application's registration rules. Both contexts return persisted `Cerber\Models\User` instances. Contexts do not change the user table's global email uniqueness constraint.
+Implement `WebSocialAccountContext` with `name()` returning `web`, `guard()` returning `api`, and its own `resolve()` policy. For example, it can find users whose `panels` contains `web`, or create a user according to the application's registration rules. Both contexts return persisted `Cerber\Models\User` instances. Contexts share the global login uniqueness constraint.
 
 `resolve()` runs only when the provider identity has no existing binding for that provider. It owns user lookup, registration, email/domain eligibility, and initial role assignment. Cerber saves the binding in the same database transaction; later logins use that binding directly. There is no global email lookup across contexts. Resolution and binding persistence happen before the final sign-in access check.
 
-Panel OAuth login requires `User::canAccessPanel()` to allow access; the base implementation checks only user status, not the `panels` attribute or role membership. API OAuth login also requires an active user. Neither OAuth login flow requires an assigned role. The `panels` filter in the resolver example is application policy and runs only for a new binding. Resource and action permissions are checked separately from sign-in.
+Panel OAuth login authenticates the user who owns the matching `LoginType::OAuth` record. `Login::canAccessPanel()` checks login availability and delegates panel access to its owner; the base owner's check requires active status. Neither OAuth flow requires a password, an email address, a role, or a particular `panels` value. The resolver owns registration and eligibility rules for new identities; resource permissions remain separate from sign-in. Matching provider email addresses do not automatically merge credentials.
 
 Register stateless context objects in the application's service provider `register()` method, before configuring panels:
 
@@ -157,7 +214,7 @@ $contexts->add($this->app->make(WebSocialAccountContext::class));
 
 The repository exposes `get('admin')` and `all()`, keyed by name. Context implementations must not retain request, tenant, or user objects between calls. Context names are stored on provider records; renaming a context requires updating those records.
 
-Use a distinct guard for each independent context. For example, configure `auth.guards.admin` with the `session` driver and `auth.guards.api` with the `jwt` driver, both using a provider configured for `PHPinnacle\Cerber\Models\User`. Generate the JWT signing secret with `php artisan jwt:secret`. The panel uses the guard supplied by its selected context:
+Use a distinct guard for each independent context. For example, configure `auth.guards.admin` with the `session` driver and `auth.guards.api` with the `jwt` driver, both using the `cerber` provider configured for `PHPinnacle\Cerber\Models\User`. Generate the JWT signing secret with `php artisan jwt:secret`. The panel uses the guard supplied by its selected context:
 
 ```php
 $panel->plugin(CerberPlugin::make()->socialAccountContext('admin'));
@@ -178,19 +235,19 @@ Register Socialite provider classes in `phpinnacle-cerber.auth_providers`, for e
 
 Create a separate provider record for each sign-in destination. For example, create “Google for admin” with context `admin` and “Google for web” with context `web`. Both records may use Google, with their own client credentials and OAuth scopes. Select exactly one registered context when creating a provider; its type and context cannot be changed through the edit form, so existing account bindings cannot move to another destination.
 
-The provider list shows the callback URL to register with the OAuth service. Filament handles its providers through session login; frontend applications use the JWT API. There is no session/JWT switch in the provider form. Both entry points reject a provider assigned to another context. The panel's connection-test action is shown for providers whose context matches the panel; it does not sign in or create an account binding.
+The provider list shows the callback URL to register with the OAuth service and the number of OAuth logins linked to each provider. Filament handles its providers through session login; frontend applications use the JWT API. There is no session/JWT switch in the provider form. Both entry points reject a provider assigned to another context. The panel's connection-test action is shown for providers whose context matches the panel; it does not sign in or create an account binding.
 
 Bindings are unique by provider and external account ID, with one account per user and provider. Their context comes from the provider and is not duplicated on the binding. The same external identity can belong to different local users through the separate admin and web providers. Linking or unlinking affects only the selected provider. The panel profile page lists providers for its context. For application-owned account management:
 
 ```php
-use PHPinnacle\Cerber\Models\SocialAccount;
+use PHPinnacle\Cerber\Models\Login;
 
-SocialAccount::linked($context, $user);
-SocialAccount::link($provider, $user, $verifiedSocialiteUser);
-SocialAccount::unlink($user, $provider);
+Login::linked($context, $user);
+Login::linkOAuth($provider, $user, $verifiedSocialiteUser);
+Login::unlinkOAuth($user, $provider);
 ```
 
-`linked()` returns provider IDs. `unlink()` deletes the local binding; it does not revoke tokens at the external provider. Only pass identities obtained through a verified OAuth flow to `link()`, and authorize the target user and provider context in the calling application. An external identity already bound to another user through the same provider cannot be reassigned by linking.
+`linked()` returns provider IDs. `unlinkOAuth()` deletes the local binding; it does not revoke tokens at the external provider. Only pass identities obtained through a verified OAuth flow to `linkOAuth()`, and authorize the target user and provider context in the calling application. An external identity already bound to another user through the same provider cannot be reassigned by linking.
 
 ## Frontend JWT flow
 
@@ -210,7 +267,7 @@ DELETE /api/auth/oauth/{socialAccountContext}/{provider}/link
 1. Generate a cryptographically random PKCE verifier in the browser (43–128 characters from `A-Z`, `a-z`, `0-9`, `-`, `.`, `_`, `~`). Compute its SHA-256 hash and encode it as unpadded base64url to obtain the 43-character `code_challenge`.
 2. Send the challenge to the redirect endpoint. Store the verifier in the originating tab's `sessionStorage`, indexed by the `state` from the returned `redirect_url`, then navigate to that URL. Never put the verifier in the authorization URL.
 3. On the frontend callback page, retrieve that locally stored verifier. If it is missing, reject the callback. POST `state`, `code`, and `code_verifier` to the matching context/provider callback endpoint, then remove the saved verifier.
-4. The response contains `access_token`, `token_type`, `expires_in` in seconds, and `user` with `id`, `email`, and `status`. It does not sign in to a panel session.
+4. The response contains `access_token`, `token_type`, `expires_in` in seconds, and `user` with `id`, `name`, and `status`. It does not sign in to a panel session.
 
 Attempts expire after ten minutes and can be exchanged once. The callback verifies the context, provider, callback URL, and browser verifier before contacting the provider.
 
@@ -230,11 +287,9 @@ Route::middleware('cerber.context:web')->group(function () {
 
 The service provider registers `Models\AccessToken` as Sanctum's token model, and the migrations create its `access_tokens` table. The bundled `User` model does not include Sanctum's `HasApiTokens` trait or token-management methods. Applications using personal access tokens must supply that user integration. Cerber does not provide token issuance, revocation endpoints, or a token-management page; its OAuth API issues JWTs.
 
-## Upgrading from scope-based OAuth
+## Schema and authentication changes
 
-Existing installations need an application migration: `oauth_providers.scopes` has been replaced by the required `context` column, and `social_accounts` now requires a unique `(user_id, provider_id)` pair. Updating the package does not rerun an already published and executed migration. Assign a registered context to each existing provider and resolve duplicate bindings before adding the unique constraint.
-
-Providers previously shared between sign-in destinations must be split into separate provider records, with bindings assigned explicitly to their intended destination. Replace the removed strategy, allowed-domain, and default-role configuration with context registrations and the context's `resolve()` policy. Update frontend requests to include the context in the API path and use the PKCE callback flow described above.
+The current schema is for fresh installations. OAuth credentials are stored in `logins`; there is no separate `social_accounts` table. Existing databases and authenticated sessions are not converted automatically. Rewriting published migrations does not update an existing database; apply the application's chosen schema and data procedure before serving the new code. Database resets require explicit authorization.
 
 ## Testing
 

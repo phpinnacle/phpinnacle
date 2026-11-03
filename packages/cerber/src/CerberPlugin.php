@@ -181,8 +181,6 @@ class CerberPlugin implements Plugin
                 )
                 : $schema->components([
                     $page->getProfileContentComponent(),
-                    $page->getPasswordContentComponent(),
-                    $page->getOAuthAccountsComponent(),
                 ])
         );
     }
@@ -202,7 +200,6 @@ class CerberPlugin implements Plugin
         $panel
             ->login()
             ->passwordReset()
-            ->emailVerification()
             ->resources($resources)
             ->pages([
                 Pages\EditProfile::class,
@@ -218,7 +215,7 @@ class CerberPlugin implements Plugin
                     ->action(
                         $manager->isImpersonating()
                             ? function (Component $livewire) use ($manager, $panel) {
-                                $manager->leave();
+                                app(\PHPinnacle\Cerber\Auth\ImpersonationSession::class)->leave($manager);
 
                                 $livewire->redirect(session()->pull('impersonate.back_to', $panel->getUrl()));
                             } : null,
@@ -233,6 +230,10 @@ class CerberPlugin implements Plugin
 
         $this->registerDeveloperLogin($panel);
         $this->registerSocialLogin($panel);
+        $panel->routes(
+            fn () => Route::get('/logins/{login}/verify', Http\Controllers\VerifyLoginController::class)
+                ->middleware(['signed', 'throttle:6,1'])->name('cerber.logins.verify'),
+        );
 
         if ($this->tenancy) {
             $panel

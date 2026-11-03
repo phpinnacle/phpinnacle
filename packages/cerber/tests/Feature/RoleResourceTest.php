@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Route;
 use Livewire\Livewire;
 use PHPinnacle\Cerber\CerberPlugin;
 use PHPinnacle\Cerber\Cerberus;
-use PHPinnacle\Cerber\Models\Login;
 use PHPinnacle\Cerber\Models\Role;
 use PHPinnacle\Cerber\Models\Tenant;
 use PHPinnacle\Cerber\Models\User;
@@ -22,7 +21,7 @@ beforeEach(function () {
     $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
     $this->artisan('migrate')->assertSuccessful();
     $this->tenant = Tenant::default('default');
-    config()->set('auth.providers.users.model', User::class);
+    config()->set('auth.providers.users.model', \PHPinnacle\Cerber\Models\User::class);
 
     $panel = Panel::make()
         ->id('admin')
@@ -34,7 +33,7 @@ beforeEach(function () {
     require base_path('vendor/filament/filament/routes/web.php');
     Route::getRoutes()->refreshNameLookups();
 
-    $user = User::register(new Login('admin@example.test', 'password', ['admin']), 'Admin');
+    $user = User::register('Admin', ['admin']);
     $user->save();
     $this->actingAs($user);
     Gate::before(fn () => true);

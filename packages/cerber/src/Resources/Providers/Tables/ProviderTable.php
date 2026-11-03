@@ -8,7 +8,6 @@ use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use PHPinnacle\Cerber\CerberPlugin;
 use PHPinnacle\Cerber\Models\Provider;
 use PHPinnacle\Cerber\Resources\Providers\ProviderResource;
@@ -28,7 +27,6 @@ class ProviderTable
             ->emptyStateIcon(ProviderResource::getNavigationIcon())
             ->defaultSort('sort')
             ->reorderable('sort')
-            ->modifyQueryUsing(fn (Builder $query) => $query->withCount('accounts'))
             ->columns([
                 TextColumn::make('name')
                     ->label(__('phpinnacle-cerber::resources.provider.fields.name'))
@@ -46,9 +44,9 @@ class ProviderTable
                     ->label(__('phpinnacle-cerber::resources.provider.fields.context'))
                     ->badge(),
 
-                TextColumn::make('accounts_count')
+                TextColumn::make('logins_count')
                     ->label(__('phpinnacle-cerber::resources.provider.fields.accounts'))
-                    ->counts('accounts')
+                    ->counts('logins')
                     ->badge()
                     ->alignCenter()
                     ->sortable(),

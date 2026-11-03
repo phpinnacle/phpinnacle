@@ -15,18 +15,21 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use PHPinnacle\Cerber\Cerberus;
 use PHPinnacle\Cerber\Contracts\Viewer;
+use PHPinnacle\Cerber\Enums\LoginType;
 use PHPinnacle\Cerber\Enums\UserStatus;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 use Stringable;
 
 /**
+ * @phpstan-consistent-constructor
  * @property string $id
  * @property string $tenant_id
+ * @property string|null $password
+ * @property string|null $remember_token
  * @property string $name
- * @property string $email
- * @property string $password
  * @property UserStatus $status
  * @property array<int, string> $panels
  * @property array<string, mixed> $settings
@@ -34,13 +37,12 @@ use Stringable;
  * @property bool $two_factor_email
  * @property string|null $two_factor_secret
  * @property array<string>|null $two_factor_recovery_codes
- * @property CarbonImmutable $password_changed_at
- * @property CarbonImmutable|null $email_verified_at
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $updated_at
  * @property-read Tenant $tenant
  * @property-read Collection<int, Permission> $permissions
  * @property-read Collection<int, Role> $roles
+ * @property-read Collection<int, Login> $logins
  */
 class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
 {
@@ -51,13 +53,13 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
 
     protected $table = 'users';
 
+    protected $attributes = ['two_factor_email' => false];
+
     protected $casts = [
-        'status' => UserStatus::class,
         'password' => 'hashed',
+        'status' => UserStatus::class,
         'panels' => 'array',
         'settings' => 'array',
-        'password_changed_at' => 'immutable_datetime',
-        'email_verified_at' => 'immutable_datetime',
         'two_factor_email' => 'boolean',
         'two_factor_secret' => 'encrypted',
         'two_factor_recovery_codes' => 'encrypted:array',
@@ -65,7 +67,6 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
 
     protected $fillable = [
         'name',
-        'email',
         'password',
         'status',
         'panels',
@@ -80,6 +81,49 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
         'two_factor_recovery_codes',
     ];
 
+    public static function findByLogin(LoginType $type, string $value): ?static
+    {
+        return static::query()
+            ->whereHas('logins', fn (Builder $query) => $query
+                ->where('type', $type)
+                ->where('provider', Login::DEFAULT_PROVIDER)
+                ->where('value', Login::canonicalValue($type, $value)))
+            ->first();
+    }
+
+    /** @param list<string> $panels */
+    public static function register(string|Stringable $name, array $panels = [], ?string $id = null): static
+    {
+        $self = new static;
+        $self->id = $id;
+        $self->status = UserStatus::Active;
+        $self->panels = $panels;
+        $self->name = (string) $name;
+
+        return $self;
+    }
+
+    public static function current(): static
+    {
+        /** @var static */
+        return Filament::auth()->user();
+    }
+
+    public function defaultLogin(LoginType $type): ?Login
+    {
+        return $this->logins()->where('type', $type)->where('is_default', true)->first();
+    }
+
+    public function getEmailForPasswordReset(): ?string
+    {
+        return $this->defaultLogin(LoginType::Email)?->value;
+    }
+
+    public function routeNotificationForMail(): ?string
+    {
+        return $this->defaultLogin(LoginType::Email)?->value;
+    }
+
     public function getJWTIdentifier(): mixed
     {
         return $this->getKey();
@@ -91,26 +135,10 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
         return [];
     }
 
-    public static function find(string $login): ?self
+    /** @return HasMany<Login, $this> */
+    public function logins(): HasMany
     {
-        return self::query()->where('email', $login)->first();
-    }
-
-    public static function register(Login $login, string|Stringable $name, ?string $id = null): self
-    {
-        $self = new self;
-        $self->id = $id;
-        $self->status = UserStatus::Active;
-        $self->email = $login->username;
-        $self->password = $login->password;
-        $self->panels = $login->panels;
-        $self->name = (string) $name;
-
-        if ($login->verified) {
-            $self->email_verified_at = CarbonImmutable::now();
-        }
-
-        return $self;
+        return $this->hasMany(Login::class);
     }
 
     public function able(string $ability, Tenant|string|null $tenant = null): bool
@@ -130,17 +158,12 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
         return $this->getTenants(Filament::getCurrentOrDefaultPanel())->contains($tenant);
     }
 
-    public function dropVerification(): void
-    {
-        $this->email_verified_at = null;
-        $this->save();
-    }
-
     public function getAppAuthenticationHolderName(): string
     {
-        return $this->email;
+        return $this->name;
     }
 
+    /** @return list<string>|null */
     public function getAppAuthenticationRecoveryCodes(): ?array
     {
         return $this->two_factor_recovery_codes;
@@ -231,6 +254,7 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
         return $this->belongsToMany(Role::class, 'users_roles');
     }
 
+    /** @param list<string>|null $codes */
     public function saveAppAuthenticationRecoveryCodes(?array $codes): void
     {
         $this->two_factor_recovery_codes = $codes;
@@ -241,14 +265,6 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
     {
         $this->two_factor_secret = $secret;
         $this->save();
-    }
-
-    /**
-     * @return HasMany<SocialAccount, $this>
-     */
-    public function socialAccounts(): HasMany
-    {
-        return $this->hasMany(SocialAccount::class);
     }
 
     /**
@@ -273,23 +289,17 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
 
     protected static function booted(): void
     {
+        self::saving(function (self $record) {
+            if ($record->exists && $record->isDirty('password')) {
+                $record->remember_token = Str::random(60);
+            }
+        });
+
         self::creating(function (self $record) {
             $record->tenant_id ??= Cerberus::tenant();
 
             if ($record->panels === []) {
                 $record->panels = array_filter([Filament::getCurrentOrDefaultPanel()?->getId()]);
-            }
-        });
-
-        self::updating(function (self $record) {
-            if ($record->isDirty('email')) {
-                $record->email_verified_at = null;
-            }
-        });
-
-        self::saving(function (self $record) {
-            if ($record->isDirty('password')) {
-                $record->password_changed_at = CarbonImmutable::now();
             }
         });
     }

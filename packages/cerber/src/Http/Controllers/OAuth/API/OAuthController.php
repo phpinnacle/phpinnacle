@@ -10,19 +10,19 @@ use PHPinnacle\Cerber\Contracts\SocialAccountContext;
 use PHPinnacle\Cerber\Exceptions\OAuthException;
 use PHPinnacle\Cerber\Http\Resources\OAuth\AuthResource;
 use PHPinnacle\Cerber\Http\Resources\OAuth\OAuthProviderResource;
+use PHPinnacle\Cerber\Models\Login;
 use PHPinnacle\Cerber\Models\Provider;
-use PHPinnacle\Cerber\Models\SocialAccount;
 use PHPinnacle\Cerber\Models\User;
 use PHPinnacle\Cerber\OAuth\OAuthCallback;
 use PHPinnacle\Cerber\Services\OAuthFlow;
-use PHPinnacle\Cerber\Services\UserLinker;
+use PHPinnacle\Cerber\Services\OAuthLogin;
 use PHPOpenSourceSaver\JWTAuth\JWTGuard;
 
 class OAuthController extends Controller
 {
     public function __construct(
         private readonly OAuthFlow $oauth,
-        private readonly UserLinker $linker,
+        private readonly OAuthLogin $logins,
     ) {}
 
     public function providers(SocialAccountContext $socialAccountContext): JsonResponse
@@ -69,15 +69,15 @@ class OAuthController extends Controller
                 $provider->frontendCallbackUrl(),
                 new OAuthCallback($data['state'], $data['code_verifier'], $data['code']),
             );
-            $user = $this->linker->findOrCreateUser($socialAccountContext, $provider, $identity);
+            $login = $this->logins->findOrCreate($socialAccountContext, $provider, $identity);
 
-            if (!$user->status->canAccess()) {
+            if (!$login->isAvailable()) {
                 throw new OAuthException('access_denied', 'The user cannot sign in.');
             }
 
-            $token = $guard->claims(['social_account_context' => $socialAccountContext->name()])->login($user);
+            $token = $guard->claims(['social_account_context' => $socialAccountContext->name()])->login($login->user);
 
-            return response()->json(new AuthResource($token, $user));
+            return response()->json(new AuthResource($token, $login->user));
         } catch (OAuthException $e) {
             return response()->json(['message' => $e->getError()], 401);
         }
@@ -91,7 +91,7 @@ class OAuthController extends Controller
         abort_unless($user->status->canAccess(), 403);
         abort_unless($guard->payload()->get('social_account_context') === $socialAccountContext->name(), 403);
         abort_unless($provider->context === $socialAccountContext->name(), 404);
-        SocialAccount::unlink($user, $provider);
+        Login::unlinkOAuth($user, $provider);
 
         return response()->json(['unlinked' => true]);
     }

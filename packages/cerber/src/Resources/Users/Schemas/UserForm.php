@@ -11,11 +11,9 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
 use PHPinnacle\Cerber\Enums\UserStatus;
-use PHPinnacle\Cerber\Models\Password;
 use PHPinnacle\Cerber\Models\Role;
 use PHPinnacle\Cerber\Models\User;
-use PHPinnacle\Cerber\Resources\Users\Actions\EmailAction;
-use PHPinnacle\Cerber\Resources\Users\Actions\PasswordAction;
+use PHPinnacle\Cerber\Schemas\Logins;
 
 class UserForm
 {
@@ -36,35 +34,25 @@ class UserForm
                                     ->columns()
                                     ->schema([
                                         TextInput::make('name')
-                                            ->label(__('phpinnacle-cerber::resources.user.fields.name')),
+                                            ->label(__('phpinnacle-cerber::resources.user.fields.name'))
+                                            ->required()
+                                            ->maxLength(255),
+                                        TextInput::make('password')
+                                            ->label(__('phpinnacle-cerber::pages.profile.fields.password'))
+                                            ->password()
+                                            ->revealable()
+                                            ->minLength(8)
+                                            ->afterStateHydrated(fn (TextInput $component) => $component->state(null))
+                                            ->dehydrated(fn (?string $state) => filled($state)),
                                         Select::make('status')
                                             ->label(__('phpinnacle-cerber::resources.user.fields.status'))
                                             ->options(UserStatus::class)
                                             ->default(UserStatus::Active)
                                             ->enum(UserStatus::class)
-                                            ->disabled(fn (?User $record) => $record && $record->id === auth()->id())
+                                            ->disabled(
+                                                fn (?User $record) => $record && $record->id === User::current()->id,
+                                            )
                                             ->selectablePlaceholder(false),
-                                    ]),
-                                TextInput::make('email')
-                                    ->label(__('phpinnacle-cerber::resources.user.fields.email'))
-                                    ->prefixIcon('phosphor-at')
-                                    ->email()
-                                    ->required()
-                                    ->hintActions([
-                                        EmailAction::markAsVerified(),
-                                        EmailAction::dropVerification(),
-                                        EmailAction::resendVerification(),
-                                    ]),
-                                TextInput::make('password')
-                                    ->label(__('phpinnacle-cerber::resources.user.fields.password'))
-                                    ->prefixIcon('phosphor-key')
-                                    ->password()
-                                    ->revealable()
-                                    ->dehydrated(fn (?string $state) => $state !== null && $state !== '')
-                                    ->required(fn (string $operation) => $operation === 'create')
-                                    ->default(Password::generate())
-                                    ->hintActions([
-                                        PasswordAction::reset(),
                                     ]),
                             ]),
                         FileUpload::make('avatar')
@@ -76,6 +64,7 @@ class UserForm
                             ->imageEditor()
                             ->circleCropper(),
                     ]),
+                Logins::make()->administrative(),
                 Section::make(__('phpinnacle-cerber::resources.user.sections.roles'))
                     ->schema([
                         CheckboxList::make('roles')

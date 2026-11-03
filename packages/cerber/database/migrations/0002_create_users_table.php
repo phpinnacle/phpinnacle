@@ -20,10 +20,8 @@ return new class extends Migration {
                 ->constrained()
                 ->nullOnDelete();
             $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->timestamp('password_changed_at');
+            $table->string('password')->nullable();
+            $table->rememberToken();
             $table
                 ->string('status')
                 ->default(UserStatus::Active)
@@ -32,11 +30,23 @@ return new class extends Migration {
             $table->text('two_factor_secret')->nullable();
             $table->text('two_factor_recovery_codes')->nullable();
             $table->timestamp('two_factor_confirmed_at')->nullable();
-            $table->rememberToken();
             $table->string('avatar', 2048)->nullable();
             $table->jsonb('panels')->default('[]');
             $table->jsonb('settings')->default('{}');
             $table->timestamps();
+        });
+
+        Schema::create('logins', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->foreignIdFor(User::class)->constrained()->cascadeOnDelete();
+            $table->string('type');
+            $table->string('provider')->default('default');
+            $table->string('value');
+            $table->boolean('is_default')->default(false);
+            $table->json('metadata')->nullable();
+            $table->timestamp('verified_at')->nullable();
+            $table->timestamps();
+            $table->unique(['type', 'provider', 'value']);
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
@@ -47,12 +57,7 @@ return new class extends Migration {
 
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table
-                ->foreignIdFor(User::class)
-                ->index()
-                ->nullable()
-                ->constrained()
-                ->nullOnDelete();
+            $table->uuid('user_id')->nullable()->index();
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');
@@ -64,6 +69,7 @@ return new class extends Migration {
     {
         Schema::dropIfExists('sessions');
         Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('logins');
         Schema::dropIfExists('users');
     }
 

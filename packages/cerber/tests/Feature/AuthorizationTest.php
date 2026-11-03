@@ -5,7 +5,6 @@ use Filament\Panel;
 use Filament\PanelRegistry;
 use PHPinnacle\Cerber\Cerberus;
 use PHPinnacle\Cerber\Enums\UserStatus;
-use PHPinnacle\Cerber\Models\Login;
 use PHPinnacle\Cerber\Models\Permission;
 use PHPinnacle\Cerber\Models\Role;
 use PHPinnacle\Cerber\Models\Tenant;
@@ -25,7 +24,7 @@ beforeEach(function () {
     Cerberus::registerScoped();
 
     $this->tenant = Tenant::default('default');
-    $this->user = User::register(new Login('user@example.test', 'password', ['admin']), 'User');
+    $this->user = User::register('User', ['admin']);
     $this->user->save();
 });
 

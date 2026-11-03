@@ -8,9 +8,9 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use PHPinnacle\Cerber\Enums\UserStatus;
 use PHPinnacle\Cerber\Models\User;
 use PHPinnacle\Cerber\Resources\Users\Actions\ImpersonateAction;
@@ -24,6 +24,7 @@ class UserTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->with('logins.oauthProvider'))
             ->heading(__('phpinnacle-cerber::resources.user.pages.list'))
             ->columns([
                 ImageColumn::make('avatar')
@@ -36,14 +37,7 @@ class UserTable
                     ->label(__('phpinnacle-cerber::resources.user.fields.name'))
                     ->sortable()
                     ->searchable(),
-                TextColumn::make('email')
-                    ->label(__('phpinnacle-cerber::resources.user.fields.email'))
-                    ->icon(fn (User $record) => $record->email_verified_at
-                        ? 'phosphor-check-circle'
-                        : 'phosphor-x-circle')
-                    ->iconColor(fn (User $record) => $record->email_verified_at ? 'success' : 'danger')
-                    ->sortable()
-                    ->searchable(),
+                TextColumn::make('logins.value')->label(__('phpinnacle-cerber::logins.label'))->badge()->searchable(),
                 TextColumn::make('roles')
                     ->label(__('phpinnacle-cerber::resources.user.fields.roles'))
                     ->badge()
@@ -69,11 +63,11 @@ class UserTable
                 ImpersonateAction::make()
                     ->iconButton(),
                 StatusAction::make()
-                    ->disabled(fn (User $record) => $record->id === auth()->id())
+                    ->disabled(fn (User $record) => $record->id === User::current()->id)
                     ->iconButton(),
                 DeleteAction::make()
                     ->label(__('phpinnacle-cerber::resources.user.actions.delete'))
-                    ->disabled(fn (User $record) => $record->id === auth()->id())
+                    ->disabled(fn (User $record) => $record->id === User::current()->id)
                     ->iconButton(),
             ])
             ->filters([
@@ -83,9 +77,6 @@ class UserTable
                 SelectFilter::make('roles')
                     ->label(__('phpinnacle-cerber::resources.user.fields.roles'))
                     ->relationship('roles', 'name'),
-                TernaryFilter::make('email_verified_at')
-                    ->label(__('phpinnacle-cerber::resources.user.fields.email_verified_at'))
-                    ->nullable(),
                 DateRangeFilter::createdAt(),
                 DateRangeFilter::updatedAt(),
             ])

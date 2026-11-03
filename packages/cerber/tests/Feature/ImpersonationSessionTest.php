@@ -3,10 +3,10 @@
 use Filament\Facades\Filament;
 use Filament\Panel;
 use Filament\PanelRegistry;
+use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Facades\Event;
 use Lab404\Impersonate\Events\LeaveImpersonation;
 use Lab404\Impersonate\Events\TakeImpersonation;
-use PHPinnacle\Cerber\Models\User;
 use Tests\TestCase;
 
 uses(TestCase::class);

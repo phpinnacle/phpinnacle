@@ -4,17 +4,19 @@ namespace PHPinnacle\Cerber;
 
 use BladeUI\Icons\Factory;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Lab404\Impersonate\Events\LeaveImpersonation;
 use Lab404\Impersonate\Events\TakeImpersonation;
 use Laravel\Sanctum\Sanctum;
+use PHPinnacle\Cerber\Auth\ImpersonationSession;
+use PHPinnacle\Cerber\Auth\LoginUserProvider;
 use PHPinnacle\Cerber\Console\SyncPermissions;
 use PHPinnacle\Cerber\Http\Middleware\AuthenticateSocialAccountContext;
 use PHPinnacle\Cerber\Models\AccessToken;
 use PHPinnacle\Cerber\Models\User;
-use PHPinnacle\Cerber\Services\ImpersonationSession;
 use PHPinnacle\Cerber\Services\SocialAccountContextRepository;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 use SocialiteProviders\Yandex\Provider;
@@ -28,6 +30,7 @@ class CerberServiceProvider extends PackageServiceProvider
 
     public function packageRegistered(): void
     {
+        Auth::provider('cerber', fn ($app, array $config) => new LoginUserProvider($app['hash'], $config['model']));
         $this->callAfterResolving(Factory::class, function (Factory $factory) {
             $factory->add(self::$name, [
                 'prefix' => 'cerber',
@@ -48,8 +51,8 @@ class CerberServiceProvider extends PackageServiceProvider
 
         Gate::after(fn (User $user, string $ability) => $user->able($ability, Filament::getTenant()));
 
-        Event::listen(TakeImpersonation::class, [ImpersonationSession::class, 'clearAuthHashes']);
-        Event::listen(LeaveImpersonation::class, [ImpersonationSession::class, 'clearAuthHashes']);
+        Event::listen(TakeImpersonation::class, [ImpersonationSession::class, 'takeImpersonation']);
+        Event::listen(LeaveImpersonation::class, [ImpersonationSession::class, 'leaveImpersonation']);
         Event::listen(SocialiteWasCalled::class, $this->socioliteCalled(...));
     }
 

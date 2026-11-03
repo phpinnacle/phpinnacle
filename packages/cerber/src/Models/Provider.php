@@ -21,7 +21,7 @@ use PHPinnacle\Cerber\Contracts\SocialAccountContext;
  * @property int $sort
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $updated_at
- * @property-read Collection<int, SocialAccount> $accounts
+ * @property-read Collection<int, Login> $logins
  */
 class Provider extends Model implements HasLabel
 {
@@ -72,9 +72,16 @@ class Provider extends Model implements HasLabel
 
     public static function booted(): void
     {
+        self::deleted(fn (self $record) => $record->logins()->get()->each->delete());
+
         self::creating(function (self $record) {
             reset_sort($record);
         });
+    }
+
+    public function delete(): ?bool
+    {
+        return $this->getConnection()->transaction(parent::delete(...));
     }
 
     public function getLabel(): string
@@ -105,10 +112,10 @@ class Provider extends Model implements HasLabel
     }
 
     /**
-     * @return HasMany<SocialAccount, $this>
+     * @return HasMany<Login, $this>
      */
-    public function accounts(): HasMany
+    public function logins(): HasMany
     {
-        return $this->hasMany(SocialAccount::class);
+        return $this->hasMany(Login::class, 'provider')->where('type', \PHPinnacle\Cerber\Enums\LoginType::OAuth);
     }
 }

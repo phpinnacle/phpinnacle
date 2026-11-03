@@ -4,6 +4,7 @@ namespace PHPinnacle\Cerber\Http\Controllers\OAuth;
 
 use PHPinnacle\Cerber\CerberPlugin;
 use PHPinnacle\Cerber\Models\Provider;
+use PHPinnacle\Cerber\Models\User;
 use PHPinnacle\Cerber\Services\SessionOAuth;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
@@ -17,6 +18,10 @@ readonly class LinkController
     {
         $context = CerberPlugin::get()->getSocialAccountContext();
 
-        return $this->oauth->redirect($context, $provider, linkUserId: auth()->guard($context->guard())->id());
+        return $this->oauth->redirect(
+            $context,
+            $provider,
+            linkUserId: User::current()->id,
+        );
     }
 }

@@ -4,7 +4,8 @@ namespace PHPinnacle\Cerber\Services;
 
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Model;
-use PHPinnacle\Cerber\Models\User;
+use PHPinnacle\Cerber\Enums\LoginType;
+use PHPinnacle\Cerber\Models\Login;
 
 class DeveloperLogin
 {
@@ -21,15 +22,15 @@ class DeveloperLogin
             return false;
         }
 
-        if (!($user = User::find($credentials))) {
+        if (!($login = Login::lookup(LoginType::Email, $credentials))) {
             return false;
         }
 
-        if (!$user->canAccessPanel($panel)) {
+        if (!$login->canAccessPanel($panel)) {
             return false;
         }
 
-        if ($tenant !== null && !$user->canAccessTenant($tenant)) {
+        if ($tenant !== null && !$login->user->canAccessTenant($tenant)) {
             return false;
         }
 
@@ -39,7 +40,7 @@ class DeveloperLogin
             $auth->logout();
         }
 
-        $auth->login($user);
+        $auth->login($login->user);
 
         session()->regenerate();
 

@@ -18,7 +18,7 @@ readonly class SessionOAuth
 {
     public function __construct(
         private OAuthFlow $flow,
-        private UserLinker $linker,
+        private OAuthLogin $logins,
     ) {}
 
     public function redirect(
@@ -74,13 +74,13 @@ readonly class SessionOAuth
     public function login(SocialAccountContext $context, Provider $provider, SocialiteUser $identity): RedirectResponse
     {
         $panel = Filament::getCurrentOrDefaultPanel();
-        $user = $this->linker->findOrCreateUser($context, $provider, $identity);
+        $login = $this->logins->findOrCreate($context, $provider, $identity);
 
-        if (!$user->canAccessPanel($panel)) {
+        if (!$login->canAccessPanel($panel)) {
             throw new OAuthException('access_denied', 'The user cannot access this panel.');
         }
 
-        auth()->guard($context->guard())->login($user);
+        auth()->guard($context->guard())->login($login->user);
         request()->session()->regenerate();
 
         return redirect()->intended($panel->getHomeUrl());
