@@ -12,6 +12,10 @@ abstract class TestCase extends Orchestra
         $app['config']->set('app.key', 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
         $app['config']->set('database.default', 'sqlite');
         $app['config']->set('database.connections.sqlite.database', ':memory:');
+        $app['config']->set('auth.providers.users', [
+            'driver' => 'cerber',
+            'model' => \PHPinnacle\Cerber\Models\User::class,
+        ]);
     }
 
     protected function getPackageProviders($app): array

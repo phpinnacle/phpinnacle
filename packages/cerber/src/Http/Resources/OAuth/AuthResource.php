@@ -28,7 +28,7 @@ class AuthResource extends JsonResource
             'expires_in' => (int) config('jwt.ttl') * 60,
             'user' => [
                 'id' => $user->id,
-                'email' => $user->email,
+                'name' => $user->name,
                 'status' => $user->status,
             ],
         ];

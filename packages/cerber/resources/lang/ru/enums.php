@@ -1,6 +1,12 @@
 <?php
 
 return [
+    'login_type' => [
+        'email' => 'Электронная почта',
+        'phone' => 'Телефон',
+        'login' => 'Логин',
+        'oauth' => 'OAuth',
+    ],
     'tenant_status' => [
         'active' => 'Активный',
         'blocked' => 'Заблокированный',

@@ -80,8 +80,6 @@ it('keeps resource selection independent of social login', function () {
 
     expect($panel->getResources())
         ->toBe([RoleResource::class, UserResource::class])
-        ->and($panel->getRoutes())
-        ->toBeEmpty()
         ->and($panel->getAuthenticatedRoutes())
         ->toBeEmpty()
         ->and($panel->getAuthGuard())

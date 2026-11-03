@@ -11,7 +11,6 @@ use PHPinnacle\Cerber\Exceptions\OAuthException;
 use PHPinnacle\Cerber\Http\Resources\OAuth\AuthResource;
 use PHPinnacle\Cerber\Http\Resources\OAuth\OAuthProviderResource;
 use PHPinnacle\Cerber\Models\Provider;
-use PHPinnacle\Cerber\Models\SocialAccount;
 use PHPinnacle\Cerber\Models\User;
 use PHPinnacle\Cerber\OAuth\OAuthCallback;
 use PHPinnacle\Cerber\Services\OAuthFlow;
@@ -71,10 +70,6 @@ class OAuthController extends Controller
             );
             $user = $this->linker->findOrCreateUser($socialAccountContext, $provider, $identity);
 
-            if (!$user->status->canAccess()) {
-                throw new OAuthException('access_denied', 'The user cannot sign in.');
-            }
-
             $token = $guard->claims(['social_account_context' => $socialAccountContext->name()])->login($user);
 
             return response()->json(new AuthResource($token, $user));
@@ -91,7 +86,7 @@ class OAuthController extends Controller
         abort_unless($user->status->canAccess(), 403);
         abort_unless($guard->payload()->get('social_account_context') === $socialAccountContext->name(), 403);
         abort_unless($provider->context === $socialAccountContext->name(), 404);
-        SocialAccount::unlink($user, $provider);
+        $provider->unlink($user);
 
         return response()->json(['unlinked' => true]);
     }

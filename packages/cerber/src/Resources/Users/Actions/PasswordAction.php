@@ -3,19 +3,22 @@
 namespace PHPinnacle\Cerber\Resources\Users\Actions;
 
 use Filament\Actions\Action;
-use PHPinnacle\Cerber\Models\User;
+use Filament\Notifications\Notification;
+use Filament\Support\Icons\Heroicon;
+use PHPinnacle\Cerber\Models\Login;
 use PHPinnacle\Cerber\Services\UserService;
 
 class PasswordAction
 {
     public static function reset(): Action
     {
-        return Action::make('reset_password')
-            ->label(__('phpinnacle-cerber::resources.user.actions.reset_password'))
-            ->icon('phosphor-lock-open')
-            ->color('warning')
+        return Action::make('resetPassword')
+            ->icon(Heroicon::Key)
+            ->label(__('phpinnacle-cerber::logins.reset_password'))
             ->requiresConfirmation()
-            ->action(fn (UserService $service, User $record) => $service->resetPassword($record))
-            ->visible(fn (?User $record) => $record !== null);
+            ->action(function (Login $record, UserService $service) {
+                $status = $service->resetPassword($record->user);
+                Notification::make()->title(__($status))->send();
+            });
     }
 }

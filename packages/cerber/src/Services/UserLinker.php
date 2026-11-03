@@ -4,8 +4,9 @@ namespace PHPinnacle\Cerber\Services;
 
 use Laravel\Socialite\Contracts\User as SocialiteUser;
 use PHPinnacle\Cerber\Contracts\SocialAccountContext;
+use PHPinnacle\Cerber\Exceptions\OAuthException;
+use PHPinnacle\Cerber\Models\Login;
 use PHPinnacle\Cerber\Models\Provider;
-use PHPinnacle\Cerber\Models\SocialAccount;
 use PHPinnacle\Cerber\Models\User;
 
 class UserLinker
@@ -15,19 +16,24 @@ class UserLinker
         Provider $provider,
         SocialiteUser $socialiteUser,
     ): User {
-        return new SocialAccount()
+        $login = new Login()
             ->getConnection()
             ->transaction(function () use ($context, $provider, $socialiteUser) {
-                $account = SocialAccount::find($provider, $socialiteUser->getId());
+                $account = Login::lookup(
+                    \PHPinnacle\Cerber\Enums\LoginType::OAuth,
+                    $socialiteUser->getId(),
+                    $provider->id,
+                );
 
-                if ($account !== null) {
-                    return $account->user;
-                }
+                $user = $account !== null ? $account->user : $context->resolve($socialiteUser);
 
-                $user = $context->resolve($socialiteUser);
-                SocialAccount::link($provider, $user, $socialiteUser);
-
-                return $user;
+                return $provider->link($user, $socialiteUser);
             });
+
+        if (!$login->isAvailable()) {
+            throw new OAuthException('access_denied', 'The user cannot sign in.');
+        }
+
+        return $login->user;
     }
 }

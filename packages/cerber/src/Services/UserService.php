@@ -5,9 +5,9 @@ namespace PHPinnacle\Cerber\Services;
 use Filament\Auth\Notifications\ResetPassword;
 use Filament\Auth\Notifications\VerifyEmail;
 use Filament\Facades\Filament;
-use Filament\Notifications\Notification;
 use Illuminate\Auth\Passwords\PasswordBrokerManager;
-use Illuminate\Contracts\Auth\PasswordBroker;
+use Illuminate\Support\Facades\URL;
+use PHPinnacle\Cerber\Models\Login;
 use PHPinnacle\Cerber\Models\User;
 
 readonly class UserService
@@ -16,53 +16,31 @@ readonly class UserService
         private PasswordBrokerManager $passwords,
     ) {}
 
-    public function resendVerification(User $user): void
+    public function resendVerification(Login $login): void
     {
-        if ($user->hasVerifiedEmail()) {
+        if (!$login->requiresVerification()) {
             return;
         }
 
+        $panel = Filament::getCurrentOrDefaultPanel();
         $notification = new VerifyEmail;
-        $notification->url = Filament::getVerifyEmailUrl($user);
-
-        $user->notify($notification);
-
-        Notification::make()
-            ->title(__(
-                'filament-panels::pages/auth/email-verification/email-verification-prompt.notifications.notification_resent.title',
-            ))
-            ->success()
-            ->send();
+        $notification->url = URL::temporarySignedRoute(
+            'filament.' . $panel->getId() . '.cerber.logins.verify',
+            now()->addHour(),
+            ['login' => $login->id, 'hash' => hash('sha256', $login->value)],
+        );
+        $login->notify($notification->afterCommit());
     }
 
-    public function resetPassword(User $user): void
+    public function resetPassword(User $user): string
     {
-        if ($user->email === '') {
-            return;
-        }
-
-        $broker = $this->passwords->broker(Filament::getAuthPasswordBroker());
-        $status = $broker->sendResetLink([
-            'email' => $user->email,
-        ], function (User $user, #[\SensitiveParameter] string $token) {
-            $notification = new ResetPassword($token);
-            $notification->url = Filament::getResetPasswordUrl($token, $user);
-
-            $user->notify($notification);
-        });
-
-        if ($status !== PasswordBroker::RESET_LINK_SENT) {
-            Notification::make()
-                ->title(__($status))
-                ->danger()
-                ->send();
-
-            return;
-        }
-
-        Notification::make()
-            ->title(__($status))
-            ->success()
-            ->send();
+        return $this->passwords->broker(Filament::getAuthPasswordBroker())->sendResetLink(
+            ['email' => $user->getEmailForPasswordReset()],
+            function (User $user, #[\SensitiveParameter] string $token) {
+                $notification = new ResetPassword($token);
+                $notification->url = Filament::getResetPasswordUrl($token, $user);
+                $user->notify($notification);
+            },
+        );
     }
 }

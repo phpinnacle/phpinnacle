@@ -3,39 +3,50 @@
 namespace PHPinnacle\Cerber\Resources\Users\Actions;
 
 use Filament\Actions\Action;
-use PHPinnacle\Cerber\Models\User;
+use Filament\Support\Icons\Heroicon;
+use PHPinnacle\Cerber\Models\Login;
 use PHPinnacle\Cerber\Services\UserService;
 
 class EmailAction
 {
     public static function resendVerification(): Action
     {
-        return Action::make('resend_verification')
-            ->label(__('phpinnacle-cerber::resources.user.actions.resend_verification'))
-            ->icon('phosphor-envelope')
-            ->requiresConfirmation()
-            ->action(fn (UserService $service, User $record) => $service->resendVerification($record))
-            ->visible(fn (?User $record) => $record && !$record->hasVerifiedEmail());
+        return Action::make('resendVerification')
+            ->icon(Heroicon::Envelope)
+            ->label(__('phpinnacle-cerber::logins.resend_verification'))
+            ->visible(fn (Login $record) => $record->requiresVerification())
+            ->successNotificationTitle(__('phpinnacle-cerber::logins.verification_sent'))
+            ->action(function (Login $record, UserService $service, Action $action) {
+                $service->resendVerification($record);
+                $action->success();
+            });
     }
 
     public static function markAsVerified(): Action
     {
-        return Action::make('mark_as_verified')
+        return Action::make('verify')
+            ->icon(Heroicon::CheckBadge)
             ->label(__('phpinnacle-cerber::resources.user.actions.mark_as_verified'))
-            ->icon('phosphor-check-circle')
+            ->visible(fn (Login $record) => $record->requiresVerification())
             ->requiresConfirmation()
-            ->action(fn (User $record) => $record->markEmailAsVerified())
-            ->visible(fn (?User $record) => $record && !$record->hasVerifiedEmail());
+            ->successNotificationTitle(__('phpinnacle-cerber::logins.verified'))
+            ->action(function (Login $record, Action $action) {
+                $record->markVerified();
+                $action->success();
+            });
     }
 
     public static function dropVerification(): Action
     {
-        return Action::make('drop_verification')
+        return Action::make('dropVerification')
+            ->icon(Heroicon::ShieldExclamation)
             ->label(__('phpinnacle-cerber::resources.user.actions.drop_verification'))
-            ->icon('phosphor-x-circle')
-            ->color('danger')
+            ->visible(fn (Login $record) => $record->verified_at !== null)
             ->requiresConfirmation()
-            ->action(fn (User $record) => $record->dropVerification())
-            ->visible(fn (?User $record) => $record?->hasVerifiedEmail());
+            ->successNotificationTitle(__('phpinnacle-cerber::logins.saved'))
+            ->action(function (Login $record, Action $action) {
+                $record->dropVerification();
+                $action->success();
+            });
     }
 }

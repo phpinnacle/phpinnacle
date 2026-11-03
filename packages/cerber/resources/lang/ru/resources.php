@@ -21,6 +21,7 @@ return [
             'email' => 'Эл. почта',
             'email_verified_at' => 'Подтвержденная эл. почта',
             'password' => 'Пароль',
+            'is_password_temporary' => 'Временный пароль',
             'status' => 'Статус',
             'avatar' => 'Аватар',
             'roles' => 'Роли',

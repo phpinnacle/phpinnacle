@@ -12,7 +12,6 @@ use Filament\Models\Contracts\HasName;
 use Filament\Models\Contracts\HasTenants;
 use Illuminate\Contracts\Auth\Access\Authorizable;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 interface Viewer extends
     Authenticatable,
@@ -24,5 +23,4 @@ interface Viewer extends
     HasDefaultTenant,
     HasEmailAuthentication,
     HasName,
-    HasTenants,
-    MustVerifyEmail {}
+    HasTenants {}

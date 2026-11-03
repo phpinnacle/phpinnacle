@@ -28,7 +28,11 @@ class ImpersonateAction extends Action
 
     private function cantBeImpersonated(User $record, ImpersonateManager $manager): bool
     {
-        return $record->is(Filament::auth()->user()) || $manager->isImpersonating();
+        return (
+            $record->id === User::current()->id
+            || $manager->isImpersonating()
+            || !$record->canAccessPanel(Filament::getCurrentOrDefaultPanel())
+        );
     }
 
     private function impersonate(User $record, ImpersonateManager $manager): bool|RedirectResponse
