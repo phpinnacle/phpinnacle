@@ -307,8 +307,8 @@ resources, with shared components in `src/OpenApi`. Add the installed package's
     base_path('vendor/phpinnacle/cerber/src'),
 ],
 
-// In defaults.scanOptions while the application still has classic attributes:
-'mode' => 'hybrid',
+// In defaults.scanOptions:
+'mode' => 'spec',
 ```
 
 The application supplies its own `Info` and `Server` attributes. For direct
