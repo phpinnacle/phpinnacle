@@ -50,7 +50,7 @@ Give each subagent a self-contained task containing:
 - Existing local changes to preserve, baseline check results, and factual handoffs from completed stages.
 - The requirement to inspect the current implementation and tests, complete the design assessment before choosing implementation edits, complete related changes, and return verification evidence.
 
-After each stage, inspect its diff and results before starting the next. Resolve regressions introduced by the stage first. Existing failures or unavailable checks may remain only with their impact on verification explained. A stage with no justified changes should report that outcome without manufacturing edits.
+After each stage, inspect its diff and results before starting the next. Resolve regressions introduced by the stage first. Existing failures or unavailable checks may remain only with their impact on verification explained. A stage with no justified changes should report that outcome without manufacturing edits. Apply the tests stage’s value criterion when reviewing test changes: overturn a proposed removal only when distinct coverage would be lost, not merely because another possible implementation mistake can be imagined.
 
 Each handoff must list changed files, the purpose of the changes, checks run and their results, and unresolved issues. Pass this information in the next task; no handoff files are required.
 
@@ -73,6 +73,8 @@ Apply the same ownership and simplification criteria throughout the JavaScript/T
 ### 3. Tests
 
 Simplify tests and fixtures within the established scope. Test business rules, component APIs, and observable outcomes. Remove coupling to private structure, incidental call order, or source text when those details are not part of the contract.
+
+Assess each test’s value beyond the rest of the suite. Straightforward argument forwarding, getters/setters, or framework wiring do not by themselves justify separate coverage. Keep a composition test when it adds business behavior or exercises a meaningful boundary not already covered by the owner’s tests; identify that distinction before retaining a suspected duplicate.
 
 Retain distinct scenarios, meaningful regression coverage, and checks at validation and security boundaries. Use mocks where they isolate a real boundary; do not remove them categorically. Prefer assertions about results and side effects over recreating the implementation. Keep PHP and JavaScript suites independently runnable, and run the affected suites after changes.
 
