@@ -10,6 +10,7 @@ use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Flex;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Alignment;
 use Filament\Support\Enums\VerticalAlignment;
@@ -76,6 +77,8 @@ class EditProfile extends BasePage
             ->schema([
                 $this->getPasswordFormComponent(),
                 $this->getPasswordConfirmationFormComponent(),
+                $this->getCurrentPasswordFormComponent()
+                    ->visible(fn (Get $get) => filled($get('password')) && filled($this->getUser()->getAuthPassword())),
             ]);
     }
 

@@ -21,6 +21,7 @@ return [
             'email' => 'E-Mail',
             'email_verified_at' => 'Verified E-Mail',
             'password' => 'Password',
+            'is_password_temporary' => 'Temporary password',
             'status' => 'Status',
             'avatar' => 'Avatar',
             'roles' => 'Roles',

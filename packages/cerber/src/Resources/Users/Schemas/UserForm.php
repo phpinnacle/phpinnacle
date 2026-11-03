@@ -6,6 +6,7 @@ use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -44,6 +45,11 @@ class UserForm
                                             ->minLength(8)
                                             ->afterStateHydrated(fn (TextInput $component) => $component->state(null))
                                             ->dehydrated(fn (?string $state) => filled($state)),
+                                        Toggle::make('is_password_temporary')
+                                            ->label(__(
+                                                'phpinnacle-cerber::resources.user.fields.is_password_temporary',
+                                            ))
+                                            ->default(false),
                                         Select::make('status')
                                             ->label(__('phpinnacle-cerber::resources.user.fields.status'))
                                             ->options(UserStatus::class)

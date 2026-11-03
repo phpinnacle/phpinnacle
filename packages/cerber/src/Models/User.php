@@ -28,6 +28,7 @@ use Stringable;
  * @property string $id
  * @property string $tenant_id
  * @property string|null $password
+ * @property bool $is_password_temporary
  * @property string|null $remember_token
  * @property string $name
  * @property UserStatus $status
@@ -57,6 +58,7 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
 
     protected $casts = [
         'password' => 'hashed',
+        'is_password_temporary' => 'boolean',
         'status' => UserStatus::class,
         'panels' => 'array',
         'settings' => 'array',
@@ -68,6 +70,7 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
     protected $fillable = [
         'name',
         'password',
+        'is_password_temporary',
         'status',
         'panels',
         'settings',

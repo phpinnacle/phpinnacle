@@ -21,6 +21,7 @@ return new class extends Migration {
                 ->nullOnDelete();
             $table->string('name');
             $table->string('password')->nullable();
+            $table->boolean('is_password_temporary')->default(false);
             $table->rememberToken();
             $table
                 ->string('status')

@@ -69,11 +69,13 @@ it('creates a user and adds several typed logins through independent dialogs', f
     $this->user->grant(Role::register($this->tenant, 'Administrator', ['create_user', 'view_any_user', 'update_user']));
 
     Livewire::test(CreateUser::class)
-        ->fillForm(['name' => 'New user', 'password' => 'new-user-password'])
+        ->fillForm(['name' => 'New user', 'password' => 'new-user-password', 'is_password_temporary' => true])
         ->call('create')
         ->assertHasNoFormErrors();
     $user = User::query()->where('name', 'New user')->sole();
-    $page = Livewire::test(EditUser::class, ['record' => $user->id]);
+    expect($user->is_password_temporary)->toBeTrue();
+    $page = Livewire::test(EditUser::class, ['record' => $user->id])
+        ->assertFormSet(['is_password_temporary' => true]);
     foreach ([
         ['email', 'FIRST@example.test'],
         ['email', 'second@example.test'],
@@ -88,6 +90,8 @@ it('creates a user and adds several typed logins through independent dialogs', f
 
     expect($user->logins()->count())->toBe(4);
     expect(Hash::check('new-user-password', $user->password))->toBeTrue();
+    $page->fillForm(['is_password_temporary' => false])->call('save')->assertHasNoFormErrors();
+    expect($user->fresh()->is_password_temporary)->toBeFalse();
     Notification::assertSentTo(Login::lookup(LoginType::Email, 'first@example.test'), VerifyEmail::class);
     Notification::assertSentTo(Login::lookup(LoginType::Email, 'second@example.test'), VerifyEmail::class);
 });
@@ -154,11 +158,55 @@ it('preserves profile drafts while adding logins and saves profile details separ
 it('changes the shared password from the profile', function () {
     Livewire::test(EditProfile::class)
         ->assertSee('Update your password')
-        ->fillForm(['password' => 'changed-password', 'passwordConfirmation' => 'changed-password'])
+        ->assertFormFieldDoesNotExist('is_password_temporary')
+        ->fillForm([
+            'password' => 'changed-password',
+            'passwordConfirmation' => 'changed-password',
+            'currentPassword' => 'password',
+        ])
         ->call('save')
         ->assertHasNoFormErrors();
     expect(Hash::check('changed-password', $this->user->fresh()->password))->toBeTrue();
     expect(Hash::check('changed-password', auth()->user()->getAuthPassword()))->toBeTrue();
+});
+
+it('rejects profile password changes without the correct current password', function (
+    #[\SensitiveParameter]
+    ?string $currentPassword,
+    string $rule,
+) {
+    $password = $this->user->password;
+    $rememberToken = $this->user->getRememberToken();
+
+    Livewire::test(EditProfile::class)
+        ->fillForm([
+            'password' => 'changed-password',
+            'passwordConfirmation' => 'changed-password',
+            'currentPassword' => $currentPassword,
+        ])
+        ->call('save')
+        ->assertHasFormErrors(['currentPassword' => $rule]);
+
+    expect($this->user->fresh()->password)->toBe($password);
+    expect($this->user->fresh()->getRememberToken())->toBe($rememberToken);
+})->with(['missing' => [null, 'required'], 'incorrect' => ['wrong-password', 'current_password']]);
+
+it('lets a passwordless user set a first password and requires it for subsequent changes', function () {
+    $this->user->update(['password' => null]);
+
+    $page = Livewire::test(EditProfile::class)
+        ->fillForm(['password' => 'first-password', 'passwordConfirmation' => 'first-password'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect(Hash::check('first-password', $this->user->fresh()->password))->toBeTrue();
+
+    $page
+        ->fillForm(['password' => 'second-password', 'passwordConfirmation' => 'second-password'])
+        ->call('save')
+        ->assertHasFormErrors(['currentPassword' => 'required']);
+
+    expect(Hash::check('first-password', $this->user->fresh()->password))->toBeTrue();
 });
 
 it('deletes a profile login without ending the user session', function () {
