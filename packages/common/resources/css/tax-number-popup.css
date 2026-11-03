@@ -1,0 +1,49 @@
+.common-tax-number-trigger {
+    position: relative;
+    display: inline-flex;
+}
+
+.common-tax-number-trigger.is-loading .fi-icon-btn > .fi-icon {
+    visibility: hidden;
+}
+
+.common-tax-number-trigger__loading {
+    position: absolute;
+    inset: 0;
+    width: 1rem;
+    height: 1rem;
+    margin: auto;
+    pointer-events: none;
+    color: var(--primary-600);
+}
+
+.common-tax-number-popup {
+    padding: 1rem;
+    color: var(--gray-950);
+    font-size: .875rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.common-tax-number-popup__details {
+    display: grid;
+    gap: .5rem;
+}
+
+.common-tax-number-popup__name {
+    font-weight: 600;
+}
+
+.common-tax-number-popup__caption {
+    margin-top: .75rem;
+    color: var(--gray-500);
+    font-size: .75rem;
+}
+
+.dark .common-tax-number-popup {
+    color: var(--gray-100);
+}
+
+.dark .common-tax-number-popup__caption {
+    color: var(--gray-400);
+}

@@ -10,6 +10,7 @@ Common provides reusable Filament fields, table filters and columns, range match
 - InlineBuilder fields with repeatable blocks, compact chips, modal forms, and constrained drag or keyboard ordering.
 - TabbedBuilder fields with independent blocks, tabs on any side, inline forms, and drag or keyboard ordering.
 - ItemPicker form fields with inline or custom dropdown layouts, grouped trees, server search, scroll loading, multiple selection, badges and images.
+- Tax number validation, on-demand taxpayer information, and optional lookup caching.
 - Inclusive, strict and open-ended range matching.
 - Range, active and combined table filters.
 - Standard active, creator, created, updated and default table columns.
@@ -33,6 +34,77 @@ Publish Filament assets again after package updates. No panel plugin or applicat
 use PHPinnacle\Common\Tables\CreatedColumn;
 
 CreatedColumn::make();
+```
+
+### Tax number input
+
+```php
+use PHPinnacle\Common\Forms\TaxNumber;
+use PHPinnacle\Common\TaxNumber\Countries\Belarus;
+use PHPinnacle\Common\TaxNumber\Countries\Poland;
+
+TaxNumber::make('tax_number')
+    ->countries([new Belarus, new Poland])
+    ->country('BY')
+    ->cache('redis', ttl: 3600);
+```
+
+`countries()` accepts a list of `Country` adapters; `country()` selects an ISO country code. Both accept closures with the usual Filament utility injections. Each field uses only its own list, which is empty by default. With `country(null)`, it behaves as an ordinary text input with its information action disabled. A country absent from the list fails format validation and disables lookups. Add `required()` when the field must not be empty.
+
+For valid numbers in a configured country, the information icon opens a compact card showing the available name, status and address. Click outside it or press Escape to close it. Each field has independent loading state; the icon shows a spinner and blocks repeated requests while loading. Changing the number or country clears the previous result; late responses cannot replace the new number's information. Validation makes no network requests, and missing records or unavailable sources never prevent saving a valid number.
+
+Built-in adapters are in `PHPinnacle\Common\TaxNumber\Countries`:
+
+| Country | Identifier validation | Taxpayer information |
+| --- | --- | --- |
+| `BY` · `Belarus` | Nine-digit organization or entrepreneur UNP, or nine-character personal UNP with two initial letters; checksums validated | EGR name and status; personal accounts return no record without a request |
+| `PL` · `Poland` | Ten-digit NIP with checksum; optional `PL` prefix, spaces and hyphens | Ministry of Finance VAT register: name, VAT status and address |
+| `GB` · `UnitedKingdom` | Nine-digit VAT number or twelve-digit branch number; optional `GB` prefix and spaces | HMRC v2, with an OAuth bearer token |
+| `US` · `UnitedStates` | Nine-digit EIN; spaces and hyphens accepted, all-zero values rejected | No built-in lookup; returns unavailable without a request |
+| `RU` · `Russia` | Ten-digit company or twelve-digit personal INN, including checksums | DaData company and entrepreneur lookup, with an API token |
+
+GB and US validation checks structure, not assignment or registration. UK UTRs and US SSNs/ITINs are unsupported. Validation, lookups and cache keys use canonical values; saved values retain the user's presentation. Belarus UNPs are trimmed and uppercased. Poland, GB and US remove accepted separators; Poland and GB also remove optional country prefixes. Russian INNs are trimmed.
+
+Belarus EGR uses `https://egr.gov.by/api/v2/egr/getShortInfoByRegNum/{number}` and supplies the organization's short or full name, or the entrepreneur's name, and status, without an address. Source requests have connection and response timeouts; Belarus retries transient failures once. Missing records and unavailable sources have separate messages.
+
+Pass optional credentials directly to the adapters:
+
+```php
+use Filament\Schemas\Components\Utilities\Get;
+use PHPinnacle\Common\TaxNumber\Countries\UnitedKingdom;
+use PHPinnacle\Common\TaxNumber\Countries\Russia;
+
+TaxNumber::make('tax_number')
+    ->countries([
+        new UnitedKingdom(token: $hmrcAccessToken),
+        new Russia(token: $dadataApiToken),
+    ])
+    ->country(fn (Get $get) => $get('country_code'));
+```
+
+The application supplies and renews the [HMRC v2](https://developer.service.hmrc.gov.uk/api-documentation/docs/api/service/vat-registered-companies-api/2.0) OAuth bearer token with the `read:vat` scope; registered application access is required. The adapter preserves all twelve digits for branch lookups. [DaData](https://dadata.ru/api/find-party/) requests the head organization by INN; personal INNs that do not belong to an entrepreneur return no record. Omitted credentials return an unavailable result without a network request.
+
+The [Polish VAT API](https://www.gov.pl/web/kas/api-wykazu-podatnikow-vat.) uses `wykazpodatnikowvat.mf.gov.pl/api` with the current date in Warsaw. Daily request limits apply; enable caching for repeated checks. IRS [TIN Matching](https://www.irs.gov/tax-professionals/taxpayer-identification-number-tin-matching) serves authorized payers and their agents; the US adapter makes no IRS requests.
+
+Caching is disabled unless `cache()` selects a Laravel cache store. The store name may also be a closure returning a name or `null`. The optional second argument is the TTL in seconds (default `3600`); a nonpositive TTL disables caching. Only successful results are cached, by source class, country and canonical number. No package configuration or global country registry is required.
+
+Custom adapters implement `PHPinnacle\Common\TaxNumber\Country` and are passed to `countries()` alongside built-in adapters:
+
+- `code()` returns the country code.
+- `normalize()` canonicalizes user input.
+- `validate()` checks the canonical number's format without network calls.
+- `lookup()` receives a valid canonical number and returns `LookupResult::success($name, $status, $address)`, or `LookupResult::failure()` with `LookupFailure::NotFound` or `LookupFailure::Unavailable`.
+
+`LookupResult` and `LookupFailure` are in `PHPinnacle\Common\TaxNumber`. A result holds `name`, optional `status` and `address`, or a `failure`. Its `data()` method returns `['name' => ..., 'status' => ..., 'address' => ...]` on success and `null` on failure.
+
+Outside forms, use `PHPinnacle\Common\TaxNumber\Lookup`. Its constructor accepts a Laravel cache repository or `null` and an optional TTL in seconds (default `3600`); `new Lookup` disables caching. `resolve($countryAdapter, $number)` normalizes, validates and looks up a number, returning `LookupResult` with `LookupFailure::InvalidNumber` for invalid input:
+
+```php
+use Illuminate\Support\Facades\Cache;
+use PHPinnacle\Common\TaxNumber\Countries\Poland;
+use PHPinnacle\Common\TaxNumber\Lookup;
+
+$result = (new Lookup(Cache::store('redis'), ttl: 60))->resolve(new Poland, 'PL 526-025-02-74');
 ```
 
 ### Inline builder
