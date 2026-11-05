@@ -27,6 +27,7 @@ it('generates the authentication contract without overriding application compone
         '/auth/register',
         '/auth/login',
         '/auth/verify-email',
+        '/auth/verify-email/resend',
         '/auth/password/forgot',
         '/auth/password/reset',
         '/auth/password/change',

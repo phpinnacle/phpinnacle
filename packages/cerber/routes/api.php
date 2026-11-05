@@ -18,6 +18,9 @@ if (config('phpinnacle-cerber.api.enabled')) {
                 Route::post('login', [AuthController::class, 'login'])->name('login')->middleware('throttle:6,1');
                 Route::get('verify-email', [RegistrationController::class, 'verify'])
                     ->name('verify-email')->middleware(['signed:relative', 'throttle:10,1']);
+                Route::post('verify-email/resend', [RegistrationController::class, 'resendVerification'])
+                    ->name('verify-email.resend')
+                    ->middleware('throttle:cerber.verification-resend');
                 Route::post('password/forgot', [PasswordController::class, 'forgot'])
                     ->name('password.forgot')
                     ->middleware('throttle:6,1');

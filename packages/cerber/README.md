@@ -270,6 +270,7 @@ Configure the `api` guard with the `jwt` driver and a `cerber` user provider, as
 | POST | `/api/auth/register` | `email`, `password` |
 | POST | `/api/auth/login` | `username`, `password` |
 | GET | `/api/auth/verify-email` | The complete query string from the verification email |
+| POST | `/api/auth/verify-email/resend` | `email` |
 | POST | `/api/auth/password/forgot` | `email` |
 | POST | `/api/auth/password/reset` | `email`, `token`, `password` |
 | POST | `/api/auth/password/change` | Bearer token; `current`, `password` |
@@ -277,13 +278,15 @@ Configure the `api` guard with the `jwt` driver and a `cerber` user provider, as
 | POST | `/api/auth/logout` | Bearer token |
 | GET | `/api/profile` | Bearer token |
 
-Route names use the `cerber.api.` prefix: `register`, `login`, `verify-email`, `password.forgot`, `password.reset`, `password.change`, `refresh`, `logout`, and `profile`. Password API routes are disabled by default; OAuth routes remain independently available. Remove application-owned routes for these URLs when enabling Cerber's routes.
+Route names use the `cerber.api.` prefix: `register`, `login`, `verify-email`, `verify-email.resend`, `password.forgot`, `password.reset`, `password.change`, `refresh`, `logout`, and `profile`. Password API routes are disabled by default; OAuth routes remain independently available. Remove application-owned routes for these URLs when enabling Cerber's routes.
 
-Password sign-in resolves `username` through the [local identifier lookup](#users-and-logins), without a type parameter; OAuth subjects are excluded. Unknown, ambiguous, or unavailable identifiers return HTTP 401. Email identifiers must be verified.
+Password sign-in resolves `username` through the [local identifier lookup](#users-and-logins), without a type parameter; OAuth subjects are excluded. Unknown, ambiguous, or unavailable identifiers return HTTP 401. An active user signing in through an unverified email with the correct password receives HTTP 403 with `{"message":"Email is not verified."}` instead.
 
 Registration creates a user of the configured `user_model` with `panels: ['web']`, a shared password and an unverified email login in one transaction. Email uniqueness checks the canonical email value against every local identifier. Registration, password reset and password change accept a `password` string of at least eight characters without `password_confirmation`; confirmation belongs to the frontend form. Registration returns HTTP 201 and a JWT immediately; subsequent password sign-in requires email verification. Applications needing additional registration eligibility rules should supply their own registration endpoint instead of enabling this complete public API.
 
 Verification mail goes to the new login after commit. The link opens `{frontend_url}/auth/verify-email`; the frontend must forward **all** query parameters unchanged to `/api/auth/verify-email`. The signed query identifies a login, expires after one hour and becomes invalid if its email changes. Successful verification returns the user profile.
+
+`POST /api/auth/verify-email/resend` accepts `email` without a bearer token and sends the same verification link to that email when it is unverified and its user is active. Unknown, already verified, blocked, and archived accounts receive the same HTTP 200 response: `{"message":"If this email login needs verification, a message has been sent."}` (localized). Requests are limited to five per hour per IP address, counted separately from other endpoints; further requests receive HTTP 429.
 
 Password recovery sends Laravel's reset notification to the user's default email, with a link to `{frontend_url}/auth/reset-password`. Requests using any registered email resolve the same user. Missing accounts and throttled mail requests receive the same HTTP 200 response as successful requests. Reset tokens follow Laravel's configured expiry and are consumed after a successful reset; invalid tokens return HTTP 422. The notifications use Filament's queued mail notifications and the application's mail/queue configuration.
 

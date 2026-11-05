@@ -46,6 +46,19 @@ class LoginUserProvider extends EloquentUserProvider
     }
 
     /** @param array<string, mixed> $credentials */
+    public function requiresVerification(#[\SensitiveParameter] array $credentials): bool
+    {
+        $login = $this->loginForCredentials($credentials);
+
+        return (
+            $login !== null
+            && $login->requiresVerification()
+            && $login->user->status->canAccess()
+            && parent::validateCredentials($login->user, $credentials)
+        );
+    }
+
+    /** @param array<string, mixed> $credentials */
     private function loginForCredentials(#[\SensitiveParameter] array $credentials): ?Login
     {
         if (($credentials['username'] ?? null) !== null) {

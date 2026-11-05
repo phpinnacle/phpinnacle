@@ -126,6 +126,91 @@ it('registers the configured user and email login and sends a verifiable fronten
         ->assertJsonPath('id', $user->id);
 });
 
+it('resends a verifiable frontend link to the requested email without signing in', function () {
+    Notification::fake();
+    $user = $this->apiUser(false);
+    $login = Login::register($user, LoginType::Email, 'secondary@example.test');
+
+    $this
+        ->postJson('/api/auth/verify-email/resend', ['email' => 'SECONDARY@example.test'])
+        ->assertOk()
+        ->assertExactJson(['message' => 'If this email login needs verification, a message has been sent.']);
+
+    $this->assertGuest('api');
+    expect($login->fresh()->verified_at)->toBeNull();
+    Notification::assertSentOnDemand(
+        VerifyEmail::class,
+        fn ($notification, $channels, AnonymousNotifiable $notifiable) => (
+            $notifiable->routes['mail'] === 'secondary@example.test'
+        ),
+    );
+    $notification = Notification::sent(new AnonymousNotifiable, VerifyEmail::class)->sole();
+    expect($notification->url)->toStartWith('https://frontend.example/auth/verify-email?');
+    $this->getJson('/api/auth/verify-email?' . parse_url($notification->url, PHP_URL_QUERY))->assertOk();
+    expect($login->fresh()->verified_at)->not->toBeNull();
+    expect($user->defaultLogin(LoginType::Email)->verified_at)->toBeNull();
+});
+
+it('does not reveal missing verified or unavailable accounts when resending verification', function (string $case) {
+    Notification::fake();
+    $user = $this->apiUser($case === 'verified');
+    if (in_array($case, ['blocked', 'archived'], true)) {
+        $user->update(['status' => UserStatus::from($case)]);
+    }
+
+    $this
+        ->postJson('/api/auth/verify-email/resend', [
+            'email' => $case === 'unknown' ? 'missing@example.test' : 'customer@example.test',
+        ])
+        ->assertOk()
+        ->assertExactJson(['message' => 'If this email login needs verification, a message has been sent.']);
+
+    Notification::assertNothingSent();
+})->with(['unknown', 'verified', 'blocked', 'archived']);
+
+it('rejects invalid verification resend input with 422 without sending mail', function (array $data) {
+    Notification::fake();
+
+    $this
+        ->postJson('/api/auth/verify-email/resend', $data)
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('email');
+
+    Notification::assertNothingSent();
+})->with([
+    'missing email' => [[]],
+    'email array' => [['email' => ['customer@example.test']]],
+    'invalid email' => [['email' => 'invalid']],
+    'email too long' => [['email' => str_repeat('a', 245) . '@example.test']],
+]);
+
+it('limits verification resend to five requests per hour per IP with 429', function () {
+    Notification::fake();
+    $this->freezeTime();
+    $this->apiUser(false);
+    $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.1']);
+
+    for ($attempt = 0; $attempt < 5; $attempt++) {
+        $this->postJson('/api/auth/verify-email/resend', ['email' => 'customer@example.test'])->assertOk();
+    }
+
+    $this->postJson('/api/auth/verify-email/resend', ['email' => 'different@example.test'])->assertTooManyRequests();
+    $this->postJson('/api/auth/login', ['username' => 'missing@example.test', 'password' => 'wrong-password'])
+        ->assertUnauthorized();
+
+    $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.2']);
+    $this->postJson('/api/auth/verify-email/resend', ['email' => 'customer@example.test'])->assertOk();
+
+    $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.1']);
+    $this->travel(59)->minutes();
+    $this->postJson('/api/auth/verify-email/resend', ['email' => 'customer@example.test'])->assertTooManyRequests();
+
+    $this->travel(1)->minutes();
+    $this->postJson('/api/auth/verify-email/resend', ['email' => 'customer@example.test'])->assertOk();
+
+    Notification::assertSentOnDemandTimes(VerifyEmail::class, 7);
+});
+
 it('rejects duplicate canonical email logins with 422 without creating another user', function () {
     $this->apiUser();
 
@@ -184,17 +269,42 @@ it('authenticates a verified email with the shared password and returns the defa
     'temporary' => [true, ['password']],
 ]);
 
-it('rejects unavailable users and invalid credentials with 401', function (string $case) {
-    $user = $this->apiUser($case !== 'unverified');
+it('rejects an unverified email with 403 after checking the shared password', function () {
+    $this->apiUser(false);
+
+    $this
+        ->postJson('/api/auth/login', [
+            'username' => 'CUSTOMER@example.test',
+            'password' => 'original-password',
+        ])
+        ->assertForbidden()
+        ->assertExactJson(['message' => 'Email is not verified.']);
+
+    $this->assertGuest('api');
+});
+
+it('rejects unavailable users and invalid credentials with 401', function (string $case, bool $verified) {
+    $user = $this->apiUser($verified);
     if (in_array($case, ['blocked', 'archived'], true)) {
         $user->update(['status' => UserStatus::from($case)]);
     }
 
-    $this->postJson('/api/auth/login', [
-        'username' => $case === 'unknown' ? 'missing@example.test' : 'customer@example.test',
-        'password' => $case === 'incorrect' ? 'wrong-password' : 'original-password',
-    ])->assertUnauthorized();
-})->with(['unverified', 'blocked', 'archived', 'unknown', 'incorrect']);
+    $this
+        ->postJson('/api/auth/login', [
+            'username' => $case === 'unknown' ? 'missing@example.test' : 'customer@example.test',
+            'password' => $case === 'incorrect' ? 'wrong-password' : 'original-password',
+        ])
+        ->assertUnauthorized()
+        ->assertJsonPath('message', 'Unauthenticated.');
+})->with([
+    'blocked' => ['blocked', true],
+    'archived' => ['archived', true],
+    'unknown' => ['unknown', true],
+    'incorrect' => ['incorrect', true],
+    'unverified with incorrect password' => ['incorrect', false],
+    'unverified and blocked' => ['blocked', false],
+    'unverified and archived' => ['archived', false],
+]);
 
 it('authenticates phone numbers and case-sensitive logins through username', function (LoginType $type, string $value) {
     $user = $this->apiUser(false);

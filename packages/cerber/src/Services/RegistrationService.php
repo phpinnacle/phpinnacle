@@ -22,20 +22,29 @@ class RegistrationService
             $user->password = $password;
             $user->save();
             $login = Login::register($user, LoginType::Email, $email);
-            $signedUrl = URL::temporarySignedRoute(
-                'cerber.api.verify-email',
-                now()->addHour(),
-                ['id' => $login->id, 'hash' => $login->verificationHash()],
-                absolute: false,
-            );
-            $notification = new VerifyEmail;
-            $notification->url =
-                rtrim(config('phpinnacle-cerber.api.frontend_url'), '/')
-                . '/auth/verify-email?'
-                . parse_url($signedUrl, PHP_URL_QUERY);
-            Notification::route('mail', $login->value)->notify($notification->afterCommit());
+            $this->resendVerification($login);
 
             return $user;
         });
+    }
+
+    public function resendVerification(Login $login): void
+    {
+        if (!$login->requiresVerification() || !$login->user->status->canAccess()) {
+            return;
+        }
+
+        $signedUrl = URL::temporarySignedRoute(
+            'cerber.api.verify-email',
+            now()->addHour(),
+            ['id' => $login->id, 'hash' => $login->verificationHash()],
+            absolute: false,
+        );
+        $notification = new VerifyEmail;
+        $notification->url =
+            rtrim(config('phpinnacle-cerber.api.frontend_url'), '/')
+            . '/auth/verify-email?'
+            . parse_url($signedUrl, PHP_URL_QUERY);
+        Notification::route('mail', $login->value)->notify($notification->afterCommit());
     }
 }

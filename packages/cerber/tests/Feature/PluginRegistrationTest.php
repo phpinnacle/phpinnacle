@@ -19,6 +19,7 @@ uses(TestCase::class);
 it('does not expose password authentication routes by default', function () {
     $this->postJson('/api/auth/register', [])->assertNotFound();
     $this->postJson('/api/auth/login', [])->assertNotFound();
+    $this->postJson('/api/auth/verify-email/resend', [])->assertNotFound();
     $this->getJson('/api/profile')->assertNotFound();
 });
 

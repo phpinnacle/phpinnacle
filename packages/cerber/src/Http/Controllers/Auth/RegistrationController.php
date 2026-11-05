@@ -80,6 +80,49 @@ class RegistrationController
         return response()->json(new AuthResource($guard->login($user), $user), 201);
     }
 
+    #[OA\Operation\Post(
+        path: '/auth/verify-email/resend',
+        description: 'Resend verification mail to an unverified email of an active user. Unknown, verified, and unavailable accounts receive the same response. No bearer token is required. Limited to five requests per hour per IP address.',
+        summary: 'Resend email verification',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\Schema(
+                required: ['email'],
+                properties: [
+                    'email' => new OA\Schema(type: 'string', format: 'email', maxLength: 255),
+                ],
+                type: 'object',
+            ),
+        ),
+        tags: ['Auth'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Verification request accepted.',
+                content: new OA\Schema(properties: [
+                    'message' => new OA\Schema(
+                        type: 'string',
+                        example: 'If this email login needs verification, a message has been sent.',
+                    ),
+                ], type: 'object'),
+            ),
+            new OA\Response(ref: '#/components/responses/CerberUnprocessableContent', response: 422),
+            new OA\Response(response: 429, description: 'Too many requests.'),
+        ],
+    )]
+    public function resendVerification(Request $request, RegistrationService $registration): JsonResponse
+    {
+        /** @var array{email: string} $data */
+        $data = $request->validate(['email' => ['required', 'string', 'email', 'max:255']]);
+        $login = Login::lookup($data['email'], LoginType::Email);
+
+        if ($login !== null) {
+            $registration->resendVerification($login);
+        }
+
+        return response()->json(['message' => __('phpinnacle-cerber::logins.verification_sent')]);
+    }
+
     #[OA\Operation\Get(
         path: '/auth/verify-email',
         description: 'Forward the complete query string from the verification email unchanged. Laravel signs the link, which expires after one hour.',

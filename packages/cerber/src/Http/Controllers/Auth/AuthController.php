@@ -7,6 +7,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use OpenApi\Spec as OA;
+use PHPinnacle\Cerber\Auth\LoginUserProvider;
 use PHPinnacle\Cerber\Http\Resources\Auth\AuthResource;
 use PHPinnacle\Cerber\Http\Resources\Auth\UserResource;
 use PHPinnacle\Cerber\Models\User;
@@ -16,7 +17,7 @@ class AuthController
 {
     #[OA\Operation\Post(
         path: '/auth/login',
-        description: 'Sign in with a local email, phone number, or case-sensitive login and the shared user password. Email logins must be verified.',
+        description: 'Sign in with a local email, phone number, or case-sensitive login and the shared user password. An unverified email returns HTTP 403 with message "Email is not verified." only when the password is correct and the user is active.',
         summary: 'Sign in',
         requestBody: new OA\RequestBody(
             description: 'Sign-in credentials.',
@@ -52,6 +53,13 @@ class AuthController
                 response: 401,
             ),
             new OA\Response(
+                response: 403,
+                description: 'Email is not verified.',
+                content: new OA\Schema(properties: [
+                    'message' => new OA\Schema(type: 'string', example: 'Email is not verified.'),
+                ], type: 'object'),
+            ),
+            new OA\Response(
                 ref: '#/components/responses/CerberUnprocessableContent',
                 response: 422,
             ),
@@ -69,6 +77,13 @@ class AuthController
         $token = $guard->attempt($credentials);
 
         if ($token === false) {
+            /** @var LoginUserProvider $provider */
+            $provider = $guard->getProvider();
+
+            if ($provider->requiresVerification($credentials)) {
+                return response()->json(['message' => 'Email is not verified.'], 403);
+            }
+
             throw new AuthenticationException;
         }
 

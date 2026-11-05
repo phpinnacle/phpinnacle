@@ -4,9 +4,12 @@ namespace PHPinnacle\Cerber;
 
 use BladeUI\Icons\Factory;
 use Filament\Facades\Filament;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Lab404\Impersonate\Events\LeaveImpersonation;
 use Lab404\Impersonate\Events\TakeImpersonation;
@@ -41,6 +44,8 @@ class CerberServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
+        RateLimiter::for('cerber.verification-resend', fn (Request $request) => Limit::perHour(5)->by($request->ip()));
+
         Route::aliasMiddleware('cerber.context', AuthenticateSocialAccountContext::class);
         Route::bind(
             'socialAccountContext',
