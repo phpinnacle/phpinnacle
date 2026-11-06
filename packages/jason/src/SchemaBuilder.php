@@ -386,50 +386,7 @@ final class SchemaBuilder
 
     public function nullable(bool $nullable = true): self
     {
-        $schema = $this->build();
-        $type = $schema->type() ?? [];
-        $types = (array) $type;
-
-        if (
-            $types !== []
-            && !array_any(
-                [
-                    'enum',
-                    'const',
-                    'anyOf',
-                    'oneOf',
-                    'allOf',
-                    'not',
-                    'if',
-                    '$ref',
-                ],
-                $schema->hasKeyword(...),
-            )
-        ) {
-            $types = array_values(array_diff($types, ['null']));
-
-            if ($nullable) {
-                $types[] = 'null';
-            }
-
-            if ($types === []) {
-                $this->schema = Schema::fromArray(false);
-
-                return $this;
-            }
-
-            return $this->type(count($types) === 1 ? $types[0] : $types);
-        }
-
-        $schema = $schema->resolveReferences();
-
-        if (!$nullable) {
-            $this->schema = Schema::allOf([$schema, Schema::fromArray(['not' => ['type' => 'null']])]);
-
-            return $this;
-        }
-
-        $this->schema = Schema::anyOf([$schema, Schema::null()]);
+        $this->schema = $this->schema->withNullability($nullable);
 
         return $this;
     }

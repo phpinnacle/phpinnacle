@@ -14,7 +14,16 @@ test('round trips canonical JSONPath names, indexes, and wildcards', () => {
 
 test('rejects malformed and noncanonical JSONPath strings', () => {
     for (const invalid of [[], '', 'input.name', '$.name', '$["name"]', '$[-1]', '$[01]',
+        '$[9007199254740992]', '$[9223372036854775807]',
         '$[999999999999999999999999]', "$['bad\\q']", "$['unclosed'", "$['\\u0061']"]) {
         assert.throws(() => parseJsonPath(invalid))
     }
+})
+
+test('round trips the largest interoperable index without limiting numeric property names', () => {
+    const path = "$['9007199254740992'][9007199254740991]"
+    const segments = ['9007199254740992', 9007199254740991]
+
+    assert.deepEqual(parseJsonPath(path), segments)
+    assert.equal(jsonPath(segments), path)
 })

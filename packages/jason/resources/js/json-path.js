@@ -10,6 +10,7 @@ export function parseJsonPath(path) {
     while (offset < path.length) {
         const token = /^\[(?:'((?:[^'\\]|\\.)*)'|(0|[1-9][0-9]*)|(\*))\]/s.exec(path.slice(offset))
         if (!token) throw new Error('Use bracketed property names, nonnegative indexes, or [*] in a JSONPath.')
+        if (token[2] !== undefined && !Number.isSafeInteger(Number(token[2]))) throw new Error('A JSONPath index must not exceed 9007199254740991.')
         segments.push(token[1] !== undefined
             ? JSON.parse('"' + token[1].replace(/\\.|"/gs, part => part === "\\'" ? "'" : part === '"' ? '\\"' : part) + '"')
             : token[2] !== undefined ? Number(token[2]) : null)

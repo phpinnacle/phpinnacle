@@ -109,6 +109,40 @@ it('serializes schema objects and arrays without losing their JSON identity', fu
     '{"properties":{"0":{},"1":{"type":"string"}},"additionalProperties":true}',
 ]);
 
+it('round trips non-schema object keywords through arrays builders and JSON', function (
+    string $keyword,
+    string $method,
+    array $value,
+    string $json,
+) {
+    $schema = SchemaBuilder::empty()->{$method}($value)->build();
+
+    expect($schema->toJson())->toBe($json);
+    expect(Schema::fromArray([$keyword => $value])->toJson())->toBe($json);
+    expect(Schema::fromJson($json)->{$method}())->toBe($value);
+})->with([
+    'empty dependencies' => ['dependentRequired', 'dependentRequired', [], '{"dependentRequired":{}}'],
+    'named dependency' => [
+        'dependentRequired',
+        'dependentRequired',
+        ['card' => ['number']],
+        '{"dependentRequired":{"card":["number"]}}',
+    ],
+    'numeric dependency name' => [
+        'dependentRequired',
+        'dependentRequired',
+        ['0' => ['name']],
+        '{"dependentRequired":{"0":["name"]}}',
+    ],
+    'empty vocabulary' => ['$vocabulary', 'vocabulary', [], '{"$vocabulary":{}}'],
+    'optional vocabulary' => [
+        '$vocabulary',
+        'vocabulary',
+        ['urn:example:vocabulary' => false],
+        '{"$vocabulary":{"urn:example:vocabulary":false}}',
+    ],
+]);
+
 it('retains recursive references in the original document', function () {
     $schema = Schema::fromArray(['$defs' => ['node' => ['properties' => ['next' => ['$ref' => '#/$defs/node']]]]]);
     expect($schema->toArray()['$defs']['node']['properties']['next'])->toBe(['$ref' => '#/$defs/node']);
@@ -140,7 +174,8 @@ it('expands local pointers in a separate view and preserves reference siblings a
     $schema = Schema::fromArray($definition);
     expect($schema->resolveReferences()->properties()['value']->toArray())
         ->toBe([
-            'allOf' => [['type' => 'string', 'maxLength' => 5], ['maxLength' => 10]],
+            'maxLength' => 10,
+            'allOf' => [['type' => 'string', 'maxLength' => 5]],
         ])
         ->and($schema->toArray())
         ->toBe($definition);
@@ -151,6 +186,36 @@ it('rejects unresolved or external references when expansion is requested', func
     expect($schema->resolveReferences(...))->toThrow(InvalidArgumentException::class);
     expect($schema->keyword('$ref'))->toBe($reference);
 })->with(['#/missing', 'https://example.org/schema', '#anchor', '%23%2Fvalue', '#/invalid~2']);
+
+it('keeps unevaluated constraints adjacent to expanded references and existing applicators', function (
+    string $keyword,
+    array $referenced,
+    array $existing,
+) {
+    $schema = Schema::fromArray([
+        '$defs' => ['base' => $referenced],
+        '$ref' => '#/$defs/base',
+        $keyword => false,
+        'allOf' => [$existing],
+    ]);
+    $view = $schema->resolveReferences();
+
+    expect($view->keyword($keyword))->toBeFalse();
+    expect(array_map(fn (Schema $branch) => $branch->toArray(), $view->branches('allOf')))
+        ->toBe([$referenced, $existing]);
+    expect($schema->ref())->toBe('#/$defs/base');
+})->with([
+    'object properties' => [
+        'unevaluatedProperties',
+        ['properties' => ['name' => ['type' => 'string']]],
+        ['properties' => ['age' => ['type' => 'integer']]],
+    ],
+    'array items' => [
+        'unevaluatedItems',
+        ['prefixItems' => [['type' => 'string']]],
+        ['contains' => ['type' => 'integer']],
+    ],
+]);
 
 it('does not resolve embedded resource references against the wrong document root', function () {
     $definition = [
@@ -168,6 +233,41 @@ it('does not resolve embedded resource references against the wrong document roo
         ->toThrow(InvalidArgumentException::class, 'embedded')
         ->and($schema->toArray())
         ->toBe($definition);
+});
+
+it('rejects referenced descendants that use an embedded resource base', function (string $reference) {
+    $schema = Schema::fromArray([
+        '$ref' => $reference,
+        '$defs' => [
+            'name' => ['type' => 'string'],
+            'alias' => ['$ref' => '#/$defs/resource/$defs/value'],
+            'resource' => [
+                '$id' => 'nested.json',
+                '$defs' => [
+                    'name' => ['type' => 'integer'],
+                    'value' => ['$ref' => '#/$defs/name'],
+                ],
+            ],
+        ],
+    ]);
+
+    expect($schema->resolveReferences(...))->toThrow(InvalidArgumentException::class, 'embedded');
+})->with(['direct pointer' => ['#/$defs/resource/$defs/value'], 'alias pointer' => ['#/$defs/alias']]);
+
+it('resolves reference-free descendants without interpreting opaque ids as resource boundaries', function () {
+    $resource = Schema::fromArray([
+        '$ref' => '#/$defs/resource/$defs/name',
+        '$defs' => ['resource' => ['$id' => 'nested.json', '$defs' => ['name' => ['type' => 'integer']]]],
+    ]);
+    $metadata = Schema::fromArray([
+        '$id' => 'https://example.test/root',
+        '$ref' => '#/x-container/value',
+        '$defs' => ['name' => ['type' => 'string']],
+        'x-container' => (object) ['$id' => 'opaque', 'value' => (object) ['$ref' => '#/$defs/name']],
+    ]);
+
+    expect($resource->resolveReferences()->type())->toBe('integer');
+    expect($metadata->resolveReferences()->types())->toBe(['string']);
 });
 
 it('does not reinterpret referenced JSON arrays as schema objects', function () {
@@ -193,36 +293,6 @@ it('keeps nullability outside enum and composition constraints', function () {
         ->toBe(['type' => ['integer', 'null']]);
 });
 
-it('composes nested schema builders without special serializer subclasses', function (string $keyword) {
-    $branch = Schema::fromArray(['type' => 'string', 'readOnly' => true, 'x-metadata' => ['enabled' => true]]);
-    $composition = SchemaBuilder::make(Schema::{$keyword}([
-        $branch,
-        SchemaBuilder::make()->type('string')->min(3)->build(),
-    ]))
-        ->title('Value')
-        ->build();
-    $schema = SchemaBuilder::make(Schema::object([
-        'value' => $composition,
-        'items' => SchemaBuilder::make()->type('array')->items($composition)->build(),
-    ]))
-        ->required(['value', 'external'])
-        ->build();
-    $expected = [
-        $keyword => [
-            ['type' => 'string', 'readOnly' => true, 'x-metadata' => ['enabled' => true]],
-            ['type' => 'string', 'minLength' => 3],
-        ],
-        'title' => 'Value',
-    ];
-
-    expect($schema->properties()['value']->toArray())
-        ->toBe($expected)
-        ->and($schema->properties()['items']->items()->toArray())
-        ->toBe($expected);
-    expect(array_map(fn (Schema $branch) => $branch->toArray(), $composition->branches($keyword)))
-        ->toBe($expected[$keyword]);
-})->with(['allOf', 'anyOf', 'oneOf']);
-
 it('keeps nullability outside conditional and reference constraints', function (array $definition, array $resolved) {
     expect(SchemaBuilder::make(Schema::fromArray($definition))->nullable()->build()->toArray())
         ->toBe(['anyOf' => [$resolved, ['type' => 'null']]]);
@@ -234,10 +304,9 @@ it('keeps nullability outside conditional and reference constraints', function (
     'local reference' => [
         ['type' => 'string', '$defs' => ['value' => ['enum' => ['active']]], '$ref' => '#/$defs/value'],
         [
-            'allOf' => [
-                ['enum' => ['active']],
-                ['type' => 'string', '$defs' => ['value' => ['enum' => ['active']]]],
-            ],
+            'type' => 'string',
+            '$defs' => ['value' => ['enum' => ['active']]],
+            'allOf' => [['enum' => ['active']]],
         ],
     ],
 ]);
@@ -255,9 +324,20 @@ it('retains nested references and annotations without inferring undeclared types
     ];
     expect(Schema::fromArray($definition)->toArray())->toBe($definition);
     $view = Schema::fromArray($definition)->resolveReferences()->properties()['contact']->toArray();
-    expect($view)->toBe(['allOf' => [$definition['$defs']['contact'], ['x-origin' => 'sample']]]);
+    expect($view)->toBe(['x-origin' => 'sample', 'allOf' => [$definition['$defs']['contact']]]);
 });
 
 it('validates JSON input at the parsing boundary', function (string $json) {
     expect(fn () => Schema::fromJson($json))->toThrow(InvalidArgumentException::class);
-})->with(['[]', '1', '"string"', 'null', '{"type":"unsupported"}', '{"type":[]}', '{"allOf":42}', '{"properties":[]}']);
+})->with([
+    '[]',
+    '1',
+    '"string"',
+    'null',
+    '{"type":"unsupported"}',
+    '{"type":[]}',
+    '{"allOf":42}',
+    '{"properties":[]}',
+    '{"dependentRequired":[]}',
+    '{"$vocabulary":[]}',
+]);

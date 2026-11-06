@@ -39,7 +39,6 @@ it('projects alternative fields with sibling constraints and additional property
     expect($properties['shared']->effectiveMinLength())->toBe(2);
     expect($properties['shared']->effectiveMaxLength())->toBe(20);
     expect($properties['shared']->annotation('title'))->toBe('First');
-    expect($properties['shared']->branches('allOf')[2]->branches('anyOf'))->toHaveCount(2);
     expect($properties['left']->types())->toBe(['integer', 'number']);
     expect($properties['right']->singleType())->toBe('null');
     expect($properties['root']->types())->toBe([]);
@@ -57,7 +56,6 @@ it('retains unrestricted alternatives and conjunctive additional property restri
 
     expect($value->types())->toBe([]);
     expect($value->annotation('title'))->toBe('Value');
-    expect($value->branches('anyOf')[1]->isEmpty())->toBeTrue();
     expect(
         Schema::allOf([
             $schema,
@@ -106,6 +104,18 @@ it('resolves maximum string lengths across composed output schemas', function (a
         20,
     ],
     'unbounded alternative' => [['anyOf' => [['type' => 'string', 'maxLength' => 10], ['type' => 'string']]], null],
+    'unrestricted alternative' => [['anyOf' => [['type' => 'string', 'maxLength' => 10], true]], null],
+    'false anyOf alternative' => [['anyOf' => [['type' => 'string', 'maxLength' => 10], false]], 10],
+    'false oneOf alternative' => [['oneOf' => [['type' => 'string', 'maxLength' => 10], false]], 10],
+    'impossible type alternative' => [
+        [
+            'anyOf' => [
+                ['type' => 'string', 'maxLength' => 10],
+                ['allOf' => [['type' => 'string'], ['type' => 'integer']]],
+            ],
+        ],
+        10,
+    ],
 ]);
 
 it('preserves number and null alternatives in numeric intersections', function () {

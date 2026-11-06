@@ -199,6 +199,40 @@ final readonly class Schema implements JsonSerializable
         return new self($definition);
     }
 
+    /** @internal Builder boundary: apply nullability to the complete schema. */
+    public function withNullability(bool $nullable): self
+    {
+        $types = (array) ($this->type() ?? []);
+
+        if (
+            $types !== []
+            && !array_any(
+                ['enum', 'const', 'anyOf', 'oneOf', 'allOf', 'not', 'if', '$ref'],
+                $this->hasKeyword(...),
+            )
+        ) {
+            $types = array_values(array_diff($types, ['null']));
+
+            if ($nullable) {
+                $types[] = 'null';
+            }
+
+            return (
+                $types === []
+                    ? new self(false)
+                    : $this->withKeywords(['type' => count($types) === 1 ? $types[0] : $types])
+            );
+        }
+
+        $schema = $this->resolveReferences();
+
+        return (
+            $nullable
+                ? self::anyOf([$schema, self::null()])
+                : self::allOf([$schema, new self(['not' => ['type' => 'null']])])
+        );
+    }
+
     public function builder(): SchemaBuilder
     {
         return SchemaBuilder::make($this);
@@ -590,11 +624,7 @@ final readonly class Schema implements JsonSerializable
         $schema = $hasReferences ? $this->resolveReferences() : $this;
 
         foreach ($segments as $segment) {
-            $schema = match (true) {
-                is_string($segment) => $schema->property($segment),
-                is_int($segment) => $schema->indexedItem($segment),
-                default => $schema->wildcardChild(),
-            };
+            $schema = $segment === null ? $schema->wildcardChild() : $schema->projectChild($segment);
 
             if ($schema === null) {
                 return null;
@@ -630,7 +660,7 @@ final readonly class Schema implements JsonSerializable
 
     public function property(string $name): ?self
     {
-        return $this->projectProperty($name);
+        return $this->projectChild($name);
     }
 
     public function arrayItems(): ?self
@@ -735,7 +765,7 @@ final readonly class Schema implements JsonSerializable
         $bounds = [];
 
         foreach ($alternatives as $branch) {
-            if ($branch->types() !== [] && !in_array('string', $branch->types(), true)) {
+            if (!$branch->permitsType('string')) {
                 continue;
             }
 
@@ -878,7 +908,7 @@ final readonly class Schema implements JsonSerializable
             }
         }
 
-        $additional = $this->projectProperty(null);
+        $additional = $this->projectChild(null);
 
         if ($additional !== null) {
             $children[] = $additional;
@@ -901,30 +931,32 @@ final readonly class Schema implements JsonSerializable
         return array_values(array_unique($names));
     }
 
-    private function projectProperty(?string $name): ?self
+    /** Null projects unnamed object properties, including pattern and additional properties. */
+    private function projectChild(string|int|null $selector): ?self
     {
-        if (!$this->permitsType('object')) {
+        if (!$this->permitsType(is_int($selector) ? 'array' : 'object')) {
             return null;
         }
 
-        $properties = $this->properties();
-        $property =
-            ($name === null ? null : $properties[$name] ?? null) ?? $this->additionalProperties() ?? self::empty();
-
-        if (($name === null || !array_key_exists($name, $properties)) && $property->deniesAny()) {
-            return null;
+        if (is_int($selector)) {
+            $child = $this->localItem($selector);
+            $constraints = $child === null ? [] : [$child];
+        } else {
+            $constraints = $this->propertyConstraints($selector);
         }
 
-        $constraints = [$property];
+        if ($constraints === []) {
+            return null;
+        }
 
         foreach ($this->branches('allOf') as $branch) {
-            $property = $branch->projectProperty($name);
+            $child = $branch->projectChild($selector);
 
-            if ($property === null) {
+            if ($child === null) {
                 return null;
             }
 
-            $constraints[] = $property;
+            $constraints[] = $child;
         }
 
         foreach (['anyOf', 'oneOf'] as $keyword) {
@@ -935,10 +967,10 @@ final readonly class Schema implements JsonSerializable
             $variants = [];
 
             foreach ($this->branches($keyword) as $branch) {
-                $property = $branch->projectProperty($name);
+                $child = $branch->projectChild($selector);
 
-                if ($property !== null) {
-                    $variants[] = $property;
+                if ($child !== null) {
+                    $variants[] = $child;
                 }
             }
 
@@ -952,54 +984,42 @@ final readonly class Schema implements JsonSerializable
         return self::compose('allOf', $constraints);
     }
 
-    private function indexedItem(int $index): ?self
+    /** @return list<self> */
+    private function propertyConstraints(?string $name): array
     {
-        if (!$this->permitsType('array') || $this->maxItems() !== null && $index >= $this->maxItems()) {
+        $properties = $this->properties();
+        $constraints = $name !== null && array_key_exists($name, $properties) ? [$properties[$name]] : [];
+
+        foreach ($this->patternProperties() as $pattern => $property) {
+            if ($name === null || self::matchesPropertyPattern($name, $pattern)) {
+                $constraints[] = $property;
+            }
+        }
+
+        if ($name === null || $constraints === []) {
+            $additional = $this->additionalProperties() ?? self::empty();
+
+            if (!$additional->deniesAny()) {
+                $constraints[] = $additional;
+            }
+        }
+
+        if ($name === null) {
+            $constraints = array_values(array_filter($constraints, fn (self $property) => !$property->deniesAny()));
+        }
+
+        return $name === null && $constraints !== [] ? [self::compose('anyOf', $constraints)] : $constraints;
+    }
+
+    private function localItem(int $index): ?self
+    {
+        if ($this->maxItems() !== null && $index >= $this->maxItems()) {
             return null;
         }
 
-        $prefix = $this->prefixItems();
-        $item = $prefix[$index] ?? $this->items() ?? self::empty();
+        $item = $this->prefixItems()[$index] ?? $this->items() ?? self::empty();
 
-        if ($item->deniesAny()) {
-            return null;
-        }
-
-        $constraints = [$item];
-
-        foreach ($this->branches('allOf') as $branch) {
-            $item = $branch->indexedItem($index);
-
-            if ($item === null) {
-                return null;
-            }
-
-            $constraints[] = $item;
-        }
-
-        foreach (['anyOf', 'oneOf'] as $keyword) {
-            if (!$this->hasKeyword($keyword)) {
-                continue;
-            }
-
-            $variants = [];
-
-            foreach ($this->branches($keyword) as $branch) {
-                $item = $branch->indexedItem($index);
-
-                if ($item !== null) {
-                    $variants[] = $item;
-                }
-            }
-
-            if ($variants === []) {
-                return null;
-            }
-
-            $constraints[] = self::compose('anyOf', $variants);
-        }
-
-        return self::compose('allOf', $constraints);
+        return $item->deniesAny() ? null : $item;
     }
 
     private function prefixItemCount(): int
@@ -1021,7 +1041,7 @@ final readonly class Schema implements JsonSerializable
         $count = $this->prefixItemCount();
 
         for ($index = 0; $index <= $count; $index++) {
-            $item = $this->indexedItem($index);
+            $item = $this->projectChild($index);
 
             if ($item !== null) {
                 $items[] = $item;
@@ -1098,6 +1118,17 @@ final readonly class Schema implements JsonSerializable
         }
 
         return $bound;
+    }
+
+    private static function matchesPropertyPattern(string $name, string $pattern): bool
+    {
+        $escaped = preg_replace_callback(
+            '/\\\\.|~/s',
+            fn (array $match) => $match[0] === '~' ? '\\~' : $match[0],
+            $pattern,
+        );
+
+        return preg_match('~' . $escaped . '~u', $name) === 1;
     }
 
     /** @param Definition $definition */

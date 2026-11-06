@@ -27,6 +27,8 @@ final class Codec
         'contentSchema',
     ];
 
+    private const array VALUE_MAPS = ['dependentRequired', '$vocabulary'];
+
     /**
      * @param array<string, mixed>|bool $schema
      * @return array<string, mixed>|bool
@@ -81,12 +83,14 @@ final class Codec
                 }
             }
 
-            if (in_array($keyword, self::MAPS, true)) {
+            if (in_array($keyword, [...self::MAPS, ...self::VALUE_MAPS], true)) {
                 if (!$value instanceof stdClass) {
                     throw new InvalidArgumentException('The schema keyword [' . $keyword . '] must be an object.');
                 }
 
-                $definition[$keyword] = array_map(self::decode(...), (array) $value);
+                $definition[$keyword] = in_array($keyword, self::MAPS, true)
+                    ? array_map(self::decode(...), (array) $value)
+                    : get_object_vars($value);
             } elseif (in_array($keyword, self::LISTS, true)) {
                 if (!is_array($value)) {
                     throw new InvalidArgumentException('The schema keyword [' . $keyword . '] must be an array.');
@@ -109,7 +113,9 @@ final class Codec
         }
 
         foreach ($schema as $keyword => $value) {
-            if (in_array($keyword, self::MAPS, true)) {
+            if (in_array($keyword, self::VALUE_MAPS, true)) {
+                $schema[$keyword] = (object) $value;
+            } elseif (in_array($keyword, self::MAPS, true)) {
                 /** @var array<string, array<string, mixed>|bool> $value */
                 $schema[$keyword] = (object) array_map(self::encode(...), $value);
             } elseif (in_array($keyword, self::LISTS, true)) {

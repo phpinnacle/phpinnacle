@@ -32,7 +32,7 @@ final readonly class Node
     /** @return list<self> */
     public function child(string|int $key, bool $create): array
     {
-        if (!is_array($this->value)) {
+        if (!is_array($this->value) || array_is_list($this->value) !== is_int($key)) {
             return [];
         }
 

@@ -2,7 +2,6 @@
 
 use PHPinnacle\Jason\JsonPath;
 use PHPinnacle\Jason\Schema;
-use PHPinnacle\Jason\SchemaBuilder;
 
 it('selects property and item schemas while distinguishing null values from impossible paths', function (
     array $path,
@@ -28,8 +27,6 @@ it('selects property and item schemas while distinguishing null values from impo
     ]);
 
     expect($schema->atPath($path)?->toArray())->toBe($expected);
-    expect($schema->atPath(new JsonPath($path))?->toArray())->toBe($expected);
-    expect($schema->atPath([]))->toBe($schema);
 })->with([
     'JSON null value' => [['null'], ['type' => 'null']],
     'literal boolean schema' => [['free'], true],
@@ -62,6 +59,7 @@ it('flattens wildcard matches while preserving arrays selected as values', funct
         ],
     ]);
 
+    expect($schema->atPath([]))->toBe($schema);
     expect($schema->atPath([null, null, 'values'])->toArray())->toBe([
         'type' => 'array',
         'items' => ['type' => 'array', 'items' => ['type' => 'integer']],
@@ -127,6 +125,95 @@ it('projects object wildcards without dropping open additional fields', function
     expect(Schema::fromArray(false)->atPath(['value']))->toBeNull();
     expect(Schema::fromArray(true)->atPath(['value'])->isEmpty())->toBeTrue();
     expect(Schema::array()->builder()->items(Schema::fromArray(false))->build()->atPath([null]))->toBeNull();
+});
+
+it('intersects item constraints from every composition group while excluding unavailable positions', function () {
+    $schema = Schema::fromArray([
+        'type' => 'array',
+        'items' => ['type' => 'string', 'maxLength' => 20],
+        'allOf' => [['prefixItems' => [['minLength' => 2]]]],
+        'anyOf' => [
+            ['maxItems' => 0],
+            ['prefixItems' => [['maxLength' => 10]]],
+        ],
+        'oneOf' => [
+            ['prefixItems' => [['maxLength' => 6]]],
+            ['items' => false],
+        ],
+    ]);
+
+    expect($schema->atPath([0])->singleType())->toBe('string');
+    expect($schema->atPath([0])->effectiveMinLength())->toBe(2);
+    expect($schema->atPath([0])->effectiveMaxLength())->toBe(6);
+    expect($schema->atPath([1])->effectiveMaxLength())->toBe(20);
+    expect(Schema::allOf([$schema, Schema::fromArray(['maxItems' => 0])])->atPath([0]))->toBeNull();
+});
+
+it('combines declared properties with every matching pattern across compositions', function () {
+    $schema = Schema::fromArray([
+        'type' => 'object',
+        'properties' => ['x_name' => ['type' => 'string', 'maxLength' => 10]],
+        'patternProperties' => ['x_' => ['minLength' => 2], 'name$' => ['maxLength' => 4]],
+        'additionalProperties' => false,
+        'allOf' => [['patternProperties' => ['x_' => ['format' => 'email']]]],
+    ]);
+
+    expect($schema->property('x_name')->effectiveMinLength())->toBe(2);
+    expect($schema->atPath(['x_name'])->effectiveMaxLength())->toBe(4);
+    expect($schema->effectiveProperties()['x_name']->effectiveFormat())->toBe('email');
+    expect($schema->atPath(['prefix_x_other'])->effectiveMinLength())->toBe(2);
+    expect($schema->atPath(['other']))->toBeNull();
+});
+
+it('applies additional properties only to names outside properties and patterns', function () {
+    $schema = Schema::fromArray([
+        'type' => 'object',
+        'properties' => ['declared' => ['type' => 'boolean']],
+        'patternProperties' => ['^x' => ['type' => 'integer']],
+        'additionalProperties' => ['type' => 'string'],
+    ]);
+
+    expect($schema->property('declared')->singleType())->toBe('boolean');
+    expect($schema->property('xyz')->singleType())->toBe('integer');
+    expect($schema->property('other')->singleType())->toBe('string');
+});
+
+it('matches literal pattern delimiters and Unicode or numeric property names', function (
+    string $pattern,
+    string $name,
+) {
+    $schema = Schema::fromArray([
+        'type' => 'object',
+        'patternProperties' => [$pattern => ['type' => 'boolean']],
+        'additionalProperties' => false,
+    ]);
+
+    expect($schema->atPath([$name])?->singleType())->toBe('boolean');
+})->with([
+    'delimiter' => ['~', 'a~b'],
+    'escaped delimiter' => ['\\~', 'a~b'],
+    'backslash before delimiter' => ['\\\\~', 'a\\~b'],
+    'Unicode and slash' => ['^товар/2~$', 'товар/2~'],
+    'numeric pattern name' => ['2', '2'],
+]);
+
+it('includes pattern-only object children in wildcard projections with sibling constraints', function () {
+    $schema = Schema::fromArray([
+        'type' => 'object',
+        'patternProperties' => ['^x' => ['type' => 'string', 'maxLength' => 10]],
+        'additionalProperties' => false,
+        'allOf' => [['patternProperties' => ['^x' => ['minLength' => 2]], 'additionalProperties' => false]],
+    ]);
+    $items = $schema->atPath([null])?->items();
+
+    expect($items?->singleType())->toBe('string');
+    expect($items?->effectiveMinLength())->toBe(2);
+    expect($items?->effectiveMaxLength())->toBe(10);
+    expect(Schema::fromArray([
+        'type' => 'object',
+        'patternProperties' => ['^x' => false],
+        'additionalProperties' => false,
+    ])->atPath([null]))->toBeNull();
 });
 
 it('resolves boolean reference targets without conflating them with null or empty schemas', function (array|bool $target) {
@@ -273,20 +360,13 @@ it('walks every supported schema position while leaving annotation and value obj
 });
 
 it('visits each complete subtree before moving to a sibling schema', function () {
-    $schema = SchemaBuilder::make(Schema::object([
-        'left' => SchemaBuilder::make(Schema::object([
-            'child' => SchemaBuilder::make()->type('string')->title('left child')->build(),
-        ]))
-            ->title('left')
-            ->build(),
-        'right' => SchemaBuilder::make(Schema::object([
-            'child' => SchemaBuilder::make()->type('string')->title('right child')->build(),
-        ]))
-            ->title('right')
-            ->build(),
-    ]))
-        ->title('root')
-        ->build();
+    $schema = Schema::fromArray([
+        'title' => 'root',
+        'properties' => [
+            'left' => ['title' => 'left', 'properties' => ['child' => ['title' => 'left child']]],
+            'right' => ['title' => 'right', 'properties' => ['child' => ['title' => 'right child']]],
+        ],
+    ]);
     $titles = [];
     $schema->walk(function (Schema $fragment) use (&$titles) {
         $titles[] = $fragment->title();

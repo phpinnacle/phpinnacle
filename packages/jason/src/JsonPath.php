@@ -86,6 +86,10 @@ final readonly class JsonPath implements Stringable
 
                 $segments[] = $property;
             } else {
+                if ($token[2] !== null && (int) $token[2] > 9_007_199_254_740_991) {
+                    throw new InvalidArgumentException('A JSONPath index must not exceed 9007199254740991.');
+                }
+
                 $segments[] = $token[2] !== null ? (int) $token[2] : null;
             }
 

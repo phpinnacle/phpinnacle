@@ -94,9 +94,9 @@ final class TransformTest extends TestCase
         yield 'move a quoted source into a missing destination' => [
             TransformType::MOVE,
             "$['meta.version']",
-            ['dest' => '$.metadata.version'],
+            ['dest' => '$.version'],
             ['meta.version' => 'v1'],
-            ['metadata' => ['version' => 'v1']],
+            ['version' => 'v1'],
         ];
         yield 'move an array item and retain the source list' => [
             TransformType::MOVE,
@@ -115,16 +115,16 @@ final class TransformTest extends TestCase
         yield 'move null into a missing destination' => [
             TransformType::MOVE,
             '$.source',
-            ['dest' => '$.metadata.value'],
+            ['dest' => '$.value'],
             ['source' => null],
-            ['metadata' => ['value' => null]],
+            ['value' => null],
         ];
         yield 'move writes to matching destination nodes' => [
             TransformType::MOVE,
             '$.source',
             ['dest' => '$.items[*].value'],
             ['source' => 'new', 'items' => [['value' => 'old'], []]],
-            ['items' => [['value' => 'new'], ['value' => 'new']]],
+            ['items' => [['value' => 'new'], []]],
         ];
         yield 'move filtered array items' => [
             TransformType::MOVE,

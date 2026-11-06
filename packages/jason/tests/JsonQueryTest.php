@@ -31,22 +31,60 @@ it('uses one canonical path for schema navigation and flat PHP data queries', fu
 });
 
 it('preserves canonical literal names and supports mutations without reparsing', function () {
-    $data = ['0' => ['*' => ['length' => null, "literal.'\\" => 3]]];
-    $path = new JsonPath(['0', '*', 'length']);
+    $data = ['2' => ['*' => ['length' => null, "literal.'\\" => 3]]];
+    $path = new JsonPath(['2', '*', 'length']);
     $query = new JsonQuery($path);
 
     expect($query->find($data))->toBe([null]);
-    expect($query->set($data, 2))->toBe([0 => ['*' => ['length' => 2, "literal.'\\" => 3]]]);
+    expect($query->set($data, 2))->toBe([2 => ['*' => ['length' => 2, "literal.'\\" => 3]]]);
     expect($query->update($data, fn ($value) => $value === null ? 'updated' : $value))->toBe([
-        0 => ['*' => ['length' => 'updated', "literal.'\\" => 3]],
+        2 => ['*' => ['length' => 'updated', "literal.'\\" => 3]],
     ]);
-    expect($query->remove($data))->toBe([0 => ['*' => ["literal.'\\" => 3]]]);
-    expect(new JsonQuery(['missing', 0, 'name'])->set([], 'created'))->toBe(['missing' => [['name' => 'created']]]);
-    expect(new JsonQuery(['0', '*', 'missing'])->find($data))->toBe([]);
-    expect(new JsonQuery(['0', '*', "literal.'\\"])->find($data))->toBe([3]);
+    expect($query->remove($data))->toBe([2 => ['*' => ["literal.'\\" => 3]]]);
+    expect(new JsonQuery(['items', 0, 0])->set(['items' => []], 'created'))->toBe(['items' => [['created']]]);
+    expect(new JsonQuery(['2', '*', 'missing'])->find($data))->toBe([]);
+    expect(new JsonQuery(['2', '*', "literal.'\\"])->find($data))->toBe([3]);
     expect(new JsonQuery([])->find($data))->toBe([$data]);
-    expect($data[0]['*']['length'])->toBeNull();
+    expect($data[2]['*']['length'])->toBeNull();
 });
+
+it('distinguishes object properties from array indexes for every path input', function (
+    array $data,
+    array $segments,
+    array $expected,
+) {
+    $path = new JsonPath($segments);
+
+    foreach ([$path, $segments, (string) $path] as $input) {
+        expect(new JsonQuery($input)->find($data))->toBe($expected);
+    }
+})->with([
+    'quoted index on a list' => [[null], ['0'], []],
+    'index on a numeric map' => [[2 => null], [2], []],
+    'numeric property on a map' => [[2 => null], ['2'], [null]],
+    'numeric property on a mixed map' => [[0 => null, 'name' => 'value'], ['0'], [null]],
+    'index on a list' => [[null], [0], [null]],
+    'missing property on a map' => [[2 => null], ['3'], []],
+    'empty array is a list' => [[], ['name'], []],
+    'list wildcard' => [[null, 'value'], [null], [null, 'value']],
+    'object wildcard' => [[2 => null, 5 => 'value'], [null], [null, 'value']],
+]);
+
+it('leaves mismatched containers untouched by mutations', function (array $data, array $segments) {
+    $path = new JsonPath($segments);
+
+    foreach ([$path, $segments, (string) $path] as $input) {
+        $query = new JsonQuery($input);
+
+        expect($query->set($data, 'changed'))->toBe($data);
+        expect($query->update($data, fn ($value) => 'changed'))->toBe($data);
+        expect($query->remove($data))->toBe($data);
+    }
+})->with([
+    'quoted index on a list' => [['value'], ['0']],
+    'index on a numeric map' => [[2 => 'value'], [2]],
+    'empty array is a list' => [[], ['name']],
+]);
 
 it('selects JSON values with the webhook query syntax', function (string $path, array $expected) {
     $data = [
@@ -137,7 +175,23 @@ it('rejects invalid query syntax before looking at the payload', function (strin
     '$[?(@.x =~ /[/)]',
     "$['bad\\q']",
     '$[9999999999999999999999999]',
+    '$[9007199254740992]',
+    '$[-9007199254740992]',
+    '$[9007199254740992:]',
+    '$[:9007199254740992]',
+    '$[::-9007199254740992]',
     '$[?(system("id"))]',
+]);
+
+it('accepts interoperable integer boundaries in indexes and slices', function (string $path, array $expected) {
+    expect(new JsonQuery($path)->find([1, 2]))->toBe($expected);
+})->with([
+    'positive index' => ['$[9007199254740991]', []],
+    'negative index' => ['$[-9007199254740991]', []],
+    'slice start' => ['$[9007199254740991:]', []],
+    'slice end' => ['$[:9007199254740991]', [1, 2]],
+    'positive slice step' => ['$[::9007199254740991]', [1]],
+    'negative slice step' => ['$[::-9007199254740991]', [2]],
 ]);
 
 it('round trips escaped property names through the canonical codec and query evaluator', function () {
@@ -153,6 +207,8 @@ it('reads numeric and digit-prefixed unquoted property names', function () {
     expect(new JsonQuery('$.123abc.1.2')->find($data))
         ->toBe(['found'])
         ->and(new JsonQuery('$[123abc][1][2]')->find($data))
+        ->toBe([])
+        ->and(new JsonQuery("$[123abc]['1']['2']")->find($data))
         ->toBe(['found']);
 });
 
@@ -188,15 +244,17 @@ it('keeps duplicate and overlapping update selections attached to their original
 
 it('sets missing destinations and replaces existing nulls without replacing scalar parents', function () {
     expect(new JsonQuery('$.metadata.version')->set([], 'v1'))
-        ->toBe(['metadata' => ['version' => 'v1']])
+        ->toBe([])
+        ->and(new JsonQuery('$.version')->set(['name' => 'document'], 'v1'))
+        ->toBe(['name' => 'document', 'version' => 'v1'])
         ->and(new JsonQuery('$.target')->set(['target' => null], 1))
         ->toBe(['target' => 1])
         ->and(new JsonQuery('$.target.child')->set(['target' => null], 1))
         ->toBe(['target' => null])
         ->and(new JsonQuery('$.items[*].name')->set([], 'value'))
-        ->toBe(['items' => []])
+        ->toBe([])
         ->and(new JsonQuery('$.items.length')->set(['items' => []], 1))
-        ->toBe(['items' => ['length' => 1]])
+        ->toBe(['items' => []])
         ->and(new JsonQuery('$')->set(['target' => 1], null))
         ->toBeNull();
 });
@@ -214,10 +272,10 @@ it('removes selected nodes once and compacts only lists', function () {
     expect(new JsonQuery('$.items[0,2,0]')->remove(['items' => [null, null, null], 'other' => null]))
         ->toBe(['items' => [null], 'other' => null])
         ->and(new JsonQuery("$['0']")->remove(['a', 'b']))
-        ->toBe(['b'])
+        ->toBe(['a', 'b'])
         ->and(new JsonQuery('$..secret')->remove(['secret' => ['secret' => 1], 'other' => ['secret' => 1]]))
         ->toBe(['other' => []])
-        ->and(new JsonQuery('$[2]')->remove([2 => 'remove', 5 => 'keep']))
+        ->and(new JsonQuery("$['2']")->remove([2 => 'remove', 5 => 'keep']))
         ->toBe([5 => 'keep'])
         ->and(new JsonQuery('$')->remove(['a' => 1]))
         ->toBe([]);

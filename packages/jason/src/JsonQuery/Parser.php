@@ -384,7 +384,9 @@ final class Parser
 
         if (
             !preg_match('/^-?[0-9]+$/', $lexeme)
-            || filter_var($number, FILTER_VALIDATE_INT) === false
+            || filter_var($number, FILTER_VALIDATE_INT, [
+                'options' => ['min_range' => -9_007_199_254_740_991, 'max_range' => 9_007_199_254_740_991],
+            ]) === false
         ) {
             throw new InvalidArgumentException('Invalid JSONPath index.');
         }

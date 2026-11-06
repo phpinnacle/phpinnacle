@@ -54,7 +54,7 @@ final class References
                 throw new InvalidArgumentException('References inside embedded $id resources are not supported.');
             }
 
-            $resolved = $this->expand($this->target($reference), [...$references, $reference]);
+            $resolved = $this->resolveTarget($reference, [...$references, $reference]);
             unset($schema['$ref']);
             $siblings = $schema;
             unset($siblings['$defs'], $siblings['definitions']);
@@ -63,22 +63,16 @@ final class References
                 return $resolved;
             }
 
-            return ['allOf' => [
-                $resolved,
-                $this->expand($schema, $references, root: $root, embeddedResource: $embeddedResource),
-            ]];
+            /** @var array{allOf?: list<array<string, mixed>|bool>, ...<string, mixed>} $schema */
+            $schema = $this->expand($schema, $references, root: $root, embeddedResource: $embeddedResource);
+            $schema['allOf'] = [$resolved, ...($schema['allOf'] ?? [])];
+
+            return $schema;
         }
 
         foreach ($schema as $keyword => $value) {
-            if (in_array($keyword, Codec::MAPS, true)) {
-                /** @var array<string, array<string, mixed>|bool> $value */
-                $schema[$keyword] = array_map(fn ($child) => $this->expand(
-                    $child,
-                    $references,
-                    embeddedResource: $embeddedResource,
-                ), $value);
-            } elseif (in_array($keyword, Codec::LISTS, true)) {
-                /** @var list<array<string, mixed>|bool> $value */
+            if (in_array($keyword, [...Codec::MAPS, ...Codec::LISTS], true)) {
+                /** @var array<array-key, array<string, mixed>|bool> $value */
                 $schema[$keyword] = array_map(fn ($child) => $this->expand(
                     $child,
                     $references,
@@ -93,8 +87,11 @@ final class References
         return $schema;
     }
 
-    /** @return array<string, mixed>|bool */
-    private function target(string $reference): array|bool
+    /**
+     * @param list<string> $references
+     * @return array<string, mixed>|bool
+     */
+    private function resolveTarget(string $reference, array $references): array|bool
     {
         $pointer = rawurldecode(substr($reference, 1));
 
@@ -104,6 +101,9 @@ final class References
 
         $this->referenceRoot ??= $this->document->jsonSerialize();
         $target = $this->referenceRoot;
+        $schemaPosition = true;
+        $schemaContainer = false;
+        $embeddedResource = false;
 
         if ($pointer !== '') {
             foreach (explode('/', substr($pointer, 1)) as $part) {
@@ -112,6 +112,9 @@ final class References
                 }
 
                 $part = str_replace(['~1', '~0'], ['/', '~'], $part);
+                $childIsSchema = $schemaContainer || $schemaPosition && in_array($part, Codec::SCHEMAS, true);
+                $schemaContainer = $schemaPosition && in_array($part, [...Codec::MAPS, ...Codec::LISTS], true);
+                $schemaPosition = $childIsSchema;
 
                 if ($target instanceof stdClass && property_exists($target, $part)) {
                     $target = $target->{$part};
@@ -120,6 +123,10 @@ final class References
                 } else {
                     throw new InvalidArgumentException('The JSON Schema reference does not exist: ' . $reference);
                 }
+
+                $embeddedResource =
+                    $embeddedResource
+                    || $schemaPosition && $target instanceof stdClass && property_exists($target, '$id');
             }
         }
 
@@ -127,6 +134,6 @@ final class References
             throw new InvalidArgumentException('The reference target must be a schema: ' . $reference);
         }
 
-        return Codec::decode($target);
+        return $this->expand(Codec::decode($target), $references, embeddedResource: $embeddedResource);
     }
 }
