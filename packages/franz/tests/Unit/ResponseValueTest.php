@@ -9,17 +9,6 @@ use UnexpectedValueException;
 
 final class ResponseValueTest extends TestCase
 {
-    #[DataProvider('validValues')]
-    public function test_null_is_opt_in_and_valid_values_are_preserved(string $method, mixed $value): void
-    {
-        self::assertSame($value, ResponseValue::$method($value));
-        self::assertSame($value, ResponseValue::$method($value, nullable: true));
-        self::assertNull(ResponseValue::$method(null, nullable: true));
-
-        $this->expectException(UnexpectedValueException::class);
-        ResponseValue::$method(null);
-    }
-
     public static function validValues(): iterable
     {
         yield 'string' => ['string', ''];
@@ -32,13 +21,6 @@ final class ResponseValueTest extends TestCase
         yield 'config' => ['config', ['tasks.max' => '1']];
     }
 
-    #[DataProvider('invalidValues')]
-    public function test_nullable_does_not_accept_other_invalid_values(string $method, mixed $value): void
-    {
-        $this->expectException(UnexpectedValueException::class);
-        ResponseValue::$method($value, nullable: true);
-    }
-
     public static function invalidValues(): iterable
     {
         yield 'string' => ['string', 42];
@@ -49,5 +31,23 @@ final class ResponseValueTest extends TestCase
         yield 'items' => ['items', ['topic' => 'lessons']];
         yield 'strings' => ['strings', [null]];
         yield 'config' => ['config', ['tasks.max' => null]];
+    }
+
+    #[DataProvider('validValues')]
+    public function test_null_is_opt_in_and_valid_values_are_preserved(string $method, mixed $value): void
+    {
+        self::assertSame($value, ResponseValue::$method($value));
+        self::assertSame($value, ResponseValue::$method($value, nullable: true));
+        self::assertNull(ResponseValue::$method(null, nullable: true));
+
+        $this->expectException(UnexpectedValueException::class);
+        ResponseValue::$method(null);
+    }
+
+    #[DataProvider('invalidValues')]
+    public function test_nullable_does_not_accept_other_invalid_values(string $method, mixed $value): void
+    {
+        $this->expectException(UnexpectedValueException::class);
+        ResponseValue::$method($value, nullable: true);
     }
 }

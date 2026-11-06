@@ -11,6 +11,11 @@ readonly class OAuthAttempt
         public string $challenge,
     ) {}
 
+    public static function challenge(string $verifier): string
+    {
+        return rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), from: '+/', to: '-_'), '=');
+    }
+
     public function matches(string $context, string $provider, string $callbackUrl, string $verifier): bool
     {
         return (
@@ -19,10 +24,5 @@ readonly class OAuthAttempt
             && $this->callbackUrl === $callbackUrl
             && hash_equals($this->challenge, self::challenge($verifier))
         );
-    }
-
-    public static function challenge(string $verifier): string
-    {
-        return rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), from: '+/', to: '-_'), '=');
     }
 }

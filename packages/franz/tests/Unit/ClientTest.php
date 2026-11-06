@@ -28,6 +28,65 @@ use UnexpectedValueException;
 
 final class ClientTest extends TestCase
 {
+    public static function errorResponses(): iterable
+    {
+        yield 'not found' => [404, '{"error_code":404,"message":"Unknown connector"}', 404, 'Unknown connector'];
+        yield 'rebalance' => [
+            409,
+            '{"error_code":409,"message":"Rebalance in progress"}',
+            409,
+            'Rebalance in progress',
+        ];
+        yield 'validation' => [
+            400,
+            '{"error_code":400,"message":"Invalid configuration"}',
+            400,
+            'Invalid configuration',
+        ];
+        yield 'unauthorized' => [
+            401,
+            '{"error_code":401,"message":"Authentication required"}',
+            401,
+            'Authentication required',
+        ];
+        yield 'unavailable' => [503, '<html>Unavailable</html>', null, 'Kafka Connect API returned HTTP 503.'];
+        yield 'starting worker' => [
+            503,
+            '{"status":"starting","message":"Worker is starting"}',
+            null,
+            'Worker is starting',
+        ];
+        yield 'empty' => [500, '', null, 'Kafka Connect API returned HTTP 500.'];
+    }
+
+    public static function invalidJsonResponses(): iterable
+    {
+        yield 'html' => ['<html>Login</html>'];
+        yield 'truncated' => ['{"version":'];
+        yield 'null' => ['null'];
+        yield 'scalar' => ['"healthy"'];
+    }
+
+    public static function invalidBaseUris(): iterable
+    {
+        yield 'scheme' => ['ftp://connect.example'];
+        yield 'relative' => ['/connect'];
+        yield 'query' => ['http://connect.example?token=x'];
+        yield 'fragment' => ['http://connect.example#fragment'];
+        yield 'credentials' => ['http://user:password@connect.example'];
+    }
+
+    public static function invalidPaths(): iterable
+    {
+        yield 'absolute url' => ['https://other.example'];
+        yield 'network path' => ['//other.example'];
+        yield 'relative' => ['connectors'];
+        yield 'query' => ['/connectors?expand=status'];
+        yield 'fragment' => ['/connectors#fragment'];
+        yield 'parent' => ['/../admin'];
+        yield 'encoded parent' => ['/%2e%2e/admin'];
+    }
+
     public function test_it_creates_reads_replaces_patches_and_deletes_a_connector(): void
     {
         $name = 'school/source #?%';
@@ -478,37 +537,6 @@ final class ClientTest extends TestCase
         }
     }
 
-    public static function errorResponses(): iterable
-    {
-        yield 'not found' => [404, '{"error_code":404,"message":"Unknown connector"}', 404, 'Unknown connector'];
-        yield 'rebalance' => [
-            409,
-            '{"error_code":409,"message":"Rebalance in progress"}',
-            409,
-            'Rebalance in progress',
-        ];
-        yield 'validation' => [
-            400,
-            '{"error_code":400,"message":"Invalid configuration"}',
-            400,
-            'Invalid configuration',
-        ];
-        yield 'unauthorized' => [
-            401,
-            '{"error_code":401,"message":"Authentication required"}',
-            401,
-            'Authentication required',
-        ];
-        yield 'unavailable' => [503, '<html>Unavailable</html>', null, 'Kafka Connect API returned HTTP 503.'];
-        yield 'starting worker' => [
-            503,
-            '{"status":"starting","message":"Worker is starting"}',
-            null,
-            'Worker is starting',
-        ];
-        yield 'empty' => [500, '', null, 'Kafka Connect API returned HTTP 500.'];
-    }
-
     #[DataProvider('invalidJsonResponses')]
     public function test_it_reports_invalid_json_responses(string $body): void
     {
@@ -519,14 +547,6 @@ final class ClientTest extends TestCase
             self::assertSame(200, $exception->statusCode);
             self::assertSame($body, $exception->responseBody);
         }
-    }
-
-    public static function invalidJsonResponses(): iterable
-    {
-        yield 'html' => ['<html>Login</html>'];
-        yield 'truncated' => ['{"version":'];
-        yield 'null' => ['null'];
-        yield 'scalar' => ['"healthy"'];
     }
 
     public function test_it_rejects_malformed_external_status_fields(): void
@@ -571,31 +591,11 @@ final class ClientTest extends TestCase
         new Client($baseUri, new RecordingHttpClient, $factory, $factory);
     }
 
-    public static function invalidBaseUris(): iterable
-    {
-        yield 'scheme' => ['ftp://connect.example'];
-        yield 'relative' => ['/connect'];
-        yield 'query' => ['http://connect.example?token=x'];
-        yield 'fragment' => ['http://connect.example#fragment'];
-        yield 'credentials' => ['http://user:password@connect.example'];
-    }
-
     #[DataProvider('invalidPaths')]
     public function test_it_rejects_paths_that_escape_or_change_the_request_target(string $path): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->client(new RecordingHttpClient)->request('GET', $path);
-    }
-
-    public static function invalidPaths(): iterable
-    {
-        yield 'absolute url' => ['https://other.example'];
-        yield 'network path' => ['//other.example'];
-        yield 'relative' => ['connectors'];
-        yield 'query' => ['/connectors?expand=status'];
-        yield 'fragment' => ['/connectors#fragment'];
-        yield 'parent' => ['/../admin'];
-        yield 'encoded parent' => ['/%2e%2e/admin'];
     }
 
     public function test_it_rejects_dot_segments_in_resource_names(): void

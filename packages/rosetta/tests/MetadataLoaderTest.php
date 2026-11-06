@@ -17,6 +17,13 @@ use PHPUnit\Framework\TestCase;
 
 final class MetadataLoaderTest extends TestCase
 {
+    /** @return iterable<string, array{list<string>}> */
+    public static function onlyFilters(): iterable
+    {
+        yield 'all tables by default' => [[]];
+        yield 'limited by physical name' => [['_reference259']];
+    }
+
     #[Test]
     public function it_loads_defined_types_from_the_configuration_root(): void
     {
@@ -173,13 +180,6 @@ final class MetadataLoaderTest extends TestCase
         $this->assertSame('_fld5801', $metadata[0]->properties[0]->name);
         $this->assertSame('_fld5802', $metadata[0]->properties[1]->name);
         $this->assertSame([[0, 1], [1, 1]], $progress);
-    }
-
-    /** @return iterable<string, array{list<string>}> */
-    public static function onlyFilters(): iterable
-    {
-        yield 'all tables by default' => [[]];
-        yield 'limited by physical name' => [['_reference259']];
     }
 
     #[Test]

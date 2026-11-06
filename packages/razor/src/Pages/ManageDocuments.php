@@ -31,11 +31,6 @@ abstract class ManageDocuments extends ManageRelatedRecords
 
     protected static string $relationship = 'documents';
 
-    /**
-     * @return list<string>
-     */
-    abstract protected function getSections(): array;
-
     public static function getNavigationLabel(): string
     {
         return __('phpinnacle-razor::resources.document.pages.list');
@@ -169,4 +164,9 @@ abstract class ManageDocuments extends ManageRelatedRecords
                     ->label(__('phpinnacle-razor::resources.document.actions.delete')),
             ]);
     }
+
+    /**
+     * @return list<string>
+     */
+    abstract protected function getSections(): array;
 }

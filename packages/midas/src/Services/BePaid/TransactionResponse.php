@@ -32,6 +32,43 @@ readonly class TransactionResponse
         return new self($payload);
     }
 
+    public static function card(mixed $card): ?CardDetails
+    {
+        if ($card === null || is_array($card) && ($card['token'] ?? null) === null) {
+            return null;
+        }
+
+        $validator = Validator::make(['card' => $card], [
+            'card' => ['array'],
+            'card.token' => ['required', 'string'],
+            'card.exp_month' => ['required', 'numeric', 'regex:/^[0-9]{1,2}$/D', 'between:1,12'],
+            'card.exp_year' => ['required', 'numeric', 'regex:/^[0-9]{4}$/D', 'between:2000,9999'],
+            'card.product' => ['nullable', 'string'],
+            'card.issuer_country' => ['nullable', 'string', 'size:2'],
+            'card.brand' => ['nullable', 'string'],
+            'card.sub_brand' => ['nullable', 'string'],
+            'card.bin_8' => ['nullable', 'string'],
+            'card.last_4' => ['nullable', 'string'],
+        ]);
+
+        if ($validator->fails()) {
+            throw new UnexpectedValueException('bePaid returned invalid saved-card details.');
+        }
+
+        $data = $validator->validated()['card'];
+
+        return new CardDetails(
+            token: $data['token'],
+            expiresAt: CarbonImmutable::create((int) $data['exp_year'], (int) $data['exp_month'], 1)->endOfMonth(),
+            product: $data['product'] ?? null,
+            country: $data['issuer_country'] ?? null,
+            brand: $data['brand'] ?? null,
+            subbrand: $data['sub_brand'] ?? 'regular',
+            bin: $data['bin_8'] ?? null,
+            mask: $data['last_4'] ?? null,
+        );
+    }
+
     public function status(): TransactionStatus
     {
         return match ($this->payload['transaction']['status']) {
@@ -92,42 +129,5 @@ readonly class TransactionResponse
             'service' => $erip['service_no_erip'] ?? null,
             'banks' => $erip['banks'] ?? [],
         ]);
-    }
-
-    public static function card(mixed $card): ?CardDetails
-    {
-        if ($card === null || is_array($card) && ($card['token'] ?? null) === null) {
-            return null;
-        }
-
-        $validator = Validator::make(['card' => $card], [
-            'card' => ['array'],
-            'card.token' => ['required', 'string'],
-            'card.exp_month' => ['required', 'numeric', 'regex:/^[0-9]{1,2}$/D', 'between:1,12'],
-            'card.exp_year' => ['required', 'numeric', 'regex:/^[0-9]{4}$/D', 'between:2000,9999'],
-            'card.product' => ['nullable', 'string'],
-            'card.issuer_country' => ['nullable', 'string', 'size:2'],
-            'card.brand' => ['nullable', 'string'],
-            'card.sub_brand' => ['nullable', 'string'],
-            'card.bin_8' => ['nullable', 'string'],
-            'card.last_4' => ['nullable', 'string'],
-        ]);
-
-        if ($validator->fails()) {
-            throw new UnexpectedValueException('bePaid returned invalid saved-card details.');
-        }
-
-        $data = $validator->validated()['card'];
-
-        return new CardDetails(
-            token: $data['token'],
-            expiresAt: CarbonImmutable::create((int) $data['exp_year'], (int) $data['exp_month'], 1)->endOfMonth(),
-            product: $data['product'] ?? null,
-            country: $data['issuer_country'] ?? null,
-            brand: $data['brand'] ?? null,
-            subbrand: $data['sub_brand'] ?? 'regular',
-            bin: $data['bin_8'] ?? null,
-            mask: $data['last_4'] ?? null,
-        );
     }
 }

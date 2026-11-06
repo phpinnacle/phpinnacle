@@ -148,17 +148,6 @@ trait HasSourceSettings
         return $schemas;
     }
 
-    private function makeSourceSettingsSchema(string $source, int $index, string $key): Schema
-    {
-        return $this
-            ->makeChildSchema('settings_' . $key)
-            ->statePath($index . '.options')
-            ->components([
-                Group::make($this->getSourceSettingsComponents($source)),
-            ])
-            ->getClone();
-    }
-
     /** @return array<Component> */
     protected function getSourceSettingsComponents(string $source): array
     {
@@ -205,5 +194,16 @@ trait HasSourceSettings
         }
 
         $this->rawState($rows);
+    }
+
+    private function makeSourceSettingsSchema(string $source, int $index, string $key): Schema
+    {
+        return $this
+            ->makeChildSchema('settings_' . $key)
+            ->statePath($index . '.options')
+            ->components([
+                Group::make($this->getSourceSettingsComponents($source)),
+            ])
+            ->getClone();
     }
 }

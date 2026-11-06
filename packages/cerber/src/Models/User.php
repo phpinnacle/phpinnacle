@@ -300,6 +300,22 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
         $this->save();
     }
 
+    /**
+     * @return Collection<int, string>
+     */
+    private function loadPermissions(string $tenant): Collection
+    {
+        return once(
+            fn () => Permission::query()
+                ->whereHas('roles', function (Builder $query) use ($tenant) {
+                    $query
+                        ->where('tenant_id', $tenant)
+                        ->whereRelation('users', 'id', $this->id);
+                })
+                ->pluck('permissions.name'),
+        );
+    }
+
     protected static function booted(): void
     {
         self::saving(function (self $record) {
@@ -315,21 +331,5 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
                 $record->panels = array_filter([Filament::getCurrentOrDefaultPanel()?->getId()]);
             }
         });
-    }
-
-    /**
-     * @return Collection<int, string>
-     */
-    private function loadPermissions(string $tenant): Collection
-    {
-        return once(
-            fn () => Permission::query()
-                ->whereHas('roles', function (Builder $query) use ($tenant) {
-                    $query
-                        ->where('tenant_id', $tenant)
-                        ->whereRelation('users', 'id', $this->id);
-                })
-                ->pluck('permissions.name'),
-        );
     }
 }

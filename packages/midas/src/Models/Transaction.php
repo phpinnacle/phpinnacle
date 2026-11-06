@@ -66,29 +66,6 @@ class Transaction extends Model
         'processed_at' => 'immutable_datetime',
     ];
 
-    protected static function booted(): void
-    {
-        static::created(function (self $transaction) {
-            TransactionCreated::dispatch($transaction);
-        });
-
-        static::updated(function (self $transaction) {
-            if (array_diff(array_keys($transaction->getChanges()), ['version', 'updated_at']) !== []) {
-                TransactionUpdated::dispatch($transaction);
-            }
-
-            if (!$transaction->wasChanged('status')) {
-                return;
-            }
-
-            TransactionStatusChanged::dispatch(
-                $transaction,
-                TransactionStatus::from($transaction->getRawOriginal('status')),
-                $transaction->status,
-            );
-        });
-    }
-
     public static function payment(Intent $intent): self
     {
         return self::record($intent, TransactionType::PAYMENT);
@@ -99,28 +76,10 @@ class Transaction extends Model
         return self::record($intent, TransactionType::AUTHORIZE);
     }
 
-    private static function record(Intent $intent, TransactionType $type): self
+    /** @return Builder<self> */
+    public static function forSource(Source $source): Builder
     {
-        $amount = $intent->total();
-
-        if ($amount->amount <= 0) {
-            throw new InvalidArgumentException('A transaction amount must be positive.');
-        }
-
-        $transaction = new self;
-        $transaction->id = $intent->id;
-        $transaction->method()->associate($intent->method);
-        $transaction->number = $intent->number;
-        $transaction->description = $intent->description;
-        $transaction->source_type = $intent->source->type;
-        $transaction->source_id = $intent->source->id;
-        $transaction->payer_type = $intent->payer->type;
-        $transaction->payer_id = $intent->payer->id;
-        $transaction->amount = $amount;
-        $transaction->type = $type;
-        $transaction->save();
-
-        return $transaction;
+        return self::query()->where('source_type', $source->type)->where('source_id', $source->id);
     }
 
     public function capture(string $number, Money $amount): self
@@ -136,6 +95,147 @@ class Transaction extends Model
     public function refund(string $number, Money $amount, string $reason): self
     {
         return $this->reserve(TransactionType::REFUND, $number, $amount, $reason);
+    }
+
+    public function capturable(): Money
+    {
+        if ($this->status !== TransactionStatus::Success || $this->type !== TransactionType::AUTHORIZE) {
+            throw new LogicException('Only a successful authorization can be captured or voided.');
+        }
+
+        return $this->remaining([TransactionType::CAPTURE, TransactionType::VOID]);
+    }
+
+    public function refundable(): Money
+    {
+        if (
+            $this->status !== TransactionStatus::Success
+            || !in_array($this->type, [TransactionType::PAYMENT, TransactionType::CAPTURE], true)
+        ) {
+            throw new LogicException('Only a successful payment or capture can be refunded.');
+        }
+
+        return $this->remaining([TransactionType::REFUND]);
+    }
+
+    /** @param array<string, mixed> $metadata */
+    public function confirmManual(?DateTimeInterface $processedAt = null, array $metadata = []): self
+    {
+        if ($this->method->isOnline()) {
+            throw new LogicException('Online operations must be confirmed by their payment provider.');
+        }
+
+        return $this->apply(
+            Continuation::success(metadata: $metadata),
+            synchronize: false,
+            expectedVersion: null,
+            processedAt: $processedAt,
+        );
+    }
+
+    public function handle(Continuation $continuation, ?int $expectedVersion = null): self
+    {
+        return $this->apply($continuation, synchronize: false, expectedVersion: $expectedVersion);
+    }
+
+    public function synchronize(Continuation $continuation, int $expectedVersion): self
+    {
+        return $this->apply($continuation, synchronize: true, expectedVersion: $expectedVersion);
+    }
+
+    public function balanceImpact(): Money
+    {
+        if ($this->status !== TransactionStatus::Success) {
+            return Money::zero($this->currency);
+        }
+
+        return match ($this->type) {
+            TransactionType::PAYMENT, TransactionType::CAPTURE => $this->amount,
+            TransactionType::REFUND => $this->amount->mul(-1),
+            TransactionType::AUTHORIZE, TransactionType::VOID => Money::zero($this->currency),
+        };
+    }
+
+    public function root(): self
+    {
+        return $this->parent?->root() ?? $this;
+    }
+
+    public function captured(): Money
+    {
+        if ($this->type === TransactionType::AUTHORIZE) {
+            return $this->sumAmounts(
+                $this
+                    ->children()
+                    ->getQuery()
+                    ->where('type', TransactionType::CAPTURE)
+                    ->where('status', TransactionStatus::Success),
+            );
+        }
+
+        return in_array($this->type, [TransactionType::PAYMENT, TransactionType::CAPTURE], true)
+            ? $this->balanceImpact()
+            : Money::zero($this->currency);
+    }
+
+    public function refunded(): Money
+    {
+        $captures = $this
+            ->newQuery()
+            ->select('id')
+            ->where('parent_id', $this->id)
+            ->where('type', TransactionType::CAPTURE);
+
+        if ($this->getConnection()->transactionLevel() > 0) {
+            $captures = $captures->lockForUpdate()->pluck('id');
+        }
+
+        return $this->sumAmounts($this
+            ->newQuery()
+            ->where('type', TransactionType::REFUND)
+            ->where('status', TransactionStatus::Success)
+            ->where(fn (Builder $query) => $query->where('parent_id', $this->id)->orWhereIn('parent_id', $captures)));
+    }
+
+    public function received(): Money
+    {
+        return $this->captured()->sub($this->refunded());
+    }
+
+    /** @return Attribute<Money|null, Money|array{amount: int|string|null, currency?: string|null}|int|null> */
+    public function amount(): Attribute
+    {
+        return Money::attribute('amount');
+    }
+
+    /** @return BelongsTo<PaymentMethod, $this> */
+    public function method(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethod::class, 'method_id');
+    }
+
+    /** @return BelongsTo<self, $this> */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    /** @return HasMany<self, $this> */
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id');
+    }
+
+    /** @return MorphTo<\Illuminate\Database\Eloquent\Model, $this> */
+    public function source(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
+    /** @return MorphTo<\Illuminate\Database\Eloquent\Model, $this> */
+    public function payer(): MorphTo
+    {
+        return $this->morphTo();
     }
 
     private function reserve(TransactionType $type, string $number, Money $amount, ?string $reason = null): self
@@ -174,27 +274,6 @@ class Transaction extends Model
         });
     }
 
-    public function capturable(): Money
-    {
-        if ($this->status !== TransactionStatus::Success || $this->type !== TransactionType::AUTHORIZE) {
-            throw new LogicException('Only a successful authorization can be captured or voided.');
-        }
-
-        return $this->remaining([TransactionType::CAPTURE, TransactionType::VOID]);
-    }
-
-    public function refundable(): Money
-    {
-        if (
-            $this->status !== TransactionStatus::Success
-            || !in_array($this->type, [TransactionType::PAYMENT, TransactionType::CAPTURE], true)
-        ) {
-            throw new LogicException('Only a successful payment or capture can be refunded.');
-        }
-
-        return $this->remaining([TransactionType::REFUND]);
-    }
-
     /** @param list<TransactionType> $types */
     private function remaining(array $types): Money
     {
@@ -207,31 +286,6 @@ class Transaction extends Model
         );
 
         return $this->amount->sub($reserved);
-    }
-
-    /** @param array<string, mixed> $metadata */
-    public function confirmManual(?DateTimeInterface $processedAt = null, array $metadata = []): self
-    {
-        if ($this->method->isOnline()) {
-            throw new LogicException('Online operations must be confirmed by their payment provider.');
-        }
-
-        return $this->apply(
-            Continuation::success(metadata: $metadata),
-            synchronize: false,
-            expectedVersion: null,
-            processedAt: $processedAt,
-        );
-    }
-
-    public function handle(Continuation $continuation, ?int $expectedVersion = null): self
-    {
-        return $this->apply($continuation, synchronize: false, expectedVersion: $expectedVersion);
-    }
-
-    public function synchronize(Continuation $continuation, int $expectedVersion): self
-    {
-        return $this->apply($continuation, synchronize: true, expectedVersion: $expectedVersion);
     }
 
     private function apply(
@@ -298,65 +352,6 @@ class Transaction extends Model
         };
     }
 
-    public function balanceImpact(): Money
-    {
-        if ($this->status !== TransactionStatus::Success) {
-            return Money::zero($this->currency);
-        }
-
-        return match ($this->type) {
-            TransactionType::PAYMENT, TransactionType::CAPTURE => $this->amount,
-            TransactionType::REFUND => $this->amount->mul(-1),
-            TransactionType::AUTHORIZE, TransactionType::VOID => Money::zero($this->currency),
-        };
-    }
-
-    public function root(): self
-    {
-        return $this->parent?->root() ?? $this;
-    }
-
-    public function captured(): Money
-    {
-        if ($this->type === TransactionType::AUTHORIZE) {
-            return $this->sumAmounts(
-                $this
-                    ->children()
-                    ->getQuery()
-                    ->where('type', TransactionType::CAPTURE)
-                    ->where('status', TransactionStatus::Success),
-            );
-        }
-
-        return in_array($this->type, [TransactionType::PAYMENT, TransactionType::CAPTURE], true)
-            ? $this->balanceImpact()
-            : Money::zero($this->currency);
-    }
-
-    public function refunded(): Money
-    {
-        $captures = $this
-            ->newQuery()
-            ->select('id')
-            ->where('parent_id', $this->id)
-            ->where('type', TransactionType::CAPTURE);
-
-        if ($this->getConnection()->transactionLevel() > 0) {
-            $captures = $captures->lockForUpdate()->pluck('id');
-        }
-
-        return $this->sumAmounts($this
-            ->newQuery()
-            ->where('type', TransactionType::REFUND)
-            ->where('status', TransactionStatus::Success)
-            ->where(fn (Builder $query) => $query->where('parent_id', $this->id)->orWhereIn('parent_id', $captures)));
-    }
-
-    public function received(): Money
-    {
-        return $this->captured()->sub($this->refunded());
-    }
-
     /** @param Builder<covariant self> $query */
     private function sumAmounts(Builder $query): Money
     {
@@ -368,45 +363,50 @@ class Transaction extends Model
         return new Money((int) $amount, $this->currency);
     }
 
-    /** @return Builder<self> */
-    public static function forSource(Source $source): Builder
+    protected static function booted(): void
     {
-        return self::query()->where('source_type', $source->type)->where('source_id', $source->id);
+        static::created(function (self $transaction) {
+            TransactionCreated::dispatch($transaction);
+        });
+
+        static::updated(function (self $transaction) {
+            if (array_diff(array_keys($transaction->getChanges()), ['version', 'updated_at']) !== []) {
+                TransactionUpdated::dispatch($transaction);
+            }
+
+            if (!$transaction->wasChanged('status')) {
+                return;
+            }
+
+            TransactionStatusChanged::dispatch(
+                $transaction,
+                TransactionStatus::from($transaction->getRawOriginal('status')),
+                $transaction->status,
+            );
+        });
     }
 
-    /** @return Attribute<Money|null, Money|array{amount: int|string|null, currency?: string|null}|int|null> */
-    public function amount(): Attribute
+    private static function record(Intent $intent, TransactionType $type): self
     {
-        return Money::attribute('amount');
-    }
+        $amount = $intent->total();
 
-    /** @return BelongsTo<PaymentMethod, $this> */
-    public function method(): BelongsTo
-    {
-        return $this->belongsTo(PaymentMethod::class, 'method_id');
-    }
+        if ($amount->amount <= 0) {
+            throw new InvalidArgumentException('A transaction amount must be positive.');
+        }
 
-    /** @return BelongsTo<self, $this> */
-    public function parent(): BelongsTo
-    {
-        return $this->belongsTo(self::class, 'parent_id');
-    }
+        $transaction = new self;
+        $transaction->id = $intent->id;
+        $transaction->method()->associate($intent->method);
+        $transaction->number = $intent->number;
+        $transaction->description = $intent->description;
+        $transaction->source_type = $intent->source->type;
+        $transaction->source_id = $intent->source->id;
+        $transaction->payer_type = $intent->payer->type;
+        $transaction->payer_id = $intent->payer->id;
+        $transaction->amount = $amount;
+        $transaction->type = $type;
+        $transaction->save();
 
-    /** @return HasMany<self, $this> */
-    public function children(): HasMany
-    {
-        return $this->hasMany(self::class, 'parent_id');
-    }
-
-    /** @return MorphTo<\Illuminate\Database\Eloquent\Model, $this> */
-    public function source(): MorphTo
-    {
-        return $this->morphTo();
-    }
-
-    /** @return MorphTo<\Illuminate\Database\Eloquent\Model, $this> */
-    public function payer(): MorphTo
-    {
-        return $this->morphTo();
+        return $transaction;
     }
 }

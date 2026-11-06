@@ -18,6 +18,26 @@ class User extends BaseUser {}
 
 class JwtApiTestCase extends TestCase
 {
+    public function apiUser(bool $verified = true): User
+    {
+        $user = User::register('Customer', ['web']);
+        $user->password = 'original-password';
+        $user->save();
+        $login = Login::register($user, LoginType::Email, 'customer@example.test');
+
+        if ($verified) {
+            $login->markVerified();
+        }
+
+        return $user;
+    }
+
+    public function forgetJwt(): void
+    {
+        app('auth')->forgetGuards();
+        app('tymon.jwt')->unsetToken();
+    }
+
     protected function defineEnvironment($app): void
     {
         parent::defineEnvironment($app);
@@ -55,26 +75,6 @@ class JwtApiTestCase extends TestCase
         $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
         $this->artisan('migrate')->assertSuccessful();
         Tenant::default('default');
-    }
-
-    public function apiUser(bool $verified = true): User
-    {
-        $user = User::register('Customer', ['web']);
-        $user->password = 'original-password';
-        $user->save();
-        $login = Login::register($user, LoginType::Email, 'customer@example.test');
-
-        if ($verified) {
-            $login->markVerified();
-        }
-
-        return $user;
-    }
-
-    public function forgetJwt(): void
-    {
-        app('auth')->forgetGuards();
-        app('tymon.jwt')->unsetToken();
     }
 }
 

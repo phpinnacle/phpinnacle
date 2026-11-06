@@ -23,8 +23,6 @@ abstract class TransactionOperationAction extends Action
 {
     private TransactionHistoryEntry $history;
 
-    abstract protected static function operation(): TransactionType;
-
     public static function getDefaultName(): ?string
     {
         return static::operation()->value;
@@ -210,4 +208,6 @@ abstract class TransactionOperationAction extends Action
             default => throw new LogicException('Unsupported transaction operation.'),
         };
     }
+
+    abstract protected static function operation(): TransactionType;
 }

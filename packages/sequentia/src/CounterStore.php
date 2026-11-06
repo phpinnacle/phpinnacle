@@ -23,6 +23,15 @@ final readonly class CounterStore
         private Connection $connection,
     ) {}
 
+    public static function configured(): self
+    {
+        return new self(DB::connection(
+            config('phpinnacle-sequentia.connection') === null
+                ? null
+                : Config::string('phpinnacle-sequentia.connection'),
+        ));
+    }
+
     /**
      * @param array<string, mixed> $bucket
      * @return array<string, array{tenant: string, scope: string, hash: string, key: string, value: int}>
@@ -108,14 +117,5 @@ final readonly class CounterStore
         }
 
         return $result;
-    }
-
-    public static function configured(): self
-    {
-        return new self(DB::connection(
-            config('phpinnacle-sequentia.connection') === null
-                ? null
-                : Config::string('phpinnacle-sequentia.connection'),
-        ));
     }
 }

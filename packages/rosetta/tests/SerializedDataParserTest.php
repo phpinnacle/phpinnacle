@@ -10,6 +10,14 @@ use RuntimeException;
 
 final class SerializedDataParserTest extends TestCase
 {
+    /** @return iterable<string, array{string, string}> */
+    public static function invalidSerializations(): iterable
+    {
+        yield 'unterminated string' => ['{"value}', 'Unterminated string'];
+        yield 'trailing data' => ['{1} trailing', 'Unexpected data after the root object'];
+        yield 'missing root object' => ['', 'Expected "{"'];
+    }
+
     #[Test]
     public function it_parses_the_1c_text_serialization(): void
     {
@@ -34,13 +42,5 @@ final class SerializedDataParserTest extends TestCase
         $this->expectExceptionMessage($message);
 
         new SerializedDataParser()->parse($input);
-    }
-
-    /** @return iterable<string, array{string, string}> */
-    public static function invalidSerializations(): iterable
-    {
-        yield 'unterminated string' => ['{"value}', 'Unterminated string'];
-        yield 'trailing data' => ['{1} trailing', 'Unexpected data after the root object'];
-        yield 'missing root object' => ['', 'Expected "{"'];
     }
 }

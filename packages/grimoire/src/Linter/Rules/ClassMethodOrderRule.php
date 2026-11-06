@@ -15,6 +15,7 @@ use Mago\Sdk\Syntax\Node;
 use Mago\Sdk\Syntax\NodeKind;
 use Mago\Sdk\Syntax\ResolvedName;
 use Mago\Sdk\Syntax\SourceFile;
+use PHPinnacle\Grimoire\Linter\MemberSpan;
 
 final class ClassMethodOrderRule implements Rule
 {
@@ -30,10 +31,10 @@ final class ClassMethodOrderRule implements Rule
         return new RuleDefinition(
             code: 'phpinnacle/class-method-order',
             name: 'Class method order',
-            description: 'Orders class methods according to the first matching configuration.',
+            description: 'Orders methods according to the first matching configuration.',
             defaultLevel: Level::Warning,
             defaultEnabled: true,
-            targets: [NodeKind::AnonymousClass, NodeKind::Class_],
+            targets: [NodeKind::AnonymousClass, NodeKind::Class_, NodeKind::Enum, NodeKind::Interface, NodeKind::Trait],
         );
     }
 
@@ -48,11 +49,12 @@ final class ClassMethodOrderRule implements Rule
         $methods = [];
         $previousMemberEnd = $context->node->span->start;
 
-        foreach ($context->getChildren() as $member) {
-            if ($member->kind !== NodeKind::ClassLikeMember) {
-                continue;
-            }
+        $members = array_values(array_filter(
+            $context->getChildren(),
+            static fn (Node $member) => $member->kind === NodeKind::ClassLikeMember,
+        ));
 
+        foreach ($members as $index => $member) {
             $method = array_find(
                 $context->file->getChildren($member),
                 static fn (Node $node) => $node->kind === NodeKind::Method,
@@ -68,7 +70,11 @@ final class ClassMethodOrderRule implements Rule
                 $context->file->getChildren($method),
                 static fn (Node $node) => $node->kind === NodeKind::LocalIdentifier,
             ));
-            $span = $this->spanWithLeadingComments($context->file, $member, $previousMemberEnd);
+            $span = MemberSpan::withComments(
+                $context->file,
+                $member,
+                new Span($previousMemberEnd, $members[$index + 1]->span->start ?? $context->node->span->end),
+            );
             $methods[] = [
                 'method' => $method,
                 'rank' => $this->rank($context->file, $method, $name, $order),
@@ -158,6 +164,7 @@ final class ClassMethodOrderRule implements Rule
 
             if (
                 fnmatch($pattern, $name)
+                && in_array('static', $parts, true) === in_array('static', $modifiers, true)
                 && array_all($parts, static fn (string $modifier) => in_array($modifier, $modifiers, strict: true))
             ) {
                 return $rank;
@@ -165,24 +172,5 @@ final class ClassMethodOrderRule implements Rule
         }
 
         return count($order);
-    }
-
-    private function spanWithLeadingComments(SourceFile $file, Node $member, int $lowerBound): Span
-    {
-        $start = $member->span->start;
-
-        foreach (array_reverse($file->getTrivia()) as $comment) {
-            if ($comment->span->end > $start || $comment->span->start < $lowerBound) {
-                continue;
-            }
-
-            if (trim(substr($file->contents, $comment->span->end, $start - $comment->span->end)) !== '') {
-                break;
-            }
-
-            $start = $comment->span->start;
-        }
-
-        return new Span($start, $member->span->end);
     }
 }

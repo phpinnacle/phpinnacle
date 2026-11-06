@@ -109,6 +109,13 @@ class HasManyDeep extends HasMany
         return $models;
     }
 
+    protected function joinParent(): void
+    {
+        $this->query->join($this->parent->getTable(), function (JoinClause $join) {
+            $join->on($this->getQualifiedForeignKeyName(), $this->getQualifiedParentKeyName());
+        });
+    }
+
     /**
      * @param class-string<Model> $class
      */
@@ -118,13 +125,6 @@ class HasManyDeep extends HasMany
             if (!$related->getConnectionName()) {
                 $related->setConnection($parent->getConnectionName());
             }
-        });
-    }
-
-    protected function joinParent(): void
-    {
-        $this->query->join($this->parent->getTable(), function (JoinClause $join) {
-            $join->on($this->getQualifiedForeignKeyName(), $this->getQualifiedParentKeyName());
         });
     }
 }

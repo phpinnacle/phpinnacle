@@ -51,17 +51,6 @@ readonly class EripClient
     }
 
     /**
-     * @return list<string>
-     */
-    private static function explode(string $value): array
-    {
-        return array_values(array_filter(
-            array_map(fn (string $v) => trim($v), explode(\PHP_EOL, $value)),
-            fn (string $v) => $v !== '',
-        ));
-    }
-
-    /**
      * @return array<string, mixed>
      */
     private function payload(Intent $intent, ?DateTimeInterface $expiresAt): array
@@ -102,5 +91,16 @@ readonly class EripClient
         }
 
         return $payload;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function explode(string $value): array
+    {
+        return array_values(array_filter(
+            array_map(fn (string $v) => trim($v), explode(\PHP_EOL, $value)),
+            fn (string $v) => $v !== '',
+        ));
     }
 }

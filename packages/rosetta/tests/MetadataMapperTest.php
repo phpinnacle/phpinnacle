@@ -20,6 +20,63 @@ use RuntimeException;
 
 final class MetadataMapperTest extends TestCase
 {
+    /** @return iterable<string, array{mixed, ?string}> */
+    public static function propertyComments(): iterable
+    {
+        yield 'missing' => [null, null];
+        yield 'empty' => ['', null];
+        yield 'multiline' => ["Developer note\n  Keep this indentation.", "Developer note\n  Keep this indentation."];
+    }
+
+    /** @return iterable<string, array{MetadataKind}> */
+    public static function propertyOwnerKinds(): iterable
+    {
+        yield 'reference' => [MetadataKind::Reference];
+        yield 'document' => [MetadataKind::Document];
+        yield 'information register' => [MetadataKind::InformationRegister];
+        yield 'accumulation register' => [MetadataKind::AccumulationRegister];
+    }
+
+    /** @return iterable<string, array{list<mixed>, array<string, string|int|bool>}> */
+    public static function stringDescriptors(): iterable
+    {
+        yield 'unlimited' => [['S'], ['type' => 'string', 'fixed' => false]];
+        yield 'explicit zero length' => [['S', 0, 1], ['type' => 'string', 'length' => 0, 'fixed' => false]];
+        yield 'variable' => [['S', 150, 1], ['type' => 'string', 'length' => 150, 'fixed' => false]];
+        yield 'fixed' => [['S', 6, 0], ['type' => 'string', 'length' => 6, 'fixed' => true]];
+    }
+
+    /** @return iterable<string, array{MetadataKind, string, non-empty-list<int>}> */
+    public static function metadataKinds(): iterable
+    {
+        yield 'reference' => [MetadataKind::Reference, 'Reference', [2, 10, 2]];
+        yield 'document' => [MetadataKind::Document, 'Document', [2, 10, 2]];
+        yield 'enumeration' => [MetadataKind::Enumeration, 'Enum', [2, 6, 2]];
+        yield 'accumulation register' => [
+            MetadataKind::AccumulationRegister,
+            'AccumRg',
+            [2, 14, 2],
+        ];
+        yield 'information register' => [
+            MetadataKind::InformationRegister,
+            'InfoRg',
+            [2, 16, 2],
+        ];
+    }
+
+    /** @return iterable<string, array{mixed, string}> */
+    public static function invalidProperties(): iterable
+    {
+        yield 'non-array property' => [
+            'invalid',
+            'Invalid metadata property at position 1',
+        ];
+        yield 'missing identity' => [
+            [],
+            'Invalid metadata property identifier or logical name at position 1',
+        ];
+    }
+
     #[Test]
     #[DataProvider('propertyComments')]
     public function it_reads_and_serializes_property_comments(mixed $comment, ?string $expected): void
@@ -38,14 +95,6 @@ final class MetadataMapperTest extends TestCase
                 $this->assertSame($expected, $serialized['comment']);
             }
         }
-    }
-
-    /** @return iterable<string, array{mixed, ?string}> */
-    public static function propertyComments(): iterable
-    {
-        yield 'missing' => [null, null];
-        yield 'empty' => ['', null];
-        yield 'multiline' => ["Developer note\n  Keep this indentation.", "Developer note\n  Keep this indentation."];
     }
 
     #[Test]
@@ -74,15 +123,6 @@ final class MetadataMapperTest extends TestCase
         $this->assertSame('Owner field note', $metadata->properties[0]->comment);
     }
 
-    /** @return iterable<string, array{MetadataKind}> */
-    public static function propertyOwnerKinds(): iterable
-    {
-        yield 'reference' => [MetadataKind::Reference];
-        yield 'document' => [MetadataKind::Document];
-        yield 'information register' => [MetadataKind::InformationRegister];
-        yield 'accumulation register' => [MetadataKind::AccumulationRegister];
-    }
-
     /**
      * @param list<mixed> $descriptor
      * @param array<string, string|int|bool> $expected
@@ -96,15 +136,6 @@ final class MetadataMapperTest extends TestCase
             ->map(MetadataFixture::structureWithStringDescriptor($descriptor), MetadataKind::Reference);
 
         $this->assertSame($expected, $metadata->properties[0]->field->jsonSerialize());
-    }
-
-    /** @return iterable<string, array{list<mixed>, array<string, string|int|bool>}> */
-    public static function stringDescriptors(): iterable
-    {
-        yield 'unlimited' => [['S'], ['type' => 'string', 'fixed' => false]];
-        yield 'explicit zero length' => [['S', 0, 1], ['type' => 'string', 'length' => 0, 'fixed' => false]];
-        yield 'variable' => [['S', 150, 1], ['type' => 'string', 'length' => 150, 'fixed' => false]];
-        yield 'fixed' => [['S', 6, 0], ['type' => 'string', 'length' => 6, 'fixed' => true]];
     }
 
     #[Test]
@@ -418,36 +449,5 @@ final class MetadataMapperTest extends TestCase
             MetadataFixture::structureWithPropertyCount(3),
             MetadataKind::Reference,
         );
-    }
-
-    /** @return iterable<string, array{MetadataKind, string, non-empty-list<int>}> */
-    public static function metadataKinds(): iterable
-    {
-        yield 'reference' => [MetadataKind::Reference, 'Reference', [2, 10, 2]];
-        yield 'document' => [MetadataKind::Document, 'Document', [2, 10, 2]];
-        yield 'enumeration' => [MetadataKind::Enumeration, 'Enum', [2, 6, 2]];
-        yield 'accumulation register' => [
-            MetadataKind::AccumulationRegister,
-            'AccumRg',
-            [2, 14, 2],
-        ];
-        yield 'information register' => [
-            MetadataKind::InformationRegister,
-            'InfoRg',
-            [2, 16, 2],
-        ];
-    }
-
-    /** @return iterable<string, array{mixed, string}> */
-    public static function invalidProperties(): iterable
-    {
-        yield 'non-array property' => [
-            'invalid',
-            'Invalid metadata property at position 1',
-        ];
-        yield 'missing identity' => [
-            [],
-            'Invalid metadata property identifier or logical name at position 1',
-        ];
     }
 }

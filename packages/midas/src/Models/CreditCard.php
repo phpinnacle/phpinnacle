@@ -119,16 +119,6 @@ class CreditCard extends Model
         return self::query()->find($id);
     }
 
-    public function isUsableFor(Payer $payer): bool
-    {
-        return (
-            $this->is_active
-            && $this->customer_type === $payer->type
-            && $this->customer_id === $payer->id
-            && !$this->expires_at->isPast()
-        );
-    }
-
     public static function booted(): void
     {
         self::creating(function (self $record) {
@@ -141,6 +131,16 @@ class CreditCard extends Model
                 $record->is_default = true;
             }
         });
+    }
+
+    public function isUsableFor(Payer $payer): bool
+    {
+        return (
+            $this->is_active
+            && $this->customer_type === $payer->type
+            && $this->customer_id === $payer->id
+            && !$this->expires_at->isPast()
+        );
     }
 
     /** @return BelongsTo<PaymentMethod, $this> */

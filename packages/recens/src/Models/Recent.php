@@ -114,6 +114,11 @@ class Recent extends Model implements HasIcon, HasLabel
         return static::forUser($userId)->where($context);
     }
 
+    public static function clearHistory(): void
+    {
+        self::forCurrentContext()->whereNull('pinned_at')->delete();
+    }
+
     public function togglePin(): void
     {
         if ($this->pinned_at === null) {
@@ -137,40 +142,6 @@ class Recent extends Model implements HasIcon, HasLabel
     {
         $this->pinned_at = null;
         $this->save();
-    }
-
-    public static function clearHistory(): void
-    {
-        self::forCurrentContext()->whereNull('pinned_at')->delete();
-    }
-
-    /**
-     * @return array{user_id: string|int|null, panel_id: string|null, tenant_id?: string|int|null}
-     */
-    private static function context(): array
-    {
-        $panel = Filament::getCurrentPanel();
-        $context = [
-            'user_id' => $panel !== null ? $panel->auth()->id() : Auth::id(),
-            'panel_id' => $panel?->getId(),
-        ];
-
-        if (config('phpinnacle-recens.tenancy.model') !== null) {
-            /** @var string|int|null $tenantId */
-            $tenantId = Filament::getTenant()?->getKey() ?? config('phpinnacle-recens.tenancy.default');
-            $context['tenant_id'] = $tenantId;
-        }
-
-        return $context;
-    }
-
-    /** @return array<string, string> */
-    protected function casts(): array
-    {
-        return [
-            'created_at' => 'immutable_datetime',
-            'pinned_at' => 'immutable_datetime',
-        ];
     }
 
     public function getUrl(): string
@@ -206,5 +177,34 @@ class Recent extends Model implements HasIcon, HasLabel
     {
         /** @var ?string */
         return config('phpinnacle-recens.connection', parent::getConnectionName());
+    }
+
+    /** @return array<string, string> */
+    protected function casts(): array
+    {
+        return [
+            'created_at' => 'immutable_datetime',
+            'pinned_at' => 'immutable_datetime',
+        ];
+    }
+
+    /**
+     * @return array{user_id: string|int|null, panel_id: string|null, tenant_id?: string|int|null}
+     */
+    private static function context(): array
+    {
+        $panel = Filament::getCurrentPanel();
+        $context = [
+            'user_id' => $panel !== null ? $panel->auth()->id() : Auth::id(),
+            'panel_id' => $panel?->getId(),
+        ];
+
+        if (config('phpinnacle-recens.tenancy.model') !== null) {
+            /** @var string|int|null $tenantId */
+            $tenantId = Filament::getTenant()?->getKey() ?? config('phpinnacle-recens.tenancy.default');
+            $context['tenant_id'] = $tenantId;
+        }
+
+        return $context;
     }
 }

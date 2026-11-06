@@ -42,6 +42,17 @@
                     "public:static:*",
                     "public:*"
                 ]
+            },
+            {
+                "order": [
+                    "__construct",
+                    "public:static:*",
+                    "public:*",
+                    "protected:*",
+                    "private:*",
+                    "protected:static:*",
+                    "private:static:*"
+                ]
             }
         ],
         "compact-empty-method-body": {

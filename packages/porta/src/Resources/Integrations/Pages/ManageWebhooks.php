@@ -39,11 +39,6 @@ class ManageWebhooks extends ManageRelatedRecords
 
     protected static string $relationship = 'webhooks';
 
-    public function getTitle(): string|Htmlable
-    {
-        return __('phpinnacle-porta::resources.webhook.pages.list');
-    }
-
     public static function getNavigationLabel(): string
     {
         return __('phpinnacle-porta::resources.integration.pages.webhooks');
@@ -52,6 +47,11 @@ class ManageWebhooks extends ManageRelatedRecords
     public static function getNavigationIcon(): ?string
     {
         return config('phpinnacle-porta.navigation.webhook.icon');
+    }
+
+    public function getTitle(): string|Htmlable
+    {
+        return __('phpinnacle-porta::resources.webhook.pages.list');
     }
 
     public function infolist(Schema $schema): Schema

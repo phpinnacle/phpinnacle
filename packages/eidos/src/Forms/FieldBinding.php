@@ -302,86 +302,6 @@ class FieldBinding extends Field
         return $schemas;
     }
 
-    private function makeBindingSchema(string $source, int $index): FilamentSchema
-    {
-        /** @var FilamentSchema $schema The default child schema always exists. */
-        $schema = $this->getChildSchema();
-        $schema = $schema->getClone()->inlineLabel(false);
-
-        if ($this->simpleField !== null) {
-            /** @var Field $field */
-            $field = $schema->getComponents()[0];
-            $field->statePath('target')->key($field->getName());
-
-            if (!$field->hasDefaultState()) {
-                $field->default($source);
-            }
-
-            $schema->statePath((string) $index);
-        } else {
-            $schema->statePath($index . '.target');
-        }
-
-        return $schema;
-    }
-
-    protected function areCachedDefaultChildSchemasFresh(): bool
-    {
-        return (
-            array_keys(array_filter(
-                $this->cachedDefaultChildSchemas ?? [],
-                fn (string $key) => str_starts_with($key, 'source_') || self::isConstantKey($key),
-                ARRAY_FILTER_USE_KEY,
-            )) === $this->getBoundKeys()
-            && $this->areSourceSettingsSchemasFresh()
-        );
-    }
-
-    private function getConstantSchema(string $key, ?string $defaultTarget = null): FilamentSchema
-    {
-        $fields = $this->evaluate($this->sourceSettingsSchema, [
-            'source' => $key,
-            'inputSchema' => fn () => fn () => $this->getConstantInputSchema($key),
-        ]);
-        /** @var FilamentSchema $output The default child schema always exists. */
-        $output = $this->getChildSchema();
-        $output = $output->getClone()->inlineLabel(false);
-
-        if ($this->simpleField !== null) {
-            /** @var Field $target */
-            $target = $output->getComponents()[0];
-            $target->statePath('target')->key($target->getName());
-
-            if ($defaultTarget !== null && !$target->hasDefaultState()) {
-                $target->default($defaultTarget);
-            }
-        }
-
-        $outputGroup = Group::make()->schema($output)->key('output');
-
-        if ($this->simpleField === null) {
-            $outputGroup
-                ->statePath('target')
-                ->default([])
-                ->dehydrateStateUsing(fn (?array $state) => $state ?? []);
-        }
-
-        return $this->makeChildSchema('constants')->components([
-            Group::make([
-                TextInput::make('static')
-                    ->label(__('phpinnacle-eidos::schema-forms.value'))
-                    ->hiddenLabel()
-                    ->inlineLabel(false)
-                    ->placeholder(__('phpinnacle-eidos::schema-forms.value'))
-                    ->default('')
-                    ->required()
-                    ->rule(fn () => $this->validateStaticValue(...)),
-                Group::make($fields)->statePath('options')->default([]),
-            ])->key('input')->dense(),
-            $outputGroup,
-        ]);
-    }
-
     public function getConstantInputSchema(string $constant): Schema
     {
         /** @var State $rows */
@@ -406,11 +326,6 @@ class FieldBinding extends Field
         $rows = $this->getRawState();
 
         return $rows[$this->constantIndex($constant)]['target'];
-    }
-
-    private function constantIndex(string $constant): int
-    {
-        return (int) substr($constant, strlen(self::CONSTANT_PREFIX));
     }
 
     public function getBindAction(): Action
@@ -465,6 +380,18 @@ class FieldBinding extends Field
             ->after(fn (self $component) => $component->renderStaticValues());
     }
 
+    protected function areCachedDefaultChildSchemasFresh(): bool
+    {
+        return (
+            array_keys(array_filter(
+                $this->cachedDefaultChildSchemas ?? [],
+                fn (string $key) => str_starts_with($key, 'source_') || self::isConstantKey($key),
+                ARRAY_FILTER_USE_KEY,
+            )) === $this->getBoundKeys()
+            && $this->areSourceSettingsSchemasFresh()
+        );
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -510,6 +437,79 @@ class FieldBinding extends Field
             fn (self $component) => $component->getAddConstantAction(),
             fn (self $component) => $component->getRemoveConstantAction(),
         ]);
+    }
+
+    private function makeBindingSchema(string $source, int $index): FilamentSchema
+    {
+        /** @var FilamentSchema $schema The default child schema always exists. */
+        $schema = $this->getChildSchema();
+        $schema = $schema->getClone()->inlineLabel(false);
+
+        if ($this->simpleField !== null) {
+            /** @var Field $field */
+            $field = $schema->getComponents()[0];
+            $field->statePath('target')->key($field->getName());
+
+            if (!$field->hasDefaultState()) {
+                $field->default($source);
+            }
+
+            $schema->statePath((string) $index);
+        } else {
+            $schema->statePath($index . '.target');
+        }
+
+        return $schema;
+    }
+
+    private function getConstantSchema(string $key, ?string $defaultTarget = null): FilamentSchema
+    {
+        $fields = $this->evaluate($this->sourceSettingsSchema, [
+            'source' => $key,
+            'inputSchema' => fn () => fn () => $this->getConstantInputSchema($key),
+        ]);
+        /** @var FilamentSchema $output The default child schema always exists. */
+        $output = $this->getChildSchema();
+        $output = $output->getClone()->inlineLabel(false);
+
+        if ($this->simpleField !== null) {
+            /** @var Field $target */
+            $target = $output->getComponents()[0];
+            $target->statePath('target')->key($target->getName());
+
+            if ($defaultTarget !== null && !$target->hasDefaultState()) {
+                $target->default($defaultTarget);
+            }
+        }
+
+        $outputGroup = Group::make()->schema($output)->key('output');
+
+        if ($this->simpleField === null) {
+            $outputGroup
+                ->statePath('target')
+                ->default([])
+                ->dehydrateStateUsing(fn (?array $state) => $state ?? []);
+        }
+
+        return $this->makeChildSchema('constants')->components([
+            Group::make([
+                TextInput::make('static')
+                    ->label(__('phpinnacle-eidos::schema-forms.value'))
+                    ->hiddenLabel()
+                    ->inlineLabel(false)
+                    ->placeholder(__('phpinnacle-eidos::schema-forms.value'))
+                    ->default('')
+                    ->required()
+                    ->rule(fn () => $this->validateStaticValue(...)),
+                Group::make($fields)->statePath('options')->default([]),
+            ])->key('input')->dense(),
+            $outputGroup,
+        ]);
+    }
+
+    private function constantIndex(string $constant): int
+    {
+        return (int) substr($constant, strlen(self::CONSTANT_PREFIX));
     }
 
     private function renderStaticValues(): void
@@ -588,11 +588,6 @@ class FieldBinding extends Field
         return $keys;
     }
 
-    private static function isConstantKey(string $key): bool
-    {
-        return str_starts_with($key, self::CONSTANT_PREFIX);
-    }
-
     /** @param Closure(string): PotentiallyTranslatedString $fail */
     private function validateStaticValue(string $attribute, mixed $value, Closure $fail): void
     {
@@ -667,5 +662,10 @@ class FieldBinding extends Field
                 return;
             }
         }
+    }
+
+    private static function isConstantKey(string $key): bool
+    {
+        return str_starts_with($key, self::CONSTANT_PREFIX);
     }
 }

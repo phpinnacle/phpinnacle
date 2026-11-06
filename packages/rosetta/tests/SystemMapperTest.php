@@ -14,22 +14,6 @@ use RuntimeException;
 
 final class SystemMapperTest extends TestCase
 {
-    /** @param array<string, int|bool|string> $expected */
-    #[Test]
-    #[DataProvider('systemFields')]
-    public function it_reads_the_configured_type_and_allowed_length(
-        MetadataKind $kind,
-        int $type,
-        int $length,
-        int $allowedLength,
-        array $expected,
-    ): void {
-        $fields = new SystemMapper()->map(self::definition($kind, $type, $length, $allowedLength), $kind, 'object-id');
-        $name = $kind === MetadataKind::Reference ? '_code' : '_number';
-
-        $this->assertSame($expected, $fields[$name]->jsonSerialize());
-    }
-
     /** @return iterable<string, array{MetadataKind, int, int, int, array<string, int|bool|string>}> */
     public static function systemFields(): iterable
     {
@@ -84,6 +68,31 @@ final class SystemMapperTest extends TestCase
         ];
     }
 
+    /** @return iterable<string, array{MetadataKind, mixed, mixed}> */
+    public static function invalidSettings(): iterable
+    {
+        yield 'unknown code type' => [MetadataKind::Reference, 2, 1];
+        yield 'missing number type' => [MetadataKind::Document, null, 1];
+        yield 'invalid code allowed length' => [MetadataKind::Reference, 1, 2];
+        yield 'invalid number allowed length' => [MetadataKind::Document, 1, '1'];
+    }
+
+    /** @param array<string, int|bool|string> $expected */
+    #[Test]
+    #[DataProvider('systemFields')]
+    public function it_reads_the_configured_type_and_allowed_length(
+        MetadataKind $kind,
+        int $type,
+        int $length,
+        int $allowedLength,
+        array $expected,
+    ): void {
+        $fields = new SystemMapper()->map(self::definition($kind, $type, $length, $allowedLength), $kind, 'object-id');
+        $name = $kind === MetadataKind::Reference ? '_code' : '_number';
+
+        $this->assertSame($expected, $fields[$name]->jsonSerialize());
+    }
+
     #[Test]
     #[DataProvider('invalidSettings')]
     public function it_rejects_invalid_system_field_settings(
@@ -93,15 +102,6 @@ final class SystemMapperTest extends TestCase
     ): void {
         $this->expectException(RuntimeException::class);
         new SystemMapper()->map(self::definition($kind, $type, 9, $allowedLength), $kind, 'object-id');
-    }
-
-    /** @return iterable<string, array{MetadataKind, mixed, mixed}> */
-    public static function invalidSettings(): iterable
-    {
-        yield 'unknown code type' => [MetadataKind::Reference, 2, 1];
-        yield 'missing number type' => [MetadataKind::Document, null, 1];
-        yield 'invalid code allowed length' => [MetadataKind::Reference, 1, 2];
-        yield 'invalid number allowed length' => [MetadataKind::Document, 1, '1'];
     }
 
     /** @return array<int, mixed> */

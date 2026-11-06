@@ -77,6 +77,15 @@ class MediaUpload extends FileUpload
             });
     }
 
+    private function deleteAbandonedFiles(?Model $record): void
+    {
+        if ($record === null) {
+            return;
+        }
+
+        Media::clear($record, $this->getName(), array_keys($this->getRawState()));
+    }
+
     private static function performCopy(BaseFileUpload $component, TemporaryUploadedFile $file): ?string
     {
         $path = trim($component->getDirectory() . '/' . $component->getUploadedFileNameForStorage($file), '/');
@@ -104,14 +113,5 @@ class MediaUpload extends FileUpload
         }
 
         return $file->delete() ? $path : null;
-    }
-
-    private function deleteAbandonedFiles(?Model $record): void
-    {
-        if ($record === null) {
-            return;
-        }
-
-        Media::clear($record, $this->getName(), array_keys($this->getRawState()));
     }
 }

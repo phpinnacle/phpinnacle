@@ -25,21 +25,6 @@ final class ValidDuration implements ValidationRule
         private readonly array $units = ['day', 'hour', 'minute', 'second'],
     ) {}
 
-    public function validate(string $attribute, mixed $value, Closure $fail): void
-    {
-        if ($value === null || $value === '') {
-            return;
-        }
-
-        $valid = $this->format === 'seconds'
-            ? self::validSeconds($value) && ($value % $this->smallestUnitSeconds()) === 0
-            : self::parseString($value, $this->units) !== null;
-
-        if (!$valid) {
-            $fail('phpinnacle-tempo::duration.invalid')->translate();
-        }
-    }
-
     public static function validSeconds(mixed $value): bool
     {
         return is_int($value) && $value >= 0 && $value <= self::MAX_SECONDS;
@@ -73,6 +58,21 @@ final class ValidDuration implements ValidationRule
         }
 
         return $total;
+    }
+
+    public function validate(string $attribute, mixed $value, Closure $fail): void
+    {
+        if ($value === null || $value === '') {
+            return;
+        }
+
+        $valid = $this->format === 'seconds'
+            ? self::validSeconds($value) && ($value % $this->smallestUnitSeconds()) === 0
+            : self::parseString($value, $this->units) !== null;
+
+        if (!$valid) {
+            $fail('phpinnacle-tempo::duration.invalid')->translate();
+        }
     }
 
     private function smallestUnitSeconds(): int

@@ -37,13 +37,6 @@ class TaxNumber extends TextInput
         return $this->evaluate($this->countries);
     }
 
-    protected function getCountrySource(): ?Country
-    {
-        $code = $this->getCountry();
-
-        return array_find($this->getCountries(), fn ($country) => $country->code() === $code);
-    }
-
     public function country(string|Closure|null $country): static
     {
         $this->country = $country;
@@ -72,6 +65,43 @@ class TaxNumber extends TextInput
     public function getCacheTtl(): int
     {
         return $this->cacheTtl;
+    }
+
+    /** @return array{message: ?string, lookup: ?array{name: string, status: ?string, address: ?string}} */
+    #[Exposed]
+    #[Renderless]
+    public function lookupForJs(): array
+    {
+        if ($this->isDisabled() || $this->isHidden()) {
+            return ['message' => null, 'lookup' => null];
+        }
+
+        $blocker = $this->getBlockerMessage();
+
+        if ($blocker !== null) {
+            return ['message' => $blocker, 'lookup' => null];
+        }
+
+        $cacheStore = $this->getCacheStore();
+        $lookup = new Lookup(
+            $cacheStore === null ? null : Cache::store($cacheStore),
+            $this->getCacheTtl(),
+        );
+        $result = $lookup->resolve($this->getCountrySource(), $this->getState());
+
+        return [
+            'message' => $result->failure === null
+                ? null
+                : __('phpinnacle-common::tax-number.' . $result->failure->value),
+            'lookup' => $result->data(),
+        ];
+    }
+
+    protected function getCountrySource(): ?Country
+    {
+        $code = $this->getCountry();
+
+        return array_find($this->getCountries(), fn ($country) => $country->code() === $code);
     }
 
     protected function setUp(): void
@@ -128,35 +158,5 @@ class TaxNumber extends TextInput
         }
 
         return null;
-    }
-
-    /** @return array{message: ?string, lookup: ?array{name: string, status: ?string, address: ?string}} */
-    #[Exposed]
-    #[Renderless]
-    public function lookupForJs(): array
-    {
-        if ($this->isDisabled() || $this->isHidden()) {
-            return ['message' => null, 'lookup' => null];
-        }
-
-        $blocker = $this->getBlockerMessage();
-
-        if ($blocker !== null) {
-            return ['message' => $blocker, 'lookup' => null];
-        }
-
-        $cacheStore = $this->getCacheStore();
-        $lookup = new Lookup(
-            $cacheStore === null ? null : Cache::store($cacheStore),
-            $this->getCacheTtl(),
-        );
-        $result = $lookup->resolve($this->getCountrySource(), $this->getState());
-
-        return [
-            'message' => $result->failure === null
-                ? null
-                : __('phpinnacle-common::tax-number.' . $result->failure->value),
-            'lookup' => $result->data(),
-        ];
     }
 }

@@ -36,12 +36,7 @@ Create `grimoire.json`:
                     "protected:property:*",
                     "private:property:*",
                     "method:__construct",
-                    "public:static:method:*",
-                    "public:method:*",
-                    "protected:static:method:*",
-                    "protected:method:*",
-                    "private:static:method:*",
-                    "private:method:*"
+                    "method:*"
                 ]
             }
         ],
@@ -56,6 +51,17 @@ Create `grimoire.json`:
                     "public:*",
                     "protected:*",
                     "private:*"
+                ]
+            },
+            {
+                "order": [
+                    "__construct",
+                    "public:static:*",
+                    "public:*",
+                    "protected:*",
+                    "private:*",
+                    "protected:static:*",
+                    "private:static:*"
                 ]
             }
         ],
@@ -86,9 +92,9 @@ Selectors use the form `[modifier:...:]type:name-pattern`. Supported types are `
 
 ### `phpinnacle/class-method-order`
 
-Orders class methods using the first matching configuration in the `class-method-order` array. The optional `extends` glob matches the resolved direct parent class; omit it to match any class.
+Orders methods in classes, anonymous classes, traits, interfaces, and enums using the first matching configuration in the `class-method-order` array. The optional `extends` glob matches a resolved direct parent; omit it to match every class-like declaration. Put specific configurations, such as migrations, before the general order.
 
-Selectors are evaluated from top to bottom. A bare selector is a method-name glob; prefixes require matching modifiers, so `public:static:*` matches every public static method. Methods unmatched by any selector remain last in their original order.
+Selectors are evaluated from top to bottom. A bare selector is a method-name glob; prefixes require matching modifiers. Selectors without `static` match only instance methods: `public:*` excludes static methods, while `public:static:*` selects public static methods. Methods in the same group retain their original order, without alphabetic sorting. Unmatched methods remain last in their original order. Keep the formatter's `sort-class-methods` disabled when using a custom order.
 
 ### `phpinnacle/compact-empty-method-body`
 

@@ -163,18 +163,6 @@ abstract class CalendarWidget extends Widget implements HasActions, HasSchemas
         ];
     }
 
-    /**
-     * @param  array<int, array<string, mixed>>  $events
-     * @return array{events: array<int, array<string, mixed>>, status: string, truncated: bool}
-     */
-    private static function calendarResponse(
-        array $events = [],
-        string $status = 'ready',
-        bool $truncated = false,
-    ): array {
-        return compact('events', 'status', 'truncated');
-    }
-
     /** @return array<string, EventSource> */
     private function eventSources(): array
     {
@@ -185,5 +173,17 @@ abstract class CalendarWidget extends Widget implements HasActions, HasSchemas
         }
 
         return $eventSources;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $events
+     * @return array{events: array<int, array<string, mixed>>, status: string, truncated: bool}
+     */
+    private static function calendarResponse(
+        array $events = [],
+        string $status = 'ready',
+        bool $truncated = false,
+    ): array {
+        return compact('events', 'status', 'truncated');
     }
 }

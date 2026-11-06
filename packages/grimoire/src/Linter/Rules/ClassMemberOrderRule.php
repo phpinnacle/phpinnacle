@@ -16,6 +16,7 @@ use Mago\Sdk\Syntax\Node;
 use Mago\Sdk\Syntax\NodeKind;
 use Mago\Sdk\Syntax\ResolvedName;
 use Mago\Sdk\Syntax\SourceFile;
+use PHPinnacle\Grimoire\Linter\MemberSpan;
 
 final class ClassMemberOrderRule implements Rule
 {
@@ -61,7 +62,7 @@ final class ClassMemberOrderRule implements Rule
 
         foreach ($classMembers as $index => $member) {
             $details = $this->details($context->file, $member);
-            $span = $this->spanWithComments(
+            $span = MemberSpan::withComments(
                 $context->file,
                 $member,
                 new Span(
@@ -272,50 +273,5 @@ final class ClassMemberOrderRule implements Rule
         }
 
         return count($order);
-    }
-
-    private function spanWithComments(SourceFile $file, Node $member, Span $bounds): Span
-    {
-        $start = $member->span->start;
-        $end = $member->span->end;
-
-        foreach ($file->getDescendants($member, NodeKind::AttributeList) as $attributes) {
-            $start = min($start, $attributes->span->start);
-        }
-
-        foreach (array_reverse($file->getTrivia()) as $comment) {
-            if ($comment->span->end > $start || $comment->span->start < $bounds->start) {
-                continue;
-            }
-
-            if (
-                !str_contains(substr($file->contents, $bounds->start, $comment->span->start - $bounds->start), "\n")
-                || trim(substr($file->contents, $comment->span->end, $start - $comment->span->end)) !== ''
-            ) {
-                break;
-            }
-
-            $start = $comment->span->start;
-        }
-
-        foreach ($file->getTrivia() as $comment) {
-            if ($comment->span->start < $end) {
-                continue;
-            }
-
-            if ($comment->span->start >= $bounds->end) {
-                break;
-            }
-
-            $between = substr($file->contents, $end, $comment->span->start - $end);
-
-            if (str_contains($between, "\n") || trim($between) !== '') {
-                break;
-            }
-
-            $end = $comment->span->end;
-        }
-
-        return new Span($start, $end);
     }
 }

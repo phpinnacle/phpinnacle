@@ -38,6 +38,7 @@
         "test": [
             "@php tests/BlankLineBeforeControlStructureFixTest.php",
             "@php tests/ClassMemberOrderFixTest.php",
+            "@php tests/ClassMethodOrderFixTest.php",
             "@php tests/NoClosureReturnTypeFixTest.php",
             "mago --config tests/corpus/mago.toml lint --only phpinnacle/class-member-order,phpinnacle/class-method-order,phpinnacle/compact-empty-method-body,phpinnacle/no-closure-return-type,phpinnacle/blank-line-before-control-structure --minimum-fail-level warning"
         ]

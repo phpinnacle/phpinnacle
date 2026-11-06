@@ -25,17 +25,6 @@ final class ValidCronExpression implements ValidationRule
 
     private const array WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
-    public function validate(string $attribute, mixed $value, Closure $fail): void
-    {
-        if ($value === null || $value === '') {
-            return;
-        }
-
-        if (!self::isValid($value)) {
-            $fail('phpinnacle-tempo::cron.invalid')->translate();
-        }
-    }
-
     public static function isValid(mixed $value): bool
     {
         if (!is_string($value)) {
@@ -71,6 +60,17 @@ final class ValidCronExpression implements ValidationRule
         }
 
         return true;
+    }
+
+    public function validate(string $attribute, mixed $value, Closure $fail): void
+    {
+        if ($value === null || $value === '') {
+            return;
+        }
+
+        if (!self::isValid($value)) {
+            $fail('phpinnacle-tempo::cron.invalid')->translate();
+        }
     }
 
     private static function validSegment(string $segment, int $minimum, int $maximum, int $index): bool

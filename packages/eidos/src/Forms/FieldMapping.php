@@ -139,15 +139,6 @@ class FieldMapping extends Field
         );
     }
 
-    private static function mappingMode(Schema $schema): MappingMode
-    {
-        return match ([$schema->singleType(), $schema->annotation('x-mapping')]) {
-            ['array', MappingMode::Item->value] => MappingMode::Item,
-            ['object', MappingMode::Property->value] => MappingMode::Property,
-            default => MappingMode::Whole,
-        };
-    }
-
     /** @param Closure $forms Factory returning a Field named value or null, with target, property and other Filament-injected arguments. */
     public function staticForms(Closure $forms): static
     {
@@ -172,19 +163,6 @@ class FieldMapping extends Field
     public function hasStaticForms(): bool
     {
         return $this->staticForms !== null;
-    }
-
-    /** @return array<Component> */
-    protected function getSourceSettingsComponents(string $source): array
-    {
-        $components = $this->evaluate($this->sourceSettingsSchema, [
-            'source' => $source,
-            'inputSchema' => null,
-        ]);
-
-        return [Group::make($components)->afterStateUpdated(function () use ($source) {
-            $this->updatedSources[$source] = true;
-        })];
     }
 
     /** @return array<string, string> */
@@ -293,11 +271,6 @@ class FieldMapping extends Field
         return $schemas;
     }
 
-    protected function areCachedDefaultChildSchemasFresh(): bool
-    {
-        return $this->cachedStaticTargets === $this->getStaticTargets() && $this->areSourceSettingsSchemasFresh();
-    }
-
     /**
      * @param array<string, mixed>|null $hydratedDefaultState
      * @param array<string, true> $appliedStateCastPaths
@@ -356,14 +329,6 @@ class FieldMapping extends Field
         }
 
         return $draftIndex;
-    }
-
-    private function isTargetUsed(string $target): bool
-    {
-        /** @var State $rows */
-        $rows = $this->getRawState() ?? [];
-
-        return in_array($target, array_column($rows, 'target'), true);
     }
 
     /** @param bool|Closure(): bool $condition */
@@ -432,18 +397,6 @@ class FieldMapping extends Field
         $this->canConnectUsing = $callback;
 
         return $this;
-    }
-
-    private function canConnect(
-        Schema $source,
-        Schema $target,
-        string $sourceName,
-        string $targetName,
-    ): bool {
-        return (
-            ($this->compatibility ?? SchemaCompatibility::make())->accepts($source, $target)
-            && ($this->canConnectUsing === null || ($this->canConnectUsing)($source, $target, $sourceName, $targetName))
-        );
     }
 
     /** @return array<string, array<string, MappingMode>> */
@@ -517,6 +470,33 @@ class FieldMapping extends Field
         return SchemaPresentation::toMappingItems($this->getTargetSchema());
     }
 
+    /** @return array<string, Presentation> */
+    public function getSourcePresentations(): array
+    {
+        return array_map(
+            SchemaPresentation::presentation(...),
+            $this->getOutputSchema()->resolveReferences()->effectiveProperties(),
+        );
+    }
+
+    /** @return array<Component> */
+    protected function getSourceSettingsComponents(string $source): array
+    {
+        $components = $this->evaluate($this->sourceSettingsSchema, [
+            'source' => $source,
+            'inputSchema' => null,
+        ]);
+
+        return [Group::make($components)->afterStateUpdated(function () use ($source) {
+            $this->updatedSources[$source] = true;
+        })];
+    }
+
+    protected function areCachedDefaultChildSchemasFresh(): bool
+    {
+        return $this->cachedStaticTargets === $this->getStaticTargets() && $this->areSourceSettingsSchemasFresh();
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -573,12 +553,23 @@ class FieldMapping extends Field
         ]);
     }
 
-    /** @return array<string, Presentation> */
-    public function getSourcePresentations(): array
+    private function isTargetUsed(string $target): bool
     {
-        return array_map(
-            SchemaPresentation::presentation(...),
-            $this->getOutputSchema()->resolveReferences()->effectiveProperties(),
+        /** @var State $rows */
+        $rows = $this->getRawState() ?? [];
+
+        return in_array($target, array_column($rows, 'target'), true);
+    }
+
+    private function canConnect(
+        Schema $source,
+        Schema $target,
+        string $sourceName,
+        string $targetName,
+    ): bool {
+        return (
+            ($this->compatibility ?? SchemaCompatibility::make())->accepts($source, $target)
+            && ($this->canConnectUsing === null || ($this->canConnectUsing)($source, $target, $sourceName, $targetName))
         );
     }
 
@@ -795,11 +786,6 @@ class FieldMapping extends Field
         );
     }
 
-    private static function stateKey(string $target): string
-    {
-        return 'target_' . bin2hex($target);
-    }
-
     private function makeStaticField(string $target): ?Field
     {
         if (!$this->hasStaticForms()) {
@@ -810,5 +796,19 @@ class FieldMapping extends Field
 
         /** @var Field|null */
         return $this->evaluate($this->staticForms, ['target' => $target, 'property' => $property]);
+    }
+
+    private static function mappingMode(Schema $schema): MappingMode
+    {
+        return match ([$schema->singleType(), $schema->annotation('x-mapping')]) {
+            ['array', MappingMode::Item->value] => MappingMode::Item,
+            ['object', MappingMode::Property->value] => MappingMode::Property,
+            default => MappingMode::Whole,
+        };
+    }
+
+    private static function stateKey(string $target): string
+    {
+        return 'target_' . bin2hex($target);
     }
 }

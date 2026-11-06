@@ -1,0 +1,65 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+
+final class Subject
+{
+    /** Stays with the private static method. */
+    #[Deprecated]
+    private static function hiddenFactory(): string { return 'private static'; } // Factory comment.
+
+    protected static function factory(): string { return 'protected static'; }
+
+    private function hidden(): string { return 'private'; }
+
+    protected function helper(): string { return 'protected'; }
+
+    public function zebra(): string { return 'first public'; }
+
+    public function alpha(): string { return 'second public'; }
+
+    public static function make(): string { return 'public static'; }
+
+    private function __construct() {}
+}
+
+trait SubjectTrait
+{
+    private static function hiddenFactory(): void {}
+
+    private function hidden(): void {}
+
+    public function run(): void {}
+}
+
+interface SubjectInterface
+{
+    public function run(): void;
+
+    public static function make(): self;
+}
+
+enum SubjectState
+{
+    case Active;
+
+    protected static function factory(): void {}
+
+    protected function helper(): void {}
+
+    public function run(): void {}
+}
+
+$object = new class {
+    private static function factory(): void {}
+
+    public function run(): void {}
+};
+
+return new class extends Migration {
+    public function down(): void {}
+
+    public function up(): void {}
+
+    public function getConnection(): ?string { return null; }
+};

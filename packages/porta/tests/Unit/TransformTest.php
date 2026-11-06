@@ -12,20 +12,6 @@ use PHPUnit\Framework\TestCase;
 
 final class TransformTest extends TestCase
 {
-    #[DataProvider('transforms')]
-    public function test_it_transforms_selected_payload_values(
-        TransformType $type,
-        string $path,
-        array $config,
-        array $payload,
-        array $expected,
-    ): void {
-        $transform = new Transform($path, $type, $config);
-
-        $this->assertSame($expected, $transform->apply($payload));
-        $this->assertSame($expected, $type->transform($payload, $path, $config));
-    }
-
     public static function transforms(): iterable
     {
         yield 'map preserves scalar types and leaves objects alone' => [
@@ -252,19 +238,33 @@ final class TransformTest extends TestCase
         ];
     }
 
+    public static function types(): iterable
+    {
+        foreach (TransformType::cases() as $type) {
+            yield $type->value => [$type];
+        }
+    }
+
+    #[DataProvider('transforms')]
+    public function test_it_transforms_selected_payload_values(
+        TransformType $type,
+        string $path,
+        array $config,
+        array $payload,
+        array $expected,
+    ): void {
+        $transform = new Transform($path, $type, $config);
+
+        $this->assertSame($expected, $transform->apply($payload));
+        $this->assertSame($expected, $type->transform($payload, $path, $config));
+    }
+
     #[DataProvider('types')]
     public function test_it_leaves_payloads_unchanged_when_the_path_is_absent(TransformType $type): void
     {
         $payload = ['value' => 'untouched'];
 
         $this->assertSame($payload, new Transform('$.missing.field', $type)->apply($payload));
-    }
-
-    public static function types(): iterable
-    {
-        foreach (TransformType::cases() as $type) {
-            yield $type->value => [$type];
-        }
     }
 
     public function test_it_uses_the_clock_for_date_fallbacks_and_future_dates(): void

@@ -24,13 +24,6 @@ class TabbedBuilder extends Builder
 
     protected string|Htmlable|Closure|null $emptyStateDescription = null;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->deleteAction(null);
-    }
-
     public function getAddActionLabel(): string
     {
         return $this->evaluate($this->addActionLabel) ?? __('phpinnacle-common::tabbed-builder.add');
@@ -180,5 +173,12 @@ class TabbedBuilder extends Builder
             )),
         ];
         $rules["{$path}.*.data"] = ['sometimes', 'array'];
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->deleteAction(null);
     }
 }

@@ -169,6 +169,31 @@ final class SchemaPresentation
         return [...self::valuePresentation($schema), 'items' => self::itemPresentations($schema)];
     }
 
+    public static function enumLabel(Schema $schema, mixed $value): ?string
+    {
+        $key = is_string($value)
+            ? $value
+            : json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+
+        /** @var array<array-key, string> $labels */
+        $labels = $schema->keyword('x-enum') ?? [];
+
+        return $labels[$key] ?? null;
+    }
+
+    /** @return list<Badge> */
+    public static function badges(Schema $schema): array
+    {
+        /** @var list<Badge> $badges */
+        $badges = $schema->keyword('x-badges') ?? [];
+
+        foreach ($schema->branches('allOf') as $branch) {
+            $badges = [...$badges, ...self::badges($branch)];
+        }
+
+        return $badges;
+    }
+
     /** @return ValuePresentation */
     private static function valuePresentation(Schema $schema): array
     {
@@ -186,18 +211,6 @@ final class SchemaPresentation
                 $schema->enum() ?? [],
             ),
         ];
-    }
-
-    public static function enumLabel(Schema $schema, mixed $value): ?string
-    {
-        $key = is_string($value)
-            ? $value
-            : json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
-
-        /** @var array<array-key, string> $labels */
-        $labels = $schema->keyword('x-enum') ?? [];
-
-        return $labels[$key] ?? null;
     }
 
     /**
@@ -297,19 +310,6 @@ final class SchemaPresentation
         }
 
         return $constraints;
-    }
-
-    /** @return list<Badge> */
-    public static function badges(Schema $schema): array
-    {
-        /** @var list<Badge> $badges */
-        $badges = $schema->keyword('x-badges') ?? [];
-
-        foreach ($schema->branches('allOf') as $branch) {
-            $badges = [...$badges, ...self::badges($branch)];
-        }
-
-        return $badges;
     }
 
     private static function validateIcon(mixed $icon): string

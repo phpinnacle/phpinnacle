@@ -7,6 +7,7 @@ trait MemberTrait {}
 abstract class MemberBase {}
 
 /** @mago-expect lint:phpinnacle/class-member-order */
+/** @mago-expect lint:phpinnacle/class-method-order */
 final class MemberOrder extends MemberBase
 {
     private function helper(): void {}

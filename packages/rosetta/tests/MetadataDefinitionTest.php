@@ -15,6 +15,32 @@ use PHPUnit\Framework\TestCase;
 
 final class MetadataDefinitionTest extends TestCase
 {
+    /** @return iterable<string, array{MetadataKind, string, list<int>, list<int>}> */
+    public static function metadataKindStorage(): iterable
+    {
+        yield 'reference' => [MetadataKind::Reference, 'Reference', [2, 10, 2], [7]];
+        yield 'document' => [MetadataKind::Document, 'Document', [2, 10, 2], [6]];
+        yield 'enumeration' => [MetadataKind::Enumeration, 'Enum', [2, 6, 2], []];
+        yield 'accumulation register' => [
+            MetadataKind::AccumulationRegister,
+            'AccumRg',
+            [2, 14, 2],
+            [6, 7, 8],
+        ];
+        yield 'information register' => [
+            MetadataKind::InformationRegister,
+            'InfoRg',
+            [2, 16, 2],
+            [4, 5, 8],
+        ];
+        yield 'tabular section' => [
+            MetadataKind::Section,
+            'VT',
+            [1, 2, 6, 2],
+            [3],
+        ];
+    }
+
     #[Test]
     public function it_accepts_non_uuid_identifiers(): void
     {
@@ -189,32 +215,6 @@ final class MetadataDefinitionTest extends TestCase
         $this->assertSame($token, $kind->storageToken());
         $this->assertSame($identityPath, $kind->identityPath());
         $this->assertSame($propertyRoots, $kind->propertyRoots());
-    }
-
-    /** @return iterable<string, array{MetadataKind, string, list<int>, list<int>}> */
-    public static function metadataKindStorage(): iterable
-    {
-        yield 'reference' => [MetadataKind::Reference, 'Reference', [2, 10, 2], [7]];
-        yield 'document' => [MetadataKind::Document, 'Document', [2, 10, 2], [6]];
-        yield 'enumeration' => [MetadataKind::Enumeration, 'Enum', [2, 6, 2], []];
-        yield 'accumulation register' => [
-            MetadataKind::AccumulationRegister,
-            'AccumRg',
-            [2, 14, 2],
-            [6, 7, 8],
-        ];
-        yield 'information register' => [
-            MetadataKind::InformationRegister,
-            'InfoRg',
-            [2, 16, 2],
-            [4, 5, 8],
-        ];
-        yield 'tabular section' => [
-            MetadataKind::Section,
-            'VT',
-            [1, 2, 6, 2],
-            [3],
-        ];
     }
 
     #[Test]

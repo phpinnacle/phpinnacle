@@ -85,6 +85,13 @@ class MoneyRule implements ValidationRule, ValidatorAwareRule
         }
     }
 
+    public function setValidator(Validator $validator): static
+    {
+        $this->value = is_string($this->field) ? $validator->getValue($this->field) : $this->field;
+
+        return $this;
+    }
+
     private function isMoneyInput(mixed $value, ?string $currency = null): bool
     {
         if ($value instanceof Money) {
@@ -101,12 +108,5 @@ class MoneyRule implements ValidationRule, ValidatorAwareRule
         }
 
         return is_string($currency) && ($value === null || is_int($value) || is_string($value));
-    }
-
-    public function setValidator(Validator $validator): static
-    {
-        $this->value = is_string($this->field) ? $validator->getValue($this->field) : $this->field;
-
-        return $this;
     }
 }
