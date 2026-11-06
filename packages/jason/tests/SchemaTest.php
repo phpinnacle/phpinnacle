@@ -3,6 +3,15 @@
 use PHPinnacle\Jason\Schema;
 use PHPinnacle\Jason\SchemaBuilder;
 
+it('distinguishes the empty object definition from boolean schemas and null values', function () {
+    expect(Schema::empty()->toJson())->toBe('{}');
+    expect(Schema::empty()->isEmpty())->toBeTrue();
+    expect(Schema::fromArray(true)->isEmpty())->toBeFalse();
+    expect(Schema::fromArray(false)->isEmpty())->toBeFalse();
+    expect(Schema::null()->isEmpty())->toBeFalse();
+    expect(Schema::fromArray(['allOf' => []])->isEmpty())->toBeFalse();
+});
+
 it('preserves complete definitions without normalizing constraints or annotations', function () {
     $definition = [
         '$schema' => 'https://json-schema.org/draft/2020-12/schema',
@@ -46,6 +55,41 @@ it('takes immutable snapshots of nested JSON objects at input and output boundar
     $schema->keywords()['default']->nested->value = 'keywords output changed';
     $schema->jsonSerialize()->default->nested->value = 'serialized output changed';
     expect($schema->keyword('default')->nested->value)->toBe('original');
+});
+
+it('protects mutable annotations while sharing children through reads and rebuilds', function () {
+    $input = ['type' => 'string', 'default' => (object) ['nested' => (object) ['value' => 'original']]];
+    $child = Schema::fromArray($input);
+    $parent = Schema::object(['child' => $child]);
+    $builder = $parent->builder();
+    $snapshot = $builder->title('First')->build();
+    $rebuilt = $builder->title('Second')->build();
+    $composition = Schema::anyOf([$parent]);
+    $array = SchemaBuilder::make()->items($parent)->build();
+    $input['default']->nested->value = 'input changed';
+    $snapshot->properties()['child']->default()->nested->value = 'child changed';
+    $composition->branches('anyOf')[0]->properties()['child']->annotation('default')->nested->value = 'branch changed';
+    $array->items()->properties()['child']->jsonSerialize()->default->nested->value = 'item changed';
+    $exported = $rebuilt->toArray();
+    $exported['properties']['child']['default']->nested->value = 'export changed';
+    $visited = [];
+    $parent->walk(function (Schema $fragment) use (&$visited) {
+        $visited[] = $fragment;
+
+        if ($fragment->hasKeyword('default')) {
+            $fragment->keywords()['default']->nested->value = 'walk changed';
+        }
+    });
+
+    expect($child->default()->nested->value)->toBe('original');
+    expect($parent->properties()['child']->default()->nested->value)->toBe('original');
+    expect($snapshot->properties()['child']->default()->nested->value)->toBe('original');
+    expect($rebuilt->properties()['child']->default()->nested->value)->toBe('original');
+    expect($composition->branches('anyOf')[0]->properties()['child']->default()->nested->value)->toBe('original');
+    expect($array->items()->properties()['child']->default()->nested->value)->toBe('original');
+    expect($visited[1]->default()->nested->value)->toBe('original');
+    expect($snapshot->title())->toBe('First');
+    expect($parent->title())->toBeNull();
 });
 
 it('reads absent keywords from boolean schemas', function (bool $definition) {

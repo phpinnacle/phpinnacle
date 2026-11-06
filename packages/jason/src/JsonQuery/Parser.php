@@ -245,23 +245,6 @@ final class Parser
         }
     }
 
-    private static function compare(mixed $left, string $operator, mixed $right): bool
-    {
-        if (is_bool($left) !== is_bool($right)) {
-            return false;
-        }
-
-        return match ($operator) {
-            '==' => $left === $right,
-            '!=' => $left !== $right,
-            '<' => $left < $right,
-            '>' => $left > $right,
-            '<=' => $left <= $right,
-            '>=' => $left >= $right,
-            default => is_string($left) && is_string($right) && preg_match($right, $left) === 1,
-        };
-    }
-
     /** @return Closure(mixed, mixed): mixed */
     private function operand(): Closure
     {
@@ -437,5 +420,22 @@ final class Parser
         }
 
         $this->position++;
+    }
+
+    private static function compare(mixed $left, string $operator, mixed $right): bool
+    {
+        if (is_bool($left) !== is_bool($right)) {
+            return false;
+        }
+
+        return match ($operator) {
+            '==' => $left === $right,
+            '!=' => $left !== $right,
+            '<' => $left < $right,
+            '>' => $left > $right,
+            '<=' => $left <= $right,
+            '>=' => $left >= $right,
+            default => is_string($left) && is_string($right) && preg_match($right, $left) === 1,
+        };
     }
 }

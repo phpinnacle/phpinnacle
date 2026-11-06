@@ -4,6 +4,147 @@ use PHPinnacle\Jason\JsonPath;
 use PHPinnacle\Jason\Schema;
 use PHPinnacle\Jason\SchemaBuilder;
 
+it('selects property and item schemas while distinguishing null values from impossible paths', function (
+    array $path,
+    array|bool|null $expected,
+) {
+    $schema = Schema::fromArray([
+        'type' => 'object',
+        'properties' => [
+            'null' => ['type' => 'null'],
+            'free' => true,
+            'empty' => [],
+            'blocked' => false,
+            '0' => ['type' => 'boolean'],
+            'rows' => [
+                'type' => 'array',
+                'prefixItems' => [['type' => 'string'], ['type' => 'integer']],
+                'items' => ['type' => 'null'],
+                'maxItems' => 4,
+            ],
+            'closed' => ['type' => 'object', 'additionalProperties' => false],
+        ],
+        'additionalProperties' => ['type' => 'number'],
+    ]);
+
+    expect($schema->atPath($path)?->toArray())->toBe($expected);
+    expect($schema->atPath(new JsonPath($path))?->toArray())->toBe($expected);
+    expect($schema->atPath([]))->toBe($schema);
+})->with([
+    'JSON null value' => [['null'], ['type' => 'null']],
+    'literal boolean schema' => [['free'], true],
+    'empty definition' => [['empty'], []],
+    'rejecting declared schema' => [['blocked'], false],
+    'literal numeric property' => [['0'], ['type' => 'boolean']],
+    'first positional item' => [['rows', 0], ['type' => 'string']],
+    'second positional item' => [['rows', 1], ['type' => 'integer']],
+    'tail item' => [['rows', 3], ['type' => 'null']],
+    'index beyond maximum' => [['rows', 4], null],
+    'array property mismatch' => [['rows', '0'], null],
+    'object index mismatch' => [[0], null],
+    'prohibited additional field' => [['closed', 'missing'], null],
+    'typed additional field' => [['extra'], ['type' => 'number']],
+    'scalar child' => [['null', 'value'], null],
+    'rejecting child' => [['blocked', 'value'], null],
+]);
+
+it('flattens wildcard matches while preserving arrays selected as values', function () {
+    $schema = Schema::fromArray([
+        'type' => 'array',
+        'items' => [
+            'type' => 'array',
+            'items' => [
+                'type' => 'object',
+                'properties' => [
+                    'values' => ['type' => 'array', 'items' => ['type' => 'integer']],
+                ],
+            ],
+        ],
+    ]);
+
+    expect($schema->atPath([null, null, 'values'])->toArray())->toBe([
+        'type' => 'array',
+        'items' => ['type' => 'array', 'items' => ['type' => 'integer']],
+    ]);
+    expect($schema->atPath([null, null, 'values', null])->toArray())->toBe([
+        'type' => 'array',
+        'items' => ['type' => 'integer'],
+    ]);
+    expect($schema->atPath([0, 0, 'values'])->toArray())->toBe([
+        'type' => 'array',
+        'items' => ['type' => 'integer'],
+    ]);
+});
+
+it('combines positional constraints at each index before projecting wildcard items', function () {
+    $schema = Schema::fromArray([
+        'type' => 'array',
+        'prefixItems' => [['type' => 'string', 'title' => 'First'], ['type' => 'integer']],
+        'items' => false,
+        'allOf' => [['prefixItems' => [['minLength' => 2]], 'items' => ['maximum' => 10]]],
+    ]);
+    $items = $schema->atPath([null])->items();
+
+    expect($schema->atPath([0])->effectiveMinLength())->toBe(2);
+    expect($schema->atPath([1])->types())->toBe(['integer']);
+    expect($schema->atPath([2]))->toBeNull();
+    expect($items->branches('anyOf')[0]->annotation('title'))->toBe('First');
+    expect($items->branches('anyOf')[0]->effectiveMinLength())->toBe(2);
+    expect($items->branches('anyOf')[1]->branches('allOf')[1]->maximum())->toBe(10);
+    expect($schema->effectiveItems()->equals($items))->toBeTrue();
+});
+
+it('projects composed paths and local references with their sibling constraints', function (string $keyword) {
+    $schema = Schema::fromArray([
+        '$defs' => ['value' => ['type' => 'string', 'title' => 'Value']],
+        'type' => 'object',
+        'properties' => ['value' => ['maxLength' => 20]],
+        'allOf' => [['properties' => ['value' => ['minLength' => 2]]]],
+        $keyword => [
+            ['properties' => ['value' => ['$ref' => '#/$defs/value']]],
+            ['properties' => ['value' => ['type' => 'integer']]],
+        ],
+    ]);
+    $value = $schema->atPath(['value']);
+
+    expect($value->types())->toBe(['string', 'integer']);
+    expect($value->effectiveMinLength())->toBe(2);
+    expect($value->effectiveMaxLength())->toBe(20);
+    expect($value->annotation('title'))->toBe('Value');
+    expect($schema->properties()['value']->toArray())->toBe(['maxLength' => 20]);
+})->with(['anyOf', 'oneOf']);
+
+it('projects object wildcards without dropping open additional fields', function () {
+    $closed = Schema::fromArray([
+        'type' => 'object',
+        'properties' => ['first' => ['type' => 'string'], 'second' => ['type' => 'null']],
+        'additionalProperties' => false,
+    ]);
+    $open = $closed->builder()->without('additionalProperties')->build();
+
+    expect($closed->atPath([null])->items()->types())->toBe(['string', 'null']);
+    expect($open->atPath([null])->items()->types())->toBe([]);
+    expect(Schema::fromArray(false)->atPath(['value']))->toBeNull();
+    expect(Schema::fromArray(true)->atPath(['value'])->isEmpty())->toBeTrue();
+    expect(Schema::array()->builder()->items(Schema::fromArray(false))->build()->atPath([null]))->toBeNull();
+});
+
+it('resolves boolean reference targets without conflating them with null or empty schemas', function (array|bool $target) {
+    $schema = Schema::fromArray([
+        '$defs' => ['value' => $target],
+        'properties' => ['value' => ['$ref' => '#/$defs/value']],
+    ]);
+
+    expect($schema->atPath(['value'])->toArray())->toBe($target);
+})->with(['true' => [true], 'false' => [false], 'empty' => [[]], 'null value' => [['type' => 'null']]]);
+
+it('preserves reference expansion errors when projecting a path', function () {
+    $schema = Schema::fromArray(['properties' => ['value' => ['$ref' => 'external.json']]]);
+
+    expect(fn () => $schema->atPath(['value']))->toThrow(InvalidArgumentException::class, 'Only local');
+    expect($schema->properties()['value']->ref())->toBe('external.json');
+});
+
 it('finds declared data paths through properties and array items', function (string $path, bool $exists) {
     $schema = Schema::fromArray([
         'properties' => [

@@ -1,6 +1,52 @@
 <?php
 
+use PHPinnacle\Jason\JsonPath;
 use PHPinnacle\Jason\JsonQuery;
+use PHPinnacle\Jason\Schema;
+
+it('uses one canonical path for schema navigation and flat PHP data queries', function () {
+    $path = new JsonPath("$['rows'][*]['values'][*]");
+    $schema = Schema::fromArray([
+        'type' => 'object',
+        'properties' => [
+            'rows' => [
+                'type' => 'array',
+                'items' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'values' => [
+                            'type' => 'array',
+                            'items' => ['type' => 'integer'],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+    $data = ['rows' => [['values' => [1, 2]], ['values' => [3]]]];
+
+    expect(new JsonQuery($path)->find($data))->toBe([1, 2, 3]);
+    expect(new JsonQuery($path->segments)->find($data))->toBe([1, 2, 3]);
+    expect($schema->atPath($path)->toArray())->toBe(['type' => 'array', 'items' => ['type' => 'integer']]);
+});
+
+it('preserves canonical literal names and supports mutations without reparsing', function () {
+    $data = ['0' => ['*' => ['length' => null, "literal.'\\" => 3]]];
+    $path = new JsonPath(['0', '*', 'length']);
+    $query = new JsonQuery($path);
+
+    expect($query->find($data))->toBe([null]);
+    expect($query->set($data, 2))->toBe([0 => ['*' => ['length' => 2, "literal.'\\" => 3]]]);
+    expect($query->update($data, fn ($value) => $value === null ? 'updated' : $value))->toBe([
+        0 => ['*' => ['length' => 'updated', "literal.'\\" => 3]],
+    ]);
+    expect($query->remove($data))->toBe([0 => ['*' => ["literal.'\\" => 3]]]);
+    expect(new JsonQuery(['missing', 0, 'name'])->set([], 'created'))->toBe(['missing' => [['name' => 'created']]]);
+    expect(new JsonQuery(['0', '*', 'missing'])->find($data))->toBe([]);
+    expect(new JsonQuery(['0', '*', "literal.'\\"])->find($data))->toBe([3]);
+    expect(new JsonQuery([])->find($data))->toBe([$data]);
+    expect($data[0]['*']['length'])->toBeNull();
+});
 
 it('selects JSON values with the webhook query syntax', function (string $path, array $expected) {
     $data = [

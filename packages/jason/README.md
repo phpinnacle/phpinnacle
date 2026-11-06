@@ -16,20 +16,16 @@ composer require phpinnacle/jason
 use PHPinnacle\Jason\Schema;
 use PHPinnacle\Jason\SchemaBuilder;
 
-$schema = SchemaBuilder::make()
-    ->type('object')
-    ->properties([
-        'email' => SchemaBuilder::make()
-            ->type('string')
-            ->format('email')
-            ->title('Email address')
-            ->build(),
-        'tags' => SchemaBuilder::make()
-            ->type('array')
-            ->items(Schema::string())
-            ->maxItems(10)
-            ->build(),
-    ])
+$schema = SchemaBuilder::object([
+    'email' => SchemaBuilder::string()
+        ->format('email')
+        ->title('Email address')
+        ->build(),
+    'tags' => SchemaBuilder::array()
+        ->items(Schema::string())
+        ->maxItems(10)
+        ->build(),
+])
     ->required(['email'])
     ->withoutAdditionalProperties()
     ->build();
@@ -43,7 +39,11 @@ Builder methods change that builder and return it. `$schema->builder()` or
 
 ```php
 $updated = $schema->builder()->title('Customer')->build();
+$withoutEnum = $schema->builder()->without('enum')->build();
 ```
+
+`without(string ...$keywords)` removes keywords; absent keywords are a no-op.
+Removal differs from assigning null and leaves the source schema unchanged.
 
 Later builder changes and nested annotation mutations cannot change a schema
 already returned by `build()`.
@@ -56,6 +56,12 @@ Short value factories remain available on `Schema`: `object()`, `array()`,
 `anyOf([...])`, `oneOf([...])`, and `allOf([...])`. They return immutable schemas;
 configuration methods belong to the builder. Schema maps and composition lists
 accept these `Schema` values.
+
+Start configurable schemas directly with `SchemaBuilder::object($properties = [])`,
+`array()`, `string()`, `integer()`, `number()`, `boolean()`, `null()`, `empty()`, or
+`union([...])`, then chain configuration methods and call `build()`. Object factory
+properties accept `Schema` values, just like `Schema::object()`. Composition methods
+`anyOf()`, `oneOf()`, and `allOf()` remain instance methods on a builder.
 
 On the builder, `nullable()` permits null for the complete schema, including enum
 and composition constraints; `nullable(false)` excludes null. When nullability
@@ -77,13 +83,22 @@ $types = $view->types();
 $maximum = $view->effectiveMaxLength();
 ```
 
-`effectiveProperties()` and `effectiveRequired()` merge `allOf` branches.
-`types()` combines declared alternatives and intersects conjunctive types, including
-`integer` within `number`; `singleType()` excludes null when identifying one type.
-`effectiveItems()` combines item constraints; `arrayItems()` returns them only for
+`effectiveProperties()` returns the union of declared names from root properties,
+then `allOf`, `anyOf`, and `oneOf` branches in first-seen order. Same-name alternatives
+use `anyOf`; root and `allOf` constraints remain conjunctive. Branches where a name
+is absent contribute their `additionalProperties` constraint, including an
+unrestricted schema when additional properties are allowed. Field annotations stay
+on their contributing schemas. A prohibited declared field can project to `false`.
+These names do not guarantee presence in data: consult `required` separately.
+`effectiveRequired()` merges `allOf` branches.
+`types()` intersects sibling and conjunctive types with unions of alternatives,
+including `integer` within `number`. Unrestricted alternatives remain unrestricted;
+`singleType()` excludes null when identifying one type.
+`effectiveItems()` combines positional and tail item constraints; `arrayItems()` returns them only for
 an array type, using an empty object schema when items are unrestricted.
-`property($name)` selects an effective property or its additional-property schema,
-returning null when additional properties are prohibited.
+`property($name)` projects a named property's constraints across compositions,
+including additional-property rules, and returns null when selection is prohibited
+or the schema excludes objects.
 `enumValues()` intersects `allOf` enum restrictions; `allowsEnumValue($value)`
 checks those restrictions using JSON value equality.
 `effectiveMinLength()` intersects conjunctive minimum lengths;
@@ -97,9 +112,12 @@ These projections do not validate payloads or prove arbitrary schema equivalence
 or containment. UI presentation, connection policy, and application transformations
 belong to consumers.
 
-`equals($other)` compares serialized schema definitions by JSON value: object key
+`equals($other, bool $strict = false)` compares stored schema definitions by JSON value: object key
 order is ignored, list order and scalar types are preserved, and numbers compare
-by value. It does not compare the meaning of differently expressed schemas.
+by value. With `strict: true`, key order and numeric types (`1` versus `1.0`) also
+matter. Both modes distinguish absent keywords from explicit null and compare
+nested objects structurally, without requiring identical `stdClass` instances.
+Neither mode proves the meaning of differently expressed schemas equivalent.
 
 ## Read and preserve definitions
 
@@ -155,6 +173,9 @@ string or list form.
 `allowsAny()` identifies the literal schema `true`; `deniesAny()` identifies the
 literal schema `false`. Both return false for object schemas, including `{}` and
 `{"type":"boolean"}`. They do not attempt to prove schema equivalence.
+`Schema::empty()` creates exactly `{}`; `isEmpty()` checks that the definition has
+no keywords. It returns false for boolean schemas, `Schema::null()`, and nonempty
+definitions that happen to impose no restrictions.
 
 Use `keyword()` for extension values and `keywords()` for the complete keyword
 map. Boolean schemas have no keywords; `toArray()` retains their boolean value.
@@ -207,6 +228,28 @@ use PHPinnacle\Jason\JsonPath;
 $exists = $schema->resolveReferences()->hasDeclaredPath(JsonPath::parse("$['name']"));
 ```
 
+`atPath(JsonPath|array $segments)` returns the selected value's schema. Strings
+select object fields, integers select positional or tail items, and null selects
+all children. Compositions retain sibling constraints. Nonempty paths expand local
+references using the same supported subset and errors as `resolveReferences()`.
+An empty path returns the original schema, including literal boolean schemas.
+
+```php
+use PHPinnacle\Jason\JsonQuery;
+
+$path = new JsonPath("$['rows'][*]['name']");
+$resultSchema = $schema->atPath($path);
+$values = new JsonQuery($path)->find($payload);
+```
+
+Any wildcard wraps the selected schema in one array of matches. Multiple wildcards
+produce a flat list; a selected array remains an array inside that list. Wildcards
+also select object members. Open additional properties and unrestricted items
+contribute unrestricted schemas; prohibited or structurally impossible paths
+return null. A selected JSON null is represented by `Schema::null()`, and an explicitly
+declared property's boolean schema remains a schema value. This is a structural projection, not a
+validator or a proof of instance existence or arbitrary schema satisfiability.
+
 ## JSONPath
 
 `PHPinnacle\Jason\JsonPath` formats and parses canonical paths without requiring
@@ -218,6 +261,10 @@ use PHPinnacle\Jason\JsonPath;
 $path = JsonPath::fromSegments(['items', null, 'name']); // $['items'][*]['name']
 $segments = JsonPath::parse($path); // ['items', null, 'name']
 $property = JsonPath::property('literal.key'); // ['literal.key']
+
+$value = new JsonPath($segments); // or new JsonPath($path), using the same parser
+$segments = $value->segments; // readonly canonical segments
+$path = (string) $value;
 ```
 
 String segments are literal property names, integer segments are nonnegative
@@ -241,6 +288,11 @@ Consumers own bundling or publishing the JavaScript module.
 
 `JsonQuery` selects and transforms PHP arrays representing JSON payloads. It is
 separate from the canonical `JsonPath` codec, whose syntax remains unchanged.
+Its constructor accepts `JsonPath|array|string`. Canonical objects and segment lists
+compile directly into query steps, so one parsed path can serve `atPath()` and
+queries without formatting and reparsing. String queries retain the broader
+language below; they are not restricted to canonical paths. Payloads remain PHP
+values throughout execution.
 
 ```php
 use PHPinnacle\Jason\JsonQuery;

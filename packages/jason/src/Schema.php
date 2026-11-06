@@ -3,6 +3,7 @@
 namespace PHPinnacle\Jason;
 
 use Closure;
+use InvalidArgumentException;
 use JsonSerializable;
 use stdClass;
 
@@ -80,10 +81,7 @@ final readonly class Schema implements JsonSerializable
     /** @param Definition $definition */
     public static function fromArray(array|bool $definition): self
     {
-        /** @var Keywords|bool $copy */
-        $copy = Codec::copy($definition);
-
-        return new self($copy);
+        return self::fromDefinition(Codec::copy($definition));
     }
 
     public static function fromJson(string $json): self
@@ -91,12 +89,17 @@ final readonly class Schema implements JsonSerializable
         return self::fromArray(Codec::decode(json_decode($json, flags: JSON_THROW_ON_ERROR)));
     }
 
+    public static function empty(): self
+    {
+        return new self([]);
+    }
+
     /** @param array<string, self> $properties */
     public static function object(array $properties = []): self
     {
         return new self([
             'type' => 'object',
-            'properties' => array_map(fn (self $schema) => $schema->toArray(), $properties),
+            'properties' => array_map(fn (self $schema) => $schema->definition, $properties),
         ]);
     }
 
@@ -139,19 +142,61 @@ final readonly class Schema implements JsonSerializable
     /** @param list<self> $schemas */
     public static function anyOf(array $schemas): self
     {
-        return new self(['anyOf' => array_map(fn (self $schema) => $schema->toArray(), $schemas)]);
+        return new self(['anyOf' => array_map(fn (self $schema) => $schema->definition, $schemas)]);
     }
 
     /** @param list<self> $schemas */
     public static function oneOf(array $schemas): self
     {
-        return new self(['oneOf' => array_map(fn (self $schema) => $schema->toArray(), $schemas)]);
+        return new self(['oneOf' => array_map(fn (self $schema) => $schema->definition, $schemas)]);
     }
 
     /** @param list<self> $schemas */
     public static function allOf(array $schemas): self
     {
-        return new self(['allOf' => array_map(fn (self $schema) => $schema->toArray(), $schemas)]);
+        return new self(['allOf' => array_map(fn (self $schema) => $schema->definition, $schemas)]);
+    }
+
+    public function isEmpty(): bool
+    {
+        return $this->definition === [];
+    }
+
+    /**
+     * @internal Builder boundary: copy new mutable inputs while sharing immutable fragments.
+     * @param array<string, mixed> $keywords
+     * @param array<array-key, string> $without
+     */
+    public function withKeywords(array $keywords, array $without = []): self
+    {
+        if (is_bool($this->definition)) {
+            if ($keywords !== []) {
+                throw new InvalidArgumentException('Boolean schemas cannot have keywords.');
+            }
+
+            return $this;
+        }
+
+        $definition = $this->definition;
+
+        foreach ($without as $keyword) {
+            unset($definition[$keyword]);
+        }
+
+        foreach ($keywords as $keyword => $value) {
+            if (in_array($keyword, [...Codec::MAPS, ...Codec::LISTS], true)) {
+                /** @var array<array-key, Definition|self> $value */
+                $definition[$keyword] = array_map(self::copyFragment(...), $value);
+            } elseif (in_array($keyword, Codec::SCHEMAS, true)) {
+                /** @var Definition|self $value */
+                $definition[$keyword] = self::copyFragment($value);
+            } else {
+                $definition[$keyword] = Codec::copyValue($value);
+            }
+        }
+
+        /** @var Keywords $definition */
+        return new self($definition);
     }
 
     public function builder(): SchemaBuilder
@@ -370,108 +415,108 @@ final readonly class Schema implements JsonSerializable
     /** @return array<string, self> */
     public function properties(): array
     {
-        return array_map(self::fromArray(...), $this->keywordVal('properties') ?? []);
+        return array_map(self::fromDefinition(...), $this->keywordVal('properties') ?? []);
     }
 
     /** @return array<string, self> */
     public function patternProperties(): array
     {
-        return array_map(self::fromArray(...), $this->keywordVal('patternProperties') ?? []);
+        return array_map(self::fromDefinition(...), $this->keywordVal('patternProperties') ?? []);
     }
 
     /** @return array<string, self> */
     public function dependentSchemas(): array
     {
-        return array_map(self::fromArray(...), $this->keywordVal('dependentSchemas') ?? []);
+        return array_map(self::fromDefinition(...), $this->keywordVal('dependentSchemas') ?? []);
     }
 
     /** @return array<string, self> */
     public function defs(): array
     {
-        return array_map(self::fromArray(...), $this->keywordVal('$defs') ?? []);
+        return array_map(self::fromDefinition(...), $this->keywordVal('$defs') ?? []);
     }
 
     public function items(): ?self
     {
         $definition = $this->keywordVal('items');
 
-        return $definition === null ? null : self::fromArray($definition);
+        return $definition === null ? null : self::fromDefinition($definition);
     }
 
     public function additionalProperties(): ?self
     {
         $definition = $this->keywordVal('additionalProperties');
 
-        return $definition === null ? null : self::fromArray($definition);
+        return $definition === null ? null : self::fromDefinition($definition);
     }
 
     public function unevaluatedProperties(): ?self
     {
         $definition = $this->keywordVal('unevaluatedProperties');
 
-        return $definition === null ? null : self::fromArray($definition);
+        return $definition === null ? null : self::fromDefinition($definition);
     }
 
     public function unevaluatedItems(): ?self
     {
         $definition = $this->keywordVal('unevaluatedItems');
 
-        return $definition === null ? null : self::fromArray($definition);
+        return $definition === null ? null : self::fromDefinition($definition);
     }
 
     public function contains(): ?self
     {
         $definition = $this->keywordVal('contains');
 
-        return $definition === null ? null : self::fromArray($definition);
+        return $definition === null ? null : self::fromDefinition($definition);
     }
 
     public function not(): ?self
     {
         $definition = $this->keywordVal('not');
 
-        return $definition === null ? null : self::fromArray($definition);
+        return $definition === null ? null : self::fromDefinition($definition);
     }
 
     public function if(): ?self
     {
         $definition = $this->keywordVal('if');
 
-        return $definition === null ? null : self::fromArray($definition);
+        return $definition === null ? null : self::fromDefinition($definition);
     }
 
     public function then(): ?self
     {
         $definition = $this->keywordVal('then');
 
-        return $definition === null ? null : self::fromArray($definition);
+        return $definition === null ? null : self::fromDefinition($definition);
     }
 
     public function else(): ?self
     {
         $definition = $this->keywordVal('else');
 
-        return $definition === null ? null : self::fromArray($definition);
+        return $definition === null ? null : self::fromDefinition($definition);
     }
 
     public function propertyNames(): ?self
     {
         $definition = $this->keywordVal('propertyNames');
 
-        return $definition === null ? null : self::fromArray($definition);
+        return $definition === null ? null : self::fromDefinition($definition);
     }
 
     public function contentSchema(): ?self
     {
         $definition = $this->keywordVal('contentSchema');
 
-        return $definition === null ? null : self::fromArray($definition);
+        return $definition === null ? null : self::fromDefinition($definition);
     }
 
     /** @return list<self> */
     public function prefixItems(): array
     {
-        return array_map(self::fromArray(...), $this->keywordVal('prefixItems') ?? []);
+        return array_map(self::fromDefinition(...), $this->keywordVal('prefixItems') ?? []);
     }
 
     public function keyword(string $name): mixed
@@ -499,55 +544,13 @@ final readonly class Schema implements JsonSerializable
     {
         $branches = $this->keywordVal($keyword) ?? [];
 
-        return array_map(self::fromArray(...), $branches);
-    }
-
-    /**
-     * @template TKeyword of key-of<Keywords>
-     * @param TKeyword $keyword
-     * @return Keywords[TKeyword]|null
-     */
-    private function keywordVal(string $keyword): mixed
-    {
-        return is_array($this->definition) ? $this->definition[$keyword] ?? null : null;
+        return array_map(self::fromDefinition(...), $branches);
     }
 
     /** @param Closure(self, ?string, string|int|null): void $visitor */
     public function walk(Closure $visitor): void
     {
         $this->walkAt($visitor);
-    }
-
-    /** @param Closure(self, ?string, string|int|null): void $visitor */
-    private function walkAt(Closure $visitor, ?string $keyword = null, string|int|null $key = null): void
-    {
-        $visitor($this, $keyword, $key);
-
-        if (is_bool($this->definition)) {
-            return;
-        }
-
-        foreach ([...Codec::MAPS, ...Codec::LISTS] as $keyword) {
-            /** @var array<array-key, Keywords|bool> $children */
-            $children = $this->definition[$keyword] ?? [];
-
-            foreach ($children as $key => $child) {
-                self::fromArray($child)
-                    ->walkAt(
-                        $visitor,
-                        $keyword,
-                        in_array($keyword, Codec::MAPS, true) ? (string) $key : $key,
-                    );
-            }
-        }
-
-        foreach (Codec::SCHEMAS as $keyword) {
-            if (array_key_exists($keyword, $this->definition)) {
-                /** @var Keywords|bool $child */
-                $child = $this->definition[$keyword];
-                new self($child)->walkAt($visitor, $keyword);
-            }
-        }
     }
 
     /** @param list<string|int|null> $segments Canonical JSONPath segments. */
@@ -571,17 +574,43 @@ final readonly class Schema implements JsonSerializable
         return $child !== null && $child->hasDeclaredPath(array_slice($segments, 1));
     }
 
+    /** @param JsonPath|list<string|int|null> $segments */
+    public function atPath(JsonPath|array $segments): ?self
+    {
+        $segments = $segments instanceof JsonPath ? $segments->segments : $segments;
+
+        if ($segments === []) {
+            return $this;
+        }
+
+        $hasReferences = false;
+        $this->walk(function (self $fragment) use (&$hasReferences) {
+            $hasReferences = $hasReferences || $fragment->ref() !== null;
+        });
+        $schema = $hasReferences ? $this->resolveReferences() : $this;
+
+        foreach ($segments as $segment) {
+            $schema = match (true) {
+                is_string($segment) => $schema->property($segment),
+                is_int($segment) => $schema->indexedItem($segment),
+                default => $schema->wildcardChild(),
+            };
+
+            if ($schema === null) {
+                return null;
+            }
+        }
+
+        return in_array(null, $segments, true) ? self::array()->builder()->items($schema)->build() : $schema;
+    }
+
     /** @return array<string, self> */
     public function effectiveProperties(): array
     {
-        $properties = $this->properties();
+        $properties = [];
 
-        foreach ($this->branches('allOf') as $branch) {
-            foreach ($branch->effectiveProperties() as $name => $property) {
-                $properties[$name] = array_key_exists($name, $properties)
-                    ? self::compose('allOf', [$properties[$name], $property])
-                    : $property;
-            }
+        foreach ($this->declaredPropertyNames() as $name) {
+            $properties[$name] = $this->property($name) ?? new self(false);
         }
 
         return $properties;
@@ -601,19 +630,7 @@ final readonly class Schema implements JsonSerializable
 
     public function property(string $name): ?self
     {
-        $properties = $this->effectiveProperties();
-
-        if (array_key_exists($name, $properties)) {
-            return $properties[$name];
-        }
-
-        $additional = $this->additionalProperties();
-
-        if ($additional?->deniesAny()) {
-            return null;
-        }
-
-        return $additional === null || $additional->allowsAny() ? self::fromArray([]) : $additional;
+        return $this->projectProperty($name);
     }
 
     public function arrayItems(): ?self
@@ -622,78 +639,26 @@ final readonly class Schema implements JsonSerializable
             return null;
         }
 
-        return $this->effectiveItems() ?? self::fromArray([]);
+        return $this->effectiveItems() ?? self::empty();
     }
 
     public function effectiveItems(): ?self
     {
-        $items = $this->items();
-        $constraints = $items === null ? [] : [$items];
+        $declared = $this->hasKeyword('items') || $this->hasKeyword('prefixItems');
 
-        foreach ($this->branches('allOf') as $branch) {
-            $items = $branch->effectiveItems();
-
-            if ($items !== null) {
-                $constraints[] = $items;
+        foreach (['allOf', 'anyOf', 'oneOf'] as $keyword) {
+            foreach ($this->branches($keyword) as $branch) {
+                $declared = $declared || $branch->effectiveItems() !== null;
             }
         }
 
-        foreach ([$this->branches('anyOf'), $this->branches('oneOf')] as $branches) {
-            $items = [];
-
-            foreach ($branches as $branch) {
-                if ($branch->types() === [] || in_array('array', $branch->types(), true)) {
-                    $items[] = $branch->effectiveItems() ?? self::fromArray([]);
-                }
-            }
-
-            if ($items !== []) {
-                $constraints[] = self::compose('anyOf', $items);
-            }
-        }
-
-        return $constraints === [] ? null : self::compose('allOf', $constraints);
-    }
-
-    /**
-     * @param 'allOf'|'anyOf' $keyword
-     * @param non-empty-list<self> $schemas
-     */
-    private static function compose(string $keyword, array $schemas): self
-    {
-        if (count($schemas) === 1) {
-            return $schemas[0];
-        }
-
-        return self::fromArray([$keyword => array_map(fn (self $schema) => $schema->toArray(), $schemas)]);
+        return $declared ? $this->wildcardItems() ?? new self(false) : null;
     }
 
     /** @return list<string> */
     public function types(): array
     {
-        $types = (array) ($this->type() ?? []);
-
-        foreach ([...$this->branches('anyOf'), ...$this->branches('oneOf')] as $branch) {
-            $types = array_merge($types, $branch->types());
-        }
-
-        foreach ($this->branches('allOf') as $branch) {
-            $branchTypes = $branch->types();
-
-            if ($branchTypes !== []) {
-                if (in_array('number', $types, true) && in_array('integer', $branchTypes, true)) {
-                    $types[] = 'integer';
-                }
-
-                if (in_array('integer', $types, true) && in_array('number', $branchTypes, true)) {
-                    $branchTypes[] = 'integer';
-                }
-
-                $types = $types === [] ? $branchTypes : array_intersect($types, $branchTypes);
-            }
-        }
-
-        return array_values(array_unique($types));
+        return $this->possibleTypes() ?? [];
     }
 
     public function singleType(): ?string
@@ -730,9 +695,9 @@ final readonly class Schema implements JsonSerializable
         return null;
     }
 
-    public function equals(self $other): bool
+    public function equals(self $other, bool $strict = false): bool
     {
-        return self::sameJsonValue($this->definition, $other->definition);
+        return self::sameJsonValue($this->definition, $other->definition, $strict);
     }
 
     /** @return list<mixed>|null */
@@ -757,40 +722,6 @@ final readonly class Schema implements JsonSerializable
         }
 
         return $values;
-    }
-
-    private static function sameJsonValue(mixed $left, mixed $right): bool
-    {
-        return match (true) {
-            is_int($left) && is_float($right) => $left === (int) $right && (float) $left === $right,
-            is_float($left) && is_int($right) => self::sameJsonValue($right, $left),
-            (is_array($left) || $left instanceof stdClass) && (is_array($right) || $right instanceof stdClass)
-                => self::sameJsonStructure($left, $right),
-            default => $left === $right,
-        };
-    }
-
-    /**
-     * @param array<array-key, mixed>|stdClass $left
-     * @param array<array-key, mixed>|stdClass $right
-     */
-    private static function sameJsonStructure(array|stdClass $left, array|stdClass $right): bool
-    {
-        $leftIsList = is_array($left) && array_is_list($left);
-        $rightIsList = is_array($right) && array_is_list($right);
-        $left = (array) $left;
-        $right = (array) $right;
-
-        if ($leftIsList !== $rightIsList || count($left) !== count($right)) {
-            return false;
-        }
-
-        return array_all(
-            $left,
-            fn (mixed $value, int|string $key) => (
-                array_key_exists($key, $right) && self::sameJsonValue($value, $right[$key])
-            ),
-        );
     }
 
     public function effectiveMaxLength(): ?int
@@ -820,37 +751,13 @@ final readonly class Schema implements JsonSerializable
         return $bounds === [] ? null : max($bounds);
     }
 
-    /** @param 'minLength'|'maxLength' $keyword */
-    private function lengthBound(string $keyword): ?int
-    {
-        $bound = $keyword === 'minLength' ? $this->minLength() : $this->maxLength();
-
-        foreach ($this->branches('allOf') as $branch) {
-            $value = $branch->lengthBound($keyword);
-
-            if ($value === null) {
-                continue;
-            }
-
-            if ($bound === null) {
-                $bound = $value;
-
-                continue;
-            }
-
-            $bound = $keyword === 'minLength' ? max($bound, $value) : min($bound, $value);
-        }
-
-        return $bound;
-    }
-
     /** @return list<self> */
     public function alternatives(): array
     {
         $branches = $this->branches('anyOf');
         $keyword = $branches !== [] ? 'anyOf' : 'oneOf';
         $branches = $branches !== [] ? $branches : $this->branches('oneOf');
-        $siblings = $this->keywords();
+        $siblings = is_array($this->definition) ? $this->definition : [];
         unset($siblings[$keyword]);
 
         if ($branches === []) {
@@ -860,7 +767,7 @@ final readonly class Schema implements JsonSerializable
                 if ($alternatives !== []) {
                     $allOf = $this->branches('allOf');
                     unset($allOf[$index]);
-                    $siblings['allOf'] = array_values(array_map(fn (Schema $schema) => $schema->toArray(), $allOf));
+                    $siblings['allOf'] = array_values(array_map(fn (Schema $schema) => $schema->definition, $allOf));
 
                     $branches = $alternatives;
 
@@ -873,7 +780,7 @@ final readonly class Schema implements JsonSerializable
             return [];
         }
 
-        $siblings = self::fromArray($siblings);
+        $siblings = new self($siblings);
 
         return array_map(fn (self $branch) => self::compose('allOf', [$siblings, $branch]), $branches);
     }
@@ -912,5 +819,390 @@ final readonly class Schema implements JsonSerializable
     public function jsonSerialize(): stdClass|bool
     {
         return Codec::encode($this->toArray());
+    }
+
+    /**
+     * @template TKeyword of key-of<Keywords>
+     * @param TKeyword $keyword
+     * @return Keywords[TKeyword]|null
+     */
+    private function keywordVal(string $keyword): mixed
+    {
+        return is_array($this->definition) ? $this->definition[$keyword] ?? null : null;
+    }
+
+    /** @param Closure(self, ?string, string|int|null): void $visitor */
+    private function walkAt(Closure $visitor, ?string $keyword = null, string|int|null $key = null): void
+    {
+        $visitor($this, $keyword, $key);
+
+        if (is_bool($this->definition)) {
+            return;
+        }
+
+        foreach ([...Codec::MAPS, ...Codec::LISTS] as $keyword) {
+            /** @var array<array-key, Keywords|bool> $children */
+            $children = $this->definition[$keyword] ?? [];
+
+            foreach ($children as $key => $child) {
+                new self($child)
+                    ->walkAt(
+                        $visitor,
+                        $keyword,
+                        in_array($keyword, Codec::MAPS, true) ? (string) $key : $key,
+                    );
+            }
+        }
+
+        foreach (Codec::SCHEMAS as $keyword) {
+            if (array_key_exists($keyword, $this->definition)) {
+                /** @var Keywords|bool $child */
+                $child = $this->definition[$keyword];
+                new self($child)->walkAt($visitor, $keyword);
+            }
+        }
+    }
+
+    private function wildcardChild(): ?self
+    {
+        $children = [];
+        $items = $this->wildcardItems();
+
+        if ($items !== null) {
+            $children[] = $items;
+        }
+
+        foreach ($this->effectiveProperties() as $property) {
+            if (!$property->deniesAny()) {
+                $children[] = $property;
+            }
+        }
+
+        $additional = $this->projectProperty(null);
+
+        if ($additional !== null) {
+            $children[] = $additional;
+        }
+
+        return $children === [] ? null : self::compose('anyOf', $children);
+    }
+
+    /** @return list<string> */
+    private function declaredPropertyNames(): array
+    {
+        $names = array_map(strval(...), array_keys($this->properties()));
+
+        foreach (['allOf', 'anyOf', 'oneOf'] as $keyword) {
+            foreach ($this->branches($keyword) as $branch) {
+                array_push($names, ...$branch->declaredPropertyNames());
+            }
+        }
+
+        return array_values(array_unique($names));
+    }
+
+    private function projectProperty(?string $name): ?self
+    {
+        if (!$this->permitsType('object')) {
+            return null;
+        }
+
+        $properties = $this->properties();
+        $property =
+            ($name === null ? null : $properties[$name] ?? null) ?? $this->additionalProperties() ?? self::empty();
+
+        if (($name === null || !array_key_exists($name, $properties)) && $property->deniesAny()) {
+            return null;
+        }
+
+        $constraints = [$property];
+
+        foreach ($this->branches('allOf') as $branch) {
+            $property = $branch->projectProperty($name);
+
+            if ($property === null) {
+                return null;
+            }
+
+            $constraints[] = $property;
+        }
+
+        foreach (['anyOf', 'oneOf'] as $keyword) {
+            if (!$this->hasKeyword($keyword)) {
+                continue;
+            }
+
+            $variants = [];
+
+            foreach ($this->branches($keyword) as $branch) {
+                $property = $branch->projectProperty($name);
+
+                if ($property !== null) {
+                    $variants[] = $property;
+                }
+            }
+
+            if ($variants === []) {
+                return null;
+            }
+
+            $constraints[] = self::compose('anyOf', $variants);
+        }
+
+        return self::compose('allOf', $constraints);
+    }
+
+    private function indexedItem(int $index): ?self
+    {
+        if (!$this->permitsType('array') || $this->maxItems() !== null && $index >= $this->maxItems()) {
+            return null;
+        }
+
+        $prefix = $this->prefixItems();
+        $item = $prefix[$index] ?? $this->items() ?? self::empty();
+
+        if ($item->deniesAny()) {
+            return null;
+        }
+
+        $constraints = [$item];
+
+        foreach ($this->branches('allOf') as $branch) {
+            $item = $branch->indexedItem($index);
+
+            if ($item === null) {
+                return null;
+            }
+
+            $constraints[] = $item;
+        }
+
+        foreach (['anyOf', 'oneOf'] as $keyword) {
+            if (!$this->hasKeyword($keyword)) {
+                continue;
+            }
+
+            $variants = [];
+
+            foreach ($this->branches($keyword) as $branch) {
+                $item = $branch->indexedItem($index);
+
+                if ($item !== null) {
+                    $variants[] = $item;
+                }
+            }
+
+            if ($variants === []) {
+                return null;
+            }
+
+            $constraints[] = self::compose('anyOf', $variants);
+        }
+
+        return self::compose('allOf', $constraints);
+    }
+
+    private function prefixItemCount(): int
+    {
+        $count = count($this->prefixItems());
+
+        foreach (['allOf', 'anyOf', 'oneOf'] as $keyword) {
+            foreach ($this->branches($keyword) as $branch) {
+                $count = max($count, $branch->prefixItemCount());
+            }
+        }
+
+        return $count;
+    }
+
+    private function wildcardItems(): ?self
+    {
+        $items = [];
+        $count = $this->prefixItemCount();
+
+        for ($index = 0; $index <= $count; $index++) {
+            $item = $this->indexedItem($index);
+
+            if ($item !== null) {
+                $items[] = $item;
+            }
+        }
+
+        return $items === [] ? null : self::compose('anyOf', $items);
+    }
+
+    /** @return list<string>|null Null denotes unrestricted types; an empty list denotes no possible type. */
+    private function possibleTypes(): ?array
+    {
+        if ($this->deniesAny()) {
+            return [];
+        }
+
+        $types = $this->type() === null ? null : (array) $this->type();
+
+        foreach (['anyOf', 'oneOf'] as $keyword) {
+            if (!$this->hasKeyword($keyword)) {
+                continue;
+            }
+
+            $alternatives = [];
+
+            foreach ($this->branches($keyword) as $branch) {
+                $branchTypes = $branch->possibleTypes();
+
+                if ($branchTypes === null) {
+                    $alternatives = null;
+
+                    break;
+                }
+
+                array_push($alternatives, ...$branchTypes);
+            }
+
+            $types = self::intersectTypes($types, $alternatives);
+        }
+
+        foreach ($this->branches('allOf') as $branch) {
+            $types = self::intersectTypes($types, $branch->possibleTypes());
+        }
+
+        return $types === null ? null : array_values(array_unique($types));
+    }
+
+    private function permitsType(string $type): bool
+    {
+        $types = $this->possibleTypes();
+
+        return $types === null || in_array($type, $types, true);
+    }
+
+    /** @param 'minLength'|'maxLength' $keyword */
+    private function lengthBound(string $keyword): ?int
+    {
+        $bound = $keyword === 'minLength' ? $this->minLength() : $this->maxLength();
+
+        foreach ($this->branches('allOf') as $branch) {
+            $value = $branch->lengthBound($keyword);
+
+            if ($value === null) {
+                continue;
+            }
+
+            if ($bound === null) {
+                $bound = $value;
+
+                continue;
+            }
+
+            $bound = $keyword === 'minLength' ? max($bound, $value) : min($bound, $value);
+        }
+
+        return $bound;
+    }
+
+    /** @param Definition $definition */
+    private static function fromDefinition(array|bool $definition): self
+    {
+        /** @var Keywords|bool $definition */
+        return new self($definition);
+    }
+
+    /** @param Definition|self $fragment
+     * @return Definition
+     */
+    private static function copyFragment(array|bool|self $fragment): array|bool
+    {
+        return $fragment instanceof self ? $fragment->definition : Codec::copy($fragment);
+    }
+
+    /**
+     * @param 'allOf'|'anyOf' $keyword
+     * @param non-empty-list<self> $schemas
+     */
+    private static function compose(string $keyword, array $schemas): self
+    {
+        if (count($schemas) === 1) {
+            return $schemas[0];
+        }
+
+        if ($keyword === 'allOf') {
+            $schemas = array_values(array_filter(
+                $schemas,
+                fn (self $schema) => !$schema->isEmpty() && !$schema->allowsAny(),
+            ));
+        } else {
+            $schemas = array_values(array_filter($schemas, fn (self $schema) => !$schema->deniesAny()));
+        }
+
+        if ($schemas === []) {
+            return $keyword === 'allOf' ? self::empty() : new self(false);
+        }
+
+        if (count($schemas) === 1) {
+            return $schemas[0];
+        }
+
+        return new self([$keyword => array_map(fn (self $schema) => $schema->definition, $schemas)]);
+    }
+
+    /**
+     * @param list<string>|null $left
+     * @param list<string>|null $right
+     * @return list<string>|null
+     */
+    private static function intersectTypes(?array $left, ?array $right): ?array
+    {
+        if ($left === null || $right === null) {
+            return $left ?? $right;
+        }
+
+        if (in_array('number', $left, true) && in_array('integer', $right, true)) {
+            $left[] = 'integer';
+        }
+
+        if (in_array('integer', $left, true) && in_array('number', $right, true)) {
+            $right[] = 'integer';
+        }
+
+        return array_values(array_intersect($left, $right));
+    }
+
+    private static function sameJsonValue(mixed $left, mixed $right, bool $strict = false): bool
+    {
+        return match (true) {
+            !$strict && is_int($left) && is_float($right) => $left === (int) $right && (float) $left === $right,
+            !$strict && is_float($left) && is_int($right) => self::sameJsonValue($right, $left),
+            (is_array($left) || $left instanceof stdClass) && (is_array($right) || $right instanceof stdClass)
+                => self::sameJsonStructure($left, $right, $strict),
+            default => $left === $right,
+        };
+    }
+
+    /**
+     * @param array<array-key, mixed>|stdClass $left
+     * @param array<array-key, mixed>|stdClass $right
+     */
+    private static function sameJsonStructure(array|stdClass $left, array|stdClass $right, bool $strict): bool
+    {
+        $leftIsList = is_array($left) && array_is_list($left);
+        $rightIsList = is_array($right) && array_is_list($right);
+        $left = (array) $left;
+        $right = (array) $right;
+
+        if (
+            $leftIsList !== $rightIsList
+            || count($left) !== count($right)
+            || $strict
+            && array_keys($left) !== array_keys($right)
+        ) {
+            return false;
+        }
+
+        return array_all(
+            $left,
+            fn (mixed $value, int|string $key) => (
+                array_key_exists($key, $right) && self::sameJsonValue($value, $right[$key], $strict)
+            ),
+        );
     }
 }

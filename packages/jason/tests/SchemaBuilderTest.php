@@ -3,6 +3,57 @@
 use PHPinnacle\Jason\Schema;
 use PHPinnacle\Jason\SchemaBuilder;
 
+it('starts configurable schemas from short builder factories', function (string $factory, array $definition) {
+    $builder = SchemaBuilder::{$factory}();
+    $schema = $builder->title('Value')->build();
+
+    expect($schema->toArray())->toBe([...$definition, 'title' => 'Value']);
+    expect(SchemaBuilder::{$factory}()->build()->toArray())->toBe($definition);
+})->with([
+    'empty definition' => ['empty', []],
+    'object' => ['object', ['type' => 'object', 'properties' => []]],
+    'array' => ['array', ['type' => 'array']],
+    'string' => ['string', ['type' => 'string']],
+    'integer' => ['integer', ['type' => 'integer']],
+    'number' => ['number', ['type' => 'number']],
+    'boolean' => ['boolean', ['type' => 'boolean']],
+    'null value' => ['null', ['type' => 'null']],
+]);
+
+it('composes object and union factories with typed children and further configuration', function () {
+    $schema = SchemaBuilder::object([
+        'name' => SchemaBuilder::string()->min(2)->max(20)->build(),
+        'values' => SchemaBuilder::array()
+            ->items(SchemaBuilder::union(['integer', 'null'])->default(null)->build())
+            ->build(),
+    ])
+        ->required(['name'])
+        ->withoutAdditionalProperties()
+        ->build();
+
+    expect($schema->toArray())->toBe([
+        'type' => 'object',
+        'properties' => [
+            'name' => ['type' => 'string', 'minLength' => 2, 'maxLength' => 20],
+            'values' => ['type' => 'array', 'items' => ['type' => ['integer', 'null'], 'default' => null]],
+        ],
+        'required' => ['name'],
+        'additionalProperties' => false,
+    ]);
+});
+
+it('removes keywords without assigning null or changing earlier snapshots', function () {
+    $source = Schema::fromArray(['type' => 'string', 'enum' => ['a'], 'default' => null]);
+    $builder = $source->builder()->without('enum', 'missing');
+    $first = $builder->build();
+    $second = $builder->without('default')->build();
+
+    expect($first->toArray())->toBe(['type' => 'string', 'default' => null]);
+    expect($second->toArray())->toBe(['type' => 'string']);
+    expect($source->enum())->toBe(['a']);
+    expect(Schema::fromArray(true)->builder()->without('missing')->build()->allowsAny())->toBeTrue();
+});
+
 it('reads standard scalar keywords without inferring or normalizing their values', function () {
     $definition = [
         'type' => ['integer', 'null'],
@@ -186,6 +237,17 @@ it('snapshots builder inputs and outputs without changing the source schema', fu
         ->toBe('original')
         ->and($first->examples()[0]->nested->value)
         ->toBe('original');
+});
+
+it('copies raw schema fragments at generic builder input boundaries', function () {
+    $input = ['default' => (object) ['value' => 'original']];
+    $builder = SchemaBuilder::make()->with('properties', ['field' => $input])->with('items', $input);
+    $schema = $builder->build();
+    $input['default']->value = 'changed';
+    $builder->without('properties', 'items');
+
+    expect($schema->properties()['field']->default()->value)->toBe('original');
+    expect($schema->items()->default()->value)->toBe('original');
 });
 
 it('preserves boolean schema keywords errors at the builder boundary', function (bool $definition) {

@@ -4,9 +4,19 @@ namespace PHPinnacle\Jason;
 
 use InvalidArgumentException;
 use JsonException;
+use Stringable;
 
-final class JsonPath
+final readonly class JsonPath implements Stringable
 {
+    /** @var list<string|int|null> */
+    public array $segments;
+
+    /** @param list<string|int|null>|string $path */
+    public function __construct(array|string $path)
+    {
+        $this->segments = is_string($path) ? self::parse($path) : $path;
+    }
+
     /** @param list<string|int|null> $segments */
     public static function fromSegments(array $segments): string
     {
@@ -87,5 +97,10 @@ final class JsonPath
         }
 
         return $segments;
+    }
+
+    public function __toString(): string
+    {
+        return self::fromSegments($this->segments);
     }
 }

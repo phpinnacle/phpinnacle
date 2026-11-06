@@ -7,28 +7,77 @@ use InvalidArgumentException;
 
 final class SchemaBuilder
 {
-    /** @param array<string, mixed>|bool $definition */
     private function __construct(
-        private array|bool $definition,
+        private Schema $schema,
     ) {}
 
     public static function make(?Schema $schema = null): self
     {
-        return new self($schema?->toArray() ?? []);
+        return new self($schema ?? Schema::empty());
+    }
+
+    public static function empty(): self
+    {
+        return self::make();
+    }
+
+    /** @param array<string, Schema> $properties */
+    public static function object(array $properties = []): self
+    {
+        return self::make(Schema::object($properties));
+    }
+
+    public static function array(): self
+    {
+        return self::make(Schema::array());
+    }
+
+    public static function string(): self
+    {
+        return self::make(Schema::string());
+    }
+
+    public static function integer(): self
+    {
+        return self::make(Schema::integer());
+    }
+
+    public static function number(): self
+    {
+        return self::make(Schema::number());
+    }
+
+    public static function boolean(): self
+    {
+        return self::make(Schema::boolean());
+    }
+
+    public static function null(): self
+    {
+        return self::make(Schema::null());
+    }
+
+    /** @param list<string> $types */
+    public static function union(array $types): self
+    {
+        return self::make(Schema::union($types));
     }
 
     public function build(): Schema
     {
-        return Schema::fromArray($this->definition);
+        return $this->schema;
     }
 
     public function with(string $keyword, mixed $value): self
     {
-        if (is_bool($this->definition)) {
-            throw new InvalidArgumentException('Boolean schemas cannot have keywords.');
-        }
+        $this->schema = $this->schema->withKeywords([$keyword => $value]);
 
-        $this->definition[$keyword] = Codec::copyValue($value);
+        return $this;
+    }
+
+    public function without(string ...$keywords): self
+    {
+        $this->schema = $this->schema->withKeywords([], $keywords);
 
         return $this;
     }
@@ -235,125 +284,127 @@ final class SchemaBuilder
     /** @param array<string, Schema> $schemas */
     public function properties(array $schemas): self
     {
-        return $this->with('properties', array_map(fn (Schema $schema) => $schema->toArray(), $schemas));
+        return $this->with('properties', $schemas);
     }
 
     /** @param array<string, Schema> $schemas */
     public function patternProperties(array $schemas): self
     {
-        return $this->with('patternProperties', array_map(fn (Schema $schema) => $schema->toArray(), $schemas));
+        return $this->with('patternProperties', $schemas);
     }
 
     /** @param array<string, Schema> $schemas */
     public function dependentSchemas(array $schemas): self
     {
-        return $this->with('dependentSchemas', array_map(fn (Schema $schema) => $schema->toArray(), $schemas));
+        return $this->with('dependentSchemas', $schemas);
     }
 
     /** @param array<string, Schema> $schemas */
     public function defs(array $schemas): self
     {
-        return $this->with('$defs', array_map(fn (Schema $schema) => $schema->toArray(), $schemas));
+        return $this->with('$defs', $schemas);
     }
 
     /** @param list<Schema> $schemas */
     public function prefixItems(array $schemas): self
     {
-        return $this->with('prefixItems', array_map(fn (Schema $schema) => $schema->toArray(), $schemas));
+        return $this->with('prefixItems', $schemas);
     }
 
     /** @param list<Schema> $schemas */
     public function anyOf(array $schemas): self
     {
-        return $this->with('anyOf', array_map(fn (Schema $schema) => $schema->toArray(), $schemas));
+        return $this->with('anyOf', $schemas);
     }
 
     /** @param list<Schema> $schemas */
     public function oneOf(array $schemas): self
     {
-        return $this->with('oneOf', array_map(fn (Schema $schema) => $schema->toArray(), $schemas));
+        return $this->with('oneOf', $schemas);
     }
 
     /** @param list<Schema> $schemas */
     public function allOf(array $schemas): self
     {
-        return $this->with('allOf', array_map(fn (Schema $schema) => $schema->toArray(), $schemas));
+        return $this->with('allOf', $schemas);
     }
 
     public function items(Schema $schema): self
     {
-        return $this->with('items', $schema->toArray());
+        return $this->with('items', $schema);
     }
 
     public function additionalProperties(Schema $schema): self
     {
-        return $this->with('additionalProperties', $schema->toArray());
+        return $this->with('additionalProperties', $schema);
     }
 
     public function unevaluatedProperties(Schema $schema): self
     {
-        return $this->with('unevaluatedProperties', $schema->toArray());
+        return $this->with('unevaluatedProperties', $schema);
     }
 
     public function unevaluatedItems(Schema $schema): self
     {
-        return $this->with('unevaluatedItems', $schema->toArray());
+        return $this->with('unevaluatedItems', $schema);
     }
 
     public function contains(Schema $schema): self
     {
-        return $this->with('contains', $schema->toArray());
+        return $this->with('contains', $schema);
     }
 
     public function not(Schema $schema): self
     {
-        return $this->with('not', $schema->toArray());
+        return $this->with('not', $schema);
     }
 
     public function if(Schema $schema): self
     {
-        return $this->with('if', $schema->toArray());
+        return $this->with('if', $schema);
     }
 
     public function then(Schema $schema): self
     {
-        return $this->with('then', $schema->toArray());
+        return $this->with('then', $schema);
     }
 
     public function else(Schema $schema): self
     {
-        return $this->with('else', $schema->toArray());
+        return $this->with('else', $schema);
     }
 
     public function propertyNames(Schema $schema): self
     {
-        return $this->with('propertyNames', $schema->toArray());
+        return $this->with('propertyNames', $schema);
     }
 
     public function contentSchema(Schema $schema): self
     {
-        return $this->with('contentSchema', $schema->toArray());
+        return $this->with('contentSchema', $schema);
     }
 
     public function nullable(bool $nullable = true): self
     {
         $schema = $this->build();
-        $definition = $schema->keywords();
         $type = $schema->type() ?? [];
         $types = (array) $type;
 
         if (
             $types !== []
-            && !array_intersect([
-                'enum',
-                'const',
-                'anyOf',
-                'oneOf',
-                'allOf',
-                'not',
-                'if',
-                '$ref',
-            ], array_keys($definition))
+            && !array_any(
+                [
+                    'enum',
+                    'const',
+                    'anyOf',
+                    'oneOf',
+                    'allOf',
+                    'not',
+                    'if',
+                    '$ref',
+                ],
+                $schema->hasKeyword(...),
+            )
         ) {
             $types = array_values(array_diff($types, ['null']));
 
@@ -362,7 +413,7 @@ final class SchemaBuilder
             }
 
             if ($types === []) {
-                $this->definition = false;
+                $this->schema = Schema::fromArray(false);
 
                 return $this;
             }
@@ -373,12 +424,12 @@ final class SchemaBuilder
         $schema = $schema->resolveReferences();
 
         if (!$nullable) {
-            $this->definition = Schema::allOf([$schema, Schema::fromArray(['not' => ['type' => 'null']])])->toArray();
+            $this->schema = Schema::allOf([$schema, Schema::fromArray(['not' => ['type' => 'null']])]);
 
             return $this;
         }
 
-        $this->definition = Schema::anyOf([$schema, Schema::null()])->toArray();
+        $this->schema = Schema::anyOf([$schema, Schema::null()]);
 
         return $this;
     }
@@ -390,7 +441,7 @@ final class SchemaBuilder
 
     public function min(int|float $minimum): self
     {
-        return $this->with(match ($this->definition['type'] ?? null) {
+        return $this->with(match ($this->schema->type()) {
             'string' => 'minLength',
             'array' => 'minItems',
             'integer', 'number' => 'minimum',
@@ -400,7 +451,7 @@ final class SchemaBuilder
 
     public function max(int|float $maximum): self
     {
-        return $this->with(match ($this->definition['type'] ?? null) {
+        return $this->with(match ($this->schema->type()) {
             'string' => 'maxLength',
             'array' => 'maxItems',
             'integer', 'number' => 'maximum',

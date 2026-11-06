@@ -11,9 +11,26 @@ final readonly class JsonQuery
     /** @var list<Closure(mixed, bool, Node ...): list<Node>> */
     private array $steps;
 
-    public function __construct(string $path)
+    /** @param JsonPath|list<string|int|null>|string $path */
+    public function __construct(JsonPath|array|string $path)
     {
-        $this->steps = Parser::parse($path);
+        $this->steps = is_string($path)
+            ? Parser::parse($path)
+            : array_map(
+                fn ($segment) => function (mixed $root, bool $create, Node ...$nodes) use ($segment) {
+                    $matches = [];
+
+                    foreach ($nodes as $node) {
+                        array_push(
+                            $matches,
+                            ...$segment === null ? $node->children() : $node->child($segment, $create),
+                        );
+                    }
+
+                    return $matches;
+                },
+                $path instanceof JsonPath ? $path->segments : $path,
+            );
     }
 
     /** @return list<mixed> */

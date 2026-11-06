@@ -2,6 +2,81 @@
 
 use PHPinnacle\Jason\Schema;
 
+it('compares definitions strictly by ordered structure without requiring object identity', function () {
+    $schema = Schema::fromJson('{"default":{"nested":{"value":1}},"title":"Value"}');
+
+    expect($schema->equals(Schema::fromJson($schema->toJson()), strict: true))->toBeTrue();
+    expect($schema->equals(Schema::fromJson('{"title":"Value","default":{"nested":{"value":1}}}'), true))->toBeFalse();
+    expect($schema->equals(
+        Schema::fromJson('{"default":{"nested":{"value":1.0}},"title":"Value"}'),
+        true,
+    ))->toBeFalse();
+    expect(Schema::empty()->equals(Schema::fromArray(['default' => null]), true))->toBeFalse();
+    expect(Schema::fromArray(['default' => (object) ['a' => 1, 'b' => 2]])->equals(
+        Schema::fromArray(['default' => (object) ['b' => 2, 'a' => 1]]),
+        true,
+    ))->toBeFalse();
+});
+
+it('projects alternative fields with sibling constraints and additional property rules', function (string $keyword) {
+    $schema = Schema::fromArray([
+        'properties' => ['root' => ['type' => 'boolean'], 'shared' => ['maxLength' => 20]],
+        'allOf' => [['properties' => ['shared' => ['minLength' => 2]]]],
+        $keyword => [
+            [
+                'properties' => ['shared' => ['type' => 'string', 'title' => 'First'], 'left' => ['type' => 'integer']],
+                'additionalProperties' => false,
+            ],
+            [
+                'properties' => ['shared' => ['type' => 'string', 'title' => 'Second'], 'right' => ['type' => 'null']],
+                'additionalProperties' => ['type' => 'number'],
+            ],
+        ],
+    ]);
+    $properties = $schema->effectiveProperties();
+
+    expect(array_keys($properties))->toBe(['root', 'shared', 'left', 'right']);
+    expect($properties['shared']->effectiveMinLength())->toBe(2);
+    expect($properties['shared']->effectiveMaxLength())->toBe(20);
+    expect($properties['shared']->annotation('title'))->toBe('First');
+    expect($properties['shared']->branches('allOf')[2]->branches('anyOf'))->toHaveCount(2);
+    expect($properties['left']->types())->toBe(['integer', 'number']);
+    expect($properties['right']->singleType())->toBe('null');
+    expect($properties['root']->types())->toBe([]);
+})->with(['anyOf', 'oneOf']);
+
+it('retains unrestricted alternatives and conjunctive additional property restrictions', function (string $keyword) {
+    $schema = Schema::fromArray([
+        $keyword => [
+            ['properties' => ['value' => ['type' => 'string', 'title' => 'Value']]],
+            [],
+            false,
+        ],
+    ]);
+    $value = $schema->effectiveProperties()['value'];
+
+    expect($value->types())->toBe([]);
+    expect($value->annotation('title'))->toBe('Value');
+    expect($value->branches('anyOf')[1]->isEmpty())->toBeTrue();
+    expect(
+        Schema::allOf([
+            $schema,
+            Schema::fromArray(['additionalProperties' => false]),
+        ])->effectiveProperties()['value']->deniesAny(),
+    )->toBeTrue();
+})->with(['anyOf', 'oneOf']);
+
+it('retains annotations alongside rejecting field constraints', function () {
+    $schema = Schema::allOf([
+        Schema::object(['value' => Schema::fromArray(false)]),
+        Schema::object(['value' => Schema::fromArray(['title' => 'Value'])]),
+    ]);
+    $value = $schema->effectiveProperties()['value'];
+
+    expect($value->annotation('title'))->toBe('Value');
+    expect($value->branches('allOf')[0]->deniesAny())->toBeTrue();
+});
+
 it('compares schema definitions using JSON value equality', function (array $left, array $right, bool $equal) {
     $source = Schema::fromArray($left);
     $other = Schema::fromArray($right);
@@ -43,6 +118,31 @@ it('preserves number and null alternatives in numeric intersections', function (
         )
         ->toEqualCanonicalizing(['integer', 'null']);
 });
+
+it('keeps type projections consistent with unrestricted and conjunctive alternatives', function (
+    array $definition,
+    array $expected,
+) {
+    expect(Schema::fromArray($definition)->types())->toBe($expected);
+})->with([
+    'unrestricted alternative' => [['anyOf' => [['type' => 'string'], true]], []],
+    'sibling intersection' => [
+        ['type' => 'string', 'anyOf' => [['type' => 'string'], ['type' => 'integer']]],
+        ['string'],
+    ],
+    'independent alternative groups' => [
+        [
+            'anyOf' => [['type' => 'string'], ['type' => 'integer']],
+            'oneOf' => [['type' => 'integer'], ['type' => 'null']],
+        ],
+        ['integer'],
+    ],
+    'rejected branch' => [['anyOf' => [false, ['type' => 'array']]], ['array']],
+    'impossible intersection stays impossible' => [
+        ['allOf' => [['type' => 'string'], ['type' => 'integer'], ['type' => 'boolean']]],
+        [],
+    ],
+]);
 
 it('projects referenced compositions without changing structural reads or the original definition', function () {
     $definition = [
