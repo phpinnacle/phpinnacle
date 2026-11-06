@@ -25,12 +25,12 @@ final class BuiltinStaticForms
             'integer' => TextInput::make('value')
                 ->integer()
                 ->step(1)
-                ->minValue($property->minimum())
-                ->maxValue($property->maximum()),
+                ->minValue($property->effectiveMinimum())
+                ->maxValue($property->effectiveMaximum()),
             'number' => TextInput::make('value')
                 ->numeric()
-                ->minValue($property->minimum())
-                ->maxValue($property->maximum()),
+                ->minValue($property->effectiveMinimum())
+                ->maxValue($property->effectiveMaximum()),
             'boolean' => in_array('null', $property->types(), true)
                 ? Select::make('value')->boolean()
                 : Toggle::make('value')->default(false),
@@ -74,12 +74,12 @@ final class BuiltinStaticForms
 
         return Repeater::make('value')
             ->defaultItems(0)
-            ->minItems($property->minItems())
-            ->maxItems($property->maxItems())
+            ->minItems($property->effectiveMinItems())
+            ->maxItems($property->effectiveMaxItems())
             ->simple(
                 $item
                     ->distinct(
-                        ($property->uniqueItems() ?? false) && in_array($type, ['string', 'integer', 'number'], true),
+                        $property->effectiveUniqueItems() && in_array($type, ['string', 'integer', 'number'], true),
                     ),
             );
     }

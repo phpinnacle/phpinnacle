@@ -16,6 +16,40 @@ final class References
         private readonly Schema $document,
     ) {}
 
+    /**
+     * @param array<string, mixed>|bool $schema
+     * @return array<string, mixed>|bool
+     */
+    public static function relocateDynamicReferences(array|bool $schema, string $pointer): array|bool
+    {
+        if (is_bool($schema) || array_key_exists('$id', $schema)) {
+            return $schema;
+        }
+
+        /** @var string|null $reference */
+        $reference = $schema['$dynamicRef'] ?? null;
+
+        if ($reference !== null && str_starts_with($reference, '#')) {
+            $fragment = rawurldecode(substr($reference, 1));
+
+            if ($fragment === '' || str_starts_with($fragment, '/')) {
+                $schema['$dynamicRef'] = '#' . $pointer . substr($reference, 1);
+            }
+        }
+
+        foreach ($schema as $keyword => $value) {
+            if (in_array($keyword, [...Codec::MAPS, ...Codec::LISTS], true)) {
+                /** @var array<array-key, array<string, mixed>|bool> $value */
+                $schema[$keyword] = array_map(fn ($child) => self::relocateDynamicReferences($child, $pointer), $value);
+            } elseif (in_array($keyword, Codec::SCHEMAS, true)) {
+                /** @var array<string, mixed>|bool $value */
+                $schema[$keyword] = self::relocateDynamicReferences($value, $pointer);
+            }
+        }
+
+        return $schema;
+    }
+
     public function resolve(): Schema
     {
         return Schema::fromArray($this->expand($this->document->toArray(), root: true));
@@ -56,16 +90,14 @@ final class References
 
             $resolved = $this->resolveTarget($reference, [...$references, $reference]);
             unset($schema['$ref']);
-            $siblings = $schema;
-            unset($siblings['$defs'], $siblings['definitions']);
 
-            if ($siblings === []) {
+            if ($schema === []) {
                 return $resolved;
             }
 
             /** @var array{allOf?: list<array<string, mixed>|bool>, ...<string, mixed>} $schema */
             $schema = $this->expand($schema, $references, root: $root, embeddedResource: $embeddedResource);
-            $schema['allOf'] = [$resolved, ...($schema['allOf'] ?? [])];
+            $schema['allOf'][] = $resolved;
 
             return $schema;
         }

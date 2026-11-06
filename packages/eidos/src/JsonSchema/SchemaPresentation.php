@@ -173,7 +173,7 @@ final class SchemaPresentation
             : json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 
         /** @var array<array-key, string> $labels */
-        $labels = $schema->keyword('x-enum') ?? [];
+        $labels = $schema->annotation('x-enum') ?? [];
 
         return $labels[$key] ?? null;
     }

@@ -244,6 +244,30 @@ it('does not require columns marked read only by registered cast schemas', funct
     expect($definition['properties']['name']['readOnly'])->toBeTrue()->and($definition['required'])->toBe(['editable']);
 });
 
+it('reads writability and typed defaults from referenced cast schemas', function () {
+    Schema::create('eidos_cast_records', function (Blueprint $table) {
+        $table->string('name');
+        $table->boolean('enabled')->default(false);
+    });
+    $model = new CustomSchemaRecord;
+    $model->guard([])->mergeCasts(['name' => 'string', 'enabled' => 'boolean']);
+    $introspector = new SchemaIntrospector()
+        ->registerCast('string', fn () => JsonSchema::fromArray([
+            '$defs' => ['value' => ['type' => 'string', 'readOnly' => true]],
+            '$ref' => '#/$defs/value',
+        ]))
+        ->registerCast('boolean', fn () => JsonSchema::fromArray([
+            '$defs' => ['value' => ['type' => 'boolean']],
+            '$ref' => '#/$defs/value',
+        ]));
+
+    $schema = $introspector->introspect($model);
+
+    expect($schema->required())->toBe([]);
+    expect($schema->properties()['name']->annotation('readOnly'))->toBeTrue();
+    expect($schema->properties()['enabled']->default())->toBeFalse();
+});
+
 it('marks columns excluded from mass assignment as read only while retaining defaults', function (
     array $fillable,
     array $guarded,

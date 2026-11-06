@@ -127,6 +127,20 @@ it('validates array counts and nested item values', function (array $property, a
     'minimum items' => [['type' => 'array', 'minItems' => 1, 'items' => ['type' => 'string']], []],
     'maximum items' => [['type' => 'array', 'maxItems' => 1, 'items' => ['type' => 'string']], ['one', 'two']],
     'unique strings' => [['type' => 'array', 'uniqueItems' => true, 'items' => ['type' => 'string']], ['one', 'one']],
+    'referenced array maximum' => [
+        [
+            '$defs' => ['value' => ['type' => 'array', 'maxItems' => 1, 'items' => ['type' => 'string']]],
+            '$ref' => '#/properties/target/$defs/value',
+        ],
+        ['one', 'two'],
+    ],
+    'referenced unique strings' => [
+        [
+            '$defs' => ['value' => ['type' => 'array', 'uniqueItems' => true, 'items' => ['type' => 'string']]],
+            '$ref' => '#/properties/target/$defs/value',
+        ],
+        ['one', 'one'],
+    ],
     'item length' => [['type' => 'array', 'items' => ['type' => 'string', 'maxLength' => 3]], ['long']],
     'item format' => [['type' => 'array', 'items' => ['type' => 'string', 'format' => 'email']], ['invalid']],
     'item integer' => [['type' => 'array', 'items' => ['type' => 'integer']], [1.5]],
@@ -149,6 +163,10 @@ it('validates submitted values through built-in fields', function (array $proper
     'integer' => [['type' => 'integer'], '1.5'],
     'minimum' => [['type' => 'number', 'minimum' => 1], '0'],
     'maximum' => [['type' => 'number', 'maximum' => 1], '2'],
+    'referenced numeric minimum' => [
+        ['$defs' => ['value' => ['type' => 'number', 'minimum' => 1]], '$ref' => '#/properties/target/$defs/value'],
+        '0',
+    ],
     'enum' => [['type' => 'string', 'enum' => ['draft']], 'other'],
     'projected enum' => [
         ['allOf' => [['type' => 'string', 'enum' => ['draft', 'active']], ['enum' => ['active']]]],

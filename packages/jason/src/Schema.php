@@ -207,7 +207,7 @@ final readonly class Schema implements JsonSerializable
         if (
             $types !== []
             && !array_any(
-                ['enum', 'const', 'anyOf', 'oneOf', 'allOf', 'not', 'if', '$ref'],
+                ['enum', 'const', 'anyOf', 'oneOf', 'allOf', 'not', 'if', '$ref', '$dynamicRef'],
                 $this->hasKeyword(...),
             )
         ) {
@@ -224,7 +224,10 @@ final readonly class Schema implements JsonSerializable
             );
         }
 
-        $schema = $this->resolveReferences();
+        $schema = self::fromArray(References::relocateDynamicReferences(
+            $this->resolveReferences()->toArray(),
+            $nullable ? '/anyOf/0' : '/allOf/0',
+        ));
 
         return (
             $nullable
@@ -727,7 +730,7 @@ final readonly class Schema implements JsonSerializable
 
     public function equals(self $other, bool $strict = false): bool
     {
-        return self::sameJsonValue($this->definition, $other->definition, $strict);
+        return self::sameJsonValue($this->jsonSerialize(), $other->jsonSerialize(), $strict);
     }
 
     /** @return list<mixed>|null */
@@ -759,7 +762,7 @@ final readonly class Schema implements JsonSerializable
         $alternatives = $this->alternatives();
 
         if ($alternatives === []) {
-            return $this->lengthBound('maxLength');
+            return $this->bound('maxLength');
         }
 
         $bounds = [];
@@ -817,7 +820,33 @@ final readonly class Schema implements JsonSerializable
 
     public function effectiveMinLength(): ?int
     {
-        return $this->lengthBound('minLength');
+        return $this->bound('minLength');
+    }
+
+    public function effectiveMinimum(): int|float|null
+    {
+        return $this->bound('minimum');
+    }
+
+    public function effectiveMaximum(): int|float|null
+    {
+        return $this->bound('maximum');
+    }
+
+    public function effectiveMinItems(): ?int
+    {
+        return $this->bound('minItems');
+    }
+
+    public function effectiveMaxItems(): ?int
+    {
+        return $this->bound('maxItems');
+    }
+
+    public function effectiveUniqueItems(): bool
+    {
+        return $this->uniqueItems() === true
+        || array_any($this->branches('allOf'), fn (self $branch) => $branch->effectiveUniqueItems());
     }
 
     public function allowsEnumValue(mixed $value): bool
@@ -1096,13 +1125,17 @@ final readonly class Schema implements JsonSerializable
         return $types === null || in_array($type, $types, true);
     }
 
-    /** @param 'minLength'|'maxLength' $keyword */
-    private function lengthBound(string $keyword): ?int
+    /**
+     * @template TKeyword of 'minLength'|'maxLength'|'minimum'|'maximum'|'minItems'|'maxItems'
+     * @param TKeyword $keyword
+     * @return Keywords[TKeyword]|null
+     */
+    private function bound(string $keyword): int|float|null
     {
-        $bound = $keyword === 'minLength' ? $this->minLength() : $this->maxLength();
+        $bound = $this->keywordVal($keyword);
 
         foreach ($this->branches('allOf') as $branch) {
-            $value = $branch->lengthBound($keyword);
+            $value = $branch->bound($keyword);
 
             if ($value === null) {
                 continue;
@@ -1114,7 +1147,7 @@ final readonly class Schema implements JsonSerializable
                 continue;
             }
 
-            $bound = $keyword === 'minLength' ? max($bound, $value) : min($bound, $value);
+            $bound = str_starts_with($keyword, 'min') ? max($bound, $value) : min($bound, $value);
         }
 
         return $bound;

@@ -15,7 +15,6 @@ final class Codec
     public const array SCHEMAS = [
         'items',
         'additionalProperties',
-        'additionalItems',
         'unevaluatedProperties',
         'unevaluatedItems',
         'contains',

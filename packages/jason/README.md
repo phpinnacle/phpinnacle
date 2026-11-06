@@ -62,7 +62,9 @@ methods on a builder.
 On the builder, `nullable()` permits null for the complete schema, including enum
 and composition constraints; `nullable(false)` excludes null. When nullability
 requires wrapping the schema, local references are expanded first so their JSON
-Pointer paths remain valid. `min()` and `max()` set length, item count, or numeric
+Pointer paths remain valid. Local JSON Pointer `$dynamicRef` values are relocated
+with the wrapped schema; anchors and references within `$id` resources retain
+their existing addresses. `min()` and `max()` set length, item count, or numeric
 bounds according to a single primitive type. Explicit methods such as
 `minimum()`, `maxLength()` and `minItems()` set their named keywords directly.
 
@@ -103,6 +105,10 @@ patterns with PHP PCRE in Unicode mode; use patterns shared by PCRE and ECMA-262
 since it does not translate between regular-expression dialects.
 `enumValues()` intersects `allOf` enum restrictions; `allowsEnumValue($value)`
 checks those restrictions using JSON value equality.
+`effectiveMinimum()`, `effectiveMaximum()`, `effectiveMinItems()` and
+`effectiveMaxItems()` intersect their declared bounds with `allOf` branches.
+`effectiveUniqueItems()` is true when the root or an `allOf` branch requires
+unique items. These numeric and array readers do not combine alternative branches.
 `effectiveMinLength()` intersects conjunctive minimum lengths;
 `effectiveMaxLength()` also includes the widest string alternative, returning null
 for an unbounded alternative. Alternatives that cannot permit strings, including
@@ -191,8 +197,10 @@ cannot mutate a schema through a nested `stdClass`.
 Reference expansion returns a separate schema. It supports local JSON Pointer
 references, including percent-encoded and tilde-escaped tokens. Expanded references
 join any existing `allOf` alongside the original sibling keywords, preserving the
-evaluation scope of `unevaluatedProperties` and `unevaluatedItems`. Expansion rejects
-external or anchor references and references within embedded `$id` resources,
+evaluation scope of `unevaluatedProperties` and `unevaluatedItems`. Referenced schemas
+are appended to `allOf`, retaining existing indexes and definition containers for
+preserved dynamic references. Expansion rejects external or anchor references
+and references within embedded `$id` resources,
 including fragments reached through JSON Pointers. Opaque annotation objects
 containing a `$id` property do not establish schema resources. `$dynamicRef` values
 are preserved without expansion. Recursive references can be stored and serialized;
@@ -200,6 +208,7 @@ full expansion rejects cycles and limits expansion to 20,000 fragments.
 Traversal and codecs recognize the schema positions used by Draft 2020-12, including
 `$defs`, compositions, `prefixItems`, conditional schemas, and additional or unevaluated
 properties. Legacy tuple-style `items` are outside this API's supported structural subset.
+`additionalItems` is preserved as an opaque annotation, without schema traversal.
 
 ## Schema navigation
 

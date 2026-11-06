@@ -202,7 +202,7 @@ it('keeps unevaluated constraints adjacent to expanded references and existing a
 
     expect($view->keyword($keyword))->toBeFalse();
     expect(array_map(fn (Schema $branch) => $branch->toArray(), $view->branches('allOf')))
-        ->toBe([$referenced, $existing]);
+        ->toBe([$existing, $referenced]);
     expect($schema->ref())->toBe('#/$defs/base');
 })->with([
     'object properties' => [
@@ -266,7 +266,7 @@ it('resolves reference-free descendants without interpreting opaque ids as resou
         'x-container' => (object) ['$id' => 'opaque', 'value' => (object) ['$ref' => '#/$defs/name']],
     ]);
 
-    expect($resource->resolveReferences()->type())->toBe('integer');
+    expect($resource->resolveReferences()->types())->toBe(['integer']);
     expect($metadata->resolveReferences()->types())->toBe(['string']);
 });
 
@@ -292,6 +292,90 @@ it('keeps nullability outside enum and composition constraints', function () {
         ->and(SchemaBuilder::make()->type('integer')->nullable()->build()->toArray())
         ->toBe(['type' => ['integer', 'null']]);
 });
+
+it('retains definitions used by dynamic references after expanding a root reference', function () {
+    $schema = Schema::fromArray([
+        '$defs' => ['value' => ['type' => 'string'], 'alias' => ['$dynamicRef' => '#/$defs/value']],
+        '$ref' => '#/$defs/alias',
+    ]);
+    $view = $schema->resolveReferences();
+
+    expect($view->defs()['value']->type())->toBe('string');
+    expect($view->branches('allOf')[0]->dynamicRef())->toBe('#/$defs/value');
+    expect($schema->ref())->toBe('#/$defs/alias');
+});
+
+it('retains existing allOf pointer targets when expanding reference siblings', function () {
+    $schema = Schema::fromArray([
+        '$defs' => ['alias' => ['$dynamicRef' => '#/allOf/0']],
+        '$ref' => '#/$defs/alias',
+        'allOf' => [['type' => 'string']],
+    ])->resolveReferences();
+
+    expect($schema->branches('allOf')[0]->type())->toBe('string');
+    expect($schema->branches('allOf')[1]->dynamicRef())->toBe('#/allOf/0');
+});
+
+it('wraps dynamic reference constraints and relocates their local pointer targets', function (bool $nullable) {
+    $schema = Schema::fromArray([
+        'type' => 'string',
+        '$defs' => ['value' => ['type' => 'string']],
+        '$dynamicRef' => '#%2F$defs/value',
+    ]);
+    $keyword = $nullable ? 'anyOf' : 'allOf';
+    $result = $schema->builder()->nullable($nullable)->build();
+    $branch = $result->branches($keyword)[0];
+
+    expect($branch->type())->toBe('string');
+    expect($branch->dynamicRef())->toBe('#/' . $keyword . '/0%2F$defs/value');
+    expect($branch->defs()['value']->type())->toBe('string');
+    expect($result->branches($keyword)[1]->toArray())
+        ->toBe($nullable ? ['type' => 'null'] : ['not' => ['type' => 'null']]);
+    expect($schema->dynamicRef())->toBe('#%2F$defs/value');
+})->with([true, false]);
+
+it('relocates nested dynamic pointers without changing anchors or embedded resource references', function () {
+    $schema = Schema::fromArray([
+        '$dynamicAnchor' => 'node',
+        'properties' => [
+            'root' => ['$dynamicRef' => '#'],
+            'anchor' => ['$dynamicRef' => '#node'],
+            'external' => ['$dynamicRef' => 'external.json#/$defs/value'],
+            'resource' => [
+                '$id' => 'nested.json',
+                '$defs' => ['value' => ['type' => 'string']],
+                '$dynamicRef' => '#/$defs/value',
+            ],
+        ],
+    ]);
+    $properties = $schema->builder()->nullable()->build()->branches('anyOf')[0]->properties();
+
+    expect($properties['root']->dynamicRef())->toBe('#/anyOf/0');
+    expect($properties['anchor']->dynamicRef())->toBe('#node');
+    expect($properties['external']->dynamicRef())->toBe('external.json#/$defs/value');
+    expect($properties['resource']->dynamicRef())->toBe('#/$defs/value');
+    expect(
+        $schema
+            ->builder()
+            ->id('https://example.test/schema')
+            ->nullable()
+            ->build()
+            ->branches('anyOf')[0]->properties()['root']->dynamicRef(),
+    )
+        ->toBe('#');
+});
+
+it('preserves additionalItems as an opaque annotation during parsing serialization and expansion', function (string $json) {
+    $schema = Schema::fromJson($json);
+    $visited = [];
+    $schema->walk(function (Schema $fragment) use (&$visited) {
+        $visited[] = $fragment;
+    });
+
+    expect($schema->toJson())->toBe($json);
+    expect($schema->resolveReferences()->toJson())->toBe($json);
+    expect($visited)->toHaveCount(1);
+})->with(['{"additionalItems":"annotation"}', '{"additionalItems":{"$ref":"external.json"}}']);
 
 it('keeps nullability outside conditional and reference constraints', function (array $definition, array $resolved) {
     expect(SchemaBuilder::make(Schema::fromArray($definition))->nullable()->build()->toArray())

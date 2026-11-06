@@ -87,7 +87,7 @@ class SchemaIntrospector
             $builder = SchemaBuilder::make(
                 $schema->allowsAny() || $schema->deniesAny() ? Schema::allOf([$schema]) : $schema,
             );
-            $readOnly = $schema->readOnly() ?? false;
+            $readOnly = $schema->annotation('readOnly') ?? false;
 
             if ($column['generation'] !== null || !$model->isFillable($name)) {
                 $builder->readOnly(true);
@@ -279,7 +279,7 @@ class SchemaIntrospector
             return $value;
         }
 
-        $types = (array) ($schema->type() ?? []);
+        $types = $schema->types();
 
         return match (true) {
             in_array('integer', $types, true) => (int) $value,

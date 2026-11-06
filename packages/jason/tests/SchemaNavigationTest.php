@@ -343,7 +343,6 @@ it('walks every supported schema position while leaving annotation and value obj
         ['prefixItems',           1,             true],
         ['items',                 null,          'object'],
         ['additionalProperties',  null,          false],
-        ['additionalItems',       null,          true],
         ['unevaluatedProperties', null,          'object'],
         ['unevaluatedItems',      null,          false],
         ['contains',              null,          'object'],

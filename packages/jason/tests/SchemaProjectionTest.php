@@ -92,6 +92,16 @@ it('compares schema definitions using JSON value equality', function (array $lef
     'JSON number equality' => [['enum' => [1]], ['enum' => [1.0]], true],
 ]);
 
+it('compares numeric schema map keys as object members while retaining strict order', function () {
+    $left = Schema::fromJson('{"properties":{"0":{},"1":{"type":"string"}},"dependentRequired":{"0":[],"1":[]}}');
+    $right = Schema::fromJson('{"properties":{"1":{"type":"string"},"0":{}},"dependentRequired":{"1":[],"0":[]}}');
+
+    expect($left->equals($right))->toBeTrue();
+    expect($right->equals($left))->toBeTrue();
+    expect($left->equals($right, strict: true))->toBeFalse();
+    expect(Schema::fromJson('{"default":{}}')->equals(Schema::fromJson('{"default":[]}')))->toBeFalse();
+});
+
 it('resolves maximum string lengths across composed output schemas', function (array $definition, ?int $maximum) {
     expect(Schema::fromArray($definition)->effectiveMaxLength())->toBe($maximum);
 })->with([
@@ -190,4 +200,24 @@ it('combines item restrictions while preserving the declared array definition', 
     expect($schema->arrayItems()->singleType())->toBe('string');
     expect($schema->arrayItems()->effectiveMinLength())->toBe(2);
     expect($schema->arrayItems()->effectiveMaxLength())->toBe(10);
+});
+
+it('intersects numeric and array bounds and retains conjunctive uniqueness', function () {
+    $schema = Schema::fromArray([
+        'minimum' => 0.5,
+        'maximum' => 20.5,
+        'minItems' => 1,
+        'maxItems' => 20,
+        'uniqueItems' => false,
+        'allOf' => [['minimum' => 2.5, 'maximum' => 10.5, 'minItems' => 2, 'maxItems' => 10, 'uniqueItems' => true]],
+    ]);
+
+    expect($schema->effectiveMinimum())->toBe(2.5);
+    expect($schema->effectiveMaximum())->toBe(10.5);
+    expect($schema->effectiveMinItems())->toBe(2);
+    expect($schema->effectiveMaxItems())->toBe(10);
+    expect($schema->effectiveUniqueItems())->toBeTrue();
+    expect(Schema::empty()->effectiveMinimum())->toBeNull();
+    expect(Schema::empty()->effectiveMaxItems())->toBeNull();
+    expect(Schema::empty()->effectiveUniqueItems())->toBeFalse();
 });
