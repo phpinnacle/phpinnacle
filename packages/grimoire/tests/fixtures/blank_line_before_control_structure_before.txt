@@ -1,0 +1,121 @@
+<?php
+namespace Grimoire\Fixtures;
+if ($first) {}
+$ready = true;
+if ($ready) {
+    if ($first) {}
+    $ready = false;
+    while ($ready) {}
+} elseif ($first) {
+    foreach ([] as $item) {}
+} else {
+    do {} while (false);
+}
+for ($index = 0; $index < 1; ++$index) {}
+foreach ([] as $item) {}
+do {} while (false);
+switch ($ready) {
+    case true:
+        if ($first) {}
+        $ready = false;
+        if ($ready) {}
+        break;
+    default:
+        while ($ready) {}
+        $ready = true;
+        if ($ready) {}
+}
+try {
+    if ($first) {}
+    $ready = false;
+    if ($ready) {}
+} catch (RuntimeException $exception) {
+    if ($first) {}
+} finally {
+    if ($first) {}
+}
+$ready = false; // Trailing comment stays with the assignment.
+// Leading comment stays with the condition.
+if ($ready) {}
+$ready = false; /* Trailing block comment. */
+/** Leading documentation. */
+if ($ready) {}
+$ready = true;
+
+// Already separated.
+if ($ready) {}
+$ready = true;
+/* Leading comment
+ * with multiple lines.
+ */
+if ($ready) {}
+$ready = true;
+// First leading comment.
+// Second leading comment.
+if ($ready) {}
+$ready = true; if ($ready) {}
+
+function nested(): void
+{
+    if ($first) {}
+    $ready = true;
+    if ($ready) {}
+}
+
+$callback = function () {
+    if ($first) {}
+    $ready = true;
+    if ($ready) {}
+};
+
+if ($ready):
+    if ($first):
+    endif;
+    $ready = false;
+    while ($ready):
+        if ($first):
+        endif;
+        $ready = false;
+        if ($ready):
+        endif;
+    endwhile;
+elseif ($first):
+    if ($ready):
+    endif;
+    $ready = false;
+    if ($ready):
+    endif;
+else:
+    if ($ready):
+    endif;
+    $ready = false;
+    if ($ready):
+    endif;
+endif;
+
+for ($index = 0; $index < 1; ++$index):
+    if ($first) {}
+    $ready = false;
+    if ($ready) {}
+endfor;
+
+foreach ([] as $item):
+    if ($first) {}
+    $ready = false;
+    if ($ready) {}
+endforeach;
+
+declare(ticks=1):
+    if ($first) {}
+    $ready = false;
+    if ($ready) {}
+enddeclare;
+
+if ($first)
+    while ($ready)
+        for (;;) break;
+
+?>
+Inline content
+<?php
+if ($first) {}

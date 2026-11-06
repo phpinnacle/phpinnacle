@@ -68,6 +68,16 @@ Create `grimoire.json`:
 
 ## Rules
 
+### `phpinnacle/blank-line-before-control-structure`
+
+Requires a blank line before `if`, `for`, `foreach`, `while`, `do`, `switch`, and `try` when they follow another statement in the same block. The first statement in a block does not need a leading blank line. Continuation clauses (`else`, `elseif`, `catch`, `finally`, and the closing `while` of `do ... while`) are unaffected. Alternative syntax is supported.
+
+Leading comments stay with the control structure, and trailing comments stay with the preceding statement. The rule is enabled by default and requires no configuration. Apply its safe fixes with:
+
+```bash
+mago lint --fix --format-after-fix --only phpinnacle/blank-line-before-control-structure
+```
+
 ### `phpinnacle/class-member-order`
 
 Orders trait uses, enum cases, constants, properties, and methods using the first matching configuration in the `class-member-order` array. The optional `extends` glob matches the resolved direct parent class; omit it to match every class-like declaration.

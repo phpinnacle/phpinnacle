@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PHPinnacle\Grimoire;
 
 use Mago\Sdk\Extension;
+use PHPinnacle\Grimoire\Linter\Rules\BlankLineBeforeControlStructureRule;
 use PHPinnacle\Grimoire\Linter\Rules\ClassMemberOrderRule;
 use PHPinnacle\Grimoire\Linter\Rules\ClassMethodOrderRule;
 use PHPinnacle\Grimoire\Linter\Rules\CompactEmptyMethodBodyRule;
@@ -24,6 +25,7 @@ final class GrimoireExtension
             name: 'PHPinnacle Grimoire',
             version: '2.0.0',
             linterRules: [
+                new BlankLineBeforeControlStructureRule,
                 new ClassMemberOrderRule($configuration['rules']['class-member-order'] ?? []),
                 new ClassMethodOrderRule($configuration['rules']['class-method-order'] ?? []),
                 new CompactEmptyMethodBodyRule(
