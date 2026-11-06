@@ -31,6 +31,19 @@ require_once __DIR__ . '/../Fixtures/SchemaHost.php';
 
 uses(TestCase::class);
 
+it('rejects bindings to prohibited source fields while allowing unrestricted fields', function () {
+    $field = FieldBinding::make('bindings')
+        ->jsonSchema(Schema::fromArray(['properties' => ['free' => true, 'blocked' => false]]))
+        ->simple(TextInput::make('destination')->required());
+    $schema = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $schema->fill(['bindings' => MappingState::binding(['blocked' => 'target'], [], ['free', 'blocked'])]);
+
+    expect($schema->getState(...))->toThrow(ValidationException::class);
+
+    $schema->fill(['bindings' => MappingState::binding(['free' => 'target'], [], ['free', 'blocked'])]);
+    expect($schema->getState()['bindings'][0]['target'])->toBe('target');
+});
+
 it('applies matching column spans to binding headings and rows without changing bindings', function () {
     $field = FieldBinding::make('bindings')
         ->jsonSchema(Schema::fromArray(['properties' => ['title' => ['type' => 'string']]]))

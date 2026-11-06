@@ -2,7 +2,6 @@
 
 namespace PHPinnacle\Eidos\Forms;
 
-use InvalidArgumentException;
 use PHPinnacle\Jason\Schema;
 
 final readonly class SchemaCompatibility
@@ -32,14 +31,23 @@ final readonly class SchemaCompatibility
         $source = $source->resolveReferences();
         $target = $target->resolveReferences();
 
-        if ($source->allowsAny() || $source->deniesAny() || $target->allowsAny() || $target->deniesAny()) {
-            throw new InvalidArgumentException('Boolean schemas cannot be used as mapping fields.');
+        if ($source->deniesAny() || $target->deniesAny()) {
+            return false;
+        }
+
+        if ($target->allowsAny() || $target->isEmpty()) {
+            return true;
         }
 
         $alternatives = $source->alternatives();
 
         if ($alternatives !== []) {
-            return array_all($alternatives, fn (Schema $branch) => $this->accepts($branch, $target));
+            $alternatives = array_values(array_filter($alternatives, fn (Schema $branch) => !$branch->deniesAny()));
+
+            return (
+                $alternatives !== []
+                && array_all($alternatives, fn (Schema $branch) => $this->accepts($branch, $target))
+            );
         }
 
         $alternatives = $target->alternatives();
@@ -79,8 +87,8 @@ final readonly class SchemaCompatibility
 
         if (in_array('array', $sourceTypes, true)) {
             return $this->accepts(
-                $source->effectiveItems() ?? Schema::fromArray([]),
-                $target->effectiveItems() ?? Schema::fromArray([]),
+                $source->effectiveItems() ?? Schema::empty(),
+                $target->effectiveItems() ?? Schema::empty(),
             );
         }
 

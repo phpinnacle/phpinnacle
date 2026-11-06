@@ -71,7 +71,7 @@ class JsonSchemaPicker extends Field implements HasNestedRecursiveValidationRule
     {
         return [
             ...parent::getExtraViewData(),
-            ...SchemaPresentation::render($this->getJsonSchema()->toArray(), $this->areIconsVisible()),
+            ...SchemaPresentation::render($this->getJsonSchema(), $this->areIconsVisible()),
         ];
     }
 

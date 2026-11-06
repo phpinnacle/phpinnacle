@@ -493,24 +493,53 @@ it('requires source enum values to fit the destination enum', function (
     ],
 ]);
 
-it('uses Jason reference projections without changing the serialized mapping schema', function () {
-    $definition = [
-        '$defs' => ['code' => ['type' => 'string', 'format' => 'email', 'maxLength' => 5]],
-        'properties' => ['code' => ['$ref' => '#/$defs/code', 'maxLength' => 10]],
-    ];
-    $schema = Schema::fromArray($definition);
-    expect($schema->resolveReferences()->effectiveProperties()['code']->effectiveMaxLength())
-        ->toBe(5)
-        ->and($schema->resolveReferences()->effectiveProperties()['code']->effectiveFormat())
-        ->toBe('email')
-        ->and($schema->toArray())
-        ->toBe($definition);
+it('presents unrestricted and prohibited mapping fields without changing their definitions', function () {
+    $schema = Schema::fromArray(['properties' => ['free' => true, 'forbidden' => false, 'null' => ['type' => 'null']]]);
+    $items = SchemaPresentation::toMappingItems($schema);
+
+    expect(array_column($items, 'type', 'id'))->toBe(['free' => 'any', 'forbidden' => 'never', 'null' => 'null']);
+    expect($schema->properties()['free']->allowsAny())->toBeTrue();
+    expect($schema->properties()['forbidden']->deniesAny())->toBeTrue();
+    expect(SchemaPresentation::toMappingItems(Schema::fromArray(true)))->toBe([]);
+    expect(SchemaPresentation::toMappingItems(Schema::fromArray(false)))->toBe([]);
+    expect(SchemaPresentation::label(Schema::fromArray(['type' => 'array', 'items' => false])))->toBe('never[]');
 });
 
-it('rejects boolean mapping fields instead of changing them into unconstrained definitions', function () {
-    $schema = Schema::fromArray(['properties' => ['forbidden' => false]]);
-    expect(fn () => SchemaPresentation::toMappingItems($schema))
-        ->toThrow(InvalidArgumentException::class, 'Boolean schemas');
+it('uses boolean schemas from projections in connection policy', function (
+    array|bool $source,
+    array|bool $target,
+    bool $accepted,
+) {
+    expect(SchemaCompatibility::make()->accepts(Schema::fromArray($source), Schema::fromArray($target)))
+        ->toBe($accepted);
+})->with([
+    'unrestricted destination' => [['type' => 'integer'], true, true],
+    'empty array to unrestricted destination' => [['type' => 'array', 'items' => false], true, true],
+    'empty array to empty definition' => [['type' => 'array', 'items' => false], [], true],
+    'unrestricted source' => [true, [], true],
+    'prohibited destination' => [['type' => 'integer'], false, false],
+    'prohibited source' => [false, true, false],
+    'empty source alternatives' => [['anyOf' => [false, ['type' => 'integer']]], ['type' => 'number'], true],
+    'unrestricted items' => [
+        ['type' => 'array', 'items' => ['type' => 'string']],
+        ['type' => 'array', 'items' => true],
+        true,
+    ],
+    'prohibited items' => [
+        ['type' => 'array', 'items' => ['type' => 'string']],
+        ['type' => 'array', 'items' => false],
+        false,
+    ],
+    'unrestricted source retains format checks' => [true, ['type' => 'string', 'format' => 'email'], false],
+]);
+
+it('presents effective enum values from conjunctive field projections', function () {
+    $schema = Schema::allOf([
+        Schema::fromArray(['type' => 'string', 'enum' => ['draft', 'active']]),
+        Schema::fromArray(['enum' => ['active']]),
+    ]);
+
+    expect(SchemaPresentation::presentation($schema))->toMatchArray(['type' => 'enum', 'enum' => ['"active"']]);
 });
 
 it('uses x-enum labels in enum presentations without changing compatibility', function () {

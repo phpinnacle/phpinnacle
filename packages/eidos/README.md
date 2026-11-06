@@ -414,18 +414,19 @@ field color in light and dark mode. No SVG catalog or Livewire request is needed
 from the consuming component. Pass `:icons="false"` to hide schema icons.
 
 For pre-rendered icons and fallback titles, the `icons` and `property-titles`
-props still accept the output of `SchemaPresentation::render($schema->toArray())`.
-Its result contains `definition`, `icons`, and `propertyTitles`; `withIcons: false`
-omits rendered icons. Filament components supply these automatically. Supplied
-icon markup must be trusted server output.
+props accept the output of `SchemaPresentation::render($schema)`. It accepts a
+Jason `Schema`, an array definition, or a boolean definition and returns
+`definition`, `icons`, and `propertyTitles`; `withIcons: false` omits rendered
+icons. Filament components supply these automatically. Supplied icon markup must
+be trusted server output.
 
 ## Field mapping
 
 `FieldMapping` connects the named properties of two inline JSON Schema objects. Configuration accepts Jason `Schema` instances or Filament-evaluated closures returning them. `getSourceSchema()`, `getTargetSchema()`, and `getOutputSchema()` return these objects; use `toArray()` at serialization boundaries. Property names are stable identifiers, including numeric names and names containing dots.
 
-Mapping and binding fields accept [Jason](https://github.com/phpinnacle/jason) `Schema` values directly, including schemas returned by `SchemaBuilder::build()`. Serialized definitions retain their original references; property views resolve them. Jason owns structural readers and composition projections such as `types()`, `effectiveProperties()`, `effectiveRequired()`, `effectiveFormat()`, `enumValues()`, and `effectiveMaxLength()`. Eidos owns connection policy in `SchemaCompatibility::accepts($source, $target)` and mapping metadata in `SchemaPresentation`. Boolean mapping fields remain unsupported.
+Mapping and binding fields accept [Jason](https://github.com/phpinnacle/jason) `Schema` values directly, including schemas returned by `SchemaBuilder::build()`. Serialized definitions retain their original references; property views resolve them. Jason owns structural readers and composition projections such as `types()`, `effectiveProperties()`, `effectiveRequired()`, `effectiveFormat()`, `enumValues()`, and `effectiveMaxLength()`. Eidos owns connection policy in `SchemaCompatibility::accepts($source, $target)` and mapping metadata in `SchemaPresentation`. Boolean `true` fields are unrestricted and display as `any`; boolean `false` fields display as `never` and cannot connect. Literal `false` branches do not restrict source alternatives. Root boolean schemas declare no mapping fields.
 
-`Schema::equals($other)` compares serialized definitions using JSON value equality: object key order is ignored, array element order and scalar types are preserved, and numbers compare by value. It does not prove equivalence between differently expressed schemas.
+`Schema::equals($other)` compares definitions using JSON value equality: object key order is ignored, array element order and scalar types are preserved, and numbers compare by value. Mapping and binding caches use `equals($other, strict: true)` to preserve declared key order and numeric types without exporting definitions. Neither mode proves equivalence between differently expressed schemas.
 
 ```php
 use PHPinnacle\Eidos\Forms\FieldMapping;
@@ -540,7 +541,7 @@ FieldMapping::make('mapping')
 
 Static value editors own their submitted values. When a custom editor uses `dehydrated(false)`, its entire static mapping row is omitted from `getState()`. Explicitly dehydrated `null`, `false`, zero, and empty values retain their native meaning; inactive editor drafts are omitted independently of the value.
 
-The built-in fields follow destination `required` and nullable types, string length limits, and numeric minimum/maximum bounds. Dates serialize as `Y-m-d`, times as `H:i:s`, and date-times as `Y-m-d\TH:i:sP`. Repeaters use `items` to select and validate each field, apply `minItems` and `maxItems`, and use Filament's distinct validation for string and numeric `uniqueItems`. Boolean items use a Select. Empty arrays are allowed unless `minItems` requires entries. `withBuiltinStaticForms()` sets the factory to the standard editors; a later `staticForms()` call replaces it.
+The built-in fields follow destination `required` and nullable types, projected string length and enum constraints, and declared numeric minimum/maximum bounds. Dates serialize as `Y-m-d`, times as `H:i:s`, and date-times as `Y-m-d\TH:i:sP`. Repeaters use `items` to select and validate each field, apply `minItems` and `maxItems`, and use Filament's distinct validation for string and numeric `uniqueItems`. Boolean items use a Select. Empty arrays are allowed unless `minItems` requires entries. `withBuiltinStaticForms()` sets the factory to the standard editors; a later `staticForms()` call replaces it.
 
 There are no built-in JSON editors. Objects, arrays without a supported scalar item type, and nullable arrays offer connections only unless a custom factory is registered. The installed Filament simple repeater cannot hydrate composite items without changing their values or preserve `null` separately from `[]`.
 

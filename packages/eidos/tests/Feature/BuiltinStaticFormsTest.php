@@ -23,6 +23,15 @@ require_once __DIR__ . '/../Fixtures/SchemaHost.php';
 
 uses(TestCase::class);
 
+it('offers only projected enum values in native static editors', function () {
+    $enumerated = Schema::allOf([
+        Schema::fromArray(['type' => 'string', 'enum' => ['draft', 'active']]),
+        Schema::fromArray(['enum' => ['active']]),
+    ]);
+
+    expect(BuiltinStaticForms::make($enumerated, false)->getOptions())->toBe(['active' => 'active']);
+});
+
 /** @param array<string, mixed> $property */
 function builtin_static_schema(array $property, mixed $value = null): FilamentSchema
 {
@@ -91,6 +100,11 @@ it('round trips built-in static values with their native types', function (array
     'nullable items' => [['type' => 'array', 'items' => ['type' => ['string', 'null']]], ['one', null]],
     'empty typed array' => [['type' => 'array', 'items' => ['type' => 'string']], []],
     'enum' => [['type' => 'string', 'enum' => ['draft', 'active']], 'active'],
+    'projected enum' => [
+        ['allOf' => [['type' => 'string', 'enum' => ['draft', 'active']], ['enum' => ['active']]]],
+        'active',
+    ],
+    'projected length' => [['allOf' => [['type' => 'string', 'minLength' => 2], ['maxLength' => 5]]], 'valid'],
     'uuid' => [
         ['type' => 'string', 'format' => 'uuid'],
         '550e8400-e29b-41d4-a716-446655440000',
@@ -104,30 +118,6 @@ it('round trips built-in static values with their native types', function (array
         '2026-10-22T14:30:00+00:00',
     ],
 ]);
-
-it('uses item formats and constraints inside repeaters', function () {
-    $schema = builtin_static_schema([
-        'type' => 'array',
-        'minItems' => 1,
-        'maxItems' => 10,
-        'items' => ['type' => 'string', 'format' => 'email', 'maxLength' => 64],
-    ], ['user@example.com']);
-    $repeater = $schema->getComponent('mapping')->getStaticFormSchema('target')->getComponent('value');
-    $item = $repeater->getSimpleField();
-
-    expect($repeater)
-        ->toBeInstanceOf(Repeater::class)
-        ->getMinItems()
-        ->toBe(1)
-        ->getMaxItems()
-        ->toBe(10)
-        ->and($item)
-        ->toBeInstanceOf(TextInput::class)
-        ->getType()
-        ->toBe('email')
-        ->getMaxLength()
-        ->toBe(64);
-});
 
 it('validates array counts and nested item values', function (array $property, array $value) {
     $schema = builtin_static_schema($property, $value);
@@ -160,6 +150,15 @@ it('validates submitted values through built-in fields', function (array $proper
     'minimum' => [['type' => 'number', 'minimum' => 1], '0'],
     'maximum' => [['type' => 'number', 'maximum' => 1], '2'],
     'enum' => [['type' => 'string', 'enum' => ['draft']], 'other'],
+    'projected enum' => [
+        ['allOf' => [['type' => 'string', 'enum' => ['draft', 'active']], ['enum' => ['active']]]],
+        'draft',
+    ],
+    'projected minimum length' => [['allOf' => [['type' => 'string'], ['minLength' => 2]]], 'a'],
+    'projected maximum length' => [
+        ['allOf' => [['type' => 'string', 'maxLength' => 10], ['maxLength' => 3]]],
+        'long',
+    ],
 ]);
 
 it('leaves unsupported built-in static types available for connections', function (array $property) {

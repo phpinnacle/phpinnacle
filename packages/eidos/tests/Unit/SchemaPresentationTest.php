@@ -2,9 +2,26 @@
 
 use BladeUI\Icons\Exceptions\SvgNotFound;
 use PHPinnacle\Eidos\JsonSchema\SchemaPresentation;
+use PHPinnacle\Jason\Schema;
 use Tests\TestCase;
 
 uses(TestCase::class);
+
+it('renders immutable schema values directly and protects mutable output metadata', function () {
+    $schema = Schema::fromArray([
+        '$defs' => ['value' => ['type' => 'string']],
+        'properties' => ['some_name' => ['$ref' => '#/$defs/value']],
+        'default' => (object) ['nested' => (object) ['value' => 'original']],
+    ]);
+    $presentation = SchemaPresentation::render($schema, withIcons: false);
+    $presentation['definition']['default']->nested->value = 'changed';
+
+    expect($presentation['propertyTitles'])->toBe(['some_name' => 'Some Name']);
+    expect($presentation['definition']['properties']['some_name'])->toBe(['$ref' => '#/$defs/value']);
+    expect($schema->default()->nested->value)->toBe('original');
+    expect(SchemaPresentation::render(Schema::empty(), withIcons: false)['definition'])->toBe([]);
+    expect(SchemaPresentation::render(Schema::fromArray(true), withIcons: false)['definition'])->toBeTrue();
+});
 
 it('renders metadata from referenced definitions without replacing the original schema', function () {
     $definition = [

@@ -123,7 +123,7 @@ class FieldBinding extends Field
     {
         $schema = $this->getSourceSchema();
 
-        if ($this->cachedSourceSchema !== $schema && $this->cachedSourceSchema?->toArray() !== $schema->toArray()) {
+        if ($this->cachedSourceSchema !== $schema && !$this->cachedSourceSchema?->equals($schema, strict: true)) {
             $this->cachedSources = SchemaPresentation::toMappingItems($schema);
             $this->cachedSourceSchema = $schema;
         }
@@ -396,7 +396,7 @@ class FieldBinding extends Field
     {
         parent::setUp();
 
-        $this->jsonSchema = Schema::fromArray([]);
+        $this->jsonSchema = Schema::empty();
 
         $this->schema([]);
         $this->childComponents([
@@ -644,6 +644,16 @@ class FieldBinding extends Field
                 }
 
                 $sources[$source] = true;
+
+                if ($row['target'] !== null) {
+                    $sourceSchema = $this->getSourceSchema()->atPath([$source]);
+
+                    if ($sourceSchema === null || $sourceSchema->deniesAny()) {
+                        $fail('The :attribute field contains a prohibited source.')->translate();
+
+                        return;
+                    }
+                }
             }
 
             if ($row['kind'] === 'static' && $this->simpleField !== null) {

@@ -701,9 +701,42 @@ it('uses the additional property schema for unnamed object properties', function
     );
 
     expect($field->getConnectionModes()['count']['custom'] ?? null)->toBe($allowed ? MappingMode::Property : null);
+    $validator = new Factory(new Translator(new ArrayLoader, 'en'));
+
+    expect(
+        $validator
+            ->make(
+                ['mapping' => MappingState::mapping(['custom' => MappingState::source('count')])],
+                ['mapping' => $field->getValidationRules()],
+            )
+            ->passes(),
+    )
+        ->toBe($allowed);
 })->with([
     'open' => [true, true],
     'closed' => [false, false],
     'numeric' => [['type' => 'number'], true],
     'text' => [['type' => 'string'], false],
 ]);
+
+it('keeps prohibited projected fields visible while rejecting their connections', function () {
+    $field = FieldMapping::make('mapping')->jsonSchema(
+        source: Schema::fromArray(['properties' => ['count' => ['type' => 'integer'], 'blocked' => false]]),
+        target: Schema::fromArray(['properties' => ['free' => true, 'blocked' => false]]),
+    );
+
+    expect(array_column($field->getSources(), 'type', 'id'))->toBe(['count' => 'integer', 'blocked' => 'never']);
+    expect(array_column($field->getTargets(), 'type', 'id'))->toBe(['free' => 'any', 'blocked' => 'never']);
+    expect($field->getConnectionModes())->toBe(['count' => ['free' => MappingMode::Whole]]);
+
+    $validator = new Factory(new Translator(new ArrayLoader, 'en'));
+
+    expect(
+        $validator
+            ->make(
+                ['mapping' => MappingState::mapping(['blocked' => MappingState::value('value')])],
+                ['mapping' => $field->getValidationRules()],
+            )
+            ->passes(),
+    )->toBeFalse();
+});

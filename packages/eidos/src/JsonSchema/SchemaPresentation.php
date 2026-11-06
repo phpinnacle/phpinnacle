@@ -33,15 +33,16 @@ use function Filament\Support\generate_icon_html;
 final class SchemaPresentation
 {
     /**
-     * @param array<string, mixed>|bool $definition
+     * @param Schema|array<string, mixed>|bool $definition
      * @return array{definition: array<string, mixed>|bool, propertyTitles: array<string, string>, icons: array<string, string>}
      */
-    public static function render(array|bool $definition, bool $withIcons = true): array
+    public static function render(Schema|array|bool $definition, bool $withIcons = true): array
     {
+        $schema = $definition instanceof Schema ? $definition : Schema::fromArray($definition);
         $titles = [];
         $icons = [];
 
-        Schema::fromArray($definition)
+        $schema
             ->resolveReferences()
             ->walk(function (Schema $schema, ?string $keyword, string|int|null $key) use (
                 &$titles,
@@ -72,7 +73,7 @@ final class SchemaPresentation
                 $icons[$iconName] = $icon->toHtml();
             });
 
-        return ['definition' => $definition, 'propertyTitles' => $titles, 'icons' => $icons];
+        return ['definition' => $schema->toArray(), 'propertyTitles' => $titles, 'icons' => $icons];
     }
 
     /** @return list<MappingItem> */
@@ -80,18 +81,10 @@ final class SchemaPresentation
     {
         $schema = $schema->resolveReferences();
 
-        if ($schema->allowsAny() || $schema->deniesAny()) {
-            throw new InvalidArgumentException('Boolean schemas cannot be used as mapping fields.');
-        }
-
         $items = [];
         $required = $schema->effectiveRequired();
 
         foreach ($schema->effectiveProperties() as $name => $property) {
-            if ($property->allowsAny() || $property->deniesAny()) {
-                throw new InvalidArgumentException('Boolean schemas cannot be used as mapping fields.');
-            }
-
             $name = (string) $name;
             /** @var string|null $icon */
             $icon = $property->annotation('x-icon');
@@ -116,10 +109,14 @@ final class SchemaPresentation
 
     public static function label(Schema $schema, bool $formatted = false): string
     {
+        if ($schema->deniesAny()) {
+            return 'never';
+        }
+
         $types = $schema->types();
 
         if ($formatted) {
-            if (($schema->enum() ?? null) !== null) {
+            if ($schema->enumValues() !== null) {
                 return 'enum';
             }
 
@@ -208,7 +205,7 @@ final class SchemaPresentation
                         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
                     )
                 ),
-                $schema->enum() ?? [],
+                $schema->enumValues() ?? [],
             ),
         ];
     }

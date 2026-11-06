@@ -20,18 +20,17 @@ final class BuiltinStaticForms
 {
     public static function make(Schema $property, bool $required): ?Field
     {
-        $definition = $property->keywords();
         $field = match ($property->singleType()) {
             'string' => self::string($property),
             'integer' => TextInput::make('value')
                 ->integer()
                 ->step(1)
-                ->minValue($definition['minimum'] ?? null)
-                ->maxValue($definition['maximum'] ?? null),
+                ->minValue($property->minimum())
+                ->maxValue($property->maximum()),
             'number' => TextInput::make('value')
                 ->numeric()
-                ->minValue($definition['minimum'] ?? null)
-                ->maxValue($definition['maximum'] ?? null),
+                ->minValue($property->minimum())
+                ->maxValue($property->maximum()),
             'boolean' => in_array('null', $property->types(), true)
                 ? Select::make('value')->boolean()
                 : Toggle::make('value')->default(false),
@@ -66,7 +65,6 @@ final class BuiltinStaticForms
             return null;
         }
 
-        $definition = $property->keywords();
         /** @var Field $item */
         $item = $type === 'boolean'
             ? Select::make('value')
@@ -76,24 +74,24 @@ final class BuiltinStaticForms
 
         return Repeater::make('value')
             ->defaultItems(0)
-            ->minItems($definition['minItems'] ?? null)
-            ->maxItems($definition['maxItems'] ?? null)
+            ->minItems($property->minItems())
+            ->maxItems($property->maxItems())
             ->simple(
                 $item
                     ->distinct(
-                        ($definition['uniqueItems'] ?? false) && in_array($type, ['string', 'integer', 'number'], true),
+                        ($property->uniqueItems() ?? false) && in_array($type, ['string', 'integer', 'number'], true),
                     ),
             );
     }
 
     private static function string(Schema $property): Field
     {
-        $definition = $property->keywords();
+        $values = $property->enumValues();
 
-        if (array_key_exists('enum', $definition)) {
+        if ($values !== null) {
             $options = [];
 
-            foreach ($definition['enum'] as $value) {
+            foreach ($values as $value) {
                 if (is_string($value)) {
                     $options[$value] = SchemaPresentation::enumLabel($property, $value) ?? $value;
                 }
@@ -114,7 +112,7 @@ final class BuiltinStaticForms
         };
 
         if ($field instanceof TextInput || $field instanceof Textarea) {
-            $field->minLength($definition['minLength'] ?? null)->maxLength($definition['maxLength'] ?? null);
+            $field->minLength($property->effectiveMinLength())->maxLength($property->effectiveMaxLength());
         }
 
         return $field;

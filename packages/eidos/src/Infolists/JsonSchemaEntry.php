@@ -51,7 +51,7 @@ class JsonSchemaEntry extends Entry
     {
         return [
             ...parent::getExtraViewData(),
-            ...SchemaPresentation::render($this->getJsonSchema()->toArray(), $this->areIconsVisible()),
+            ...SchemaPresentation::render($this->getJsonSchema(), $this->areIconsVisible()),
         ];
     }
 }

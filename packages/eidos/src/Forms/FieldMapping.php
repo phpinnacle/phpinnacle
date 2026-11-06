@@ -407,7 +407,7 @@ class FieldMapping extends Field
         $targets = $this->getTargetSchema()->resolveReferences()->effectiveProperties();
 
         foreach (array_keys($this->getSourceSchema()->resolveReferences()->effectiveProperties()) as $source) {
-            $output = $outputs[$source] ?? Schema::fromArray([]);
+            $output = $outputs[$source] ?? Schema::empty();
 
             foreach ($targets as $target => $destination) {
                 $mode = self::mappingMode($destination);
@@ -456,7 +456,7 @@ class FieldMapping extends Field
     {
         $schema = $this->getSourceSchema();
 
-        if ($this->cachedSourceSchema !== $schema && $this->cachedSourceSchema?->toArray() !== $schema->toArray()) {
+        if ($this->cachedSourceSchema !== $schema && !$this->cachedSourceSchema?->equals($schema, strict: true)) {
             $this->cachedSources = SchemaPresentation::toMappingItems($schema);
             $this->cachedSourceSchema = $schema;
         }
@@ -501,8 +501,8 @@ class FieldMapping extends Field
     {
         parent::setUp();
 
-        $this->sourceSchema = Schema::fromArray([]);
-        $this->targetSchema = Schema::fromArray([]);
+        $this->sourceSchema = Schema::empty();
+        $this->targetSchema = Schema::empty();
 
         $this->schema([]);
         $this->childComponents([
@@ -592,8 +592,7 @@ class FieldMapping extends Field
                 . implode(' ', array_column($item['badges'], 'label'));
             $data = [
                 'item' => $item,
-                'presentation' =>
-                    $presentations[$item['id']] ?? SchemaPresentation::presentation(Schema::fromArray([])),
+                'presentation' => $presentations[$item['id']] ?? SchemaPresentation::presentation(Schema::empty()),
             ];
             $components[] = View::make('phpinnacle-eidos::forms.field-mapping-source-card')
                 ->key('card_' . $keys[$item['id']])
@@ -633,7 +632,7 @@ class FieldMapping extends Field
 
         foreach ($this->getSources() as $item) {
             $source = $item['id'];
-            $presentation = $presentations[$source] ?? SchemaPresentation::presentation(Schema::fromArray([]));
+            $presentation = $presentations[$source] ?? SchemaPresentation::presentation(Schema::empty());
 
             if (
                 !array_key_exists($source, $this->updatedSources)
@@ -722,6 +721,16 @@ class FieldMapping extends Field
 
                 $mode = $row['target'] === null ? null : $modes[$source][$row['target']];
             } else {
+                if ($row['target'] !== null) {
+                    $targetSchema = $this->getTargetSchema()->atPath([$row['target']]);
+
+                    if ($targetSchema === null || $targetSchema->deniesAny()) {
+                        $fail('The :attribute field contains a prohibited destination.')->translate();
+
+                        return;
+                    }
+                }
+
                 if (
                     $row['target'] === null
                     && !array_key_exists('draftTarget', $row)

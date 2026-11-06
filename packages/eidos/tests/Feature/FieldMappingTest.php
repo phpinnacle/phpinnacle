@@ -30,6 +30,18 @@ require_once __DIR__ . '/../Fixtures/FieldMappingForm.php';
 
 uses(TestCase::class);
 
+it('refreshes source order when an equivalent definition changes its key order', function (bool $binding) {
+    $current = Schema::object(['first' => Schema::string(), 'second' => Schema::integer()]);
+    $field = ($binding ? FieldBinding::make('mapping') : FieldMapping::make('mapping'))
+        ->jsonSchema(function () use (&$current) {
+            return $current;
+        });
+
+    expect(array_column($field->getSources(), 'id'))->toBe(['first', 'second']);
+    $current = Schema::object(['second' => Schema::integer(), 'first' => Schema::string()]);
+    expect(array_column($field->getSources(), 'id'))->toBe(['second', 'first']);
+})->with([false, true]);
+
 it('hydrates composed source schemas with native settings', function (bool $binding, bool $dynamic) {
     $source = Schema::fromArray([
         '$defs' => ['fields' => ['properties' => ['name' => ['type' => 'string']]]],
