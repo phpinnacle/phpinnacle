@@ -122,6 +122,7 @@ it('required destinations come from the schema in both orientations', function (
             ->make(['mapping' => MappingState::mapping($valid)], ['mapping' => $field->getValidationRules()])
             ->passes(),
     )->toBeTrue();
+
     foreach ([null, [], $missing] as $value) {
         expect(
             $validator
@@ -255,6 +256,7 @@ it('uses configured schema constraints for connection modes and server validatio
     bool $allowed,
 ) {
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
+
     foreach ([false, true] as $multiple) {
         $field = FieldMapping::make('mapping')
             ->jsonSchema(
@@ -335,6 +337,7 @@ it('adds application restrictions to connection modes and validates whole connec
         'allowed' => MappingMode::Whole,
         'items' => MappingMode::Item,
     ]]);
+
     foreach (['allowed' => true, 'blocked' => false, 'wrong_type' => false] as $target => $allowed) {
         expect(
             $validator
@@ -380,6 +383,7 @@ it('passes literal field names to connection restrictions for whole and item map
         ],
         'other.id' => ['label' => MappingMode::Whole],
     ]);
+
     foreach (['record.id' => true, 'other.id' => false] as $source => $allowed) {
         foreach ([
             'key.id' => MappingState::source($source),
@@ -424,6 +428,7 @@ it('distinguishes whole arrays from explicitly collected items', function (bool 
         [['contacts' => [MappingState::source('name'), MappingState::source('email')]], true],
         [['contacts' => [MappingState::source('list'), MappingState::source('name')]], false],
     ];
+
     foreach ($values as [$value, $valid]) {
         expect(
             $validator
@@ -500,6 +505,7 @@ it('uses enum compatibility for connection availability and submitted mappings',
         );
     $modes = $field->getConnectionModes();
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
+
     foreach ($sources as $source => $allowed) {
         expect($modes[$source]['status'] ?? null)->toBe($allowed ? MappingMode::Whole : null);
         expect(
@@ -665,6 +671,7 @@ it('checks property output schemas and application restrictions without renaming
     $validator = new Factory(new Translator(new ArrayLoader, 'en'));
 
     expect($field->getConnectionModes())->toBe(['name' => ['custom' => MappingMode::Property]]);
+
     foreach (['name' => true, 'enabled' => false, 'blocked' => false, 'unknown' => false] as $source => $allowed) {
         expect(
             $validator

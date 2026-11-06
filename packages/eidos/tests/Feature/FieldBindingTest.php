@@ -280,6 +280,7 @@ it('renders accessible local connection controls for every source', function (bo
 
     preg_match_all('/<button[^>]*aria-label="Bind"[^>]*>/s', $html, $bindButtons);
     expect($bindButtons[0])->toHaveCount(6);
+
     foreach ($bindButtons[0] as $button) {
         expect(str_contains($button, 'x-on:click="bind('))->toBe(!$disabled);
         expect($button)->not->toContain('wire:click=');
@@ -723,6 +724,7 @@ it('preserves binding metadata and values across presentation options', function
         ->dense(fn () => $dense)
         ->compact(fn () => $compact)
         ->simple(TextInput::make('destination')->required());
+
     if (!$contained) {
         $field->contained(false);
     }
@@ -742,6 +744,7 @@ it('preserves binding metadata and values across presentation options', function
     expect($html)->toContain('eidos-mapping-card field-mapping-row field-binding-source');
     expect(str_contains($text, 'Field visibility'))->toBe($contained);
     expect(substr_count($html, 'type="radio"'))->toBe($contained ? 3 : 0);
+
     if ($contained) {
         expect($text)->toContain('All', 'Bound', 'Unbound');
     }
@@ -852,6 +855,7 @@ it('validates native fields in a static binding schema', function () {
     $field->getAction('addConstant')([])->call();
     $key = array_key_first($field->getConstants());
     $field->getConstants()[$key]->getComponent('input.static')->state('literal');
+
     try {
         $schema->getState();
         test()->fail('The required child field should fail validation.');
@@ -866,6 +870,7 @@ it('keeps independent static schema forms without inferring destination uniquene
         ->schema([TextInput::make('destination')->default('shared'), Toggle::make('enabled')->default(false)])
         ->staticValues();
     $schema = field_binding_schema($field);
+
     foreach (['first', 'second'] as $value) {
         $field->getAction('addConstant')([])->call();
         $key = array_key_last($field->getConstants());

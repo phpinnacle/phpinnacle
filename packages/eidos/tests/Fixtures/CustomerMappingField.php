@@ -21,6 +21,7 @@ enum CustomerMappingField: string implements HasDescription, HasIcon, HasLabel
     public static function jsonSchema(): array
     {
         $properties = [];
+
         foreach (self::cases() as $field) {
             $properties[$field->value] = [
                 'title' => $field->getLabel(),

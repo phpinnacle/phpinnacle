@@ -99,6 +99,7 @@ it('propagates processing failures and records their original details', function
     $exception = ValidationException::withMessages(['name' => 'Rejected']);
     app(WebhookRegistry::class)->register(new Handler('test', 'Test', fn () => throw $exception));
     $webhook = scheduled_webhook($this->integration);
+
     if ($transform) {
         $webhook->payload = 'invalid json';
     }
@@ -118,6 +119,7 @@ it('propagates processing failures and records their original details', function
             ->toBe($error->getMessage())
             ->and($webhook->error['type'])
             ->toBe($error::class);
+
         if (!$transform) {
             expect($webhook->error['errors'])->toBe(['name' => ['Rejected']]);
         }

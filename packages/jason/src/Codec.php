@@ -58,9 +58,11 @@ final class Codec
 
         /** @var array<string, mixed> $definition JSON object keywords, including unknown annotations. */
         $definition = get_object_vars($schema);
+
         foreach ($definition as $keyword => $value) {
             if ($keyword === 'type') {
                 $types = is_array($value) ? $value : [$value];
+
                 if (
                     $types === []
                     || !array_all(

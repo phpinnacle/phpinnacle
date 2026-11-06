@@ -684,6 +684,7 @@ final class ClientTest extends TestCase
         ], JSON_THROW_ON_ERROR);
         $json = static fn (array $value) => json_encode($value, JSON_THROW_ON_ERROR);
         $responses = [];
+
         foreach ([
             $course,
             $level,

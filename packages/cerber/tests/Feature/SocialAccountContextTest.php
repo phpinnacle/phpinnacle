@@ -398,6 +398,7 @@ it('allows users without roles to sign in through independent panel OAuth contex
 
     foreach ([$this->adminContext, $second] as $context) {
         Filament::setCurrentPanel($panels[$context->name()]);
+
         if ($context->name() === 'admin') {
             expect(fn () => $oauth->redirect($context, $providers['second']))
                 ->toThrow(\Symfony\Component\HttpKernel\Exception\HttpException::class);
@@ -471,6 +472,7 @@ it('links a profile only to the user who started that context attempt', function
     parse_str(parse_url($redirect->getTargetUrl(), PHP_URL_QUERY), $parameters);
     $request = app('request');
     $request->merge(['state' => $parameters['state'], 'code' => 'code']);
+
     if ($switchUser) {
         auth('admin')->login($this->customer);
         expect(fn () => app(CallbackController::class)(
@@ -524,6 +526,7 @@ it('renders an OAuth test result without signing in or linking an account', func
         ->toBeTrue()
         ->and(Login::query()->where('type', LoginType::OAuth)->count())
         ->toBe(0);
+
     if ($fails) {
         expect($html)->not->toContain('google-user');
     } else {

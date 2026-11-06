@@ -46,6 +46,7 @@ class InlineBuilder extends Field
     public function getBlocks(): array
     {
         $blocks = [];
+
         foreach ($this->evaluate($this->blocks) as $block) {
             $blocks[$block->getName()] = $block;
         }
@@ -176,13 +177,16 @@ class InlineBuilder extends Field
     {
         $items = $this->getSettings();
         $allowed = [];
+
         foreach ($items as $from => $item) {
             $positions = [];
             $remaining = $items;
             array_splice($remaining, $from, 1);
+
             foreach (array_keys($items) as $to) {
                 $candidate = $remaining;
                 array_splice($candidate, $to, 0, [$item]);
+
                 if ($this->isOrderAllowed($candidate)) {
                     $positions[] = $to;
                 }
@@ -244,6 +248,7 @@ class InlineBuilder extends Field
             'items.*.type' => ['required', 'string', Rule::in(array_keys($this->getBlocks()))],
             'items.*.data' => ['sometimes', 'array'],
         ]);
+
         if ($validator->fails()) {
             $fail($validator->errors()->first())->translate();
 
@@ -252,6 +257,7 @@ class InlineBuilder extends Field
 
         /** @var list<BuilderItem> $items */
         $items = $validator->validated()['items'];
+
         foreach ($items as $index => $item) {
             $this->getItemSchema($item['type'], $index)->validate();
         }

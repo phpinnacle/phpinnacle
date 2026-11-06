@@ -124,6 +124,7 @@ class SchemaIntrospector
         }
 
         $builder = SchemaBuilder::make()->type('object')->properties($properties);
+
         if ($required !== []) {
             $builder->required($required);
         }

@@ -57,6 +57,7 @@ final class BuiltinStaticForms
     {
         $items = $property->arrayItems();
         $type = $items?->singleType();
+
         // shortcut: omit composite items and nullable arrays until Filament can hydrate them without changing values.
         if (
             in_array('null', $property->types(), true)
@@ -88,8 +89,10 @@ final class BuiltinStaticForms
     private static function string(Schema $property): Field
     {
         $definition = $property->keywords();
+
         if (array_key_exists('enum', $definition)) {
             $options = [];
+
             foreach ($definition['enum'] as $value) {
                 if (is_string($value)) {
                     $options[$value] = SchemaPresentation::enumLabel($property, $value) ?? $value;

@@ -374,6 +374,7 @@ it('reads database defaults using the connection dialect', function (
     $model->shouldReceive('getConnection')->andReturn($connection);
     $connection->shouldReceive('getSchemaBuilder')->andReturn($builder);
     $connection->shouldReceive('getDriverName')->andReturn($driver);
+
     if ($driver === 'mysql') {
         $grammar = \Mockery::mock(MySqlGrammar::class);
         $connection->shouldReceive('getSchemaGrammar')->andReturn($grammar);

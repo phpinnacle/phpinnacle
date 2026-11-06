@@ -122,6 +122,7 @@ class FieldBinding extends Field
     public function getSources(): array
     {
         $schema = $this->getSourceSchema();
+
         if ($this->cachedSourceSchema !== $schema && $this->cachedSourceSchema?->toArray() !== $schema->toArray()) {
             $this->cachedSources = SchemaPresentation::toMappingItems($schema);
             $this->cachedSourceSchema = $schema;
@@ -254,12 +255,14 @@ class FieldBinding extends Field
     public function getDefaultChildSchemas(): array
     {
         $state = $this->getRawState();
+
         if ($state !== null && (!is_array($state) || !array_is_list($state))) {
             return [];
         }
 
         $this->initializeSourceRows();
         $schemas = [];
+
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
             if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
@@ -275,6 +278,7 @@ class FieldBinding extends Field
         }
 
         $schemas += $this->makeSourceSettingsSchemas();
+
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
             if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
@@ -303,10 +307,12 @@ class FieldBinding extends Field
         /** @var FilamentSchema $schema The default child schema always exists. */
         $schema = $this->getChildSchema();
         $schema = $schema->getClone()->inlineLabel(false);
+
         if ($this->simpleField !== null) {
             /** @var Field $field */
             $field = $schema->getComponents()[0];
             $field->statePath('target')->key($field->getName());
+
             if (!$field->hasDefaultState()) {
                 $field->default($source);
             }
@@ -340,16 +346,19 @@ class FieldBinding extends Field
         /** @var FilamentSchema $output The default child schema always exists. */
         $output = $this->getChildSchema();
         $output = $output->getClone()->inlineLabel(false);
+
         if ($this->simpleField !== null) {
             /** @var Field $target */
             $target = $output->getComponents()[0];
             $target->statePath('target')->key($target->getName());
+
             if ($defaultTarget !== null && !$target->hasDefaultState()) {
                 $target->default($defaultTarget);
             }
         }
 
         $outputGroup = Group::make()->schema($output)->key('output');
+
         if ($this->simpleField === null) {
             $outputGroup
                 ->statePath('target')
@@ -471,6 +480,7 @@ class FieldBinding extends Field
             $this->boundRowsBeforeDehydration = [];
             /** @var State $rows */
             $rows = $this->getRawState() ?? [];
+
             foreach ($rows as $index => $row) {
                 if ($row['target'] !== null) {
                     $this->boundRowsBeforeDehydration[] = $index;
@@ -517,6 +527,7 @@ class FieldBinding extends Field
 
         $targets = array_column($this->getBindingValues(), 'target');
         $number = 1;
+
         while (in_array('static_' . $number, $targets, true)) {
             $number++;
         }
@@ -557,6 +568,7 @@ class FieldBinding extends Field
     private function getBoundKeys(): array
     {
         $keys = [];
+
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
             if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
@@ -613,6 +625,7 @@ class FieldBinding extends Field
             ],
             'rows.*.static' => ['present_if:rows.*.kind,static'],
         ]);
+
         if ($validator->fails()) {
             $fail($validator->errors()->first())->translate();
 
@@ -624,9 +637,11 @@ class FieldBinding extends Field
         $value = $validated['rows'];
         $sources = [];
         $staticTargets = [];
+
         foreach ($value as $row) {
             if ($row['kind'] === 'source') {
                 $source = $row['source'];
+
                 if (array_key_exists($source, $sources)) {
                     $fail('The :attribute field contains an unknown or duplicate source.')->translate();
 

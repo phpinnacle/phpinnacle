@@ -191,6 +191,7 @@ class FieldMapping extends Field
     public function getStateKeys(): array
     {
         $keys = [];
+
         foreach ($this->getTargets() as $target) {
             $keys[$target['id']] = self::stateKey($target['id']);
         }
@@ -201,6 +202,7 @@ class FieldMapping extends Field
     public function getStaticFormSchema(string $target): ?FilamentSchema
     {
         $field = $this->makeStaticField($target);
+
         if ($field === null) {
             return null;
         }
@@ -224,8 +226,10 @@ class FieldMapping extends Field
         }
 
         $defaults = [];
+
         foreach (array_column($this->getTargets(), 'id') as $target) {
             $schema = $this->getStaticFormSchema($target);
+
             if ($schema !== null) {
                 /** @var Field $field */
                 $field = $schema->getComponent('value');
@@ -240,6 +244,7 @@ class FieldMapping extends Field
     public function getDefaultChildSchemas(): array
     {
         $state = $this->getRawState();
+
         if ($state !== null && (!is_array($state) || !array_is_list($state))) {
             return ['sourceCards' => $this->makeChildSchema('sourceCards')->inline()->components($this->sourceCards())];
         }
@@ -248,12 +253,14 @@ class FieldMapping extends Field
         $this->sourcePresentationsBeforeUpdate ??= $this->getSourcePresentations();
         $this->cachedStaticTargets = $this->getStaticTargets();
         $schemas = [];
+
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
             if (!is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
             }
 
             $names = array_keys($row);
+
             if (
                 $row['kind'] === 'static'
                 && in_array($row['target'], $this->cachedStaticTargets, true)
@@ -272,8 +279,10 @@ class FieldMapping extends Field
         }
 
         $schemas += $this->makeSourceSettingsSchemas();
+
         foreach ($this->cachedStaticTargets as $target) {
             $schema = $this->getStaticFormSchema($target);
+
             if ($schema !== null) {
                 $schemas[self::stateKey($target)] = $schema;
             }
@@ -303,9 +312,11 @@ class FieldMapping extends Field
         $this->initializeSourceRows();
         /** @var State $rows */
         $rows = $this->getRawState() ?? [];
+
         foreach ($this->getStaticDefaults() as $target => $value) {
             if ($this->getStaticRowIndex((string) $target, includeDrafts: true) === null) {
                 $row = ['kind' => 'static', 'target' => (string) $target, 'static' => $value, 'options' => []];
+
                 if ($this->isTargetUsed((string) $target)) {
                     $row['target'] = null;
                     $row['draftTarget'] = (string) $target;
@@ -329,6 +340,7 @@ class FieldMapping extends Field
     public function getStaticRowIndex(string $target, bool $includeDrafts = false): ?int
     {
         $draftIndex = null;
+
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
             if (!is_int($index) || !is_array($row) || ($row['kind'] ?? null) === null) {
                 continue;
@@ -440,8 +452,10 @@ class FieldMapping extends Field
         $modes = [];
         $outputs = $this->getOutputSchema()->resolveReferences()->effectiveProperties();
         $targets = $this->getTargetSchema()->resolveReferences()->effectiveProperties();
+
         foreach (array_keys($this->getSourceSchema()->resolveReferences()->effectiveProperties()) as $source) {
             $output = $outputs[$source] ?? Schema::fromArray([]);
+
             foreach ($targets as $target => $destination) {
                 $mode = self::mappingMode($destination);
                 $targetSchema = match ($mode) {
@@ -449,6 +463,7 @@ class FieldMapping extends Field
                     MappingMode::Property => $destination->property((string) $source),
                     MappingMode::Whole => $destination,
                 };
+
                 if (
                     $targetSchema !== null
                     && $this->canConnect($output, $targetSchema, (string) $source, (string) $target)
@@ -487,6 +502,7 @@ class FieldMapping extends Field
     public function getSources(): array
     {
         $schema = $this->getSourceSchema();
+
         if ($this->cachedSourceSchema !== $schema && $this->cachedSourceSchema?->toArray() !== $schema->toArray()) {
             $this->cachedSources = SchemaPresentation::toMappingItems($schema);
             $this->cachedSourceSchema = $schema;
@@ -573,6 +589,7 @@ class FieldMapping extends Field
         $keys = $this->getSourceStateKeys();
 
         $components = [];
+
         foreach ($this->getSources() as $item) {
             $searchText =
                 strip_tags($item['label'] . ' ' . ($item['description'] ?? ''))
@@ -605,6 +622,7 @@ class FieldMapping extends Field
         $oldRows = $this->getOldRawState() ?? [];
         /** @var State $rows */
         $rows = $this->getRawState() ?? [];
+
         if (
             $this->hasStaticForms()
             || $this->sourceSchema instanceof Closure
@@ -621,9 +639,11 @@ class FieldMapping extends Field
         $presentations = $this->getSourcePresentations();
         $schemas = $this->getChildSchemas();
         $keys = $this->getSourceStateKeys();
+
         foreach ($this->getSources() as $item) {
             $source = $item['id'];
             $presentation = $presentations[$source] ?? SchemaPresentation::presentation(Schema::fromArray([]));
+
             if (
                 !array_key_exists($source, $this->updatedSources)
                 && $presentation === ($this->sourcePresentationsBeforeUpdate[$source] ?? null)
@@ -677,6 +697,7 @@ class FieldMapping extends Field
             ],
             'rows.*.static' => ['present_if:rows.*.kind,static'],
         ]);
+
         if ($validator->fails()) {
             $fail($validator->errors()->first())->translate();
 
@@ -689,9 +710,11 @@ class FieldMapping extends Field
         $modes = $this->getConnectionModes();
         $usedSources = [];
         $usedTargets = [];
+
         foreach ($value as $row) {
             if ($row['kind'] === 'source') {
                 $source = $row['source'];
+
                 if (array_key_exists($source, $usedSources)) {
                     $fail('The :attribute field contains an invalid source.')->translate();
 
@@ -699,6 +722,7 @@ class FieldMapping extends Field
                 }
 
                 $usedSources[$source] = true;
+
                 if ($row['target'] !== null && ($modes[$source][$row['target']] ?? null) === null) {
                     $fail('The :attribute field contains incompatible source and destination schemas.')->translate();
 
@@ -748,6 +772,7 @@ class FieldMapping extends Field
         }
 
         $targets = array_column($this->getTargets(), null, 'id');
+
         foreach ($this->getRequiredTargets() as $target) {
             if (!array_key_exists($target, $usedTargets)) {
                 $fail(

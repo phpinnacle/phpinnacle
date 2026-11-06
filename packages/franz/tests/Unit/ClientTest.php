@@ -170,6 +170,7 @@ final class ClientTest extends TestCase
             ],
             $this->routes($http),
         );
+
         foreach ($http->requests as $request) {
             self::assertSame('', (string) $request->getBody());
         }
@@ -463,6 +464,7 @@ final class ClientTest extends TestCase
         string $message,
     ): void {
         $http = new RecordingHttpClient(new Response($status, [], $body));
+
         try {
             $this->client($http)->connector('source')->delete();
             self::fail('Expected an API exception.');
@@ -551,6 +553,7 @@ final class ClientTest extends TestCase
         $client = new Client('https://connect.example', $http, $factory, $factory, [
             'Authorization' => 'Bearer secret',
         ]);
+
         try {
             $client->connectors();
             self::fail('Expected an API exception.');
@@ -612,6 +615,7 @@ final class ClientTest extends TestCase
         $failure = new class('Connection failed') extends RuntimeException implements ClientExceptionInterface {};
         $http = $this->createMock(ClientInterface::class);
         $http->expects(self::once())->method('sendRequest')->willThrowException($failure);
+
         try {
             $this->client($http)->connectors();
             self::fail('Expected the HTTP client failure.');

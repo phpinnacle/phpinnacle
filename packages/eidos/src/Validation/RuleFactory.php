@@ -48,6 +48,7 @@ class RuleFactory
         }
 
         $items = $schema->items();
+
         if ($items !== null) {
             $rules = $this->merge($rules, $this->schemaRules($items, $prefix === '' ? '*' : $prefix . '.*'));
         }
@@ -147,11 +148,13 @@ class RuleFactory
         }
 
         $enum = $schema->enum();
+
         if ($enum !== null) {
             $rules[] = Rule::in($enum);
         }
 
         $required = $schema->required();
+
         if ($required !== []) {
             $rules[] = 'required_array_keys:' . implode(',', $required);
         }

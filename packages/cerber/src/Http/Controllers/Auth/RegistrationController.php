@@ -58,6 +58,7 @@ class RegistrationController
     public function register(Request $request, RegistrationService $registration): JsonResponse
     {
         $email = $request->input('email');
+
         if (is_string($email)) {
             $request->merge(['email' => LoginType::Email->canonical($email)]);
         }

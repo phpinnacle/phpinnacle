@@ -162,6 +162,7 @@ class ItemPicker extends Field implements HasNestedRecursiveValidationRulesContr
     public function getSelectableValues(): array
     {
         $values = [];
+
         if ($this->resolveUsing !== null) {
             $state = $this->pickerState();
             $items = $this->evaluateItems(null, 0, $state);

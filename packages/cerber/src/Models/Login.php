@@ -111,6 +111,7 @@ class Login extends Model
                     ->oldest()
                     ->orderBy('id')
                     ->first();
+
                 if ($next !== null) {
                     $next->is_default = true;
                     $next->save();

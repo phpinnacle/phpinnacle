@@ -103,6 +103,7 @@ class MoneyParser
                     $moneyValue[$position - 1] = $newValue[1];
                     $addend = (int) $newValue[0];
                     $position--;
+
                     if ($position === 0) {
                         $moneyValue = $addend . $moneyValue;
                     }

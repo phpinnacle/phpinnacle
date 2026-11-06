@@ -54,6 +54,7 @@ function pinax_upload_field(bool $gallery, string $disk, bool $move, string $vis
         ? MediaGallery::make('gallery')->disk($disk)->directory('custom')
         : MediaUpload::make('media')->disk($disk)->directory('custom');
     Schema::make($livewire)->model($record)->statePath('data')->components([$component])->getComponents();
+
     if ($gallery) {
         $component = $component->getChildSchema()->getComponent('path', withHidden: true);
     }
@@ -82,6 +83,7 @@ it('stores uploads with matching metadata and preserves each field return contra
         ->toBe('Uploaded content')
         ->and(Storage::disk($disk)->getVisibility('custom/saved.txt'))
         ->toBe($visibility);
+
     if ($gallery) {
         expect($result)
             ->toBe('custom/saved.txt')

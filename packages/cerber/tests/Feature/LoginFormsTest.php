@@ -77,6 +77,7 @@ it('creates a user and adds several typed logins through independent dialogs', f
     expect($user->is_password_temporary)->toBeTrue();
     $page = Livewire::test(EditUser::class, ['record' => $user->id])
         ->assertFormSet(['is_password_temporary' => true]);
+
     foreach ([
         ['email', 'FIRST@example.test'],
         ['email', 'second@example.test'],

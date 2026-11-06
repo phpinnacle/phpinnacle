@@ -31,6 +31,7 @@ final class MetadataMapperTest extends TestCase
         foreach ($metadata->properties as $property) {
             $this->assertSame($expected, $property->comment);
             $serialized = $property->jsonSerialize();
+
             if ($expected === null) {
                 $this->assertArrayNotHasKey('comment', $serialized);
             } else {

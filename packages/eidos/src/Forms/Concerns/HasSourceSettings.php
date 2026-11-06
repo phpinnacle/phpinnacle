@@ -70,6 +70,7 @@ trait HasSourceSettings
     public function getSourceStateKeys(): array
     {
         $keys = [];
+
         foreach ($this->getSources() as $source) {
             $keys[$source['id']] = 'source_' . bin2hex($source['id']);
         }
@@ -81,6 +82,7 @@ trait HasSourceSettings
     public function getSourceRowIndexes(): array
     {
         $rowsBySource = [];
+
         foreach (is_array($state = $this->getRawState()) ? $state : [] as $index => $row) {
             if (is_array($row) && ($row['kind'] ?? null) === 'source' && is_string($row['source'] ?? null)) {
                 $rowsBySource[$row['source']] ??= $index;
@@ -88,6 +90,7 @@ trait HasSourceSettings
         }
 
         $indexes = [];
+
         foreach ($this->getSources() as $source) {
             if (array_key_exists($source['id'], $rowsBySource)) {
                 $indexes[$source['id']] = $rowsBySource[$source['id']];
@@ -106,6 +109,7 @@ trait HasSourceSettings
         /** @var array<string, mixed> $state */
         $keys = $this->getSourceStateKeys();
         $settings = [];
+
         foreach ($this->getSourceRowIndexes() as $source => $index) {
             if ($this->hasSourceSettings()) {
                 $schema = $schemas['settings_' . $keys[$source]] ?? $this->makeSourceSettingsSchema(
@@ -131,6 +135,7 @@ trait HasSourceSettings
         $schemas = [];
         $this->cachedSourceSettingsKeys = $this->getSourceStateKeys();
         $this->cachedSourceRowIndexes = $this->getSourceRowIndexes();
+
         if (!$this->hasSourceSettings()) {
             return [];
         }
@@ -173,8 +178,10 @@ trait HasSourceSettings
         /** @var list<array{options: array<string, mixed>, ...}> $rows */
         $rows = $this->getRawState() ?? [];
         $this->clearCachedChildSchemas();
+
         foreach ($this->getSources() as $source) {
             $index = $this->getSourceRowIndex($source['id']);
+
             if ($this->hasSourceSettings() && $index !== null && ($rows[$index]['options'] ?? []) === []) {
                 $this->getChildSchemas()['settings_' . $this->getSourceStateKeys()[$source['id']]]->fill();
             }
@@ -184,11 +191,13 @@ trait HasSourceSettings
     protected function initializeSourceRows(): void
     {
         $rows = $this->getRawState() ?? [];
+
         if (!is_array($rows) || !array_is_list($rows)) {
             return;
         }
 
         $sources = array_column($this->getSources(), 'id');
+
         foreach ($sources as $source) {
             if ($this->getSourceRowIndex($source) === null) {
                 $rows[] = ['kind' => 'source', 'source' => $source, 'target' => null, 'options' => []];

@@ -341,6 +341,7 @@ final class SchemaBuilder
         $definition = $schema->keywords();
         $type = $schema->type() ?? [];
         $types = (array) $type;
+
         if (
             $types !== []
             && !array_intersect([
@@ -355,6 +356,7 @@ final class SchemaBuilder
             ], array_keys($definition))
         ) {
             $types = array_values(array_diff($types, ['null']));
+
             if ($nullable) {
                 $types[] = 'null';
             }
@@ -369,6 +371,7 @@ final class SchemaBuilder
         }
 
         $schema = $schema->resolveReferences();
+
         if (!$nullable) {
             $this->definition = Schema::allOf([$schema, Schema::fromArray(['not' => ['type' => 'null']])])->toArray();
 

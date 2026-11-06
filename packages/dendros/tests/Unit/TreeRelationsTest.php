@@ -10,6 +10,7 @@ uses(TestCase::class);
 
 beforeEach(function () {
     $url = getenv('DENDROS_PGSQL_URL');
+
     if (!$url) {
         $this->markTestSkipped('Set DENDROS_PGSQL_URL to a dedicated PostgreSQL test database.');
     }

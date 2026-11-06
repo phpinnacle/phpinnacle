@@ -63,6 +63,7 @@ class JwtApiTestCase extends TestCase
         $user->password = 'original-password';
         $user->save();
         $login = Login::register($user, LoginType::Email, 'customer@example.test');
+
         if ($verified) {
             $login->markVerified();
         }
@@ -154,6 +155,7 @@ it('resends a verifiable frontend link to the requested email without signing in
 it('does not reveal missing verified or unavailable accounts when resending verification', function (string $case) {
     Notification::fake();
     $user = $this->apiUser($case === 'verified');
+
     if (in_array($case, ['blocked', 'archived'], true)) {
         $user->update(['status' => UserStatus::from($case)]);
     }
@@ -285,6 +287,7 @@ it('rejects an unverified email with 403 after checking the shared password', fu
 
 it('rejects unavailable users and invalid credentials with 401', function (string $case, bool $verified) {
     $user = $this->apiUser($verified);
+
     if (in_array($case, ['blocked', 'archived'], true)) {
         $user->update(['status' => UserStatus::from($case)]);
     }
@@ -402,6 +405,7 @@ it('rejects expired tokens and users blocked after issuance with 401', function 
     $user = $this->apiUser();
     $token = auth('api')->login($user);
     $this->forgetJwt();
+
     if ($expired) {
         $this->travel(61)->minutes();
     } else {
@@ -420,6 +424,7 @@ it('rejects tampered expired and changed-email verification links with 403', fun
     $login = Login::lookup('new@example.test', LoginType::Email);
     $notification = Notification::sent(new AnonymousNotifiable, VerifyEmail::class)->sole();
     $query = parse_url($notification->url, PHP_URL_QUERY);
+
     if ($case === 'tampered') {
         $query .= '&extra=changed';
     } elseif ($case === 'expired') {
@@ -631,6 +636,7 @@ it('limits repeated password change attempts with 429', function () {
     $user = $this->apiUser();
     $token = auth('api')->login($user);
     $this->forgetJwt();
+
     for ($attempt = 0; $attempt < 6; $attempt++) {
         $this
             ->withToken($token)

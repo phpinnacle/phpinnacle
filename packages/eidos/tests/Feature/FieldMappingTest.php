@@ -72,6 +72,7 @@ it('blocks mapping editor interaction during Livewire requests', function (strin
 
     expect($nodes->length)->toBe(1);
     expect($nodes->item(0)->getAttribute('wire:loading.attr'))->toBe('inert');
+
     if ($editor === 'mapping') {
         expect($nodes->item(0)->getAttribute('x-on:keydown.escape.window'))->toBe('cancel()');
     }
@@ -258,10 +259,12 @@ it('partially updates every changed presentation and fully renders structural sc
     $keys = $page->instance()->form->getComponent('mapping')->getSourceStateKeys();
     $page->set('data.mapping.0.options.type', 'boolean');
     expect($page->effects)->not->toHaveKey('html');
+
     if ($dynamicTarget) {
         expect($page->effects['partials'])->toHaveKey('schema-component::form.mapping');
     } else {
         expect($page->effects['partials'])->not->toHaveKey('schema-component::form.mapping');
+
         foreach ($keys as $key) {
             expect($page->effects['partials']['schema-component::form.mapping.heading_' . $key])
                 ->toContain('>boolean</span>');
@@ -516,6 +519,7 @@ it('places one shared search before the toolbar filter for mapping and binding',
     $searches = $xpath->query('//input[@type="search"]');
 
     expect($searches)->toHaveCount($contained ? 1 : 0);
+
     if (!$contained) {
         expect($xpath->query('//div[contains(@class, "eidos-mapping-toolbar")]'))->toHaveCount(0);
         expect($schema->getState())->toBe($state);
@@ -589,6 +593,7 @@ it('filters complete source card containers', function (bool $inverse) {
     $sourceCards = $xpath->query('//fieldset[div/div[@data-mapping-row]]');
 
     expect($sourceCards)->toHaveCount(1);
+
     foreach ($sourceCards as $card) {
         expect($card->getAttribute('x-bind:class'))->toContain('fi-hidden', "isVisible('source',");
         expect($xpath->query('./div/div[@data-mapping-row and @x-show]', $card))->toHaveCount(0);
@@ -659,6 +664,7 @@ it('preserves standalone mapping content and values across presentation options'
         ->dense(fn () => $dense)
         ->compact(fn () => $compact)
         ->columnSpanFull();
+
     if (!$contained) {
         $field->contained(false);
     }
@@ -683,6 +689,7 @@ it('preserves standalone mapping content and values across presentation options'
     expect($html)->toContain('eidos-mapping-card field-mapping-row');
     expect(str_contains($text, 'Field visibility'))->toBe($contained);
     expect(substr_count($html, 'type="radio"'))->toBe($contained ? 3 : 0);
+
     if ($contained) {
         expect($text)->toContain('All', 'Mapped', 'Unmapped');
     }
@@ -939,12 +946,14 @@ it('persists and validates source settings independently of connections', functi
         'first.part' => ['alias' => 'First', 'enabled' => false],
         '0' => ['alias' => 'Zero', 'enabled' => true],
     ];
+
     foreach ([
         ['name' => MappingState::source('first.part')],
         ['name' => MappingState::value('static')],
         [],
     ] as $targets) {
         $schema->fill(['mapping' => MappingState::mapping($targets, $settings)]);
+
         if (array_key_exists('name', $targets) && $targets['name']['kind'] === 'source') {
             expect($field->getSourceSettings()['first.part'])->toBe($settings['first.part']);
         }
@@ -1195,6 +1204,7 @@ it('uses native row state in owning header actions across Livewire requests', fu
     $field = $page->instance()->form->getComponent('mapping');
     expect($field->getState())->toBe($page->get('data.mapping'));
     expect(array_is_list($field->getState()))->toBeTrue();
+
     if (!$binding) {
         expect($field->getTargetSchema()->toArray())->toBe(['properties' => ['destination' => ['type' => 'string']]]);
     }
@@ -1254,6 +1264,7 @@ it('rebinds native settings and static editors to their current row indexes', fu
 
 it('round trips collection mappings through independent schema instances', function (string $mode, string $type) {
     $fields = [];
+
     foreach (['first', 'second'] as $name) {
         $fields[] = FieldMapping::make($name)
             ->jsonSchema(
@@ -1330,6 +1341,7 @@ it('indexes a large mapping with a single read of its row state', function () {
     $field->configure();
     $properties = [];
     $rows = [];
+
     for ($index = 0; $index < 64; $index++) {
         $source = 'field_' . $index;
         $properties[$source] = ['type' => 'string'];

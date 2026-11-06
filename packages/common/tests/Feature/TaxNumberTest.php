@@ -116,6 +116,7 @@ it('uses each field country list and reevaluates dynamic lists independently', f
         'message' => 'No taxpayer information source is configured for this country.',
         'lookup' => null,
     ]);
+
     try {
         $schema->getState();
         test()->fail('The field accepted a country outside its own list.');

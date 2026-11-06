@@ -74,6 +74,7 @@ class MappingHeaderActionsForm extends Component implements HasActions, HasSchem
                             'options' => ['transforms' => [['type' => 'trim']]],
                         ];
                         $component->state($state);
+
                         if ($component instanceof FieldMapping) {
                             $component->jsonSchema(source: Schema::fromArray($source));
                         } else {

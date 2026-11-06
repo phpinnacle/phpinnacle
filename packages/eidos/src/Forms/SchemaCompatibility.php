@@ -31,16 +31,19 @@ final readonly class SchemaCompatibility
     {
         $source = $source->resolveReferences();
         $target = $target->resolveReferences();
+
         if ($source->allowsAny() || $source->deniesAny() || $target->allowsAny() || $target->deniesAny()) {
             throw new InvalidArgumentException('Boolean schemas cannot be used as mapping fields.');
         }
 
         $alternatives = $source->alternatives();
+
         if ($alternatives !== []) {
             return array_all($alternatives, fn (Schema $branch) => $this->accepts($branch, $target));
         }
 
         $alternatives = $target->alternatives();
+
         if ($alternatives !== []) {
             return array_any($alternatives, fn (Schema $branch) => $this->accepts($source, $branch));
         }
@@ -48,13 +51,16 @@ final readonly class SchemaCompatibility
         $sourceTypes = $source->types();
         $targetTypes = $target->types();
         $acceptedTypes = in_array('number', $targetTypes, true) ? [...$targetTypes, 'integer'] : $targetTypes;
+
         if ($sourceTypes !== [] && $targetTypes !== [] && array_diff($sourceTypes, $acceptedTypes) !== []) {
             return false;
         }
 
         $targetValues = $target->enumValues();
+
         if ($targetValues !== null) {
             $sourceValues = $source->enumValues();
+
             if (
                 $sourceValues === null
                 || !array_all($sourceValues, $target->allowsEnumValue(...))

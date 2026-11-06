@@ -54,6 +54,7 @@ final class SchemaPresentation
                 }
 
                 $iconName = $schema->hasKeyword('x-icon') ? self::validateIcon($schema->keyword('x-icon')) : null;
+
                 if ($schema->hasKeyword('x-color')) {
                     self::validateColor($schema->keyword('x-color'));
                 }
@@ -78,12 +79,14 @@ final class SchemaPresentation
     public static function toMappingItems(Schema $schema): array
     {
         $schema = $schema->resolveReferences();
+
         if ($schema->allowsAny() || $schema->deniesAny()) {
             throw new InvalidArgumentException('Boolean schemas cannot be used as mapping fields.');
         }
 
         $items = [];
         $required = $schema->effectiveRequired();
+
         foreach ($schema->effectiveProperties() as $name => $property) {
             if ($property->allowsAny() || $property->deniesAny()) {
                 throw new InvalidArgumentException('Boolean schemas cannot be used as mapping fields.');
@@ -114,12 +117,14 @@ final class SchemaPresentation
     public static function label(Schema $schema, bool $formatted = false): string
     {
         $types = $schema->types();
+
         if ($formatted) {
             if (($schema->enum() ?? null) !== null) {
                 return 'enum';
             }
 
             $alternatives = $schema->alternatives();
+
             if ($alternatives !== []) {
                 $labels = array_unique(array_map(fn (Schema $branch) => self::label($branch, true), $alternatives));
 
@@ -129,6 +134,7 @@ final class SchemaPresentation
             }
 
             $format = $schema->effectiveFormat();
+
             if ($format !== null) {
                 return $format;
             }
@@ -137,6 +143,7 @@ final class SchemaPresentation
         }
 
         $items = $schema->arrayItems();
+
         if ($items !== null) {
             $label = self::label($items, $formatted);
 
@@ -200,6 +207,7 @@ final class SchemaPresentation
     private static function itemPresentations(Schema $schema, array $scope = []): array
     {
         $items = $schema->arrayItems();
+
         if ($items === null) {
             return [];
         }
@@ -219,6 +227,7 @@ final class SchemaPresentation
     private static function constraints(Schema $schema, array $scope = []): array
     {
         $constraints = [];
+
         foreach ([
             ['length', $schema->minLength(), $schema->maxLength()],
             ['items', $schema->minItems(), $schema->maxItems()],
@@ -238,6 +247,7 @@ final class SchemaPresentation
         }
 
         $range = [];
+
         foreach ([
             [$schema->minimum(), '≥'],
             [$schema->maximum(), '≤'],
@@ -294,6 +304,7 @@ final class SchemaPresentation
     {
         /** @var list<Badge> $badges */
         $badges = $schema->keyword('x-badges') ?? [];
+
         foreach ($schema->branches('allOf') as $branch) {
             $badges = [...$badges, ...self::badges($branch)];
         }

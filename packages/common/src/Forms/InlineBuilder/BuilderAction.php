@@ -89,6 +89,7 @@ class BuilderAction
                 /** @var array{data?: array<string, mixed>} $data */
                 $settings = self::apply($component, $arguments, $data, $available);
                 $component->state($settings);
+
                 if (self::hasForm($arguments)) {
                     $index = self::position($settings, $arguments) ?? array_key_last($settings);
                     $component->getItemSchema($settings[$index]['type'], $index)->fill($data['data'] ?? []);
@@ -209,6 +210,7 @@ class BuilderAction
         ])->validate();
 
         $items = $component->getSettings();
+
         if (!$component->isOrderAllowed(array_map(
             static fn (int|string $index) => $items[(int) $index],
             $validated['order'],

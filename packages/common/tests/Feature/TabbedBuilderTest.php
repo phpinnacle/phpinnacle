@@ -232,6 +232,7 @@ it('marks errors in inactive blocks without concealing them from schema validati
             ['type' => 'text', 'data' => ['title' => '']],
         ],
     ]);
+
     try {
         $this->schema->getState();
         $this->fail('The second block must fail validation.');

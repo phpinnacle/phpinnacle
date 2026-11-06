@@ -346,6 +346,7 @@ it('requires a selection only when configured and accepts a valid path', functio
     expect($form->getState()['selection'])->toBeNull();
 
     $picker->required();
+
     try {
         $form->getState();
         test()->fail('A required picker accepted an absent selection.');

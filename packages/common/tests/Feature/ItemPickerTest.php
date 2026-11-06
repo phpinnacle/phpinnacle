@@ -103,6 +103,7 @@ it('uses images instead of configured icons in tree rows and selected values', f
     $images = $xpath->query('//img');
 
     expect($images->length)->toBe($mode === ItemPickerMode::Select ? 2 : 1);
+
     foreach ($images as $image) {
         expect($image->getAttribute('src'))->toBe('/avatars/anna.jpg');
         expect($image->getAttribute('alt'))->toBe('');
@@ -176,11 +177,13 @@ it('renders accessible item and group badges without adding them to the select t
     expect($document->textContent)->toContain('0', 'Verified');
     expect($html)->toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
     expect($html)->not->toContain('<script>alert(1)</script>');
+
     foreach (explode(' ', $item->getAttribute('aria-describedby')) as $id) {
         expect($document->getElementById($id))->not->toBeNull();
     }
 
     expect($schema->getState())->toBe(['choice' => $state]);
+
     if ($mode === ItemPickerMode::Select) {
         expect($document->getElementById($picker->getId())->textContent)
             ->toContain('Leaf')
@@ -323,6 +326,7 @@ it('renders and saves multiple selections in both modes without trigger descript
 
     expect($schema->getState())->toBe(['choice' => ['leaf', 'other']]);
     expect($html)->toContain('aria-multiselectable="true"', 'Leaf description', 'Other description');
+
     if ($mode === ItemPickerMode::Select) {
         $document = new DOMDocument;
         $document->loadHTML($html, LIBXML_NOERROR | LIBXML_NOWARNING);

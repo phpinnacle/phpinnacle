@@ -57,11 +57,13 @@ readonly class ImpersonationSession
 
         /** @var array{guard: string, id: string, password: ?string, remember_token: ?string}|null $original */
         $original = $this->session->pull('cerber.impersonator_user');
+
         if ($original === null) {
             return;
         }
 
         $user = User::find($original['id']);
+
         if (
             $user === null
             || !$user->status->canAccess()

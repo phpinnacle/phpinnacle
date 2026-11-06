@@ -340,6 +340,7 @@ it('opens native catalog actions without rendering a loading indicator for every
     $buttons = $xpath->query('//button[contains(@class, "fi-dropdown-list-item")]');
 
     expect($buttons)->toHaveCount(2);
+
     foreach ($buttons as $index => $button) {
         $handler = $button->getAttribute('x-on:click');
         expect($handler)

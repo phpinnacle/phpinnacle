@@ -110,6 +110,7 @@ class Provider extends Model implements HasLabel
     public function link(User $user, SocialiteUser $identity): Login
     {
         $email = $identity->getEmail();
+
         if (Validator::make(['email' => $email], ['email' => ['nullable', 'string', 'email', 'max:255']])->fails()) {
             throw new OAuthException('invalid_profile', 'The OAuth provider returned an invalid email address.');
         }
@@ -117,6 +118,7 @@ class Provider extends Model implements HasLabel
         return $this->getConnection()->transaction(function () use ($user, $identity, $email) {
             $user->newQuery()->whereKey($user->id)->lockForUpdate()->first();
             $login = $this->logins()->whereBelongsTo($user, 'user')->first();
+
             if ($login !== null && $login->value !== $identity->getId()) {
                 $login->delete();
                 $login = null;

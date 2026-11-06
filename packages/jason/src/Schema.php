@@ -530,6 +530,7 @@ final readonly class Schema implements JsonSerializable
         foreach ([...Codec::MAPS, ...Codec::LISTS] as $keyword) {
             /** @var array<array-key, Keywords|bool> $children */
             $children = $this->definition[$keyword] ?? [];
+
             foreach ($children as $key => $child) {
                 self::fromArray($child)
                     ->walkAt(
@@ -574,6 +575,7 @@ final readonly class Schema implements JsonSerializable
     public function effectiveProperties(): array
     {
         $properties = $this->properties();
+
         foreach ($this->branches('allOf') as $branch) {
             foreach ($branch->effectiveProperties() as $name => $property) {
                 $properties[$name] = array_key_exists($name, $properties)
@@ -589,6 +591,7 @@ final readonly class Schema implements JsonSerializable
     public function effectiveRequired(): array
     {
         $required = $this->required();
+
         foreach ($this->branches('allOf') as $branch) {
             $required = array_merge($required, $branch->effectiveRequired());
         }
@@ -599,11 +602,13 @@ final readonly class Schema implements JsonSerializable
     public function property(string $name): ?self
     {
         $properties = $this->effectiveProperties();
+
         if (array_key_exists($name, $properties)) {
             return $properties[$name];
         }
 
         $additional = $this->additionalProperties();
+
         if ($additional?->deniesAny()) {
             return null;
         }
@@ -624,8 +629,10 @@ final readonly class Schema implements JsonSerializable
     {
         $items = $this->items();
         $constraints = $items === null ? [] : [$items];
+
         foreach ($this->branches('allOf') as $branch) {
             $items = $branch->effectiveItems();
+
             if ($items !== null) {
                 $constraints[] = $items;
             }
@@ -633,6 +640,7 @@ final readonly class Schema implements JsonSerializable
 
         foreach ([$this->branches('anyOf'), $this->branches('oneOf')] as $branches) {
             $items = [];
+
             foreach ($branches as $branch) {
                 if ($branch->types() === [] || in_array('array', $branch->types(), true)) {
                     $items[] = $branch->effectiveItems() ?? self::fromArray([]);
@@ -664,12 +672,14 @@ final readonly class Schema implements JsonSerializable
     public function types(): array
     {
         $types = (array) ($this->type() ?? []);
+
         foreach ([...$this->branches('anyOf'), ...$this->branches('oneOf')] as $branch) {
             $types = array_merge($types, $branch->types());
         }
 
         foreach ($this->branches('allOf') as $branch) {
             $branchTypes = $branch->types();
+
             if ($branchTypes !== []) {
                 if (in_array('number', $types, true) && in_array('integer', $branchTypes, true)) {
                     $types[] = 'integer';
@@ -711,6 +721,7 @@ final readonly class Schema implements JsonSerializable
 
         foreach ([...$this->branches('allOf'), ...$this->branches('anyOf'), ...$this->branches('oneOf')] as $branch) {
             $value = $branch->annotation($name);
+
             if ($value !== null) {
                 return $value;
             }
@@ -728,8 +739,10 @@ final readonly class Schema implements JsonSerializable
     public function enumValues(): ?array
     {
         $values = $this->enum() ?? null;
+
         foreach ($this->branches('allOf') as $branch) {
             $allowed = $branch->enumValues();
+
             if ($allowed !== null) {
                 $values = $values === null
                     ? $allowed
@@ -767,6 +780,7 @@ final readonly class Schema implements JsonSerializable
         $rightIsList = is_array($right) && array_is_list($right);
         $left = (array) $left;
         $right = (array) $right;
+
         if ($leftIsList !== $rightIsList || count($left) !== count($right)) {
             return false;
         }
@@ -782,17 +796,20 @@ final readonly class Schema implements JsonSerializable
     public function effectiveMaxLength(): ?int
     {
         $alternatives = $this->alternatives();
+
         if ($alternatives === []) {
             return $this->lengthBound('maxLength');
         }
 
         $bounds = [];
+
         foreach ($alternatives as $branch) {
             if ($branch->types() !== [] && !in_array('string', $branch->types(), true)) {
                 continue;
             }
 
             $bound = $branch->effectiveMaxLength();
+
             if ($bound === null) {
                 return null;
             }
@@ -807,8 +824,10 @@ final readonly class Schema implements JsonSerializable
     private function lengthBound(string $keyword): ?int
     {
         $bound = $keyword === 'minLength' ? $this->minLength() : $this->maxLength();
+
         foreach ($this->branches('allOf') as $branch) {
             $value = $branch->lengthBound($keyword);
+
             if ($value === null) {
                 continue;
             }
@@ -837,6 +856,7 @@ final readonly class Schema implements JsonSerializable
         if ($branches === []) {
             foreach ($this->branches('allOf') as $index => $branch) {
                 $alternatives = $branch->alternatives();
+
                 if ($alternatives !== []) {
                     $allOf = $this->branches('allOf');
                     unset($allOf[$index]);

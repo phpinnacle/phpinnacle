@@ -229,6 +229,7 @@ final class MetadataMapper
 
             $title = $this->title($this->at($item, 1, 2, 2, 2, 4), $label);
             $comment = $this->at($item, 1, 2, 2, 2, 5);
+
             if ($comment !== null && !is_string($comment)) {
                 throw new RuntimeException(sprintf('Invalid metadata property comment at position %d', $position + 1));
             }

@@ -56,10 +56,13 @@ class Logins extends Section
 
         foreach (LoginType::cases() as $type) {
             $rows = [];
+
             foreach ($logins->get($type->value, []) as $login) {
                 $actions = $type->getActions($this->isAdministrative);
+
                 foreach ($actions as $action) {
                     $action->record($login)->recordTitle($login->value);
+
                     foreach ($action instanceof ActionGroup ? $action->getFlatActions() : [$action] as $itemAction) {
                         $this->configureAction($itemAction, $user);
                     }
@@ -92,6 +95,7 @@ class Logins extends Section
             if ($type === LoginType::OAuth) {
                 if (!$this->isAdministrative && ($context = CerberPlugin::get()->getSocialAccountContext()) !== null) {
                     $linked = $user->linkedProviders($context);
+
                     foreach (Provider::valid($context) as $provider) {
                         if (in_array($provider->id, $linked, strict: true)) {
                             continue;

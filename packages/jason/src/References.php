@@ -41,9 +41,11 @@ final class References
         }
 
         $embeddedResource = $embeddedResource || !$root && array_key_exists('$id', $schema);
+
         if (array_key_exists('$ref', $schema)) {
             /** @var string $reference */
             $reference = $schema['$ref'];
+
             if (in_array($reference, $references, true)) {
                 throw new InvalidArgumentException('A recursive reference cannot be expanded: ' . $reference);
             }
@@ -56,6 +58,7 @@ final class References
             unset($schema['$ref']);
             $siblings = $schema;
             unset($siblings['$defs'], $siblings['definitions']);
+
             if ($siblings === []) {
                 return $resolved;
             }
@@ -94,12 +97,14 @@ final class References
     private function target(string $reference): array|bool
     {
         $pointer = rawurldecode(substr($reference, 1));
+
         if (!str_starts_with($reference, '#') || $pointer !== '' && !str_starts_with($pointer, '/')) {
             throw new InvalidArgumentException('Only local JSON Pointer references are supported: ' . $reference);
         }
 
         $this->referenceRoot ??= $this->document->jsonSerialize();
         $target = $this->referenceRoot;
+
         if ($pointer !== '') {
             foreach (explode('/', substr($pointer, 1)) as $part) {
                 if (preg_match('/~(?:[^01]|$)/', $part)) {
@@ -107,6 +112,7 @@ final class References
                 }
 
                 $part = str_replace(['~1', '~0'], ['/', '~'], $part);
+
                 if ($target instanceof stdClass && property_exists($target, $part)) {
                     $target = $target->{$part};
                 } elseif (is_array($target) && array_key_exists($part, $target)) {
