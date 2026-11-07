@@ -107,12 +107,10 @@ Eidos uses its built-in cast mapping or database type.
 use PHPinnacle\Jason\SchemaBuilder;
 use PHPinnacle\Eidos\Validation\RuleFactory;
 
-$schema = SchemaBuilder::make()
-    ->type('object')
-    ->properties([
-        'email' => SchemaBuilder::make()->type('string')->format('email')->build(),
-        'quantity' => SchemaBuilder::make()->type('integer')->min(1)->max(10)->build(),
-    ])
+$schema = SchemaBuilder::object([
+    'email' => SchemaBuilder::string()->format('email')->build(),
+    'quantity' => SchemaBuilder::integer()->min(1)->max(10)->build(),
+])
     ->required(['email'])
     ->build();
 
@@ -169,8 +167,8 @@ $payment = Schema::fromArray([
 ]);
 
 $quantity = Schema::allOf([
-    SchemaBuilder::make()->type('integer')->min(1)->build(),
-    SchemaBuilder::make()->type('integer')->max(10)->build(),
+    SchemaBuilder::integer()->min(1)->build(),
+    SchemaBuilder::integer()->max(10)->build(),
 ]);
 ```
 
@@ -257,8 +255,7 @@ use PHPinnacle\Eidos\Infolists\JsonSchemaEntry;
 
 $schema = Schema::object([
     'customer' => Schema::object([
-        'email' => SchemaBuilder::make()
-            ->type('string')
+        'email' => SchemaBuilder::string()
             ->nullable()
             ->description('Delivery address')
             ->build(),

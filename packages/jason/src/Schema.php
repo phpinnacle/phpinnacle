@@ -634,7 +634,7 @@ final readonly class Schema implements JsonSerializable
             }
         }
 
-        return in_array(null, $segments, true) ? self::array()->builder()->items($schema)->build() : $schema;
+        return in_array(null, $segments, true) ? SchemaBuilder::array()->items($schema)->build() : $schema;
     }
 
     /** @return array<string, self> */

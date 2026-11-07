@@ -79,7 +79,7 @@ class SchemaIntrospector
             $name = $column['name'];
             $cast = $casts[$name] ?? null;
             $type = in_array($name, $dates, true) && $cast === null
-                ? SchemaBuilder::make()->type('string')->format('date-time')->build()
+                ? SchemaBuilder::string()->format('date-time')->build()
                 : $this->columnType($column['type_name'], $cast, $model, $name);
             $type = $type->resolveReferences();
 
@@ -123,7 +123,7 @@ class SchemaIntrospector
             $properties = array_replace($properties, $this->relationSchemas($model, $relationshipDepth - 1));
         }
 
-        $builder = SchemaBuilder::make()->type('object')->properties($properties);
+        $builder = SchemaBuilder::object($properties);
 
         if ($required !== []) {
             $builder->required($required);
@@ -163,7 +163,7 @@ class SchemaIntrospector
                 || $relation instanceof MorphMany
                 || $relation instanceof BelongsToMany
                 || $relation instanceof HasManyThrough
-                    ? SchemaBuilder::make()->type('array')->items($relatedSchema)
+                    ? SchemaBuilder::array()->items($relatedSchema)
                     : SchemaBuilder::make($relatedSchema)->nullable();
             $builder->readOnly(true)->with('x-relationship', $method->getName());
 
@@ -317,7 +317,7 @@ class SchemaIntrospector
         if (is_subclass_of($castName, BackedEnum::class)) {
             $values = array_column($castName::cases(), 'value');
 
-            return SchemaBuilder::make(is_int($values[0]) ? Schema::integer() : Schema::string())
+            return (is_int($values[0]) ? SchemaBuilder::integer() : SchemaBuilder::string())
                 ->enum($values)
                 ->build();
         }
@@ -331,9 +331,8 @@ class SchemaIntrospector
             'real', 'float', 'double' => Schema::number(),
             'bool', 'boolean' => Schema::boolean(),
             'array', 'json', 'object', 'collection' => Schema::union(['object', 'array']),
-            'date', 'immutable_date' => SchemaBuilder::make()->type('string')->format('date')->build(),
-            'datetime', 'immutable_datetime', 'timestamp' => SchemaBuilder::make()
-                ->type('string')
+            'date', 'immutable_date' => SchemaBuilder::string()->format('date')->build(),
+            'datetime', 'immutable_datetime', 'timestamp' => SchemaBuilder::string()
                 ->format('date-time')
                 ->build(),
             'decimal', 'string', 'hashed' => Schema::string(),

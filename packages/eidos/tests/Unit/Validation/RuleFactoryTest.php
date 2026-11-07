@@ -13,8 +13,8 @@ it('validates nullable email, bounded quantities and boolean fields from native 
     bool $passes,
 ) {
     $schema = Schema::object([
-        'email' => SchemaBuilder::make()->type('string')->format('email')->nullable()->build(),
-        'quantity' => SchemaBuilder::make()->type('integer')->min(1)->max(10)->build(),
+        'email' => SchemaBuilder::string()->format('email')->nullable()->build(),
+        'quantity' => SchemaBuilder::integer()->min(1)->max(10)->build(),
         'active' => Schema::boolean(),
     ]);
 
@@ -52,7 +52,7 @@ it('accepts only null when a null-schema value is supplied and allows absence', 
 it('validates null schemas in nested properties and array items', function () {
     $rules = new RuleFactory()->make(Schema::object([
         'nested' => Schema::object(['value' => Schema::null()]),
-        'items' => SchemaBuilder::make()->type('array')->items(Schema::null())->build(),
+        'items' => SchemaBuilder::array()->items(Schema::null())->build(),
     ]));
 
     expect(Validator::make([], $rules)->passes())
@@ -115,7 +115,7 @@ it('applies union bounds within the matching type branch', function (
 
 it('keeps union enums and sibling-dependent annotation rules active', function () {
     $rules = new RuleFactory()->make(Schema::object([
-        'choice' => SchemaBuilder::make(Schema::union(['integer', 'boolean']))
+        'choice' => SchemaBuilder::union(['integer', 'boolean'])
             ->enum([9, 12, 13])
             ->with('minimum', 10)
             ->with('x-validation', ['required_without:backup', 'not_in:12'])
@@ -178,7 +178,7 @@ it('combines application validation with nested schema and allOf constraints', f
 
 it('runs application validation before inferred rules when bail is requested', function () {
     $rules = new RuleFactory()->make(
-        Schema::object(['email' => SchemaBuilder::make()->type('string')->format('email')->build()]),
+        Schema::object(['email' => SchemaBuilder::string()->format('email')->build()]),
         [
             'email' => [
                 'bail',
@@ -195,20 +195,19 @@ it('runs application validation before inferred rules when bail is requested', f
 
 it('validates required fields only within present optional objects and checks array items', function () {
     $schema = Schema::object([
-        'customer' => SchemaBuilder::make(Schema::object([
-            'email' => SchemaBuilder::make()->type('string')->format('email')->build(),
-        ]))
+        'customer' => SchemaBuilder::object([
+            'email' => SchemaBuilder::string()->format('email')->build(),
+        ])
             ->required(['email'])
             ->nullable()
             ->build(),
-        'items' => SchemaBuilder::make()
-            ->type('array')
+        'items' => SchemaBuilder::array()
             ->min(1)
             ->max(2)
             ->items(
-                SchemaBuilder::make(Schema::object([
-                    'quantity' => SchemaBuilder::make()->type('integer')->min(1)->build(),
-                ]))
+                SchemaBuilder::object([
+                    'quantity' => SchemaBuilder::integer()->min(1)->build(),
+                ])
                     ->required(['quantity'])
                     ->build(),
             )
@@ -275,12 +274,12 @@ it('validates alternative constraints and distinguishes anyOf from oneOf', funct
 ) {
     $schema = $keyword === 'oneOf'
         ? Schema::oneOf([
-            SchemaBuilder::make()->type('integer')->min(1)->build(),
-            SchemaBuilder::make()->type('number')->max(10)->build(),
+            SchemaBuilder::integer()->min(1)->build(),
+            SchemaBuilder::number()->max(10)->build(),
         ])
         : Schema::anyOf([
-            SchemaBuilder::make()->type('integer')->min(1)->build(),
-            SchemaBuilder::make()->type('number')->max(10)->build(),
+            SchemaBuilder::integer()->min(1)->build(),
+            SchemaBuilder::number()->max(10)->build(),
         ]);
     $rules = new RuleFactory()->make($schema, [], 'value');
 
@@ -305,11 +304,10 @@ it('validates each wildcard alternative independently and keeps sibling-dependen
         ],
     ]);
     $rules = new RuleFactory()->make(
-        SchemaBuilder::make()
-            ->type('array')
+        SchemaBuilder::array()
             ->items(Schema::anyOf([
                 Schema::integer(),
-                SchemaBuilder::make()->type('string')->format('email')->build(),
+                SchemaBuilder::string()->format('email')->build(),
             ]))
             ->build(),
         [],
@@ -327,10 +325,10 @@ it('validates each wildcard alternative independently and keeps sibling-dependen
 
 it('validates nullable multi-type unions and scalar enums', function () {
     $schema = Schema::object([
-        'value' => SchemaBuilder::make(Schema::union(['integer', 'boolean']))
+        'value' => SchemaBuilder::union(['integer', 'boolean'])
             ->nullable()
             ->build(),
-        'status' => SchemaBuilder::make()->type('string')->enum(['draft', 'published'])->build(),
+        'status' => SchemaBuilder::string()->enum(['draft', 'published'])->build(),
     ]);
     $rules = new RuleFactory()->make($schema);
 

@@ -2,6 +2,7 @@
 
 use PHPinnacle\Jason\JsonPath;
 use PHPinnacle\Jason\Schema;
+use PHPinnacle\Jason\SchemaBuilder;
 
 it('selects property and item schemas while distinguishing null values from impossible paths', function (
     array $path,
@@ -124,7 +125,7 @@ it('projects object wildcards without dropping open additional fields', function
     expect($open->atPath([null])->items()->types())->toBe([]);
     expect(Schema::fromArray(false)->atPath(['value']))->toBeNull();
     expect(Schema::fromArray(true)->atPath(['value'])->isEmpty())->toBeTrue();
-    expect(Schema::array()->builder()->items(Schema::fromArray(false))->build()->atPath([null]))->toBeNull();
+    expect(SchemaBuilder::array()->items(Schema::fromArray(false))->build()->atPath([null]))->toBeNull();
 });
 
 it('intersects item constraints from every composition group while excluding unavailable positions', function () {

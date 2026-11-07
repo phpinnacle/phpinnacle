@@ -614,8 +614,7 @@ it('passes model, attribute and cast arguments to handlers for root and related 
         Model $model,
         string $attribute,
         array $arguments,
-    ) => SchemaBuilder::make()
-        ->type('string')
+    ) => SchemaBuilder::string()
         ->title($model->getTable() . '.' . $attribute)
         ->enum($arguments === [] ? ['plain'] : $arguments)
         ->build());
@@ -628,8 +627,11 @@ it('passes model, attribute and cast arguments to handlers for root and related 
         ->and($definition['properties']['plain_label']['enum'])
         ->toBe(['plain']);
 
-    $introspector->registerCast('int', fn (Model $model, string $attribute, array $arguments) => SchemaBuilder::make()
-        ->type('integer')
+    $introspector->registerCast('int', fn (
+        Model $model,
+        string $attribute,
+        array $arguments,
+    ) => SchemaBuilder::integer()
         ->title($model->getTable() . '.' . $attribute)
         ->build());
     $definition = $introspector->introspect($model)->toArray();

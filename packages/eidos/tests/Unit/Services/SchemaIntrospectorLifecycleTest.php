@@ -29,8 +29,7 @@ it('applies shared cast registrations to later introspections of model classes a
     $introspector = app(SchemaIntrospector::class);
     $model = $useInstance ? new EidosIntrospectorModel : EidosIntrospectorModel::class;
     $schema = $introspector->introspect($model);
-    $introspector->registerCast('string', fn () => SchemaBuilder::make()
-        ->type('string')
+    $introspector->registerCast('string', fn () => SchemaBuilder::string()
         ->title('Registered cast')
         ->build());
     $nextSchema = app(SchemaIntrospector::class)->introspect($model);

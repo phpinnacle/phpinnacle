@@ -28,11 +28,11 @@ it('preserves complete definitions without normalizing constraints or annotation
 });
 
 it('keeps built schemas immutable and required names on the containing object', function () {
-    $name = SchemaBuilder::make()->type('string')->default(null)->build();
+    $name = SchemaBuilder::string()->default(null)->build();
     $titled = SchemaBuilder::make($name)->title('Name')->build();
-    $schema = SchemaBuilder::make(Schema::object([
+    $schema = SchemaBuilder::object([
         'name' => $titled,
-    ]))
+    ])
         ->required(['name', 'undeclared'])
         ->build();
     expect($name->hasKeyword('title'))
@@ -47,7 +47,7 @@ it('keeps built schemas immutable and required names on the containing object', 
 
 it('takes immutable snapshots of nested JSON objects at input and output boundaries', function () {
     $default = (object) ['nested' => (object) ['value' => 'original']];
-    $schema = SchemaBuilder::make(Schema::object())->default($default)->build();
+    $schema = SchemaBuilder::object()->default($default)->build();
     $default->nested->value = 'input changed';
     $output = $schema->toArray();
     $output['default']->nested->value = 'output changed';
@@ -284,12 +284,12 @@ it('can resolve a schema object stored outside a schema keyword', function () {
 });
 
 it('keeps nullability outside enum and composition constraints', function () {
-    $schema = SchemaBuilder::make()->type('string')->enum(['active'])->build();
+    $schema = SchemaBuilder::string()->enum(['active'])->build();
     expect(SchemaBuilder::make($schema)->nullable()->build()->toArray())
         ->toBe(['anyOf' => [$schema->toArray(), ['type' => 'null']]])
         ->and($schema->toArray())
         ->toBe(['type' => 'string', 'enum' => ['active']])
-        ->and(SchemaBuilder::make()->type('integer')->nullable()->build()->toArray())
+        ->and(SchemaBuilder::integer()->nullable()->build()->toArray())
         ->toBe(['type' => ['integer', 'null']]);
 });
 

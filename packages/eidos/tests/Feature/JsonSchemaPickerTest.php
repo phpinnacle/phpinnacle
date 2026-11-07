@@ -168,14 +168,12 @@ it('uses Jason schema objects and closures for selection and readonly rendering'
     $schema = JsonSchema::anyOf([
         JsonSchema::object([
             'customer' => JsonSchema::object([
-                'email' => SchemaBuilder::make()
-                    ->type('string')
+                'email' => SchemaBuilder::string()
                     ->nullable()
                     ->description('Jason schema address')
                     ->build(),
             ]),
-            'tags' => SchemaBuilder::make()
-                ->type('array')
+            'tags' => SchemaBuilder::array()
                 ->items(JsonSchema::object([
                     'name' => JsonSchema::string(),
                 ]))
@@ -232,7 +230,7 @@ it('validates exact union paths against the current schema closure', function ()
     $schema = JsonSchema::anyOf([
         JsonSchema::object(['данные/客户' => JsonSchema::object(['email' => JsonSchema::string()])]),
         JsonSchema::object(['данные/客户' => JsonSchema::object([
-            'email' => SchemaBuilder::make()->type('integer')->nullable()->build(),
+            'email' => SchemaBuilder::integer()->nullable()->build(),
         ])]),
     ]);
     $picker = $form->getComponent('selection');
@@ -404,16 +402,14 @@ function eidos_json_schema_form(mixed $selection): Schema
         {
             $jsonSchema = JsonSchema::object([
                 'customer' => JsonSchema::object([
-                    'email' => SchemaBuilder::make()
-                        ->type('string')
+                    'email' => SchemaBuilder::string()
                         ->nullable()
                         ->description('Delivery address')
                         ->build(),
                 ]),
                 'totals' => JsonSchema::object(['subtotal' => JsonSchema::number()]),
                 'literal.key' => JsonSchema::object(['slash/key' => JsonSchema::boolean()]),
-                'tags' => SchemaBuilder::make()
-                    ->type('array')
+                'tags' => SchemaBuilder::array()
                     ->items(JsonSchema::object(['name' => JsonSchema::string()]))
                     ->build(),
                 '01' => JsonSchema::string(),
