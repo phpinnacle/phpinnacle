@@ -3,6 +3,7 @@
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
@@ -55,6 +56,47 @@ it('renders fluent item and group metadata and applies a disabled condition', fu
     $item->disabled(false);
     expect($schema->getState())->toBe(['choice' => 'leaf']);
 });
+
+it('renders rich item labels and descriptions with palette or null colors safely', function (
+    ItemPickerMode $mode,
+    ?array $color,
+) {
+    $label = new HtmlString('<strong title="Rich label">Leaf &quot;quoted&quot; &amp; named</strong>');
+    $description = new HtmlString('<em>Rich description</em>');
+    $picker = ItemPicker::make('choice')
+        ->mode($mode)
+        ->items([
+            new Item('constructor', $label, $description, color: $color),
+            Item::make('fluent')->label($label)->description($description)->color($color),
+        ]);
+    [$schema] = common_picker_form($picker);
+    $schema->fill(['choice' => 'constructor']);
+    view()->share('errors', new ViewErrorBag);
+    $html = $picker->toHtml();
+    $document = new DOMDocument;
+    $document->loadHTML($html, LIBXML_NOERROR | LIBXML_NOWARNING);
+    $xpath = new DOMXPath($document);
+
+    expect($html)->toContain($label->toHtml(), $description->toHtml());
+    expect($schema->getState())->toBe(['choice' => 'constructor']);
+
+    foreach ($xpath->query('//*[@role="treeitem"]') as $item) {
+        expect($item->getAttribute('aria-label'))->toBe('Leaf "quoted" & named');
+        expect($item->hasAttribute('title'))->toBeFalse();
+    }
+
+    $styles = $xpath->query('//*[@role="treeitem"] | //*[@data-selected-value]');
+
+    foreach ($styles as $item) {
+        if ($color === null) {
+            expect($item->getAttribute('style'))->not->toContain('--color-');
+        } else {
+            expect($item->getAttribute('style'))->toContain('--color-600:#0284c7');
+        }
+    }
+})
+    ->with(ItemPickerMode::cases())
+    ->with(['palette' => [[50 => '#f0f9ff', 400 => '#38bdf8', 600 => '#0284c7']], 'no color' => [null]]);
 
 it('renders grouped descendants and safely escapes descriptions in both modes', function (ItemPickerMode $mode) {
     $picker = ItemPicker::make('choice')

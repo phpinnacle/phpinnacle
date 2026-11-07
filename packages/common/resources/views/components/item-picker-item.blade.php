@@ -1,4 +1,7 @@
 @php
+    $label = $item->label instanceof \Illuminate\Contracts\Support\Htmlable
+        ? html_entity_decode(strip_tags($item->label->toHtml()), ENT_QUOTES | ENT_HTML5, 'UTF-8')
+        : $item->label;
     $hasChildren = !$resolved && $item->children !== [];
     $descriptionId = $item->description !== null ? $id . '-description' . $row['key'] : null;
     $badgesId = $item->badges !== [] ? $id . '-badges' . $row['key'] : null;
@@ -10,7 +13,7 @@
     data-item-key="{{ $row['key'] }}"
     role="treeitem"
     aria-level="{{ $row['depth'] + 1 }}"
-    aria-label="{{ $item->label }}"
+    aria-label="{{ $label }}"
     @if ($describedBy !== '')
         aria-describedby="{{ $describedBy }}"
     @endif
@@ -55,7 +58,7 @@
             @disabled($disabled)
             x-on:click.stop="toggleBranch(@js($row['key']))"
             x-bind:aria-expanded="expanded.includes(@js($row['key']))"
-            aria-label="{{ __('phpinnacle-common::item-picker.toggle', ['label' => $item->label]) }}"
+            aria-label="{{ __('phpinnacle-common::item-picker.toggle', ['label' => $label]) }}"
             class="common-item-picker__branch"
         >
             <span x-show="!expanded.includes(@js($row['key']))">

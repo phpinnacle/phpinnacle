@@ -231,6 +231,8 @@ ItemPicker::make('assignees')
 
 `compact()` puts item and group descriptions on the label line. `dense()` independently reduces spacing and visual sizes. `circular()` rounds images and icon backgrounds. Images take precedence over icons. These options, `multiple()` and `branches()` accept boolean conditions or closures. Multiple dropdowns show complete selected chips and summarize overflow as `+N`. `branches(false)` allows leaf choices while keeping parent branches expandable. Disabled choices cannot be selected.
 
+Item labels accept strings or `Htmlable` values, and descriptions also accept `null`. `Item::color()` accepts a registered color name, a Filament shade palette, or `null`. HTML labels render as markup while accessible labels use escaped plain text.
+
 Item and group names get title-case labels unless an explicit label is supplied. Single selection stores a string or `null`; multiple selection stores a list of strings. The field validates availability, disabled items and branch selection. Both inline and dropdown modes support keyboard navigation. Groups are labels rather than selectable values.
 Dropdown panels receive their position and width before becoming visible, including on their first opening.
 

@@ -15,15 +15,18 @@ final class Item implements HasColor, HasDescription, HasIcon, HasLabel
     /** @var list<ItemBadge> */
     public array $badges = [];
 
-    public string $label;
+    public string|Htmlable $label;
 
-    /** @param list<Item|ItemGroup> $children */
+    /**
+     * @param string|array<string>|null $color
+     * @param list<Item|ItemGroup> $children
+     */
     public function __construct(
         public readonly string $value,
-        ?string $label = null,
-        public ?string $description = null,
+        string|Htmlable|null $label = null,
+        public string|Htmlable|null $description = null,
         public string|BackedEnum|Htmlable|null $icon = null,
-        public string $color = 'primary',
+        public string|array|null $color = 'primary',
         public array $children = [],
         public bool $disabled = false,
         public ?string $image = null,
@@ -36,14 +39,14 @@ final class Item implements HasColor, HasDescription, HasIcon, HasLabel
         return new static($value);
     }
 
-    public function label(string $label): self
+    public function label(string|Htmlable $label): self
     {
         $this->label = $label;
 
         return $this;
     }
 
-    public function description(?string $description): self
+    public function description(string|Htmlable|null $description): self
     {
         $this->description = $description;
 
@@ -64,7 +67,8 @@ final class Item implements HasColor, HasDescription, HasIcon, HasLabel
         return $this;
     }
 
-    public function color(string $color): self
+    /** @param string|array<string>|null $color */
+    public function color(string|array|null $color): self
     {
         $this->color = $color;
 
@@ -94,12 +98,12 @@ final class Item implements HasColor, HasDescription, HasIcon, HasLabel
         return $this;
     }
 
-    public function getLabel(): string
+    public function getLabel(): string|Htmlable
     {
         return $this->label;
     }
 
-    public function getDescription(): ?string
+    public function getDescription(): string|Htmlable|null
     {
         return $this->description;
     }
@@ -114,7 +118,8 @@ final class Item implements HasColor, HasDescription, HasIcon, HasLabel
         return $this->image;
     }
 
-    public function getColor(): string
+    /** @return string|array<string>|null */
+    public function getColor(): string|array|null
     {
         return $this->color;
     }
