@@ -32,8 +32,8 @@ use PHPinnacle\Cerber\Models\User;
             items: new OA\Schema(type: 'string', enum: [Prerequisite::class]),
         ),
         'user' => new OA\Schema(
-            ref: '#/components/schemas/CerberUserResource',
             description: 'User profile',
+            allOf: [new OA\Schema(ref: '#/components/schemas/CerberUserResource')],
         ),
     ],
     type: 'object',

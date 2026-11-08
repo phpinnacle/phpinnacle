@@ -49,6 +49,10 @@ it('generates the authentication contract without overriding application compone
         $specification['components']['schemas']['CerberAuthResource']['properties']['prerequisites']['items']['enum'],
     )
         ->toBe(['password']);
+    expect($specification['components']['schemas']['CerberAuthResource']['properties']['user'])->toMatchArray([
+        'description' => 'User profile',
+        'allOf' => [['$ref' => '#/components/schemas/CerberUserResource']],
+    ]);
     expect($specification['paths']['/auth/password/change']['post']['responses'])->toHaveKey('204');
     $loginSchema =
         $specification['paths']['/auth/login']['post']['requestBody']['content']['application/json']['schema'];
