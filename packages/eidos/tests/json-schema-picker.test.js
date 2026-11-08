@@ -778,6 +778,67 @@ function createPicker(options) {
     return picker
 }
 
+test('offers row disclosure for unselectable branches outside search', () => {
+    const groups = schemaGroups(schema, 'Result')
+    const picker = createPicker({ groups: () => groups, choose: () => assert.fail('Cannot choose an incompatible branch') })
+    const branch = { ...groups[0].sources.find(source => source.key === '["customer"]'), compatible: false }
+    const leaf = { ...groups[0].sources.find(source => source.key === '["customer","email"]'), compatible: false }
+    const readonly = createPicker({ groups: () => groups, disabled: true })
+
+    assert.equal(picker.jsonSchemaRowExpandable(branch), true)
+    assert.equal(picker.jsonSchemaRowExpandable({ ...branch, value: null }), true)
+    assert.equal(picker.jsonSchemaRowExpandable({ ...branch, compatible: true, value: null }), true)
+    assert.equal(picker.jsonSchemaRowExpandable({ ...branch, compatible: true }), false)
+    assert.equal(picker.jsonSchemaRowExpandable(leaf), false)
+    assert.equal(readonly.jsonSchemaRowExpandable({ ...branch, compatible: true }), true)
+    assert.equal(readonly.jsonSchemaRowExpandable(leaf), false)
+    assert.equal(picker.jsonSchemaChoose(branch), false)
+    assert.equal(picker.jsonSchemaChoose({ ...branch, value: null }), false)
+
+    picker.jsonSchemaSearch = 'customer'
+    picker.jsonSchemaSyncSearch()
+    readonly.jsonSchemaSearch = 'customer'
+    readonly.jsonSchemaSyncSearch()
+
+    assert.equal(picker.jsonSchemaRowExpandable(branch), false)
+    assert.equal(picker.jsonSchemaRowExpandable({ ...branch, value: null }), false)
+    assert.equal(readonly.jsonSchemaRowExpandable(branch), false)
+})
+
+test('distinguishes branches without selectable descendants from paths to available nested fields', () => {
+    const document = { properties: {
+        records: { type: 'array', items: { type: 'object', properties: {
+            logs: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' } } } },
+        } } },
+        navigable: { properties: { hidden: { properties: { available: { type: 'string' } } } } },
+        nullOnly: { properties: { empty: { type: 'string' } } },
+    } }
+    const options = { includeRoot: false, descendArrays: true }
+    const groups = schemaGroups(document, 'Result', options)
+    for (const source of groups[0].sources) {
+        if (['navigable', 'hidden', 'nullOnly'].includes(source.fieldName)) source.compatible = false
+        if (source.fieldName === 'empty') source.value = null
+    }
+    const picker = createPicker({ groups: () => [
+        ...groups, ...schemaGroups(document, 'Enabled', { ...options, selectArrayItemFields: true }),
+    ] })
+    const source = name => picker.jsonSchemaData[0].sources.find(source => source.fieldName === name)
+
+    assert.equal(source('logs').hasSelectableDescendants, false)
+    assert.equal(picker.jsonSchemaRowExpandable(source('logs')), true)
+    assert.equal(source('navigable').hasSelectableDescendants, true)
+    assert.equal(source('hidden').hasSelectableDescendants, true)
+    assert.equal(source('nullOnly').hasSelectableDescendants, false)
+    assert.equal(source('available').hasSelectableDescendants, false)
+    assert.equal(picker.jsonSchemaData[1].sources.find(source => source.fieldName === 'logs').hasSelectableDescendants, true)
+
+    groups[0].sources.find(source => source.fieldName === 'available').compatible = false
+    picker.jsonSchemaSync()
+
+    assert.equal(source('navigable').hasSelectableDescendants, false)
+    assert.equal(source('hidden').hasSelectableDescendants, false)
+})
+
 test('traverses oneOf and allOf properties with scoped limits and required markers', () => {
     const definition = { type: 'object', properties: {
         payment: { type: 'object', properties: { token: { type: 'string' } }, oneOf: [

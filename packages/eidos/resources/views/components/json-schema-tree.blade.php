@@ -33,31 +33,43 @@
                 <div
                     class="eidos-json-schema-tree__row"
                     :style="`--json-schema-depth: ${jsonSchemaSearching ? 0 : source.depth}`"
-                    :class="{ 'eidos-json-schema-tree__row--selected': jsonSchemaSelected(source), 'eidos-json-schema-tree__row--expandable': @js($disabled) && source.hasChildren && !jsonSchemaSearching }"
+                    :class="{ 'eidos-json-schema-tree__row--selected': jsonSchemaSelected(source), 'eidos-json-schema-tree__row--expandable': jsonSchemaRowExpandable(source) }"
                     :aria-current="jsonSchemaSelected(source) ? 'true' : null"
-                    @if ($disabled)
-                        :role="source.hasChildren && !jsonSchemaSearching ? 'button' : null"
-                        :tabindex="source.hasChildren && !jsonSchemaSearching ? 0 : null"
-                        :aria-label="source.hasChildren && !jsonSchemaSearching ? source.fieldLabel : null"
-                        :aria-expanded="source.hasChildren && !jsonSchemaSearching ? jsonSchemaIsExpanded(source.key) : null"
-                        x-on:click="source.hasChildren && !jsonSchemaSearching && jsonSchemaToggle(source)"
-                        x-on:keydown.enter.prevent="source.hasChildren && !jsonSchemaSearching && jsonSchemaToggle(source)"
-                        x-on:keydown.space.prevent="source.hasChildren && !jsonSchemaSearching && jsonSchemaToggle(source)"
-                    @endif
+                    :role="jsonSchemaRowExpandable(source) ? 'button' : null"
+                    :tabindex="jsonSchemaRowExpandable(source) ? 0 : null"
+                    :aria-label="jsonSchemaRowExpandable(source) ? source.fieldLabel : null"
+                    x-effect="$el.ariaExpanded = jsonSchemaRowExpandable(source) ? jsonSchemaIsExpanded(source.key) : null"
+                    x-on:click="jsonSchemaRowExpandable(source) && jsonSchemaToggle(source)"
+                    x-on:keydown.enter.self.prevent="jsonSchemaRowExpandable(source) && jsonSchemaToggle(source)"
+                    x-on:keydown.space.self.prevent="jsonSchemaRowExpandable(source) && jsonSchemaToggle(source)"
                 >
                     @if ($disabled)
                         <span aria-hidden="true" class="eidos-json-schema-tree__branch">
                             <x-filament::icon icon="heroicon-o-chevron-right" x-show="source.hasChildren && !jsonSchemaSearching" class="eidos-json-schema-tree__arrow" />
                         </span>
                     @else
-                        <button type="button" x-show="source.hasChildren && !jsonSchemaSearching" x-on:click="jsonSchemaToggle(source)" :aria-label="@js(__('phpinnacle-eidos::json-schema.expand')) + ' ' + source.fieldLabel" :aria-expanded="jsonSchemaIsExpanded(source.key)" class="eidos-json-schema-tree__branch">
+                        <span x-show="jsonSchemaRowExpandable(source)" aria-hidden="true" class="eidos-json-schema-tree__branch">
+                            <x-filament::icon icon="heroicon-o-chevron-right" class="eidos-json-schema-tree__arrow" />
+                        </span>
+                        <button type="button" x-show="source.hasChildren && !jsonSchemaSearching && !jsonSchemaRowExpandable(source)" x-on:click.stop="jsonSchemaToggle(source)" :aria-label="@js(__('phpinnacle-eidos::json-schema.expand')) + ' ' + source.fieldLabel" :aria-expanded="jsonSchemaIsExpanded(source.key)" class="eidos-json-schema-tree__branch">
                             <x-filament::icon icon="heroicon-o-chevron-right" class="eidos-json-schema-tree__arrow" />
                         </button>
                     @endif
                     @if ($disabled)
                         <div :title="{{ $descriptions }} && source.description ? source.fieldLabel + '\n' + source.description : source.fieldLabel" class="eidos-json-schema-tree__value">
                     @else
-                        <button type="button" x-on:click="jsonSchemaChoose(source)" :disabled="source.compatible === false && source.value !== null" :aria-disabled="source.compatible === false" :class="{ 'eidos-json-schema-tree__value--readonly': source.value === null }" :title="{{ $descriptions }} && source.description ? source.fieldLabel + '\n' + source.description : source.fieldLabel" :data-source="source.key" :aria-pressed="jsonSchemaSelected(source)" class="eidos-json-schema-tree__value">
+                        <template x-if="source.compatible === false || source.value === null">
+                            <div :aria-disabled="jsonSchemaRowExpandable(source) ? null : 'true'" :class="{ 'eidos-json-schema-tree__value--disabled': !jsonSchemaRowExpandable(source), 'eidos-json-schema-tree__value--muted': !source.hasSelectableDescendants }" :title="{{ $descriptions }} && source.description ? source.fieldLabel + '\n' + source.description : source.fieldLabel" :data-source="source.key" class="eidos-json-schema-tree__value">
+                                <x-phpinnacle-eidos::json-schema-field
+                                    :compact="$compact"
+                                    :properties="$properties"
+                                    :description="$descriptions"
+                                    selected="jsonSchemaSelected(source)"
+                                />
+                            </div>
+                        </template>
+                        <template x-if="source.compatible !== false && source.value !== null">
+                        <button type="button" x-on:click.stop="jsonSchemaChoose(source)" :title="{{ $descriptions }} && source.description ? source.fieldLabel + '\n' + source.description : source.fieldLabel" :data-source="source.key" :aria-pressed="jsonSchemaSelected(source)" class="eidos-json-schema-tree__value">
                     @endif
                         <x-phpinnacle-eidos::json-schema-field
                             :compact="$compact"
@@ -69,6 +81,7 @@
                         </div>
                     @else
                         </button>
+                        </template>
                     @endif
                 </div>
             </template>

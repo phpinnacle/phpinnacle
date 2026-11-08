@@ -23,11 +23,15 @@ export function jsonSchemaPicker({ groups, selected = () => false, choose = null
                     depth: source.depth - source.ancestors.filter(key => hidden.has(key)).length + (root && source !== root ? 1 : 0),
                 }))
                 const parents = new Set(sources.map(source => source.ancestors.at(-1)))
+                const selectableAncestors = new Set(sources
+                    .filter(source => source.compatible !== false && source.value !== null)
+                    .flatMap(source => source.ancestors))
                 return {
                     ...group,
                     sources: sources.map(source => ({
                         ...source,
                         hasChildren: hidden.size ? parents.has(source.key) : source.hasChildren,
+                        hasSelectableDescendants: selectableAncestors.has(source.key),
                         searchText: [group.label, group.detail ?? '', source.fieldLabel,
                             ...[source, ...source.arrayItems].flatMap(level => [level.type, ...level.titles, level.description ?? '',
                                 ...level.enums.flatMap(enumeration => enumeration.values),
@@ -70,6 +74,9 @@ export function jsonSchemaPicker({ groups, selected = () => false, choose = null
         },
         jsonSchemaVisible(source) {
             return !source.arrayItem && (this.jsonSchemaSearching || source.ancestors.every(key => this.jsonSchemaIsExpanded(key)))
+        },
+        jsonSchemaRowExpandable(source) {
+            return (disabled || source.compatible === false || source.value === null) && source.hasChildren && !this.jsonSchemaSearching
         },
         jsonSchemaToggle(source) { this.jsonSchemaExpanded[source.key] = !this.jsonSchemaIsExpanded(source.key) },
         jsonSchemaChoose(source) {

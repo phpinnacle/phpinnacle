@@ -341,6 +341,12 @@ The schema trees show titles, type and nullable badges, descriptions, and
 expandable object and array fields. Explicit titles take precedence; a name such
 as `unit_price` gets the fallback title `Unit Price`. The entry is readonly.
 Its branches expand or collapse on click, Enter, or Space.
+In the picker, unselectable branches also expand or collapse through the whole
+row, including Enter and Space. Selectable fields keep separate actions: the name
+selects the field and the chevron toggles its children. Unselectable leaves remain
+unavailable. Search results stay flat and do not offer branch expansion.
+Unselectable branches with no selectable descendants are dimmed but remain
+expandable; branches leading to an available field retain their normal contrast.
 
 Each option accepts a boolean or Filament callback:
 
@@ -824,6 +830,10 @@ render and again after a Livewire update:
 - On the first opening of a picker or readonly inspector, confirm the tree has a
   measurable height, fits the viewport, and is positioned beside its trigger.
   Repeat after changing the schema and reopening the dropdown.
+- Expand an unselectable branch through its name, empty row space, and chevron,
+  then with Enter and Space. Each action must toggle it once without selecting
+  it or adding a second disclosure Tab stop. Selectable names still choose their
+  values; search results must offer no branch expansion.
 
 ## License
 

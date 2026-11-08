@@ -4,6 +4,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
@@ -389,6 +390,42 @@ it('renders dropdown trees outside templates', function () {
             ->toBeGreaterThan(0);
     }
 });
+
+it('gives unselectable branches one row disclosure control and keeps selection separate', function (bool $disabled) {
+    view()->share('errors', new ViewErrorBag);
+    $html = Blade::render(
+        '<x-phpinnacle-eidos::json-schema-tree groups="[]" :disabled="$disabled" />',
+        ['disabled' => $disabled],
+    );
+    $document = new DOMDocument;
+    $document->loadHTML($html, LIBXML_NOERROR | LIBXML_NOWARNING);
+    $xpath = new DOMXPath($document);
+    $row = $xpath->query('//div[@class="eidos-json-schema-tree__row"]')->item(0);
+
+    expect($row->getAttribute(':role'))->toBe("jsonSchemaRowExpandable(source) ? 'button' : null");
+    expect($row->getAttribute('x-effect'))
+        ->toBe('$el.ariaExpanded = jsonSchemaRowExpandable(source) ? jsonSchemaIsExpanded(source.key) : null');
+    expect($row->getAttribute('x-on:keydown.enter.self.prevent'))
+        ->toBe('jsonSchemaRowExpandable(source) && jsonSchemaToggle(source)');
+    expect($row->getAttribute('x-on:keydown.space.self.prevent'))
+        ->toBe('jsonSchemaRowExpandable(source) && jsonSchemaToggle(source)');
+    expect($xpath->query('//button//button')->length)->toBe(0);
+
+    if ($disabled) {
+        expect($xpath->query('//button')->length)->toBe(0);
+
+        return;
+    }
+
+    $branch = $xpath->query('//button[@class="eidos-json-schema-tree__branch"]')->item(0);
+    expect($branch->getAttribute('x-show'))->toContain('!jsonSchemaRowExpandable(source)');
+    expect($branch->getAttribute('x-on:click.stop'))->toBe('jsonSchemaToggle(source)');
+    expect($branch->hasAttribute(':aria-disabled'))->toBeFalse();
+    $value = $xpath->query('//button[@class="eidos-json-schema-tree__value"]')->item(0);
+    expect($value->getAttribute('x-on:click.stop'))->toBe('jsonSchemaChoose(source)');
+    expect($value->parentNode->getAttribute('x-if'))
+        ->toBe('source.compatible !== false && source.value !== null');
+})->with([false, true]);
 
 function eidos_json_schema_form(mixed $selection): Schema
 {
