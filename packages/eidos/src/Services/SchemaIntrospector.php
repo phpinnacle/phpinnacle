@@ -54,17 +54,19 @@ class SchemaIntrospector
      * @param class-string<Model>|Model $model
      * @param int<0, max> $relationshipDepth
      */
-    public function introspect(string|Model $model, int $relationshipDepth = 1): Schema
+    public function introspect(string|Model $model, int $relationshipDepth = 1, bool $closed = false): Schema
     {
         $model = is_string($model) ? new $model : $model;
 
-        return SchemaBuilder::make($this->modelSchema($model, $relationshipDepth))->title($model::class)->build();
+        return SchemaBuilder::make($this->modelSchema($model, $relationshipDepth, $closed))
+            ->title($model::class)
+            ->build();
     }
 
     /**
      * @param int<0, max> $relationshipDepth
      */
-    private function modelSchema(Model $model, int $relationshipDepth): Schema
+    private function modelSchema(Model $model, int $relationshipDepth, bool $closed): Schema
     {
         $columns = $this->columns($model);
         $properties = [];
@@ -120,10 +122,14 @@ class SchemaIntrospector
         }
 
         if ($relationshipDepth > 0) {
-            $properties = array_replace($properties, $this->relationSchemas($model, $relationshipDepth - 1));
+            $properties = array_replace($properties, $this->relationSchemas($model, $relationshipDepth - 1, $closed));
         }
 
         $builder = SchemaBuilder::object($properties);
+
+        if ($closed) {
+            $builder->withoutAdditionalProperties();
+        }
 
         if ($required !== []) {
             $builder->required($required);
@@ -136,7 +142,7 @@ class SchemaIntrospector
      * @param int<0, max> $relationshipDepth
      * @return array<string, Schema>
      */
-    private function relationSchemas(Model $model, int $relationshipDepth): array
+    private function relationSchemas(Model $model, int $relationshipDepth, bool $closed): array
     {
         $properties = [];
 
@@ -155,7 +161,7 @@ class SchemaIntrospector
             }
 
             $relation = $this->relation($model, $method);
-            $relatedSchema = $this->modelSchema($relation->getRelated(), $relationshipDepth);
+            $relatedSchema = $this->modelSchema($relation->getRelated(), $relationshipDepth, $closed);
             $name = $model::$snakeAttributes ? Str::snake($method->getName()) : $method->getName();
 
             $builder =

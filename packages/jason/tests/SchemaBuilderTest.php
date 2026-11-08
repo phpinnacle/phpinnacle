@@ -143,14 +143,51 @@ it('excludes null from primitive and constrained schemas', function (array $defi
         ['type' => 'null'],
         false,
     ],
+    'untyped enum' => [
+        ['enum' => [0, false, null, '']],
+        ['enum' => [0, false, '']],
+    ],
+    'null enum only' => [
+        ['enum' => [null]],
+        false,
+    ],
     'enum constraint' => [
         ['type' => ['string', 'null'], 'enum' => ['active', null]],
-        [
-            'allOf' => [
-                ['type' => ['string', 'null'], 'enum' => ['active', null]],
-                ['not' => ['type' => 'null']],
-            ],
-        ],
+        ['type' => 'string', 'enum' => ['active']],
+    ],
+]);
+
+it('adds null directly to simple schemas without losing annotations', function (
+    array $definition,
+    array $expected,
+) {
+    $schema = Schema::fromArray($definition);
+
+    $nullable = $schema->builder()->nullable()->build();
+
+    expect($nullable->toArray())->toBe($expected);
+    expect($nullable->builder()->nullable()->build()->toArray())->toBe($expected);
+    expect($schema->toArray())->toBe($definition);
+})->with([
+    'primitive type' => [
+        ['type' => 'integer'],
+        ['type' => ['integer', 'null']],
+    ],
+    'string enum' => [
+        ['type' => 'string', 'enum' => ['PL', 'DE'], 'title' => 'Country', 'default' => null],
+        ['type' => ['string', 'null'], 'enum' => ['PL', 'DE', null], 'title' => 'Country', 'default' => null],
+    ],
+    'integer enum' => [
+        ['type' => 'integer', 'enum' => [0, 1]],
+        ['type' => ['integer', 'null'], 'enum' => [0, 1, null]],
+    ],
+    'untyped enum' => [
+        ['enum' => [0, false, '']],
+        ['enum' => [0, false, '', null]],
+    ],
+    'existing null' => [
+        ['type' => ['string', 'null'], 'enum' => ['PL', null, 'DE']],
+        ['type' => ['string', 'null'], 'enum' => ['PL', null, 'DE']],
     ],
 ]);
 
@@ -164,3 +201,14 @@ it('allows null outside existing composition constraints', function (string $key
         ],
     ]);
 })->with(['anyOf', 'oneOf', 'allOf']);
+
+it('allows null outside a constant constraint', function () {
+    $schema = Schema::fromArray(['type' => 'string', 'const' => 'PL']);
+
+    expect($schema->builder()->nullable()->build()->toArray())->toBe([
+        'anyOf' => [
+            ['type' => 'string', 'const' => 'PL'],
+            ['type' => 'null'],
+        ],
+    ]);
+});

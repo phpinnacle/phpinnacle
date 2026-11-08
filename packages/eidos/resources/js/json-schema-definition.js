@@ -6,7 +6,15 @@ export function schemaType(schema, format = false) {
     if (format && schema?.enum) return 'enum'
     if (format && schema?.format) return schema.format
     for (const keyword of ['anyOf', 'oneOf', 'allOf']) {
-        if (schema?.[keyword]) return [...new Set(schema[keyword].map(value => schemaType(value, format)).filter(type => type !== 'null'))].join(keyword === 'allOf' ? ' & ' : ' | ') || 'null'
+        if (schema?.[keyword]) {
+            const types = [...new Set(schema[keyword].map(value => schemaType(value, format)))]
+            const intersection = keyword === 'allOf'
+            const dominant = intersection ? 'never' : 'any'
+            const neutral = intersection ? 'any' : 'never'
+            if (types.includes(dominant)) return dominant
+            const concrete = types.filter(type => type !== 'null' && type !== neutral)
+            return concrete.join(intersection ? ' & ' : ' | ') || (types.includes('null') ? 'null' : neutral)
+        }
     }
     const types = (Array.isArray(schema?.type) ? schema.type : [schema?.type]).filter(type => type && type !== 'null')
     if (['object', 'array', 'string', 'number', 'boolean'].every(type => types.includes(type))) return 'any'

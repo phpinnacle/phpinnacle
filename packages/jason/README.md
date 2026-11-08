@@ -60,7 +60,13 @@ configuration. Object properties, schema maps, and composition lists accept buil
 methods on a builder.
 
 On the builder, `nullable()` permits null for the complete schema, including enum
-and composition constraints; `nullable(false)` excludes null. When nullability
+and composition constraints; `nullable(false)` excludes null. Simple typed or
+untyped enums add or remove `null` directly in their `enum` values and, when
+present, `type`. Other values and annotations are preserved; removing the last
+allowed value produces the false schema. For example, a nullable string enum is
+`{"type":["string","null"],"enum":["draft","published",null]}` without an
+`anyOf` wrapper. Composition, const, conditional, and reference constraints retain
+their outer nullability wrapper. When nullability
 requires wrapping the schema, local references are expanded first so their JSON
 Pointer paths remain valid. Local JSON Pointer `$dynamicRef` values are relocated
 with the wrapped schema; anchors and references within `$id` resources retain

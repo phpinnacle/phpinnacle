@@ -112,18 +112,19 @@ final class Codec
         }
 
         foreach ($schema as $keyword => $value) {
-            if (in_array($keyword, self::VALUE_MAPS, true)) {
-                $schema[$keyword] = (object) $value;
-            } elseif (in_array($keyword, self::MAPS, true)) {
-                /** @var array<string, array<string, mixed>|bool> $value */
-                $schema[$keyword] = (object) array_map(self::encode(...), $value);
-            } elseif (in_array($keyword, self::LISTS, true)) {
-                /** @var list<array<string, mixed>|bool> $value */
-                $schema[$keyword] = array_map(self::encode(...), $value);
+            $encodedValue = $value;
+
+            if (in_array($keyword, [...self::MAPS, ...self::LISTS], true)) {
+                /** @var array<array<string, mixed>|bool> $value */
+                $encodedValue = array_map(self::encode(...), $value);
             } elseif (in_array($keyword, self::SCHEMAS, true)) {
                 /** @var array<string, mixed>|bool $value */
-                $schema[$keyword] = self::encode($value);
+                $encodedValue = self::encode($value);
             }
+
+            $schema[$keyword] = in_array($keyword, [...self::MAPS, ...self::VALUE_MAPS], true)
+                ? (object) $encodedValue
+                : $encodedValue;
         }
 
         return (object) $schema;

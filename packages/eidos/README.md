@@ -71,6 +71,24 @@ include `x-foreign-key` with the exact local foreign key column. `MorphTo` relat
 relationships are nullable objects.
 Schema generation uses the model's database connection and table.
 
+Model object schemas are open by default. Pass `closed: true` to `introspect()`
+when the consuming contract permits only the introspected columns and relationships:
+
+```php
+$schema = $introspector->introspect(Order::class, closed: true);
+```
+
+This sets `additionalProperties: false` on each generated model object, including
+related models within the requested relationship depth. JSON columns and schemas
+returned by custom cast handlers retain their own additional-property rules.
+The option applies to this call; subsequent calls remain open unless requested.
+It does not filter serialized model data, infer appended attributes, or guarantee
+that every property is present. Extend the schema explicitly for additional
+serialized attributes. Field absence remains distinct from a present `null`.
+When closed model schemas are combined with `anyOf`, a field declared in only one
+model retains that model's type when present. An open alternative can still make
+the field's projected type unrestricted, as required by JSON Schema.
+
 ### Custom casts
 
 Register a schema handler for a cast name with `SchemaIntrospector::registerCast()`.
@@ -418,7 +436,9 @@ shows its full path and enabled badges; inline descriptions and limits stay in
 the tree.
 
 Boolean schemas display as `any` for `true` and `never` for `false`, including
-local reference targets. Array type badges use compact notation such as `string[]`,
+local reference targets. Type labels simplify unrestricted unions to `any` and
+omit unrestricted branches from intersections.
+Array type badges use compact notation such as `string[]`,
 `object[]`, `number[][]`, and `never[]` for `items: false`. Click the badge, or focus
 it and press Enter or Space, to inspect the array and each item level separately.
 The details include types, nullability,

@@ -1277,6 +1277,21 @@ test('preserves array alternatives in type notation and in item detail scopes', 
     assert.equal(schemaType({ type: 'array', items: { type: 'array', items: { allOf: [{ type: 'number' }, { type: 'integer' }] } } }), '(number & integer)[][]')
 })
 
+test('simplifies unrestricted and impossible alternatives in type labels', () => {
+    for (const keyword of ['anyOf', 'oneOf']) {
+        assert.equal(schemaType({ [keyword]: [{ type: 'string' }, {}] }), 'any')
+        assert.equal(schemaType({ [keyword]: [{ type: 'string' }, true] }), 'any')
+        assert.equal(schemaType({ [keyword]: [{ type: 'string' }, false] }), 'string')
+        assert.equal(schemaType({ [keyword]: [false, { type: 'null' }] }), 'null')
+    }
+    assert.equal(schemaType({ allOf: [{ type: 'string' }, {}] }), 'string')
+    assert.equal(schemaType({ allOf: [{ type: 'string' }, false] }), 'never')
+    assert.equal(schemaType({ allOf: [true, {}] }), 'any')
+    assert.equal(schemaType({ type: 'array', items: { anyOf: [{ type: 'string' }, {}] } }), 'any[]')
+    const [source] = schemaSources({ anyOf: [{ type: 'string' }, {}] })
+    assert.equal(source.type, 'any')
+})
+
 test('enables wildcard selection through the shared option', () => {
     const tools = jsonSchemaTools()
     tools.schemaSelectedKey = "$['tags'][*]['name']"

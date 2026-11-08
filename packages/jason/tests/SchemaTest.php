@@ -283,16 +283,6 @@ it('can resolve a schema object stored outside a schema keyword', function () {
     expect($schema->resolveReferences()->properties()['value']->toArray())->toBe(['type' => 'string']);
 });
 
-it('keeps nullability outside enum and composition constraints', function () {
-    $schema = SchemaBuilder::string()->enum(['active'])->build();
-    expect(SchemaBuilder::make($schema)->nullable()->build()->toArray())
-        ->toBe(['anyOf' => [$schema->toArray(), ['type' => 'null']]])
-        ->and($schema->toArray())
-        ->toBe(['type' => 'string', 'enum' => ['active']])
-        ->and(SchemaBuilder::integer()->nullable()->build()->toArray())
-        ->toBe(['type' => ['integer', 'null']]);
-});
-
 it('retains definitions used by dynamic references after expanding a root reference', function () {
     $schema = Schema::fromArray([
         '$defs' => ['value' => ['type' => 'string'], 'alias' => ['$dynamicRef' => '#/$defs/value']],

@@ -203,25 +203,47 @@ final readonly class Schema implements JsonSerializable
     public function withNullability(bool $nullable): self
     {
         $types = (array) ($this->type() ?? []);
+        $enum = $this->enum();
 
         if (
-            $types !== []
+            ($types !== []
+            || $enum !== null)
             && !array_any(
-                ['enum', 'const', 'anyOf', 'oneOf', 'allOf', 'not', 'if', '$ref', '$dynamicRef'],
+                ['const', 'anyOf', 'oneOf', 'allOf', 'not', 'if', '$ref', '$dynamicRef'],
                 $this->hasKeyword(...),
             )
         ) {
-            $types = array_values(array_diff($types, ['null']));
+            $keywords = [];
 
-            if ($nullable) {
-                $types[] = 'null';
+            if ($types !== []) {
+                $types = array_values(array_diff($types, ['null']));
+
+                if ($nullable) {
+                    $types[] = 'null';
+                }
+
+                if ($types === []) {
+                    return new self(false);
+                }
+
+                $keywords['type'] = count($types) === 1 ? $types[0] : $types;
             }
 
-            return (
-                $types === []
-                    ? new self(false)
-                    : $this->withKeywords(['type' => count($types) === 1 ? $types[0] : $types])
-            );
+            if ($enum !== null) {
+                $enum = array_values(array_filter($enum, fn ($value) => $nullable || $value !== null));
+
+                if ($nullable && !in_array(null, $enum, true)) {
+                    $enum[] = null;
+                }
+
+                if ($enum === []) {
+                    return new self(false);
+                }
+
+                $keywords['enum'] = $enum;
+            }
+
+            return $this->withKeywords($keywords);
         }
 
         $schema = self::fromArray(References::relocateDynamicReferences(
