@@ -200,8 +200,20 @@ export function schemaSources(schema, { whole = 'All data', includeRoot = true, 
     return [...sources.values()]
 }
 
-export function schemaGroups(schema, label, options = {}) {
+export function schemaGroups(schema, label, { hideObjectRoot = false, ...options } = {}) {
     const sources = schemaSources(schema, options)
+    if (hideObjectRoot && options.includeRoot !== false && sources.length > 1) {
+        const root = sources[0]
+        const plainObject = schema?.type === 'object' && !schema.anyOf && !schema.oneOf && !schema.allOf
+        const bareComposition = schema && Object.keys(schema).every(key => ['allOf', 'anyOf', 'oneOf', '$defs'].includes(key))
+        if (plainObject || bareComposition && root.type === 'object') {
+            sources.shift()
+            for (const source of sources) {
+                source.ancestors = source.ancestors.filter(key => key !== root.key)
+                source.depth = source.ancestors.length
+            }
+        }
+    }
     return sources.length ? [{ key: label, label, sources, hasIcons: sources.some(source => source.iconHtml) }] : []
 }
 

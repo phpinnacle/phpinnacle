@@ -13,9 +13,9 @@ return [
     'items' => 'Elementy',
     'required' => 'Wymagane',
     'composition' => [
-        'anyOf' => 'Co najmniej jeden schemat',
-        'oneOf' => 'Dokładnie jeden schemat',
-        'allOf' => 'Wszystkie schematy',
+        'anyOf' => 'Co najmniej jeden schemat musi pasować',
+        'oneOf' => 'Dokładnie jeden schemat musi pasować',
+        'allOf' => 'Wszystkie schematy muszą pasować',
         'variant' => 'Wariant',
     ],
     'constraints' => [

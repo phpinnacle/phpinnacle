@@ -335,8 +335,9 @@ popover and inline tree highlight the current path and expand its parent fields.
 Opening branches or searching does not change the entry's state. The entry does
 not offer field selection or clearing.
 
-Inline entries retain scalar, array, and composition roots. Ordinary object
-schemas with properties list those properties directly.
+Inline entries retain scalar and array roots, and composition roots carrying
+schema metadata. Ordinary object schemas list their properties directly. A bare
+object composition lists its variants without an extra root row.
 
 For a schema owned by an Alpine component, pass a trusted Filament `RawJs`
 expression to `jsonSchema()`:
@@ -353,20 +354,33 @@ and updates the tree when its reactive dependencies change. Schema annotations
 are displayed directly, without PHP annotation validation or generated fallback
 titles. Icons load by name as described in [Blade use](#blade-use).
 
+Schema definitions supplied by PHP refresh in both picker and entry after Livewire
+updates. Entry summaries also refresh when their server-provided path changes.
+A changed PHP schema remounts its adapter so field titles, icons, and tree data
+refresh together. Entry path and layout changes also remount its adapter. Trusted
+`RawJs` schema expressions remain reactive to their Alpine dependencies.
+
 ### Display options
 
-Both picker and entry trees display `anyOf` and `oneOf` with a compact variant
-selector and show the current variant's fields directly beneath it. Labels use
-branch titles; missing or repeated titles include the variant's position.
-`allOf` displays all branches as separate, expandable sections. Common sibling
-properties appear before compositions. Each branch keeps its own fields, types,
-required markers, and constraints; repeated data paths are not merged between
-branches. Selected-field summaries combine metadata for the same data path.
+Picker and entry trees display `allOf`, `anyOf`, and `oneOf` as flat sections.
+The keyword and matching rule sit above independently expandable variant headings.
+Composition wrappers and variants do not add indentation. Only real object and
+array levels indent their fields; connector lines are omitted. Branch fields
+retain their exact data paths. Every branch starts expanded, so variants can be
+compared without switching away from the current branch. Click a branch row, or
+press Enter or Space, to collapse or expand its fields. Scalar branches show
+their types and constraints directly. Branch titles label the rows; untitled
+branches use their position. Composition headings describe whether all, at least
+one, or exactly one branch must match. Expanding a branch does not choose a data
+variant.
 
-Browsing variants does not change the selected JSONPath. Search includes every
-variant, including hidden branches. The initial view reveals the selected path
-when present. Closing a picker or entry popover resets search, manual expansion,
-and browsed variants; reopening reveals the selected path again.
+Common sibling properties appear before compositions. Each branch keeps its own
+fields, types, required markers, and constraints; repeated data paths are not
+merged between branches. Selected-field summaries combine metadata for the same
+data path. Expanding or collapsing branches does not change the selected JSONPath.
+Search includes every branch, including collapsed descendants. The initial view
+reveals the selected path when present. Closing a picker or entry popover resets
+search and manual expansion; reopening reveals the selected path again.
 
 The schema trees show titles, type and nullable badges, descriptions, and
 expandable object and array fields. Explicit titles take precedence; a name such
@@ -376,6 +390,9 @@ In the picker, unselectable branches also expand or collapse through the whole
 row, including Enter and Space. Selectable fields keep separate actions: the name
 selects the field and the chevron toggles its children. Unselectable leaves remain
 unavailable. Search results stay flat and do not offer branch expansion.
+Hover, selection, and keyboard focus span the full tree width while labels keep
+their nesting indentation. Only expandable rows and selectable fields have a
+hover background; hovering a selected field preserves its selection color.
 Unselectable branches with no selectable descendants are dimmed but remain
 expandable; branches leading to an available field retain their normal contrast.
 

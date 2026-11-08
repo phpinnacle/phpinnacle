@@ -1,5 +1,6 @@
 <x-dynamic-component :component="$getFieldWrapperView()" :field="$field">
     <div
+        wire:key="{{ $getId() }}-schema-{{ md5(serialize($definition)) }}"
         x-data="{ schemaValue: $wire.{{ $applyStateBindingModifiers("\$entangle('{$getStatePath()}')") }}, schemaDocument: null }"
         x-effect="schemaDocument = @js($definition)"
         {{ $getExtraAttributeBag() }}

@@ -1,7 +1,7 @@
 .eidos-json-schema-picker,
 .eidos-json-schema-entry,
 .eidos-json-schema-tree {
-    --json-schema-indent: 1.5rem;
+    --json-schema-indent: 1.25rem;
     --json-schema-slot: 1.5rem;
     --json-schema-row-padding: .5rem;
     --json-schema-content-gap: .25rem;
@@ -73,21 +73,23 @@
 .eidos-json-schema-picker__selection--placeholder { color: var(--json-schema-muted); }
 .eidos-json-schema-picker__icon { width: 1rem; height: 1rem; flex-shrink: 0; color: var(--json-schema-muted); }
 .eidos-json-schema-tree__search { padding: .25rem .5rem .625rem; }
-.eidos-json-schema-tree__composition-heading { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: .375rem .5rem; }
-.eidos-json-schema-tree__composition-label { font-size: .75rem; line-height: 1.5rem; color: var(--json-schema-muted); }
-.eidos-json-schema-tree__variant-select { flex: 1; min-width: min(10rem, 100%); }
-.eidos-json-schema-tree__variant-select select { min-width: 0; text-overflow: ellipsis; }
-.eidos-json-schema-tree__variant-meta { min-width: 0; max-width: 100%; margin-inline-start: auto; }
+.eidos-json-schema-tree__row--variant .eidos-json-schema-tree__name { overflow: visible; overflow-wrap: anywhere; white-space: normal; font-weight: 600; }
+.eidos-json-schema-tree__node { position: relative; min-width: 0; }
+.eidos-json-schema-tree__composition { min-width: 0; margin: .25rem 0; padding: 0; border: 0; }
+.eidos-json-schema-tree__composition-legend { display: flex; width: 100%; max-width: 100%; flex-wrap: wrap; align-items: baseline; gap: .25rem .625rem; padding-block: .25rem; padding-inline: calc(.5rem + var(--json-schema-slot) + .25rem + var(--json-schema-depth, 0) * var(--json-schema-indent)) .5rem; font-size: .75rem; line-height: 1.5rem; color: var(--json-schema-muted); }
+.eidos-json-schema-tree__composition-legend code { font-size: .75rem; font-weight: 600; color: var(--json-schema-accent); }
+.eidos-json-schema-tree__variants { display: grid; gap: .5rem; }
+.eidos-json-schema-tree__row:focus-visible { outline: 2px solid var(--json-schema-accent); outline-offset: -2px; }
 .eidos-json-schema-tree__content--unnamed > .eidos-json-schema-tree__heading { grid-template-columns: minmax(0, 1fr); }
 .eidos-json-schema-tree__content--unnamed.eidos-json-schema-tree__content--icons > .eidos-json-schema-tree__heading { grid-template-columns: 1.25rem minmax(0, 1fr); }
 .eidos-json-schema-picker__panel .eidos-json-schema-tree__search,
 .eidos-json-schema-entry__panel .eidos-json-schema-tree__search { position: sticky; top: 0; z-index: 1; background: var(--json-schema-panel); }
-.eidos-json-schema-tree__row:hover { background: var(--json-schema-hover); }
+.eidos-json-schema-tree__row:not(.eidos-json-schema-tree__row--selected):is(.eidos-json-schema-tree__row--expandable, :has(button.eidos-json-schema-tree__value)):hover { background: var(--json-schema-hover); }
 .eidos-json-schema-tree__arrow { width: .875rem; height: .875rem; flex-shrink: 0; color: var(--json-schema-muted); transition: transform 120ms; }
 .eidos-json-schema-tree__branch[aria-expanded="true"] > .eidos-json-schema-tree__arrow,
 .eidos-json-schema-tree__row--expandable[aria-expanded="true"] > .eidos-json-schema-tree__branch > .eidos-json-schema-tree__arrow { transform: rotate(90deg); }
 .eidos-json-schema-tree__rows { display: grid; gap: .125rem; padding-block: .125rem; }
-.eidos-json-schema-tree__row { display: grid; grid-template-columns: var(--json-schema-slot) minmax(0, 1fr); min-width: 0; align-items: stretch; gap: .25rem; padding-inline: calc(.5rem + var(--json-schema-depth, 0) * var(--json-schema-indent)) .5rem; border-radius: .375rem; }
+.eidos-json-schema-tree__row { display: grid; grid-template-columns: var(--json-schema-slot) minmax(0, 1fr); min-width: 0; align-items: stretch; gap: .25rem; padding-inline: calc(.5rem + var(--json-schema-depth, 0) * var(--json-schema-indent)) .5rem; border-radius: .25rem; }
 .eidos-json-schema-tree__row--expandable { cursor: pointer; }
 .eidos-json-schema-tree__branch { display: flex; grid-column: 1; grid-row: 1; width: var(--json-schema-slot); min-height: calc(1.5rem + 2 * var(--json-schema-row-padding)); padding-block: var(--json-schema-row-padding); align-items: start; justify-content: center; border-radius: .375rem; }
 .eidos-json-schema-tree__branch > svg { margin-block: .3125rem; }

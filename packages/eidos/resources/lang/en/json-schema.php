@@ -15,9 +15,9 @@ return [
     'items' => 'Items',
     'required' => 'Required',
     'composition' => [
-        'anyOf' => 'Any of',
-        'oneOf' => 'Exactly one of',
-        'allOf' => 'All of',
+        'anyOf' => 'At least one must match',
+        'oneOf' => 'Exactly one must match',
+        'allOf' => 'All must match',
         'variant' => 'Variant',
     ],
     'constraints' => [

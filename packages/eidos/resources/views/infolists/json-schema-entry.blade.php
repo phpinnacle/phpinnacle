@@ -1,5 +1,6 @@
 <x-dynamic-component :component="$getEntryWrapperView()" :entry="$entry">
     <div
+        wire:key="{{ $getId() }}-schema-{{ md5(serialize([$definition, $getState(), $isInline()])) }}"
         x-data="{ schemaDocument: null, schemaValue: null }"
         x-effect="schemaDocument = @js($definition); schemaValue = @js($getState())"
     >

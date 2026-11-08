@@ -14,17 +14,11 @@ export default function jsonSchemaTools() {
         dropdownResizeObserver: null,
         dropdownMutationObserver: null,
         schemaBuildGroups(schema, label, { includeRoot = false, separateAlternatives = false } = {}) {
-            const groups = schemaGroups(schema, label, {
-                includeRoot, separateAlternatives, whole: label, descendArrays: true, selectArrayItemFields: this.schemaSelectArrayItemFields,
+            return schemaGroups(schema, label, {
+                includeRoot, hideObjectRoot: includeRoot, separateAlternatives, whole: label, descendArrays: true, selectArrayItemFields: this.schemaSelectArrayItemFields,
                 format: this.schemaFormat, required: this.schemaRequired, constraints: this.schemaConstraints,
                 icons: this.schemaIcons, colors: this.schemaColors, propertyTitles: this.schemaPropertyTitles,
             })
-            if (includeRoot && schema?.type === 'object' && !schema.anyOf && !schema.oneOf && !schema.allOf) {
-                for (const group of groups) {
-                    if (group.sources.length > 1) group.sources.shift()
-                }
-            }
-            return groups
         },
         get schemaSelections() {
             const values = Array.isArray(this.schemaSelectedKey) ? this.schemaSelectedKey : [this.schemaSelectedKey]

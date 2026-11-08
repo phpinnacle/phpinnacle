@@ -17,7 +17,7 @@ use Tests\TestCase;
 
 uses(TestCase::class);
 
-it('renders accessible variant selectors in picker and entry modes while preserving JSONPath state', function () {
+it('renders named composition groups and keyboard accessible branches while preserving JSONPath state', function () {
     $path = "$['customer']['email']";
     $form = eidos_json_schema_form($path);
     $definition = JsonSchema::anyOf([
@@ -33,12 +33,63 @@ it('renders accessible variant selectors in picker and entry modes while preserv
         $document->loadHTML($component->toHtml(), LIBXML_NOERROR | LIBXML_NOWARNING);
         $xpath = new DOMXPath($document);
 
-        expect($xpath->query('//select[@*[name()="x-bind:aria-label"]]')->length)->toBe(1);
+        expect($xpath->query('//select')->length)->toBe(0);
+        expect($xpath->query('//div[@*[name()="x-on:keydown.enter.self.prevent"]]')->length)->toBeGreaterThan(0);
+        expect($xpath->query('//div[@*[name()="x-on:keydown.space.self.prevent"]]')->length)->toBeGreaterThan(0);
+        expect($xpath->query('//fieldset[contains(@class, "eidos-json-schema-tree__composition")]/legend')->length)
+            ->toBe(1);
+        expect($component->toHtml())->toContain('eidos-json-schema-tree__node--variant');
         expect($component->getState())->toBe($path);
     }
 
     expect($form->getState()['selection'])->toBe($path);
 });
+
+it('refreshes the Alpine schema initializer when server schemas, entry values, or entry layouts change', function (string $mode) {
+    $form = eidos_json_schema_form(null);
+    $component = $mode === 'picker'
+        ? $form->getComponent('selection')
+        : $form->getComponent('preview')->inline($mode === 'inline');
+    view()->share('errors', new ViewErrorBag);
+    $initializer = function () use ($component) {
+        $document = new DOMDocument;
+        $document->loadHTML($component->toHtml(), LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new DOMXPath($document);
+        $updates = $xpath->query(
+            '//div[@*[name()="wire:key"] and starts-with(@*[name()="x-effect"], "schemaDocument =")]',
+        );
+        expect($updates->length)->toBe(1);
+
+        return $updates->item(0);
+    };
+    $keys = [];
+
+    foreach (['allOf', 'oneOf', 'anyOf'] as $keyword) {
+        $component->jsonSchema(JsonSchema::fromArray([
+            $keyword => [
+                ['type' => 'object', 'properties' => ['email' => ['type' => 'string']]],
+                ['type' => 'object', 'properties' => ['phone' => ['type' => 'string']]],
+            ],
+        ]));
+        $update = $initializer();
+        $keys[] = $update->getAttribute('wire:key');
+        expect($update->getAttribute('x-effect'))->toContain('schemaDocument =', $keyword);
+        expect($initializer()->getAttribute('wire:key'))->toBe($keys[array_key_last($keys)]);
+    }
+
+    expect(array_unique($keys))->toHaveCount(3);
+    $form->fill(['selection' => "$['phone']"]);
+    $selectionUpdate = $initializer();
+
+    if ($mode === 'picker') {
+        expect($selectionUpdate->getAttribute('wire:key'))->toBe($keys[2]);
+    } else {
+        expect($selectionUpdate->getAttribute('wire:key'))->not->toBe($keys[2]);
+        expect($selectionUpdate->getAttribute('x-effect'))->toContain('schemaValue =', 'phone');
+        $component->inline($mode !== 'inline');
+        expect($initializer()->getAttribute('wire:key'))->not->toBe($selectionUpdate->getAttribute('wire:key'));
+    }
+})->with(['picker', 'popup', 'inline']);
 
 it('renders multiple selections as badges without changing single selection or dropdown details', function () {
     $form = eidos_json_schema_form(null);
