@@ -152,6 +152,8 @@ it('executes an encrypted Laravel job after commit without a Filament panel', fu
             ->toBe(0)
             ->and($request->header('RequestID'))
             ->toBe([$transaction->id])
+            ->and($request->header('Content-Type'))
+            ->toBe(['application/json'])
             ->and($request['request']['credit_card']['token'])
             ->toBe('provider-card-token');
 

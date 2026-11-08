@@ -335,6 +335,8 @@ Authenticate Stripe webhook notifications in the application and call `$payments
 
 BePaid freezes the request, including expiry and the saved-card token or encrypted card details, before enqueueing. It sends the transaction UUID as `RequestID` and stops replaying after 23 hours, within the provider's [24-hour idempotency retention](https://docs.bepaid.by/en/using_api/idempotent_requests/). Retrying an expired job does not extend this deadline. If the external identifier was lost, reconcile the provider operation by its tracking ID before applying an authoritative result; never blindly resend after retention expires. The [status query API](https://docs.bepaid.by/en/integration/card_api/transactions/status_query/) is used for synchronization by external ID. Keep a payment method tied to the same merchant account while its operations are pending.
 
+BePaid status queries send a bodyless `GET` with `Accept: application/json` and no `Content-Type` header. Payment operations send JSON bodies with `Content-Type: application/json`.
+
 Queued BePaid payment and authorization accept `EncryptedCard` or an active saved `CardToken` for the same payer and payment method. Saved tokens with CVC are unsupported. With `EncryptedCard::persist`, a successful payment or later reconciliation saves the returned card token. Queued card input is encrypted, including failed jobs retained for retry. Keep the application encryption key available to workers; do not change merchant credentials while related operations are pending.
 
 ## Testing

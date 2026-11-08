@@ -12,6 +12,7 @@ use PHPinnacle\Midas\Contracts\PaymentProvider;
 use PHPinnacle\Midas\Enums\TransactionStatus;
 use PHPinnacle\Midas\Exceptions\PaymentDenied;
 use PHPinnacle\Midas\Instruments\EncryptedCard;
+use PHPinnacle\Midas\Models\Continuation;
 use PHPinnacle\Midas\Models\CreditCard;
 use PHPinnacle\Midas\Models\Intent;
 use PHPinnacle\Midas\Models\IntentLine;
@@ -74,6 +75,31 @@ function midas_card_response(): array
 beforeEach(function () {
     (require __DIR__ . '/../../database/migrations/create_midas_tables.php')->up();
     Http::preventStrayRequests();
+});
+
+it('requests BePaid status with no body or content type and accepts a JSON response', function () {
+    $provider = new BePaid;
+    $transaction = Transaction::payment(midas_provider_intent($provider))
+        ->handle(Continuation::pending('remote-payment'));
+    Http::fake([
+        'https://gateway.bepaid.by/transactions/remote-payment' => Http::response([
+            'transaction' => ['uid' => 'remote-payment', 'status' => 'successful'],
+        ]),
+    ]);
+
+    $result = $provider->synchronize($transaction);
+
+    expect($result->status)->toBe(TransactionStatus::Success);
+    Http::assertSent(
+        fn (Request $request) => (
+            $request->method() === 'GET'
+            && $request->url() === 'https://gateway.bepaid.by/transactions/remote-payment'
+            && $request->body() === ''
+            && !$request->hasHeader('Content-Type')
+            && $request->hasHeader('Accept', 'application/json')
+            && $request->hasHeader('Authorization', 'Basic ' . base64_encode('shop:secret'))
+        ),
+    );
 });
 
 it('maps card and ERIP responses and notifications to the same statuses', function (

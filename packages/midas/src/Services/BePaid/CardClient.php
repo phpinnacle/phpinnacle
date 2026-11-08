@@ -263,6 +263,7 @@ readonly class CardClient
     {
         $response = $this
             ->http()
+            ->asJson()
             ->withHeader('RequestID', $idempotencyKey)
             ->post(
                 sprintf('%s/%s', self::BASE_URL, $endpoint),
@@ -281,6 +282,6 @@ readonly class CardClient
 
     private function http(): PendingRequest
     {
-        return Http::asJson()->timeout(30)->withBasicAuth($this->shopId, $this->privateKey);
+        return Http::acceptJson()->timeout(30)->withBasicAuth($this->shopId, $this->privateKey);
     }
 }
