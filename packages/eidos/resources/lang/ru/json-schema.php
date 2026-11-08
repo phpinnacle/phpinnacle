@@ -14,6 +14,12 @@ return [
     'alternative' => 'Вариант',
     'items' => 'Элементы',
     'required' => 'Обязательное',
+    'composition' => [
+        'anyOf' => 'Хотя бы одна схема',
+        'oneOf' => 'Ровно одна схема',
+        'allOf' => 'Все схемы',
+        'variant' => 'Вариант',
+    ],
     'constraints' => [
         'length' => 'Длина',
         'pattern' => 'Шаблон',

@@ -114,51 +114,80 @@ function schemaArrayItems(schema, format, constraints, scope = []) {
     })
 }
 
-export function schemaSources(schema, { whole = 'All data', includeRoot = true, descendArrays = false, format = false, required = false, constraints = false, icons = {}, colors = true, propertyTitles = {}, selectArrayItemFields = false } = {}) {
+export function schemaSources(schema, { whole = 'All data', includeRoot = true, descendArrays = false, separateAlternatives = false, format = false, required = false, constraints = false, icons = {}, colors = true, propertyTitles = {}, selectArrayItemFields = false } = {}) {
     if (schema === null || schema === undefined) return []
     schema = resolveSchemaReferences(schema)
     const sources = new Map()
-    const append = (value, path) => {
-        const key = JSON.stringify(path)
+    const append = (value, path, scope = [], ancestors = null) => {
+        const key = JSON.stringify(scope.length ? [scope, path] : path)
         const existing = sources.get(key)
         if (existing) {
             existing.schema = { anyOf: [existing.schema, value], description: existing.schema.description ?? value.description }
-            return
+            return existing
         }
-        sources.set(key, {
+        const source = {
             key, value: jsonPath(path), schema: value,
             compatible: selectArrayItemFields || !path.includes(null),
             arrayItem: path.at(-1) === null,
             propertyTitle: path.length && path.at(-1) !== null && Object.hasOwn(propertyTitles, path.at(-1)) ? propertyTitles[path.at(-1)] : undefined,
             required: required && schemaRequired(schema, path),
-            fieldName: path.at(-1) ?? (path.length ? '*' : whole), fieldLabel: path.map(part => part === null ? '*' : part).join(' → ') || whole,
-            depth: Math.max(0, path.length - 1),
-            ancestors: path.slice(0, -1).map((_, index) => JSON.stringify(path.slice(0, index + 1))),
+            fieldName: path.at(-1) ?? (path.length ? '*' : whole), fieldLabel: [...scope, ...path.map(part => part === null ? '*' : part)].join(' → ') || whole,
+            depth: ancestors === null ? Math.max(0, path.length - 1) : ancestors.length,
+            ancestors: ancestors ?? path.slice(0, -1).map((_, index) => JSON.stringify(path.slice(0, index + 1))),
             hasChildren: false,
-        })
+        }
+        sources.set(key, source)
+        return source
     }
-    const properties = (value, path = []) => {
-        for (const variant of schemaBranches(value)) properties(variant, path)
+    const properties = (value, path = [], scope = [], ancestors = null) => {
+        if (!separateAlternatives) {
+            for (const variant of schemaBranches(value)) properties(variant, path)
+        }
         for (const [name, field] of Object.entries(value?.properties ?? {})) {
             const child = [...path, name]
-            append(field, child)
-            properties(field, child)
+            const source = append(field, child, scope, ancestors)
+            if (separateAlternatives) source.required ||= required && schemaRequired(value, [name])
+            properties(field, child, scope, separateAlternatives ? [...ancestors, source.key] : null)
         }
         if (descendArrays && value?.items !== undefined) {
             // Null identifies an item schema without colliding with literal "*" properties.
             const child = [...path, null]
-            append(value.items, child)
-            properties(value.items, child)
+            const source = append(value.items, child, scope, ancestors)
+            properties(value.items, child, scope, separateAlternatives ? [...ancestors, source.key] : null)
+        }
+        if (separateAlternatives) {
+            for (const keyword of ['anyOf', 'oneOf', 'allOf']) {
+                if (!value[keyword]?.length) continue
+                const composition = append({}, path, [...scope, keyword], ancestors)
+                composition.value = null
+                composition.arrayItem = false
+                composition.composition = keyword
+                composition.variants = []
+                for (const [index, variant] of (value[keyword] ?? []).entries()) {
+                    const name = `${keyword} ${index + 1}`
+                    const variantScope = [...scope, variant.title ? `${name} · ${variant.title}` : name]
+                    const branch = append(variant, path, variantScope, [...ancestors, composition.key])
+                    branch.branchOf = composition.key
+                    branch.variantIndex = index + 1
+                    branch.fieldName = ''
+                    branch.value = null
+                    branch.arrayItem = false
+                    branch.required = false
+                    composition.variants.push(branch.key)
+                    properties(variant, path, variantScope, [...ancestors, composition.key, branch.key])
+                }
+            }
         }
     }
-    if (includeRoot) append(schema, [])
-    properties(schema)
+    const root = includeRoot ? append(schema, []) : null
+    const rootParent = root && (schema.items !== undefined || schemaBranches(schema).length) ? [root.key] : []
+    properties(schema, [], [], separateAlternatives ? rootParent : null)
     for (const source of sources.values()) {
         source.type = schemaType(source.schema, format)
         source.nullable = schemaNullable(source.schema)
         source.description = source.schema.description
-        source.titles = schemaTitles(source.schema)
-        if (!source.titles.length && source.propertyTitle !== undefined) source.titles = [source.propertyTitle]
+        source.titles = separateAlternatives ? [source.schema.title].filter(title => title !== undefined) : schemaTitles(source.schema)
+        if (!source.titles.length && source.propertyTitle !== undefined && !source.branchOf && !source.composition) source.titles = [source.propertyTitle]
         source.title = source.titles[0]
         source.color = colors ? schemaColor(source.schema) : undefined
         source.icon = icons === false ? undefined : schemaIcon(source.schema)

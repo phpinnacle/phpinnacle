@@ -73,6 +73,13 @@
 .eidos-json-schema-picker__selection--placeholder { color: var(--json-schema-muted); }
 .eidos-json-schema-picker__icon { width: 1rem; height: 1rem; flex-shrink: 0; color: var(--json-schema-muted); }
 .eidos-json-schema-tree__search { padding: .25rem .5rem .625rem; }
+.eidos-json-schema-tree__composition-heading { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: .375rem .5rem; }
+.eidos-json-schema-tree__composition-label { font-size: .75rem; line-height: 1.5rem; color: var(--json-schema-muted); }
+.eidos-json-schema-tree__variant-select { flex: 1; min-width: min(10rem, 100%); }
+.eidos-json-schema-tree__variant-select select { min-width: 0; text-overflow: ellipsis; }
+.eidos-json-schema-tree__variant-meta { min-width: 0; max-width: 100%; margin-inline-start: auto; }
+.eidos-json-schema-tree__content--unnamed > .eidos-json-schema-tree__heading { grid-template-columns: minmax(0, 1fr); }
+.eidos-json-schema-tree__content--unnamed.eidos-json-schema-tree__content--icons > .eidos-json-schema-tree__heading { grid-template-columns: 1.25rem minmax(0, 1fr); }
 .eidos-json-schema-picker__panel .eidos-json-schema-tree__search,
 .eidos-json-schema-entry__panel .eidos-json-schema-tree__search { position: sticky; top: 0; z-index: 1; background: var(--json-schema-panel); }
 .eidos-json-schema-tree__row:hover { background: var(--json-schema-hover); }

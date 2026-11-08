@@ -8,7 +8,10 @@
     {{ $attributes->class(['eidos-json-schema-entry']) }}
 >
     @include('phpinnacle-eidos::components.json-schema-options')
-    <template x-effect="schemaData = schemaBuildGroups({{ $schema }}, {{ $label }})"></template>
+    @if (!$inline)
+        <template x-effect="schemaSelectionData = schemaBuildGroups({{ $schema }}, {{ $label }})"></template>
+    @endif
+    <template x-effect="schemaData = schemaBuildGroups({{ $schema }}, {{ $label }}, { includeRoot: @js($inline), separateAlternatives: true })"></template>
     @if ($inline)
         <x-phpinnacle-eidos::json-schema-tree
             groups="schemaData"
@@ -44,7 +47,7 @@
                 </x-slot>
                 <div role="dialog" aria-label="{{ __('phpinnacle-eidos::json-schema.view_schema') }}" class="eidos-json-schema-entry__panel">
                     <x-phpinnacle-eidos::json-schema-tree
-                        x-init="$watch('isOpen', open => { if (!open) { jsonSchemaSearch = ''; jsonSchemaExpanded = {}; $el.parentElement.scrollTop = 0 } })"
+                        x-init="$watch('isOpen', open => { if (!open) { jsonSchemaReset(); $el.parentElement.scrollTop = 0 } })"
                         groups="schemaData"
                         selected="source.value === schemaSelectedKey"
                         properties="schemaProperties"

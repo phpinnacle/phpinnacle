@@ -8,7 +8,8 @@
     {{ $attributes->class(['eidos-json-schema-picker']) }}
 >
     @include('phpinnacle-eidos::components.json-schema-options')
-    <template x-effect="schemaData = schemaBuildGroups({{ $schema }}, {{ $label }})"></template>
+    <template x-effect="schemaSelectionData = schemaBuildGroups({{ $schema }}, {{ $label }})"></template>
+    <template x-effect="schemaData = schemaBuildGroups({{ $schema }}, {{ $label }}, { separateAlternatives: true })"></template>
     <x-filament::dropdown :menu="false" placement="bottom-start" :shift="true" :teleport="true" width="fi-width-none eidos-json-schema-picker__floating" class="eidos-json-schema-picker__dropdown" x-init="$nextTick(() => matchDropdownWidth($refs.panel, $el))">
         <x-slot name="trigger" class="eidos-json-schema-picker__input">
             <x-filament::input.wrapper class="eidos-json-schema-picker__input">
@@ -62,7 +63,7 @@
         </x-slot>
         <div class="eidos-json-schema-picker__panel">
             <x-phpinnacle-eidos::json-schema-tree
-                x-init="$watch('isOpen', open => { if (!open) { jsonSchemaSearch = ''; jsonSchemaExpanded = {}; $el.parentElement.scrollTop = 0 } })"
+                x-init="$watch('isOpen', open => { if (!open) { jsonSchemaReset(); $el.parentElement.scrollTop = 0 } })"
                 groups="schemaData"
                 :selected="$multiple ? '(schemaSelectedKey ?? []).includes(source.value)' : 'source.value === schemaSelectedKey'"
                 :choose="$choose . ($multiple ? '; return true' : '; close(); return true')"

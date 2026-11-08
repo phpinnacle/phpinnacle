@@ -335,7 +335,38 @@ popover and inline tree highlight the current path and expand its parent fields.
 Opening branches or searching does not change the entry's state. The entry does
 not offer field selection or clearing.
 
+Inline entries retain scalar, array, and composition roots. Ordinary object
+schemas with properties list those properties directly.
+
+For a schema owned by an Alpine component, pass a trusted Filament `RawJs`
+expression to `jsonSchema()`:
+
+```php
+JsonSchemaEntry::make('input_schema')
+    ->jsonSchema(\Filament\Support\RawJs::make('selectedNodeInputSchema()'))
+    ->inline();
+```
+
+The expression returns a JavaScript schema definition (object or boolean), or
+`null` when no schema is available. It is evaluated in the entry's Alpine scope
+and updates the tree when its reactive dependencies change. Schema annotations
+are displayed directly, without PHP annotation validation or generated fallback
+titles. Icons load by name as described in [Blade use](#blade-use).
+
 ### Display options
+
+Both picker and entry trees display `anyOf` and `oneOf` with a compact variant
+selector and show the current variant's fields directly beneath it. Labels use
+branch titles; missing or repeated titles include the variant's position.
+`allOf` displays all branches as separate, expandable sections. Common sibling
+properties appear before compositions. Each branch keeps its own fields, types,
+required markers, and constraints; repeated data paths are not merged between
+branches. Selected-field summaries combine metadata for the same data path.
+
+Browsing variants does not change the selected JSONPath. Search includes every
+variant, including hidden branches. The initial view reveals the selected path
+when present. Closing a picker or entry popover resets search, manual expansion,
+and browsed variants; reopening reveals the selected path again.
 
 The schema trees show titles, type and nullable badges, descriptions, and
 expandable object and array fields. Explicit titles take precedence; a name such

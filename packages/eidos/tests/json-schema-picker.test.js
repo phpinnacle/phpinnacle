@@ -11,6 +11,288 @@ const schema = { type: 'object', properties: {
     tags: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' } } } },
 } }
 
+test('keeps entry composition branches separate with their own fields and exact data paths', () => {
+    const tools = jsonSchemaTools()
+    tools.schemaFormat = true
+    for (const keyword of ['anyOf', 'oneOf', 'allOf']) {
+        const document = { $defs: { customer: { type: 'object', title: 'Customer', properties: {
+            email: { type: 'string', format: 'email' },
+        } } }, properties: { common: { type: 'boolean' } }, [keyword]: [
+            { $ref: '#/$defs/customer' },
+            { type: 'object', title: 'Permission', properties: { allowed: { type: 'boolean' } } },
+        ] }
+        const original = structuredClone(document)
+
+        const groups = tools.schemaBuildGroups(document, 'Input', { includeRoot: true, separateAlternatives: true })
+        const tree = createPicker({ groups: () => groups, disabled: true })
+        const sources = tree.jsonSchemaData[0].sources
+        const composition = sources.find(source => source.composition === keyword)
+        const customer = composition.variants[0]
+        const permission = composition.variants[1]
+        const email = sources.find(source => source.fieldName === 'email')
+        const allowed = sources.find(source => source.fieldName === 'allowed')
+
+        assert.equal(groups.length, 1)
+        assert.ok(customer)
+        assert.ok(permission)
+        assert.equal(customer.title, 'Customer')
+        assert.equal(permission.title, 'Permission')
+        assert.equal(customer.value, null)
+        assert.equal(email.depth, keyword === 'allOf' ? 3 : 2)
+        assert.equal(allowed.depth, keyword === 'allOf' ? 3 : 2)
+        assert.equal(email.value, "$['email']")
+        assert.equal(email.type, 'email')
+        assert.equal(tree.jsonSchemaVisible(email), keyword !== 'allOf')
+        if (keyword === 'allOf') tree.jsonSchemaToggle(customer)
+        assert.equal(tree.jsonSchemaVisible(email), true)
+        assert.equal(tree.jsonSchemaVisible(allowed), false)
+        if (keyword === 'allOf') tree.jsonSchemaToggle(customer)
+        else tree.jsonSchemaVariants[composition.choiceKey] = permission.key
+        assert.equal(tree.jsonSchemaVisible(email), false)
+        assert.equal(tree.jsonSchemaVisible(allowed), keyword !== 'allOf')
+        tree.jsonSchemaToggle(sources[0])
+        assert.equal(tree.jsonSchemaVisible(composition), false)
+        assert.equal(tree.jsonSchemaVisible(allowed), false)
+        tree.jsonSchemaToggle(sources[0])
+        assert.equal(tree.jsonSchemaVisible(composition), true)
+        assert.equal(tree.jsonSchemaVisible(allowed), keyword !== 'allOf')
+        assert.equal(sources.find(source => source.fieldName === 'common').depth, 1)
+        assert.equal(groups[0].sources[0].fieldName, 'Input')
+        assert.equal(groups[0].sources[0].schema[keyword].length, 2)
+        assert.deepEqual(document, original)
+    }
+})
+
+test('shows scalar and array roots in inline entries while keeping picker roots hidden', () => {
+    const tools = jsonSchemaTools()
+    for (const document of [
+        { type: 'string' },
+        { type: 'array', items: { type: 'object', properties: { id: { type: 'integer' } } } },
+        { anyOf: [{ type: 'array', items: { type: 'string' } }, { type: 'null' }] },
+    ]) {
+        const root = tools.schemaBuildGroups(document, 'Output', { includeRoot: true, separateAlternatives: true })[0].sources[0]
+
+        assert.equal(root.value, '$')
+        assert.deepEqual(root.schema, document)
+        assert.equal(tools.schemaBuildGroups(document, 'Picker').flatMap(group => group.sources)
+            .some(source => source.value === '$'), false)
+    }
+    assert.deepEqual(tools.schemaBuildGroups(null, 'Input', { includeRoot: true, separateAlternatives: true }), [])
+    assert.deepEqual(tools.schemaBuildGroups({ type: 'object', properties: {
+        email: { type: 'string' },
+    } }, 'Input', { includeRoot: true, separateAlternatives: true })[0].sources.map(source => source.value), ["$['email']"])
+})
+
+test('keeps repeated paths and nested alternatives independent in readonly entries', () => {
+    const tools = jsonSchemaTools()
+    tools.schemaRequired = true
+    const document = { anyOf: [
+        { title: 'Customer', type: 'object', required: ['id'], properties: {
+            id: { type: 'string' }, contact: { oneOf: [
+                { title: 'Email', type: 'object', properties: { email: { type: 'string' } } },
+                { title: 'Phone', type: 'object', properties: { phone: { type: 'string' } } },
+            ] },
+        } },
+        { title: 'Permission', type: 'object', properties: { id: { type: 'integer' } } },
+    ] }
+    const groups = tools.schemaBuildGroups(document, 'Input', { includeRoot: true, separateAlternatives: true })
+    const sources = groups[0].sources
+    const ids = sources.filter(source => source.value === "$['id']")
+
+    assert.deepEqual(ids.map(source => source.type), ['string', 'integer'])
+    assert.deepEqual(ids.map(source => source.required), [true, false])
+    assert.notEqual(ids[0].key, ids[1].key)
+    assert.notEqual(ids[0].ancestors.at(-1), ids[1].ancestors.at(-1))
+    assert.equal(new Set(sources.map(source => source.key)).size, sources.length)
+    assert.equal(sources[0].title, undefined)
+    const email = sources.find(source => source.value === "$['contact']['email']")
+    const emailBranch = sources.find(source => source.branchOf && source.title === 'Email')
+    assert.equal(email.ancestors.at(-1), emailBranch.key)
+    assert.match(email.fieldLabel, /Customer.*Email.*email/)
+    assert.equal(email.depth, 6)
+
+    const merged = tools.schemaBuildGroups(document, 'Picker')[0].sources.filter(source => source.value === "$['id']")
+    assert.equal(merged.length, 1)
+    assert.equal(merged[0].type, 'string | integer')
+    tools.schemaData = groups
+    tools.schemaSelectionData = tools.schemaBuildGroups(document, 'Input')
+    tools.schemaSelectedKey = "$['id']"
+    assert.equal(tools.schemaSelectedSource.type, 'string | integer')
+})
+
+test('browses composed array item branches and reveals the selected path without wildcard rows', () => {
+    const tools = jsonSchemaTools()
+    for (const keyword of ['anyOf', 'oneOf', 'allOf']) {
+        const document = { type: 'array', items: { [keyword]: [
+            { title: 'Customer', type: 'object', properties: { email: { type: 'string' } } },
+            { title: 'Permission', type: 'object', properties: { allowed: { type: 'boolean' } } },
+        ] } }
+        const groups = tools.schemaBuildGroups(document, 'Input', { includeRoot: true, separateAlternatives: true })
+        const tree = createPicker({ groups: () => groups, disabled: true })
+        const sources = tree.jsonSchemaData[0].sources
+        const composition = sources.find(source => source.composition === keyword)
+        const [customer, permission] = composition.variants
+        const email = sources.find(source => source.value === "$[*]['email']")
+        const allowed = sources.find(source => source.value === "$[*]['allowed']")
+
+        assert.deepEqual(sources.filter(source => tree.jsonSchemaVisible(source)).map(source => source.key),
+            ['[]', composition.key, ...(keyword === 'allOf' ? [customer.key, permission.key] : [email.key])])
+        assert.equal(email.depth, keyword === 'allOf' ? 3 : 2)
+        assert.equal(tree.jsonSchemaVisible(email), keyword !== 'allOf')
+        if (keyword === 'allOf') tree.jsonSchemaToggle(permission)
+        else tree.jsonSchemaVariants[composition.choiceKey] = permission.key
+        assert.equal(tree.jsonSchemaVisible(email), false)
+        assert.equal(tree.jsonSchemaVisible(allowed), true)
+
+        const selected = createPicker({ groups: () => groups, disabled: true, selected: source => source.value === allowed.value })
+        assert.equal(selected.jsonSchemaVisible(allowed), true)
+        assert.equal(selected.jsonSchemaSelected(allowed), true)
+        assert.equal(selected.jsonSchemaVisible(email), false)
+    }
+})
+
+test('browses nested variants independently of selected paths, groups and repeated trees', () => {
+    let definition = { properties: { common: { type: 'boolean' } }, anyOf: [
+        { title: 'Customer', properties: { contact: { oneOf: [
+            { title: 'Email', properties: { email: { type: 'string' } } },
+            { title: 'Phone', properties: { phone: { type: 'string' } } },
+        ] } } },
+        { title: 'Customer', properties: { id: { type: 'integer' } } },
+    ] }
+    let selected = null
+    const groups = () => [
+        ...schemaGroups(definition, 'Input', { includeRoot: false, separateAlternatives: true }),
+        ...schemaGroups(definition, 'Output', { includeRoot: false, separateAlternatives: true }),
+    ]
+    const tree = createPicker({ groups, choose: source => { selected = source.value; return true } })
+    const other = createPicker({ groups, disabled: true })
+    const sources = tree.jsonSchemaData[0].sources
+    const outer = sources.find(source => source.composition === 'anyOf')
+    const inner = sources.find(source => source.composition === 'oneOf')
+    const contact = sources.find(source => source.fieldName === 'contact')
+    const email = sources.find(source => source.fieldName === 'email')
+    const phone = sources.find(source => source.fieldName === 'phone')
+    const id = sources.find(source => source.fieldName === 'id')
+
+    assert.equal(sources[0].fieldName, 'common')
+    assert.equal(tree.jsonSchemaVariantLabel(outer, outer.variants[0]), 'Customer 1 / 2')
+    tree.jsonSchemaToggle(contact)
+    assert.equal(tree.jsonSchemaVisible(email), true)
+    tree.jsonSchemaVariants[inner.choiceKey] = inner.variants[1].key
+    assert.equal(tree.jsonSchemaVisible(email), false)
+    assert.equal(tree.jsonSchemaVisible(phone), true)
+    tree.jsonSchemaVariants[outer.choiceKey] = outer.variants[1].key
+    assert.equal(tree.jsonSchemaVisible(phone), false)
+    assert.equal(tree.jsonSchemaVisible(id), true)
+    assert.equal(tree.jsonSchemaVariant(tree.jsonSchemaData[1].sources.find(source => source.composition)).variantIndex, 1)
+    assert.deepEqual(other.jsonSchemaVariants, {})
+    assert.equal(selected, null)
+    assert.equal(tree.jsonSchemaChoose(outer), false)
+    assert.equal(tree.jsonSchemaChoose(id), true)
+    assert.equal(selected, "$['id']")
+    tree.jsonSchemaVariants[outer.choiceKey] = outer.variants[0].key
+    assert.equal(tree.jsonSchemaVisible(phone), true)
+    assert.equal(selected, "$['id']")
+
+    definition = { anyOf: [{ title: 'Replacement', properties: { total: { type: 'number' } } }] }
+    tree.jsonSchemaSync()
+    tree.jsonSchemaSyncSelection()
+    tree.jsonSchemaSyncSearch()
+    const replacement = tree.jsonSchemaData[0].sources.find(source => source.composition)
+    const total = tree.jsonSchemaData[0].sources.find(source => source.fieldName === 'total')
+    assert.equal(tree.jsonSchemaVariant(replacement).title, 'Replacement')
+    assert.equal(tree.jsonSchemaVisible(total), true)
+    assert.equal(selected, "$['id']")
+})
+
+test('searches every variant including scalar constraints without switching the browsed variant', () => {
+    const definition = { anyOf: [
+        { type: 'string', title: 'Code', minLength: 3, enum: ['red', 'green'] },
+        { type: 'number', title: 'Amount', minimum: 10, description: 'Invoice amount' },
+        false,
+    ] }
+    const groups = schemaGroups(definition, 'Value', { includeRoot: false, separateAlternatives: true, constraints: true, format: true })
+    const tree = createPicker({ groups: () => groups, disabled: true })
+    const control = tree.jsonSchemaData[0].sources.find(source => source.composition)
+
+    assert.equal(tree.jsonSchemaRowExpandable(control), false)
+    assert.equal(tree.jsonSchemaVariant(control).type, 'enum')
+    assert.deepEqual(tree.jsonSchemaVariant(control).enums[0].values, ['"red"', '"green"'])
+    assert.deepEqual(tree.jsonSchemaData[0].sources.filter(source => tree.jsonSchemaVisible(source)), [control])
+    tree.jsonSchemaSearch = 'invoice amount'
+    tree.jsonSchemaSyncSearch()
+    const result = tree.jsonSchemaMatches[0].sources[0]
+    assert.equal(result.title, 'Amount')
+    assert.equal(tree.jsonSchemaVisible(result), true)
+    assert.equal(result.constraints[0].values[0].value, '≥ 10')
+    assert.equal(tree.jsonSchemaVariant(control).title, 'Code')
+    tree.jsonSchemaSearch = 'never'
+    tree.jsonSchemaSyncSearch()
+    assert.equal(tree.jsonSchemaMatches[0].sources[0].type, 'never')
+    tree.jsonSchemaSearch = ''
+    tree.jsonSchemaSyncSearch()
+    assert.deepEqual(tree.jsonSchemaMatches[0].sources.filter(source => tree.jsonSchemaVisible(source)), [control])
+    assert.equal(tree.jsonSchemaVariantLabel(control, control.variants[2]), 'Variant 3 / 3')
+    assert.equal(tree.jsonSchemaVariantLabel(control, control.variants[0]), 'Code')
+
+    const namedProperty = createPicker({ groups: () => schemaGroups({ properties: { result: definition } }, 'Input', {
+        includeRoot: false, separateAlternatives: true, propertyTitles: { result: 'Result' },
+    }) })
+    const nested = namedProperty.jsonSchemaData[0].sources.find(source => source.composition)
+    assert.equal(namedProperty.jsonSchemaVariantLabel(nested, nested.variants[2]), 'Variant 3 / 3')
+})
+
+test('reveals selected nested variant fields after resetting an inspector without changing another tree', () => {
+    const definition = { anyOf: [
+        { properties: { name: { type: 'string' } } },
+        { properties: { customer: { oneOf: [
+            { properties: { email: { type: 'string' } } },
+            { properties: { phone: { type: 'string' } } },
+        ] } } },
+    ] }
+    let value = null
+    const tree = createPicker({
+        groups: () => schemaGroups(definition, 'Input', { includeRoot: false, separateAlternatives: true }),
+        selected: source => source.value === value,
+        labels: { variant: 'Вариант' },
+    })
+    const sources = tree.jsonSchemaData[0].sources
+    const outer = sources.find(source => source.composition === 'anyOf')
+    const phone = sources.find(source => source.fieldName === 'phone')
+    const customer = sources.find(source => source.fieldName === 'customer')
+    const other = createPicker({
+        groups: () => schemaGroups(definition, 'Input', { includeRoot: false, separateAlternatives: true }),
+    })
+    assert.equal(tree.jsonSchemaVisible(phone), false)
+
+    value = "$['customer']['phone']"
+    tree.jsonSchemaSyncSelection()
+
+    assert.equal(tree.jsonSchemaVariant(outer).variantIndex, 2)
+    assert.equal(tree.jsonSchemaVisible(phone), true)
+    assert.equal(tree.jsonSchemaSelected(phone), true)
+    assert.equal(tree.jsonSchemaVariantLabel(outer, outer.variants[1]), 'Вариант 2 / 2')
+    tree.jsonSchemaVariants[outer.choiceKey] = outer.variants[0].key
+    assert.equal(tree.jsonSchemaVisible(phone), false)
+    assert.equal(tree.jsonSchemaSelected(phone), true)
+    assert.equal(value, "$['customer']['phone']")
+    tree.jsonSchemaSearch = 'name'
+    tree.jsonSchemaSyncSearch()
+    tree.jsonSchemaToggle(customer)
+    assert.equal(tree.jsonSchemaIsExpanded(customer.key), false)
+    other.jsonSchemaSearch = 'other search'
+
+    tree.jsonSchemaReset()
+    tree.jsonSchemaSyncSearch()
+
+    assert.equal(tree.jsonSchemaSearch, '')
+    assert.equal(tree.jsonSchemaSearching, false)
+    assert.equal(tree.jsonSchemaVisible(phone), true)
+    assert.equal(tree.jsonSchemaSelected(phone), true)
+    assert.equal(value, "$['customer']['phone']")
+    assert.equal(other.jsonSchemaSearch, 'other search')
+})
+
 test('selects referenced paths with resolved metadata while leaving the original schema intact', () => {
     const document = { type: 'object', $defs: {
         'email/address~': { type: ['string', 'null'], title: 'Email', format: 'email', minLength: 3, 'x-icon': 'mail', 'x-color': 'info' },
@@ -655,19 +937,7 @@ test('searches field and array item metadata with enabled restrictions', () => {
     }
 })
 
-test('reveals the selected path and allows its parent to be collapsed manually', () => {
-    const groups = schemaGroups(schema, 'Result')
-    const picker = createPicker({ groups: () => groups, selected: field => field.key === '["customer","email"]' })
-    const parent = groups[0].sources.find(field => field.key === '["customer"]')
-    const email = groups[0].sources.find(field => field.key === '["customer","email"]')
-    assert.equal(picker.jsonSchemaVisible(email), true)
-    picker.jsonSchemaToggle(parent)
-    assert.equal(picker.jsonSchemaVisible(email), false)
-    picker.jsonSchemaToggle(parent)
-    assert.equal(picker.jsonSchemaVisible(email), true)
-})
-
-test('reveals a selected field while keeping unrelated branches collapsed', () => {
+test('reveals a selected field while allowing manual collapse and keeping unrelated branches collapsed', () => {
     const document = { properties: {
         selected: { properties: { child: { type: 'string' } } },
         other: { properties: { child: { type: 'string' } } },
@@ -679,13 +949,20 @@ test('reveals a selected field while keeping unrelated branches collapsed', () =
     assert.equal(visible.some(source => picker.jsonSchemaSelected(source)), true)
     assert.equal(visible.some(source => source.fieldLabel === 'selected → child'), true)
     assert.equal(visible.some(source => source.fieldLabel === 'other → child'), false)
+
+    const parent = picker.jsonSchemaData[0].sources.find(source => source.value === "$['selected']")
+    const child = visible.find(source => source.value === "$['selected']['child']")
+    picker.jsonSchemaToggle(parent)
+    assert.equal(picker.jsonSchemaVisible(child), false)
+    picker.jsonSchemaToggle(parent)
+    assert.equal(picker.jsonSchemaVisible(child), true)
 })
 
 test('reveals an externally selected path and lets readonly branches expand without a selected path', () => {
     const groups = schemaGroups(schema, 'Result')
     let value = null
     const picker = createPicker({ groups: () => groups, selected: field => field.value === value })
-    const email = groups[0].sources.find(field => field.key === '["customer","email"]')
+    const email = picker.jsonSchemaData[0].sources.find(field => field.key === '["customer","email"]')
     assert.equal(picker.jsonSchemaVisible(email), false)
 
     value = "$['customer']['email']"

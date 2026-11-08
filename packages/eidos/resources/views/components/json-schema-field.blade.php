@@ -1,6 +1,6 @@
-@props(['compact' => 'false', 'name' => 'jsonSchemaName(source)', 'properties' => 'true', 'selected' => null, 'description' => true, 'constraints' => true, 'types' => true])
+@props(['compact' => 'false', 'name' => 'jsonSchemaName(source)', 'names' => true, 'properties' => 'true', 'selected' => null, 'description' => true, 'constraints' => true, 'types' => true])
 
-<span {{ $attributes->class(['eidos-json-schema-tree__content']) }} :class="{ 'eidos-json-schema-tree__content--icons': source.iconHtml || source.icon }" :style="jsonSchemaColorStyles(source.color)">
+<span {{ $attributes->class(['eidos-json-schema-tree__content', 'eidos-json-schema-tree__content--unnamed' => !$names]) }} :class="{ 'eidos-json-schema-tree__content--icons': source.iconHtml || source.icon }" :style="jsonSchemaColorStyles(source.color)">
     <span class="eidos-json-schema-tree__heading">
         <span x-show="source.iconHtml || source.icon" class="eidos-json-schema-tree__field-icon" aria-hidden="true">
             <template x-if="source.iconHtml">
@@ -10,14 +10,16 @@
                 <span class="eidos-json-schema-tree__icon-mask" :style="{ maskImage: 'url(' + @js(route('phpinnacle-eidos.icons', ['icon' => '__icon__'])).replace('__icon__', encodeURIComponent(source.icon)) + ')' }"></span>
             </template>
         </span>
+        @if ($names)
         <span class="eidos-json-schema-tree__names">
             <span class="eidos-json-schema-tree__name" :class="{ 'eidos-json-schema-tree__name--title': source.title }" x-text="source.title || {{ $name }}"></span>
             <span x-show="source.required" class="eidos-json-schema-tree__required">
                 <span aria-hidden="true">*</span>
                 <span class="fi-sr-only">{{ __('phpinnacle-eidos::json-schema.required') }}</span>
             </span>
-            <span x-show="source.title && {{ $properties }}" class="eidos-json-schema-tree__property" x-text="{{ $name }}"></span>
+            <span x-show="source.title && !source.branchOf && {{ $properties }}" class="eidos-json-schema-tree__property" x-text="{{ $name }}"></span>
         </span>
+        @endif
         @if ($types)
         <span class="eidos-json-schema-tree__types">
             @if ($constraints)

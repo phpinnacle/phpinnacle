@@ -8,22 +8,28 @@ export default function jsonSchemaTools() {
     return {
         ...schemaPresentation,
         schemaGroups, schemaSelectionLabel, schemaSelectedKey: null,
-        schemaData: [],
+        schemaData: [], schemaSelectionData: null,
         schemaDescriptions: true, schemaColors: true, schemaFormat: false, schemaProperties: true, schemaRequired: false,
         schemaSelectArrayItemFields: false, schemaConstraints: false, schemaCompact: false, schemaSearchable: true, schemaIcons: {}, schemaPropertyTitles: {},
         dropdownResizeObserver: null,
         dropdownMutationObserver: null,
-        schemaBuildGroups(schema, label) {
-            return schemaGroups(schema, label, {
-                includeRoot: false, descendArrays: true, selectArrayItemFields: this.schemaSelectArrayItemFields,
+        schemaBuildGroups(schema, label, { includeRoot = false, separateAlternatives = false } = {}) {
+            const groups = schemaGroups(schema, label, {
+                includeRoot, separateAlternatives, whole: label, descendArrays: true, selectArrayItemFields: this.schemaSelectArrayItemFields,
                 format: this.schemaFormat, required: this.schemaRequired, constraints: this.schemaConstraints,
                 icons: this.schemaIcons, colors: this.schemaColors, propertyTitles: this.schemaPropertyTitles,
             })
+            if (includeRoot && schema?.type === 'object' && !schema.anyOf && !schema.oneOf && !schema.allOf) {
+                for (const group of groups) {
+                    if (group.sources.length > 1) group.sources.shift()
+                }
+            }
+            return groups
         },
         get schemaSelections() {
             const values = Array.isArray(this.schemaSelectedKey) ? this.schemaSelectedKey : [this.schemaSelectedKey]
             return values.filter(value => value !== null).map(value => ({
-                value, source: this.schemaData[0]?.sources.find(source => source.value === value) ?? null,
+                value, source: (this.schemaSelectionData ?? this.schemaData)[0]?.sources.find(source => source.value === value) ?? null,
             }))
         },
         get schemaSelectedSource() {

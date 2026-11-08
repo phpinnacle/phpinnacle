@@ -4,6 +4,7 @@ namespace PHPinnacle\Eidos\Infolists;
 
 use Closure;
 use Filament\Infolists\Components\Entry;
+use Filament\Support\RawJs;
 use PHPinnacle\Eidos\Concerns\HasJsonSchemaConstraints;
 use PHPinnacle\Eidos\JsonSchema\SchemaPresentation;
 use PHPinnacle\Jason\Schema;
@@ -14,21 +15,21 @@ class JsonSchemaEntry extends Entry
 
     protected string $view = 'phpinnacle-eidos::infolists.json-schema-entry';
 
-    /** @var Schema|Closure(): Schema */
-    private Schema|Closure $jsonSchema;
+    /** @var Schema|RawJs|Closure(): (Schema|RawJs) */
+    private Schema|RawJs|Closure $jsonSchema;
 
     /** @var bool|Closure(): bool */
     private bool|Closure $isInline = false;
 
-    /** @param Schema|Closure(): Schema $schema */
-    public function jsonSchema(Schema|Closure $schema): static
+    /** @param Schema|RawJs|Closure(): (Schema|RawJs) $schema */
+    public function jsonSchema(Schema|RawJs|Closure $schema): static
     {
         $this->jsonSchema = $schema;
 
         return $this;
     }
 
-    public function getJsonSchema(): Schema
+    public function getJsonSchema(): Schema|RawJs
     {
         return $this->evaluate($this->jsonSchema);
     }
@@ -49,9 +50,15 @@ class JsonSchemaEntry extends Entry
     /** @return array<string, mixed> */
     public function getExtraViewData(): array
     {
+        $schema = $this->getJsonSchema();
+
         return [
             ...parent::getExtraViewData(),
-            ...SchemaPresentation::render($this->getJsonSchema(), $this->areIconsVisible()),
+            ...(
+                $schema instanceof RawJs
+                    ? ['definition' => $schema, 'propertyTitles' => [], 'icons' => []]
+                    : SchemaPresentation::render($schema, $this->areIconsVisible())
+            ),
         ];
     }
 }

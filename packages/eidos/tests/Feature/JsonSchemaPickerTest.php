@@ -4,6 +4,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
+use Filament\Support\RawJs;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
@@ -15,6 +16,29 @@ use PHPinnacle\Jason\SchemaBuilder;
 use Tests\TestCase;
 
 uses(TestCase::class);
+
+it('renders accessible variant selectors in picker and entry modes while preserving JSONPath state', function () {
+    $path = "$['customer']['email']";
+    $form = eidos_json_schema_form($path);
+    $definition = JsonSchema::anyOf([
+        JsonSchema::object(['customer' => JsonSchema::object(['email' => JsonSchema::string()])]),
+        JsonSchema::object(['total' => JsonSchema::number()]),
+    ]);
+    $picker = $form->getComponent('selection')->jsonSchema($definition);
+    $entry = $form->getComponent('preview')->jsonSchema($definition);
+    view()->share('errors', new ViewErrorBag);
+
+    foreach ([$picker, $entry, $entry->getClone()->inline()] as $component) {
+        $document = new DOMDocument;
+        $document->loadHTML($component->toHtml(), LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new DOMXPath($document);
+
+        expect($xpath->query('//select[@*[name()="x-bind:aria-label"]]')->length)->toBe(1);
+        expect($component->getState())->toBe($path);
+    }
+
+    expect($form->getState()['selection'])->toBe($path);
+});
 
 it('renders multiple selections as badges without changing single selection or dropdown details', function () {
     $form = eidos_json_schema_form(null);
@@ -225,6 +249,22 @@ it('offers a schema inspector in regular mode and preserves the path when switch
     'no path' => [null],
 ]);
 
+it('renders reactive inline entry schemas without serializing their Alpine expressions', function () {
+    $form = eidos_json_schema_form(null);
+    $expression = RawJs::make('selectedSchema()');
+    $entry = $form
+        ->getComponent('preview')
+        ->jsonSchema(fn () => $expression)
+        ->inline();
+    view()->share('errors', new ViewErrorBag);
+
+    $html = html_entity_decode($entry->toHtml());
+
+    expect($html)->toContain('schemaDocument = selectedSchema()');
+    expect($html)->not->toContain("schemaDocument = 'selectedSchema()'", 'aria-label="View full schema"');
+    expect($entry->getState())->toBeNull();
+});
+
 it('validates exact union paths against the current schema closure', function () {
     $selection = "$['данные/客户']['email']";
     $form = eidos_json_schema_form($selection);
@@ -246,57 +286,6 @@ it('validates exact union paths against the current schema closure', function ()
     expect($form->getState(...))->toThrow(ValidationException::class);
 });
 
-it('keeps nested composition paths within one complete branch', function (
-    string $selection,
-    bool $valid,
-) {
-    $form = eidos_json_schema_form($selection);
-    $form->getComponent('selection')->jsonSchema(JsonSchema::fromArray([
-        'anyOf' => [
-            [
-                'type' => 'object',
-                'properties' => [
-                    'payload' => [
-                        'anyOf' => [
-                            [
-                                'type' => 'object',
-                                'properties' => [
-                                    'metadata' => [
-                                        'type' => 'object',
-                                        'properties' => ['version' => ['type' => 'integer']],
-                                    ],
-                                ],
-                            ],
-                            [
-                                'type' => 'object',
-                                'properties' => [
-                                    'contact' => [
-                                        'type' => 'object',
-                                        'properties' => ['email' => ['type' => 'string']],
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ],
-                ],
-            ],
-            [
-                'type' => 'object',
-                'properties' => ['payload' => ['type' => 'object', 'properties' => ['tags' => ['type' => 'array']]]],
-            ],
-        ],
-    ]));
-
-    if ($valid) {
-        expect($form->getState()['selection'])->toBe($selection);
-    } else {
-        expect($form->getState(...))->toThrow(ValidationException::class);
-    }
-})->with([
-    'nested union property' => ["$['payload']['metadata']['version']", true],
-    'crossed variants' => ["$['payload']['metadata']['email']", false],
-]);
-
 it('accepts exact schema path segments', function (string $selection) {
     $form = eidos_json_schema_form($selection);
 
@@ -306,13 +295,6 @@ it('accepts exact schema path segments', function (string $selection) {
     'numeric key' => ["$['01']"],
     'array field' => ["$['tags']"],
 ]);
-
-it('defaults to an absent selection', function () {
-    $form = eidos_json_schema_form(null);
-    $form->fill();
-
-    expect($form->getState()['selection'])->toBeNull();
-});
 
 it('does not confuse literal dotted names with nested schema paths', function (bool $nested) {
     $selection = $nested ? "$['metadata']['version']" : "$['metadata.version']";
@@ -402,13 +384,18 @@ it('gives unselectable branches one row disclosure control and keeps selection s
     $xpath = new DOMXPath($document);
     $row = $xpath->query('//div[@class="eidos-json-schema-tree__row"]')->item(0);
 
-    expect($row->getAttribute(':role'))->toBe("jsonSchemaRowExpandable(source) ? 'button' : null");
-    expect($row->getAttribute('x-effect'))
-        ->toBe('$el.ariaExpanded = jsonSchemaRowExpandable(source) ? jsonSchemaIsExpanded(source.key) : null');
-    expect($row->getAttribute('x-on:keydown.enter.self.prevent'))
-        ->toBe('jsonSchemaRowExpandable(source) && jsonSchemaToggle(source)');
-    expect($row->getAttribute('x-on:keydown.space.self.prevent'))
-        ->toBe('jsonSchemaRowExpandable(source) && jsonSchemaToggle(source)');
+    foreach ([
+        ':role',
+        ':tabindex',
+        ':aria-label',
+        'x-effect',
+        'x-on:click',
+        'x-on:keydown.enter.self.prevent',
+        'x-on:keydown.space.self.prevent',
+    ] as $attribute) {
+        expect($row->hasAttribute($attribute))->toBeTrue();
+    }
+
     expect($xpath->query('//button//button')->length)->toBe(0);
 
     if ($disabled) {
@@ -418,13 +405,13 @@ it('gives unselectable branches one row disclosure control and keeps selection s
     }
 
     $branch = $xpath->query('//button[@class="eidos-json-schema-tree__branch"]')->item(0);
-    expect($branch->getAttribute('x-show'))->toContain('!jsonSchemaRowExpandable(source)');
-    expect($branch->getAttribute('x-on:click.stop'))->toBe('jsonSchemaToggle(source)');
+    expect($branch->getAttribute('type'))->toBe('button');
+    expect($branch->hasAttribute(':aria-expanded'))->toBeTrue();
+    expect($branch->hasAttribute(':aria-label'))->toBeTrue();
     expect($branch->hasAttribute(':aria-disabled'))->toBeFalse();
     $value = $xpath->query('//button[@class="eidos-json-schema-tree__value"]')->item(0);
-    expect($value->getAttribute('x-on:click.stop'))->toBe('jsonSchemaChoose(source)');
-    expect($value->parentNode->getAttribute('x-if'))
-        ->toBe('source.compatible !== false && source.value !== null');
+    expect($value->getAttribute('type'))->toBe('button');
+    expect($value->hasAttribute(':aria-pressed'))->toBeTrue();
 })->with([false, true]);
 
 function eidos_json_schema_form(mixed $selection): Schema

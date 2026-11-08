@@ -14,6 +14,12 @@ return [
     'alternative' => 'Alternative',
     'items' => 'Items',
     'required' => 'Required',
+    'composition' => [
+        'anyOf' => 'Any of',
+        'oneOf' => 'Exactly one of',
+        'allOf' => 'All of',
+        'variant' => 'Variant',
+    ],
     'constraints' => [
         'length' => 'Length',
         'pattern' => 'Pattern',

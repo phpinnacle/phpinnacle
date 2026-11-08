@@ -12,6 +12,12 @@ return [
     'alternative' => 'Wariant',
     'items' => 'Elementy',
     'required' => 'Wymagane',
+    'composition' => [
+        'anyOf' => 'Co najmniej jeden schemat',
+        'oneOf' => 'Dokładnie jeden schemat',
+        'allOf' => 'Wszystkie schematy',
+        'variant' => 'Wariant',
+    ],
     'constraints' => [
         'length' => 'Długość',
         'pattern' => 'Wzorzec',
