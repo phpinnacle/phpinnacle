@@ -290,9 +290,9 @@ export default function fieldMapping({ element, state, disabled, inverse = false
         },
 
         refresh() {
-            ports = undefined;
-            this.arrangeRows();
             this.$nextTick(() => {
+                ports = undefined;
+                this.arrangeRows();
                 const canvas = this.$refs.canvas.getBoundingClientRect();
                 this.width = Math.max(1, canvas.width);
                 this.height = Math.max(1, canvas.height);

@@ -128,6 +128,36 @@ test('connections follow the anchors after pending layout updates finish', () =>
     assert.match(component.connections.find(({ source }) => source === 'title').path, /^M 88 128 .*388 128$/);
 });
 
+test('pending card replacements are arranged and measured using their current ports', () => {
+    const component = editor({ name: sourceEntry('email'), contact: sourceEntry('title') });
+    const pending = [];
+    component.$nextTick = callback => pending.push(callback);
+    component.refresh();
+    assert.equal(component.canConnect('email', 'name'), true);
+
+    const previousQuery = component.$root.querySelectorAll;
+    const ports = previousQuery('[data-mapping-port]').map(port => ({
+        ...port,
+        getBoundingClientRect: () => ({ left: port.dataset.side === 'source' ? 100 : 400, top: 240, width: 16, height: 16 }),
+    }));
+    const containers = previousQuery('[data-mapping-items]').map(container => ({
+        children: container.children.map(row => ({
+            style: { order: '' },
+            querySelector: () => ports.find(port => port.dataset === row.querySelector().dataset),
+        })),
+    }));
+    component.$root.querySelectorAll = selector => selector === '[data-mapping-port]' ? ports
+        : selector === '[data-mapping-items]' ? containers : [];
+
+    pending.forEach(callback => callback());
+
+    assert.deepEqual(visualOrder(component), [['email', 'title'], ['name', 'contact']]);
+    assert.equal(component.connections.length, 2);
+    for (const connection of component.connections) {
+        assert.match(connection.path, /^M 88 208 .*388 208$/);
+    }
+});
+
 test('partial configuration updates refresh compatibility and ports while keeping drafts and filters', () => {
     const component = editor({ name: sourceEntry('title') }, false, { sourceSettings: { title: { transforms: [{ type: 'trim' }] } } });
     component.search = 'title';
