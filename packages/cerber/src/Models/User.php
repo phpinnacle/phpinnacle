@@ -321,6 +321,10 @@ class User extends Authenticatable implements HasLabel, Viewer, JWTSubject
         self::saving(function (self $record) {
             if ($record->exists && $record->isDirty('password')) {
                 $record->remember_token = Str::random(60);
+
+                if (!$record->isDirty('is_password_temporary')) {
+                    $record->is_password_temporary = false;
+                }
             }
         });
 

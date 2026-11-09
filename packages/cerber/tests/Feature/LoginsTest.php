@@ -147,6 +147,29 @@ it('invalidates sessions after changing the shared password', function () {
     $this->getJson('/account')->assertUnauthorized();
 });
 
+it('clears the temporary password marker after changing the password', function () {
+    $this->user->update(['is_password_temporary' => true]);
+
+    $this->user->update(['password' => 'changed-password']);
+
+    expect($this->user->fresh()->is_password_temporary)->toBeFalse();
+    expect($this->user->fresh()->prerequisites())->toBe([]);
+});
+
+it('preserves the temporary password marker when updating other user details', function () {
+    $this->user->update(['is_password_temporary' => true]);
+
+    $this->user->update(['name' => 'Updated user']);
+
+    expect($this->user->fresh()->is_password_temporary)->toBeTrue();
+});
+
+it('allows a newly assigned password to be marked temporary', function () {
+    $this->user->update(['password' => 'temporary-password', 'is_password_temporary' => true]);
+
+    expect($this->user->fresh()->is_password_temporary)->toBeTrue();
+});
+
 it('maintains a default for each login type and routes mail to the default email', function () {
     $first = Login::register($this->user, LoginType::Email, 'first@example.test');
     $second = Login::register($this->user, LoginType::Email, 'second@example.test');

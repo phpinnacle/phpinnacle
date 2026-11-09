@@ -16,7 +16,7 @@ class PasswordController
 {
     #[OA\Operation\Post(
         path: '/auth/password/change',
-        description: 'The first password does not require current. Existing JWTs and the temporary password marker are preserved.',
+        description: 'The first password does not require current. Existing JWTs are preserved and the temporary password marker is cleared.',
         summary: 'Change password',
         security: [new OA\Security\Requirement(scheme: 'cerberBearerAuth')],
         requestBody: new OA\RequestBody(

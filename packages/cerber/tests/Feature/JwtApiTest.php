@@ -440,6 +440,7 @@ it('rejects tampered expired and changed-email verification links with 403', fun
 it('recovers the shared password through a secondary email and consumes the token', function () {
     Notification::fake();
     $user = $this->apiUser(false);
+    $user->update(['is_password_temporary' => true]);
     Login::register($user, LoginType::Email, 'secondary@example.test');
     $this->postJson('/api/auth/password/forgot', ['email' => 'SECONDARY@example.test'])->assertOk();
     Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $notification) {
@@ -458,6 +459,7 @@ it('recovers the shared password through a secondary email and consumes the toke
 
     $this->postJson('/api/auth/password/reset', $data)->assertOk();
     expect(Hash::check('replacement-password', $user->fresh()->password))->toBeTrue();
+    expect($user->fresh()->is_password_temporary)->toBeFalse();
     expect($user->fresh()->remember_token)->not->toBeNull();
     expect($user->defaultLogin(LoginType::Email)->verified_at)->toBeNull();
     $this->postJson('/api/auth/password/reset', $data)->assertUnprocessable()->assertJsonValidationErrors('token');
@@ -537,6 +539,7 @@ it('rejects invalid bearer tokens with 401', function () {
 
 it('changes the authenticated user password and preserves the bearer session', function () {
     $user = $this->apiUser();
+    $user->update(['is_password_temporary' => true]);
     $user->setRememberToken('original-remember-token');
     $user->save();
     $token = auth('api')->login($user);
@@ -551,6 +554,7 @@ it('changes the authenticated user password and preserves the bearer session', f
         ->assertNoContent();
 
     expect(Hash::check('changed-password', $user->fresh()->password))->toBeTrue();
+    expect($user->fresh()->is_password_temporary)->toBeFalse();
     expect($user->fresh()->getRememberToken())->not->toBe('original-remember-token');
     $this->forgetJwt();
     $this->withToken($token)->getJson('/api/profile')->assertOk()->assertJsonPath('id', $user->id);
@@ -560,6 +564,7 @@ it('changes the authenticated user password and preserves the bearer session', f
     $this
         ->postJson('/api/auth/login', ['username' => 'customer@example.test', 'password' => 'changed-password'])
         ->assertOk()
+        ->assertJsonPath('prerequisites', [])
         ->assertJsonPath('user.id', $user->id);
 });
 
@@ -593,6 +598,7 @@ it('rejects password changes with invalid current credentials with 422', functio
     mixed $currentPassword,
 ) {
     $user = $this->apiUser();
+    $user->update(['is_password_temporary' => true]);
     $password = $user->password;
     $rememberToken = $user->getRememberToken();
     $token = auth('api')->login($user);
@@ -608,6 +614,7 @@ it('rejects password changes with invalid current credentials with 422', functio
         ->assertJsonValidationErrors('current');
 
     expect($user->fresh()->password)->toBe($password);
+    expect($user->fresh()->is_password_temporary)->toBeTrue();
     expect($user->fresh()->getRememberToken())->toBe($rememberToken);
 })->with(['missing' => [null], 'incorrect' => ['incorrect'], 'array' => [['invalid']]]);
 
