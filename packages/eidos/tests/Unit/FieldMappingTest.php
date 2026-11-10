@@ -299,6 +299,12 @@ it('uses configured schema constraints for connection modes and server validatio
         SchemaCompatibility::make(),
         false,
     ],
+    'enum subset ignores formats' => [
+        ['type' => 'string', 'format' => 'custom', 'enum' => ['550e8400-e29b-41d4-a716-446655440000']],
+        ['type' => 'string', 'format' => 'uuid', 'enum' => ['550e8400-e29b-41d4-a716-446655440000']],
+        SchemaCompatibility::make(),
+        true,
+    ],
     'format check disabled' => [
         ['type' => 'string', 'format' => 'uuid'],
         ['type' => 'string', 'format' => 'date'],

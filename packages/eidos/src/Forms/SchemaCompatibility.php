@@ -101,6 +101,7 @@ final readonly class SchemaCompatibility
             $this->checkFormats
             && $target->effectiveFormat() !== null
             && $source->effectiveFormat() !== $target->effectiveFormat()
+            && $target->enumValues() === null
         ) {
             return false;
         }

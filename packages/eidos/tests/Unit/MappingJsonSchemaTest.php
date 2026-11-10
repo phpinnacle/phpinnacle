@@ -229,6 +229,11 @@ it('compares declared unions, nullability, formats and nested array types', func
         ['type' => 'string', 'format' => 'uuid'],
         false,
     ],
+    'source enum does not bypass format without a destination enum' => [
+        ['type' => 'string', 'enum' => ['550e8400-e29b-41d4-a716-446655440000']],
+        ['type' => 'string', 'format' => 'uuid'],
+        false,
+    ],
     'matching format' => [
         ['type' => 'string', 'format' => 'date'],
         ['type' => 'string', 'format' => 'date'],
@@ -418,6 +423,21 @@ it('requires source enum values to fit the destination enum', function (
         true,
     ],
     'subset' => [['enum' => ['active']], ['enum' => ['draft', 'active']], true],
+    'subset ignores missing source format' => [
+        ['type' => 'string', 'enum' => ['active']],
+        ['type' => 'string', 'format' => 'status', 'enum' => ['draft', 'active']],
+        true,
+    ],
+    'subset ignores different formats' => [
+        ['type' => 'string', 'format' => 'text', 'enum' => ['active']],
+        ['type' => 'string', 'format' => 'status', 'enum' => ['draft', 'active']],
+        true,
+    ],
+    'format does not bypass enum membership' => [
+        ['type' => 'string', 'enum' => ['blocked']],
+        ['type' => 'string', 'format' => 'status', 'enum' => ['draft', 'active']],
+        false,
+    ],
     'superset' => [['enum' => ['draft', 'active']], ['enum' => ['active']], false],
     'disjoint' => [['enum' => ['blocked']], ['enum' => ['active']], false],
     'unrestricted destination' => [['type' => 'string', 'enum' => ['active']], ['type' => 'string'], true],
