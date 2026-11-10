@@ -201,6 +201,10 @@ See the [Jason README](https://github.com/phpinnacle/jason#build-a-schema) for
 builder methods and typed schema readers. UI annotation checks belong to Eidos
 presentation; Jason preserves `x-*` values without Filament-specific interpretation.
 
+Use `SchemaBuilder::string()->uuid()->readOnly()->build()` for a read-only UUID
+schema. The builder also provides `date()`, `dateTime()`, and `time()` shortcuts
+for their corresponding formats; `readOnly(false)` disables the annotation.
+
 ## JSON Schema extensions
 
 Eidos generates or interprets the following `x-*` annotations. Add them to the

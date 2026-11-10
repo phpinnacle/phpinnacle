@@ -3,6 +3,26 @@
 use PHPinnacle\Jason\Schema;
 use PHPinnacle\Jason\SchemaBuilder;
 
+it('defaults boolean flags to true and allows explicitly disabling them', function (string $method) {
+    $builder = SchemaBuilder::empty()->{$method}();
+    $enabled = $builder->build();
+    $disabled = $builder->{$method}(false)->build();
+
+    expect($enabled->{$method}())->toBeTrue();
+    expect($disabled->{$method}())->toBeFalse();
+})->with(['readOnly', 'writeOnly', 'deprecated', 'uniqueItems']);
+
+it('provides fluent shortcuts for string formats', function (string $method, string $format) {
+    $schema = SchemaBuilder::string()->{$method}()->title('Value')->build();
+
+    expect($schema->toArray())->toBe(['type' => 'string', 'format' => $format, 'title' => 'Value']);
+})->with([
+    'uuid' => ['uuid', 'uuid'],
+    'date' => ['date', 'date'],
+    'dateTime' => ['dateTime', 'date-time'],
+    'time' => ['time', 'time'],
+]);
+
 it('composes object and union factories with typed children and further configuration', function () {
     $schema = SchemaBuilder::object([
         'name' => SchemaBuilder::string()->min(2)->max(20)->build(),

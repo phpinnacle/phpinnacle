@@ -103,6 +103,26 @@ final class SchemaBuilder
         return $this->with('format', $value);
     }
 
+    public function uuid(): self
+    {
+        return $this->format('uuid');
+    }
+
+    public function date(): self
+    {
+        return $this->format('date');
+    }
+
+    public function dateTime(): self
+    {
+        return $this->format('date-time');
+    }
+
+    public function time(): self
+    {
+        return $this->format('time');
+    }
+
     public function pattern(string $value): self
     {
         return $this->with('pattern', $value);
@@ -183,22 +203,22 @@ final class SchemaBuilder
         return $this->with('maxProperties', $value);
     }
 
-    public function uniqueItems(bool $value): self
+    public function uniqueItems(bool $value = true): self
     {
         return $this->with('uniqueItems', $value);
     }
 
-    public function readOnly(bool $value): self
+    public function readOnly(bool $value = true): self
     {
         return $this->with('readOnly', $value);
     }
 
-    public function writeOnly(bool $value): self
+    public function writeOnly(bool $value = true): self
     {
         return $this->with('writeOnly', $value);
     }
 
-    public function deprecated(bool $value): self
+    public function deprecated(bool $value = true): self
     {
         return $this->with('deprecated', $value);
     }

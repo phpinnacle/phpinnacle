@@ -74,6 +74,16 @@ their existing addresses. `min()` and `max()` set length, item count, or numeric
 bounds according to a single primitive type. Explicit methods such as
 `minimum()`, `maxLength()` and `minItems()` set their named keywords directly.
 
+`readOnly()`, `writeOnly()`, `deprecated()`, and `uniqueItems()` default to `true`;
+pass `false` to disable the flag. On a string builder, `uuid()`, `date()`,
+`dateTime()`, and `time()` are shortcuts for `format('uuid')`, `format('date')`,
+`format('date-time')`, and `format('time')`:
+
+```php
+$id = SchemaBuilder::string()->uuid()->readOnly()->build();
+$createdAt = SchemaBuilder::string()->dateTime()->readOnly()->build();
+```
+
 ## Project composed schemas
 
 Structural readers retain the declared keywords. For composition-aware reads, resolve
