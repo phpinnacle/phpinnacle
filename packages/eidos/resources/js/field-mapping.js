@@ -1,5 +1,6 @@
 export default function fieldMapping({ element, state, disabled, inverse = false, requiredTargets = [], connectionModes, targetModes, staticDefaults = {} }) {
     let ports;
+    let measurementFrame = null;
     const isStaticValue = (entry) => entry?.kind === 'value';
 
     return {
@@ -37,6 +38,7 @@ export default function fieldMapping({ element, state, disabled, inverse = false
 
         destroy() {
             this.observer?.disconnect();
+            if (measurementFrame !== null) cancelAnimationFrame(measurementFrame);
         },
 
         updateConfiguration(connectionModes, sourceIds, sourceTypes, targetModes) {
@@ -291,31 +293,42 @@ export default function fieldMapping({ element, state, disabled, inverse = false
 
         refresh() {
             this.$nextTick(() => {
+                if (!element.isConnected) return;
+
                 ports = undefined;
                 this.arrangeRows();
-                const canvas = this.$refs.canvas.getBoundingClientRect();
-                this.width = Math.max(1, canvas.width);
-                this.height = Math.max(1, canvas.height);
-                this.connections = this.pairs().flatMap(({ target, source }) => {
-                    const sourcePort = this.port('source', source);
-                    const targetPort = this.port('target', target);
-                    const start = this.point(sourcePort, canvas);
-                    const end = this.point(targetPort, canvas);
-                    return start && end ? [{
-                        source,
-                        target,
-                        path: this.inverse ? this.path(end, start) : this.path(start, end),
-                        midpoint: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
-                        label: `Disconnect ${sourcePort.dataset.label} from ${targetPort.dataset.label}`,
-                    }] : [];
+                if (measurementFrame !== null) return;
+
+                measurementFrame = requestAnimationFrame(() => {
+                    measurementFrame = null;
+                    this.measureConnections();
                 });
-                for (const property of ['hoveredConnection', 'focusedConnection']) {
-                    const highlighted = this[property];
-                    if (highlighted && !this.connections.some(connection => connection.source === highlighted.source && connection.target === highlighted.target)) {
-                        this[property] = null;
-                    }
-                }
             });
+        },
+
+        measureConnections() {
+            const canvas = this.$refs.canvas.getBoundingClientRect();
+            this.width = Math.max(1, canvas.width);
+            this.height = Math.max(1, canvas.height);
+            this.connections = this.pairs().flatMap(({ target, source }) => {
+                const sourcePort = this.port('source', source);
+                const targetPort = this.port('target', target);
+                const start = this.point(sourcePort, canvas);
+                const end = this.point(targetPort, canvas);
+                return start && end ? [{
+                    source,
+                    target,
+                    path: this.inverse ? this.path(end, start) : this.path(start, end),
+                    midpoint: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
+                    label: `Disconnect ${sourcePort.dataset.label} from ${targetPort.dataset.label}`,
+                }] : [];
+            });
+            for (const property of ['hoveredConnection', 'focusedConnection']) {
+                const highlighted = this[property];
+                if (highlighted && !this.connections.some(connection => connection.source === highlighted.source && connection.target === highlighted.target)) {
+                    this[property] = null;
+                }
+            }
         },
     };
 }

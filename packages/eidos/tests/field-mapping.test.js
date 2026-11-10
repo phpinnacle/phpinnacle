@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import fieldMapping from '../resources/js/field-mapping.js';
 
+globalThis.requestAnimationFrame = (callback) => {
+    callback();
+    return null;
+};
+
 function sourceEntry(source) { return { kind: 'source', source }; }
 function value(value) { return { kind: 'value', value }; }
 
@@ -26,7 +31,7 @@ function editor(state = {}, disabled = false, options = {}) {
             querySelector: () => port,
         })),
     }));
-    const element = { querySelectorAll: (selector) => selector === '[data-mapping-port]' ? ports : selector === '[data-mapping-items]' ? containers : [] };
+    const element = { isConnected: true, querySelectorAll: (selector) => selector === '[data-mapping-port]' ? ports : selector === '[data-mapping-items]' ? containers : [] };
     const rows = [];
     for (const [target, mapped] of Object.entries(state ?? {})) {
         for (const entry of Array.isArray(mapped) ? mapped : [mapped]) {
@@ -126,6 +131,24 @@ test('connections follow the anchors after pending layout updates finish', () =>
     assert.equal(component.connections.length, 2);
     assert.match(component.connections.find(({ source }) => source === 'email').path, /^M 88 48 .*388 48$/);
     assert.match(component.connections.find(({ source }) => source === 'title').path, /^M 88 128 .*388 128$/);
+});
+
+test('connection endpoints follow source cards that move after arrangement', (context) => {
+    const component = editor({ name: sourceEntry('email') });
+    component.arranged = false;
+    component.refresh();
+    assert.match(component.connections[0].path, /^M 88 128 /);
+
+    const frames = [];
+    context.mock.method(globalThis, 'requestAnimationFrame', (callback) => frames.push(callback));
+
+    component.arranged = true;
+    component.refresh();
+    assert.deepEqual(visualOrder(component)[0], ['email', 'title']);
+    component.port('source', 'email').getBoundingClientRect = () => ({ left: 100, top: 80, width: 16, height: 16 });
+    frames.forEach(callback => callback());
+
+    assert.match(component.connections[0].path, /^M 88 48 /);
 });
 
 test('pending card replacements are arranged and measured using their current ports', () => {
@@ -594,7 +617,7 @@ for (const inverse of [false, true]) {
 test('empty Livewire state can be connected in either orientation', () => {
     for (const inverse of [false, true]) {
         for (const state of [null, []]) {
-            const element = { querySelectorAll: () => [
+            const element = { isConnected: true, querySelectorAll: () => [
                 { dataset: { side: 'source', id: 'title' } },
                 { dataset: { side: 'target', id: 'name' } },
             ] };
