@@ -28,6 +28,11 @@ return [
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
         ],
+        'hints' => [
+            'avatar' => 'Upload photo',
+            'password' => 'Leave blank to keep the current password.',
+            'is_password_temporary' => 'Mark this password for change.',
+        ],
         'pages' => [
             'list' => 'Users',
             'create' => 'Register User',

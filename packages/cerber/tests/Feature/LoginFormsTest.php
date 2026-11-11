@@ -68,15 +68,21 @@ it('renders the profile without an MFA section when the panel disables MFA', fun
 
 it('creates a user and adds several typed logins through independent dialogs', function () {
     $this->user->grant(Role::register($this->tenant, 'Administrator', ['create_user', 'view_any_user', 'update_user']));
+    $role = Role::register($this->tenant, 'Support');
 
     Livewire::test(CreateUser::class)
-        ->fillForm(['name' => 'New user', 'password' => 'new-user-password', 'is_password_temporary' => true])
+        ->fillForm([
+            'name' => 'New user',
+            'password' => 'new-user-password',
+            'is_password_temporary' => true,
+            'roles' => [$role->id],
+        ])
         ->call('create')
         ->assertHasNoFormErrors();
     $user = User::query()->where('name', 'New user')->sole();
     expect($user->is_password_temporary)->toBeTrue();
     $page = Livewire::test(EditUser::class, ['record' => $user->id])
-        ->assertFormSet(['is_password_temporary' => true]);
+        ->assertFormSet(['is_password_temporary' => true, 'roles' => [$role->id]]);
 
     foreach ([
         ['email', 'FIRST@example.test'],
@@ -94,6 +100,8 @@ it('creates a user and adds several typed logins through independent dialogs', f
     expect(Hash::check('new-user-password', $user->password))->toBeTrue();
     $page->fillForm(['is_password_temporary' => false])->call('save')->assertHasNoFormErrors();
     expect($user->fresh()->is_password_temporary)->toBeFalse();
+    expect($user->fresh()->roles->modelKeys())->toBe([$role->id]);
+    expect(Hash::check('new-user-password', $user->fresh()->password))->toBeTrue();
     Notification::assertSentOnDemand(
         VerifyEmail::class,
         fn ($notification, $channels, AnonymousNotifiable $notifiable) => (

@@ -1,0 +1,63 @@
+.cerber-user-avatar-field {
+    width: 7.5rem;
+    text-align: center;
+}
+
+.cerber-user-avatar .fi-fo-file-upload-input-ctn {
+    width: 5rem;
+}
+
+.cerber-user-avatar .filepond--drop-label label {
+    font-size: 1.5rem;
+    line-height: 2rem;
+    font-weight: 500;
+}
+
+.cerber-user-identity > .fi-growable {
+    min-width: 0;
+}
+
+.cerber-user-details > .fi-sc {
+    align-items: start;
+}
+
+.cerber-user-temporary .fi-fo-field-content-col {
+    padding-inline-start: 3.5rem;
+}
+
+.cerber-user-roles .fi-fo-checkbox-list-option-ctn {
+    height: 100%;
+}
+
+.cerber-user-roles .fi-fo-checkbox-list-option {
+    height: 100%;
+    padding: 0.875rem;
+    border: 1px solid color-mix(in oklab, currentColor 12%, transparent);
+    border-radius: 0.5rem;
+    cursor: pointer;
+}
+
+.cerber-user-roles .fi-fo-checkbox-list-option:has(input:checked) {
+    border-color: color-mix(in oklab, var(--primary-500) 45%, transparent);
+    background: color-mix(in oklab, var(--primary-500) 5%, transparent);
+}
+
+.cerber-user-roles .fi-fo-checkbox-list-option:has(input:focus-visible) {
+    outline: 2px solid var(--primary-500);
+    outline-offset: 2px;
+}
+
+.cerber-user-roles .fi-fo-checkbox-list-option:has(input:disabled) {
+    cursor: not-allowed;
+}
+
+.cerber-user-roles .fi-fo-checkbox-list-option-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+@media (min-width: 48rem) {
+    .cerber-user-temporary {
+        padding-block-start: 2.25rem;
+    }
+}

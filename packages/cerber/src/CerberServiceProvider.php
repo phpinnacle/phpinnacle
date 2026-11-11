@@ -4,6 +4,8 @@ namespace PHPinnacle\Cerber;
 
 use BladeUI\Icons\Factory;
 use Filament\Facades\Filament;
+use Filament\Support\Assets\Css;
+use Filament\Support\Facades\FilamentAsset;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -44,6 +46,10 @@ class CerberServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
+        FilamentAsset::register([
+            Css::make('user-form', __DIR__ . '/../resources/css/user-form.css'),
+        ], 'phpinnacle/cerber');
+
         RateLimiter::for('cerber.verification-resend', fn (Request $request) => Limit::perHour(5)->by($request->ip()));
 
         Route::aliasMiddleware('cerber.context', AuthenticateSocialAccountContext::class);
