@@ -183,6 +183,33 @@ final class MetadataLoaderTest extends TestCase
     }
 
     #[Test]
+    public function it_loads_reference_tabular_sections_from_compressed_config(): void
+    {
+        $parser = new SerializedDataParser;
+        $storageMap = StorageMap::fromSerialized(MetadataFixture::referenceWithSectionStorageMap(), $parser);
+        $connection = $this->createMock(Connection::class);
+        $connection
+            ->expects($this->once())
+            ->method('select')
+            ->with(
+                'SELECT filename, binarydata AS data FROM Config WHERE filename IN (?)',
+                ['fc59acc3-f1f7-4e3f-96da-e580f2c5a88f'],
+            )
+            ->willReturn([
+                (object) [
+                    'filename' => 'fc59acc3-f1f7-4e3f-96da-e580f2c5a88f',
+                    'data' => gzdeflate(MetadataFixture::serializedReferenceWithTabularSection()),
+                ],
+            ]);
+
+        $metadata = new MetadataLoader($parser)->chunk($connection, $storageMap, TypeMap::empty(), 0, 20);
+
+        $this->assertCount(1, $metadata);
+        $this->assertCount(1, $metadata[0]->sections);
+        $this->assertSame('_reference396_vt8973', $metadata[0]->sections[0]->name);
+    }
+
+    #[Test]
     public function it_loads_a_chunk_from_an_existing_storage_map(): void
     {
         $firstId = 'first-metadata-id';

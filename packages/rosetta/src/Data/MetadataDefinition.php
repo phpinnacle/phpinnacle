@@ -41,7 +41,13 @@ final readonly class MetadataDefinition implements JsonSerializable
             ...($this->referenceId === null ? [] : ['reference_id' => $this->referenceId]),
             'system' => $this->system,
             'properties' => $this->properties,
-            ...($this->kind === MetadataKind::Document ? ['sections' => $this->sections] : []),
+            ...(
+                $this->kind === MetadataKind::Document
+                || $this->kind === MetadataKind::Reference
+                && $this->sections !== []
+                    ? ['sections' => $this->sections]
+                    : []
+            ),
             ...($this->kind === MetadataKind::Enumeration ? ['values' => $this->values] : []),
         ];
     }

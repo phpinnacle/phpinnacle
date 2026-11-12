@@ -29,6 +29,11 @@ final class MetadataFixture
         return self::serialize(self::documentWithTabularSection());
     }
 
+    public static function serializedReferenceWithTabularSection(): string
+    {
+        return self::serialize(self::referenceWithTabularSection());
+    }
+
     /** @param list<string> $definedTypes */
     public static function serializedConfigurationRoot(array $definedTypes = ['defined-type-file-id']): string
     {
@@ -85,6 +90,57 @@ final class MetadataFixture
             }
             }
             ONEC;
+    }
+
+    public static function referenceWithSectionStorageMap(): string
+    {
+        return <<<'ONEC'
+            {8975,
+            {4,
+            {fc59acc3-f1f7-4e3f-96da-e580f2c5a88f,"Reference",396},
+            {a70b9b3d-ba08-40c6-aca1-f81b588f4316,"VT",8973},
+            {a70b9b3d-ba08-40c6-aca1-f81b588f4316,"LineNo",8974},
+            {a91b4ba8-1d4d-43e7-97cf-bb26e13f3aff,"Fld",8975}
+            }
+            }
+            ONEC;
+    }
+
+    /** @return array<int, mixed> */
+    public static function referenceWithTabularSection(): array
+    {
+        $data = self::metadataStructure(
+            [2, 10, 2],
+            'fc59acc3-f1f7-4e3f-96da-e580f2c5a88f',
+            'СоглашенияСКлиентами',
+            'Соглашения с клиентами',
+            '190a7469-3325-4d33-b5ec-28a63ac83b06',
+        );
+        $section = self::metadataStructure(
+            [1, 2, 6, 2],
+            'a70b9b3d-ba08-40c6-aca1-f81b588f4316',
+            'ЭтапыГрафикаОплаты',
+            'Этапы графика оплаты',
+        );
+        self::set(
+            $section,
+            [3],
+            [
+                'properties',
+                1,
+                self::property(
+                    id: 'a91b4ba8-1d4d-43e7-97cf-bb26e13f3aff',
+                    label: 'ПроцентПлатежа',
+                    title: 'Процент платежа',
+                    descriptor: ['N', 5, 2, 0],
+                    comment: 'Payment share',
+                ),
+            ],
+        );
+        self::set($data, [6], ['tabular-sections', 1, $section]);
+        self::set($data, [7], ['properties', 0]);
+
+        return $data;
     }
 
     /** @return array<int, mixed> */

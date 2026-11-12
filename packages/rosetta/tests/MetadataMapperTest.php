@@ -245,6 +245,86 @@ final class MetadataMapperTest extends TestCase
     }
 
     #[Test]
+    public function it_maps_reference_tabular_sections(): void
+    {
+        $parser = new SerializedDataParser;
+        $mapper = new MetadataMapper(StorageMap::fromSerialized(
+            MetadataFixture::referenceWithSectionStorageMap(),
+            $parser,
+        ));
+
+        $metadata = $mapper->map(MetadataFixture::referenceWithTabularSection(), MetadataKind::Reference);
+
+        $this->assertCount(1, $metadata->sections);
+        $this->assertSame(MetadataKind::Section, $metadata->sections[0]->kind);
+        $result = json_decode(json_encode($metadata, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame(
+            [
+                [
+                    'id' => 'a70b9b3d-ba08-40c6-aca1-f81b588f4316',
+                    'name' => '_reference396_vt8973',
+                    'code' => 8973,
+                    'kind' => 'section',
+                    'label' => 'ЭтапыГрафикаОплаты',
+                    'title' => 'Этапы графика оплаты',
+                    'system' => [
+                        '_reference396_idrref' => [
+                            'type' => 'reference',
+                            'target' => 'fc59acc3-f1f7-4e3f-96da-e580f2c5a88f',
+                        ],
+                        '_keyfield' => ['type' => 'binary'],
+                        '_lineno8974' => ['type' => 'number', 'precision' => 5, 'scale' => 0, 'unsigned' => true],
+                    ],
+                    'properties' => [
+                        [
+                            'id' => 'a91b4ba8-1d4d-43e7-97cf-bb26e13f3aff',
+                            'name' => '_fld8975',
+                            'code' => 8975,
+                            'kind' => 'field',
+                            'label' => 'ПроцентПлатежа',
+                            'title' => 'Процент платежа',
+                            'field' => ['type' => 'number', 'precision' => 5, 'scale' => 2, 'unsigned' => false],
+                            'comment' => 'Payment share',
+                        ],
+                    ],
+                ],
+            ],
+            $result['sections'] ?? null,
+        );
+    }
+
+    #[Test]
+    public function it_maps_references_without_tabular_sections(): void
+    {
+        $parser = new SerializedDataParser;
+        $mapper = new MetadataMapper(StorageMap::fromSerialized(MetadataFixture::storageMap(), $parser));
+        $data = MetadataFixture::structure();
+        $data[5] = ['tabular-sections', 0];
+
+        $metadata = $mapper->map($data, MetadataKind::Reference);
+
+        $this->assertSame([], $metadata->sections);
+        $this->assertArrayNotHasKey('sections', $metadata->jsonSerialize());
+    }
+
+    #[Test]
+    public function it_rejects_a_reference_tabular_section_count_mismatch(): void
+    {
+        $parser = new SerializedDataParser;
+        $mapper = new MetadataMapper(StorageMap::fromSerialized(
+            MetadataFixture::referenceWithSectionStorageMap(),
+            $parser,
+        ));
+        $data = MetadataFixture::referenceWithTabularSection();
+        $data[5][1] = 2;
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Metadata tabular section count does not match declared count');
+
+        $mapper->map($data, MetadataKind::Reference);
+    }
+
+    #[Test]
     public function it_maps_document_tabular_sections(): void
     {
         $parser = new SerializedDataParser;

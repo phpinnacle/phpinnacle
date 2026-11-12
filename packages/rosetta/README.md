@@ -100,8 +100,14 @@ for ($offset = 0; $offset < $total; $offset += 100) {
 Each root object is returned as
 `PHPinnacle\Rosetta\Data\MetadataDefinition`. A definition contains its 1C
 identifier, physical name and code, metadata kind, logical name, localized
-title, system fields, and custom properties. Documents may contain tabular
+title, system fields, and custom properties. Catalogs and documents may contain tabular
 section definitions, while enumerations may contain possible values.
+
+Tabular sections use the owner's physical table name followed by the `VT` name
+from `DBNames`, for example `_reference396_vt8973`. Each section includes an owner
+reference, `_keyfield`, and its `LineNo` column. JSON includes `sections` for
+documents and catalogs with tabular sections; catalogs without sections retain
+their existing JSON representation.
 
 Catalog codes and document numbers retain their configured numeric or string
 type. Numeric codes and numbers expose their precision with zero scale; string

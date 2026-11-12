@@ -33,7 +33,11 @@ final class SystemMapper
         };
     }
 
-    /** @return array<string, Field> */
+    /**
+     * @param  string  $documentName  Physical owner table name (catalog or document).
+     * @param  string  $documentId  Owner metadata identifier (catalog or document).
+     * @return array<string, Field>
+     */
     public function section(string $documentName, string $documentId, string $lineName): array
     {
         return [

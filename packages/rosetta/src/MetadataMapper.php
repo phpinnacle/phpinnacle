@@ -75,6 +75,12 @@ final class MetadataMapper
             $properties = [...$properties, ...$this->parseProperties($this->at($data, $root))];
         }
 
+        $sectionRoot = match ($kind) {
+            MetadataKind::Reference => 6,
+            MetadataKind::Document => 4,
+            default => null,
+        };
+
         return new MetadataDefinition(
             id: $id,
             name: strtolower($name),
@@ -84,8 +90,8 @@ final class MetadataMapper
             title: $this->title($this->at($identity, 4), $label),
             system: $this->systemMapper->map($data, $kind, $id),
             properties: $properties,
-            sections: $kind === MetadataKind::Document
-                ? $this->parseTabularSections($this->at($data, 4), strtolower($name), $id)
+            sections: $sectionRoot !== null
+                ? $this->parseTabularSections($this->at($data, $sectionRoot), strtolower($name), $id)
                 : [],
             values: $kind === MetadataKind::Enumeration
                 ? $this->parseEnumerationValues($this->at($data, 7))
@@ -126,8 +132,8 @@ final class MetadataMapper
     /** @return list<MetadataDefinition> */
     private function parseTabularSections(
         mixed $collection,
-        string $documentName,
-        string $documentId,
+        string $ownerName,
+        string $ownerId,
     ): array {
         $sections = [];
         $kind = MetadataKind::Section;
@@ -179,14 +185,14 @@ final class MetadataMapper
 
             $sections[] = new MetadataDefinition(
                 id: $id,
-                name: strtolower($documentName . $name),
+                name: strtolower($ownerName . $name),
                 code: $code,
                 kind: $kind,
                 label: $label,
                 title: $this->title($this->at($identity, 4), $label),
                 system: $this->systemMapper->section(
-                    $documentName,
-                    $documentId,
+                    $ownerName,
+                    $ownerId,
                     strtolower($lineName),
                 ),
                 properties: $properties,
