@@ -20,7 +20,7 @@ final class BuiltinStaticForms
 {
     public static function make(Schema $property, bool $required): ?Field
     {
-        $field = match ($property->singleType()) {
+        $field = ModelLookup::picker($property, 'value') ?? match ($property->singleType()) {
             'string' => self::string($property),
             'integer' => TextInput::make('value')
                 ->integer()

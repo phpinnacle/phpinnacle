@@ -9,10 +9,14 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema as FilamentSchema;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema as DatabaseSchema;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use PHPinnacle\Eidos\Forms\BuiltinStaticForms;
 use PHPinnacle\Eidos\Forms\FieldMapping;
+use PHPinnacle\Eidos\Forms\ModelLookup;
+use PHPinnacle\Eidos\Tests\Fixtures\LookupCategory;
 use PHPinnacle\Eidos\Tests\Fixtures\MappingState;
 use PHPinnacle\Eidos\Tests\Fixtures\SchemaHost;
 use PHPinnacle\Jason\Schema;
@@ -20,8 +24,147 @@ use Tests\TestCase;
 
 require_once __DIR__ . '/../Fixtures/MappingState.php';
 require_once __DIR__ . '/../Fixtures/SchemaHost.php';
+require_once __DIR__ . '/../Fixtures/LookupCategory.php';
 
 uses(TestCase::class);
+
+function builtin_lookup_records(): void
+{
+    config()->set('database.connections.lookup', config('database.connections.sqlite'));
+    DatabaseSchema::connection('lookup')->create('lookup_categories', function (Blueprint $table) {
+        $table->id('category_id');
+        $table->string('name');
+        $table->string('title');
+        $table->string('code');
+        $table->boolean('listed');
+    });
+    LookupCategory::query()->insert([
+        ['category_id' => 0, 'name' => 'Zero', 'title' => 'None', 'code' => '0', 'listed' => true],
+        ['category_id' => 1, 'name' => '<Alpha>', 'title' => 'First', 'code' => '0001', 'listed' => true],
+        ['category_id' => 2, 'name' => 'Beta', 'title' => 'Second', 'code' => '0002', 'listed' => true],
+        ['category_id' => 3, 'name' => 'Hidden', 'title' => 'Hidden', 'code' => '0003', 'listed' => false],
+    ]);
+}
+
+it('searches lookup labels and resolves reopened selections on the model connection and scopes', function () {
+    builtin_lookup_records();
+    $schema = builtin_static_schema(['type' => 'integer', 'x-lookup' => ['model' => LookupCategory::class]], 1);
+    $field = $schema->getComponent('mapping')->getStaticFormSchema('target')->getComponent('value');
+
+    expect($field)->toBeInstanceOf(Select::class);
+    expect($field->getOptions())->toBe([1 => '<Alpha>', 2 => 'Beta', 0 => 'Zero']);
+    expect($field->getSearchResults('Alpha'))->toBe([1 => '<Alpha>']);
+    expect($field->getSearchResults('Hidden'))->toBe([]);
+    expect($field->getSearchResults("' OR 1=1 --"))->toBe([]);
+    expect($field->getOptionLabel())->toBe('<Alpha>');
+    expect($schema->getState()['mapping'][0]['static'])->toBe(1);
+});
+
+it('limits preloaded and searched lookup records while resolving selections outside the first page', function (
+    ?int $limit,
+    int $expectedCount,
+) {
+    builtin_lookup_records();
+    LookupCategory::query()->insert(array_map(
+        fn (int $id) => [
+            'category_id' => $id,
+            'name' => 'Category ' . $id,
+            'title' => 'Category ' . $id,
+            'code' => (string) $id,
+            'listed' => true,
+        ],
+        range(4, 24),
+    ));
+    $property = Schema::fromArray(['type' => 'integer', 'x-lookup' => ['model' => LookupCategory::class]]);
+    $field = $limit === null
+        ? ModelLookup::picker($property, 'value')
+        : ModelLookup::picker($property, 'value', $limit);
+    $form = FilamentSchema::make(SchemaHost::make())->statePath('data')->components([$field]);
+    $form->fill(['value' => 0]);
+
+    expect($field->getOptions())->toHaveCount($expectedCount)->not->toHaveKey(0)->not->toHaveKey(3);
+    expect($field->getSearchResults('Category'))->toHaveCount($expectedCount);
+    expect($field->getOptionLabel())->toBe('Zero');
+    expect($form->getState()['value'])->toBe(0);
+})->with([
+    'default limit' => [null, 20],
+    'custom limit' => [2, 2],
+]);
+
+it('uses custom lookup labels search attributes and value keys', function () {
+    builtin_lookup_records();
+    $schema = builtin_static_schema([
+        'type' => 'string',
+        'x-lookup' => [
+            'model' => LookupCategory::class,
+            'key' => 'code',
+            'label' => 'title',
+            'search' => ['name', 'code'],
+        ],
+    ], '0002');
+    $field = $schema->getComponent('mapping')->getStaticFormSchema('target')->getComponent('value');
+
+    expect($field->getSearchResults('0001'))->toBe(['0001' => 'First']);
+    expect($field->getSearchResults('Beta'))->toBe(['0002' => 'Second']);
+    expect($field->getSearchResults('0003'))->toBe([]);
+    expect($field->getOptionLabel())->toBe('Second');
+    expect($schema->getState()['mapping'][0]['static'])->toBe('0002');
+
+    $schema = builtin_static_schema([
+        'type' => 'string',
+        'x-lookup' => ['model' => LookupCategory::class, 'key' => 'code', 'label' => 'title'],
+    ], '0002');
+    expect(
+        $schema
+            ->getComponent('mapping')
+            ->getStaticFormSchema('target')
+            ->getComponent('value')
+            ->getSearchResults('Second'),
+    )
+        ->toBe(['0002' => 'Second']);
+});
+
+it('preserves lookup key types and nullable values through hydration validation and dehydration', function (
+    array $types,
+    string $key,
+    mixed $value,
+    ?string $submitted,
+) {
+    builtin_lookup_records();
+    $property = [
+        'allOf' => [[
+            'type' => $types,
+            'x-lookup' => ['model' => LookupCategory::class, 'key' => $key],
+        ]],
+    ];
+    $schema = builtin_static_schema($property, $value);
+    $field = $schema->getComponent('mapping')->getStaticFormSchema('target')->getComponent('value');
+    $field->rawState($submitted);
+
+    $mapping = $schema->getState()['mapping'];
+
+    expect($mapping[0]['static'])->toBe($value);
+    $reopened = builtin_static_schema($property, $mapping[0]['static']);
+    expect($reopened->getComponent('mapping')->getStaticFormSchema('target')->getComponent('value')->getOptionLabel())
+        ->toBe($field->getOptionLabel());
+    expect($reopened->getState()['mapping'])->toBe($mapping);
+})->with([
+    'integer key' => [['integer'], 'category_id', 2, '2'],
+    'zero integer key' => [['integer'], 'category_id', 0, '0'],
+    'string key' => [['string'], 'code', '0002', '0002'],
+    'numeric string key' => [['string'], 'code', '0', '0'],
+    'null integer' => [['integer', 'null'], 'category_id', null, null],
+    'cleared integer' => [['integer', 'null'], 'category_id', null, ''],
+    'null string' => [['string', 'null'], 'code', null, null],
+]);
+
+it('rejects missing scoped-out and required empty lookup choices', function (?string $value) {
+    builtin_lookup_records();
+    $schema = builtin_static_schema(['type' => 'integer', 'x-lookup' => ['model' => LookupCategory::class]]);
+    $schema->getComponent('mapping')->getStaticFormSchema('target')->getComponent('value')->rawState($value);
+
+    expect($schema->getState(...))->toThrow(ValidationException::class);
+})->with(['999', '3', null, '']);
 
 it('offers only projected enum values in native static editors', function () {
     $enumerated = Schema::allOf([

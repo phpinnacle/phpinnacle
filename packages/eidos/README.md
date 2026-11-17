@@ -609,6 +609,7 @@ FieldMapping::make('mapping')
 | `phone`, `email` | Telephone or email `TextInput` |
 | `date`, `time`, `date-time` | `DatePicker`, `TimePicker`, `DateTimePicker` |
 | `integer`, `number` | Integer or numeric `TextInput` |
+| Scalar property with `x-lookup` | Searchable model `Select` storing the record key |
 | `boolean` | `Toggle`; nullable booleans use a three-state `Select` |
 | `array` with string, numeric, or Boolean `items` | Simple `Repeater` with the item's string, numeric, enum, date/time, or Boolean editor |
 | Other arrays, nullable arrays, `object` | No built-in editor; register a custom `staticForms()` factory |
@@ -617,6 +618,33 @@ FieldMapping::make('mapping')
 Static value editors own their submitted values. When a custom editor uses `dehydrated(false)`, its entire static mapping row is omitted from `getState()`. Explicitly dehydrated `null`, `false`, zero, and empty values retain their native meaning; inactive editor drafts are omitted independently of the value.
 
 The built-in fields follow destination `required` and nullable types, projected string length and enum constraints, and conjunctive numeric minimum/maximum bounds. Dates serialize as `Y-m-d`, times as `H:i:s`, and date-times as `Y-m-d\TH:i:sP`. Repeaters use `items` to select and validate each field, apply conjunctive `minItems` and `maxItems`, and use Filament's distinct validation for string and numeric `uniqueItems`. Bounds and uniqueness include `allOf` branches and expanded local references. Boolean items use a Select. Empty arrays are allowed unless `minItems` requires entries. `withBuiltinStaticForms()` sets the factory to the standard editors; a later `staticForms()` call replaces it.
+
+Add `x-lookup` to a string or integer property to select a static value from an
+Eloquent model instead of typing its key:
+
+```php
+Schema::fromArray([
+    'type' => ['integer', 'null'],
+    'x-lookup' => [
+        'model' => App\Models\Category::class,
+        'label' => 'name',
+        'search' => ['name', 'code'],
+        'key' => 'id',
+    ],
+]);
+```
+
+`model` is a developer-supplied Eloquent class. `label` defaults to `name`,
+`search` to `[label]`, and `key` to the model's primary key. The editor preloads
+up to 20 records ordered by label and key; searches use the same limit.
+Search and selected-label resolution both
+use the model's connection and global scopes; unavailable records fail native
+Select validation. Integer properties save integer keys; string properties keep
+string keys, including leading zeroes. Nullable selections preserve `null`.
+`x-lookup` takes precedence over the ordinary built-in editor. Consumers still
+own validation of the saved constant against the destination schema.
+`ModelLookup::picker($schema, $name, limit: 20)` also exposes this editor for other schema
+consumers and returns `null` when the annotation is absent.
 
 There are no built-in JSON editors. Objects, arrays without a supported scalar item type, and nullable arrays offer connections only unless a custom factory is registered. The installed Filament simple repeater cannot hydrate composite items without changing their values or preserve `null` separately from `[]`.
 
