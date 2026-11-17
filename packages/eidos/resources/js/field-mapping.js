@@ -1,6 +1,7 @@
 export default function fieldMapping({ element, state, disabled, inverse = false, requiredTargets = [], connectionModes, targetModes, staticDefaults = {} }) {
     let ports;
     let measurementFrame = null;
+    let observedElements = new Set();
     const isStaticValue = (entry) => entry?.kind === 'value';
 
     return {
@@ -22,11 +23,21 @@ export default function fieldMapping({ element, state, disabled, inverse = false
         height: 1,
         announcement: '',
         observer: null,
+        mutationObserver: null,
 
         init() {
             this.observer = new ResizeObserver(() => this.refresh());
-            this.observer.observe(this.$refs.canvas);
-            element.querySelectorAll('[data-mapping-row], [data-mapping-anchor]').forEach((element) => this.observer.observe(element));
+            this.observeLayout();
+            // Morphs can move cards without resizing them, including by removing client-side order.
+            this.mutationObserver = new MutationObserver(mutations => {
+                if (mutations.some(({ target }) => !target.closest('.field-mapping-lines'))) this.refresh();
+            });
+            this.mutationObserver.observe(this.$refs.canvas, {
+                subtree: true,
+                childList: true,
+                attributes: true,
+                attributeFilter: ['class', 'style'],
+            });
             ['state', 'search', 'visibilityFilter', 'arranged'].forEach((property) => {
                 this.$watch(property, () => {
                     if (property !== 'state') this.cancel();
@@ -38,7 +49,21 @@ export default function fieldMapping({ element, state, disabled, inverse = false
 
         destroy() {
             this.observer?.disconnect();
+            this.mutationObserver?.disconnect();
             if (measurementFrame !== null) cancelAnimationFrame(measurementFrame);
+        },
+
+        observeLayout() {
+            if (!this.observer) return;
+
+            const elements = new Set([this.$refs.canvas, ...element.querySelectorAll('[data-mapping-row], [data-mapping-anchor]')]);
+            observedElements.forEach(element => {
+                if (!elements.has(element)) this.observer.unobserve(element);
+            });
+            elements.forEach(element => {
+                if (!observedElements.has(element)) this.observer.observe(element);
+            });
+            observedElements = elements;
         },
 
         updateConfiguration(connectionModes, sourceIds, sourceTypes, targetModes) {
@@ -47,12 +72,7 @@ export default function fieldMapping({ element, state, disabled, inverse = false
             this.sourceTypes = sourceTypes;
             if (this.selected?.side === 'source' && !sourceIds.includes(this.selected.id)) this.cancel();
             ports = undefined;
-            this.$nextTick(() => {
-                this.observer?.disconnect();
-                this.observer?.observe(this.$refs.canvas);
-                element.querySelectorAll('[data-mapping-row], [data-mapping-anchor]').forEach(element => this.observer?.observe(element));
-                this.refresh();
-            });
+            this.refresh();
         },
 
         mappings() {
@@ -284,9 +304,10 @@ export default function fieldMapping({ element, state, disabled, inverse = false
                     const { side, id } = row.querySelector('[data-mapping-port]').dataset;
                     const target = side === 'source' ? sourceTargets.get(id) : id;
                     const order = connectedTargets.has(target) ? targetOrder.get(target) : undefined;
-                    row.style.order = this.arranged
+                    const nextOrder = this.arranged
                         ? String(order ?? targets.length + index)
                         : '';
+                    if (row.style.order !== nextOrder) row.style.order = nextOrder;
                 });
             });
         },
@@ -296,6 +317,7 @@ export default function fieldMapping({ element, state, disabled, inverse = false
                 if (!element.isConnected) return;
 
                 ports = undefined;
+                this.observeLayout();
                 this.arrangeRows();
                 if (measurementFrame !== null) return;
 

@@ -181,6 +181,63 @@ test('pending card replacements are arranged and measured using their current po
     }
 });
 
+test('DOM morphs restore row order without state or size changes and observe replacement anchors', (context) => {
+    const resizeTargets = new Set();
+    let mutationCallback;
+    let disconnected = false;
+    const previousResizeObserver = globalThis.ResizeObserver;
+    const previousMutationObserver = globalThis.MutationObserver;
+    globalThis.ResizeObserver = class {
+        observe(element) { resizeTargets.add(element); }
+        unobserve(element) { resizeTargets.delete(element); }
+        disconnect() { resizeTargets.clear(); }
+    };
+    globalThis.MutationObserver = class {
+        constructor(callback) { mutationCallback = callback; }
+        observe() {}
+        disconnect() { disconnected = true; }
+    };
+    context.after(() => {
+        globalThis.ResizeObserver = previousResizeObserver;
+        globalThis.MutationObserver = previousMutationObserver;
+    });
+    const component = editor({ name: sourceEntry('email'), contact: sourceEntry('title') });
+    component.$watch = () => {};
+    const root = component.$root;
+    const previousQuery = root.querySelectorAll;
+    let anchors = previousQuery('[data-mapping-port]');
+    root.querySelectorAll = selector => selector === '[data-mapping-row], [data-mapping-anchor]' ? anchors : previousQuery(selector);
+    component.init();
+    const state = structuredClone(component.state);
+    const rows = root.querySelectorAll('[data-mapping-items]')[0].children;
+    rows.forEach(row => { row.style.order = ''; });
+    const oldAnchors = anchors;
+    anchors = anchors.map(anchor => ({ ...anchor }));
+    mutationCallback?.([{ target: { closest: () => null } }]);
+
+    assert.deepEqual(visualOrder(component)[0], ['email', 'title']);
+    assert.deepEqual(component.state, state);
+    assert.deepEqual(resizeTargets, new Set([component.$refs.canvas, ...anchors]));
+    assert.equal(oldAnchors.some(anchor => resizeTargets.has(anchor)), false);
+
+    let orderWrites = 0;
+    rows.forEach(row => {
+        let order = row.style.order;
+        Object.defineProperty(row.style, 'order', {
+            get: () => order,
+            set: value => { order = value; orderWrites++; },
+        });
+    });
+    component.refresh();
+    assert.equal(orderWrites, 0);
+    const connections = component.connections;
+    mutationCallback([{ target: { closest: () => ({}) } }]);
+    assert.equal(component.connections, connections);
+    component.destroy();
+    assert.equal(resizeTargets.size, 0);
+    assert.equal(disconnected, true);
+});
+
 test('partial configuration updates refresh compatibility and ports while keeping drafts and filters', () => {
     const component = editor({ name: sourceEntry('title') }, false, { sourceSettings: { title: { transforms: [{ type: 'trim' }] } } });
     component.search = 'title';

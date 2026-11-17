@@ -170,7 +170,7 @@
 
                     <div class="field-mapping-lines absolute inset-0">
                         <template x-for="connection in connections" :key="connection.source">
-                            <svg class="absolute inset-0 size-full" :viewBox="`0 0 ${width} ${height}`" role="group" aria-label="Field connection">
+                            <svg class="absolute inset-0 size-full" :view-box.camel="`0 0 ${width} ${height}`" role="group" aria-label="Field connection">
                                 <g
                                     class="field-connection-control"
                                     :aria-label="connection.label"
