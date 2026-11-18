@@ -35,7 +35,7 @@ final class MetadataMapper
     }
 
     /** @param array<mixed> $data */
-    public function map(array $data, MetadataKind $kind): MetadataDefinition
+    public function map(array $data, MetadataKind $kind, bool $hasRecorderType = false): MetadataDefinition
     {
         if ($kind === MetadataKind::Section) {
             throw new RuntimeException('A tabular section cannot be mapped as a root metadata object');
@@ -88,7 +88,7 @@ final class MetadataMapper
             kind: $kind,
             label: $label,
             title: $this->title($this->at($identity, 4), $label),
-            system: $this->systemMapper->map($data, $kind, $id),
+            system: $this->systemMapper->map($data, $kind, $id, $hasRecorderType),
             properties: $properties,
             sections: $sectionRoot !== null
                 ? $this->parseTabularSections($this->at($data, $sectionRoot), strtolower($name), $id)

@@ -2,6 +2,7 @@
 
 namespace PHPinnacle\Rosetta\Connections;
 
+use InvalidArgumentException;
 use PDO;
 use PDOStatement;
 use PHPinnacle\Rosetta\Contracts\Connection;
@@ -39,6 +40,29 @@ final readonly class PdoConnection implements Connection
         }
 
         return $row;
+    }
+
+    public function hasColumn(string $table, string $column): bool
+    {
+        if (!preg_match('/\A[A-Za-z_][A-Za-z0-9_]*\z/', $table)) {
+            throw new InvalidArgumentException('Invalid infobase table name');
+        }
+
+        $statement = $this->statement(sprintf('SELECT * FROM %s WHERE 1 = 0', $table), []);
+
+        for ($index = 0, $count = $statement->columnCount(); $index < $count; $index++) {
+            $metadata = $statement->getColumnMeta($index);
+
+            if ($metadata === false) {
+                throw new RuntimeException(sprintf('Cannot read column metadata for %s', $table));
+            }
+
+            if (strcasecmp($metadata['name'], $column) === 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** @param list<mixed> $bindings */

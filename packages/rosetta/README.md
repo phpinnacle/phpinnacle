@@ -115,6 +115,10 @@ fields retain the configured maximum length and fixed/variable qualifier.
 Unbounded strings have no positive length limit: a descriptor without a length
 returns `length: null`, omitted from JSON. An explicit zero remains zero.
 
+Accumulation registers expose `_recordertref` as `binary` when the physical
+table contains the column. The PDO adapter reads column metadata with a query
+that returns zero rows and requires read access to the register table.
+
 Each `MetadataProperty` also exposes an optional `comment`, separate from its
 logical name and localized title. Comments are read for catalog and document
 attributes, register properties, and tabular-section attributes. Empty or absent
@@ -131,6 +135,7 @@ and fields implement `JsonSerializable`, so they can be encoded directly.
 Consumers that do not use PDO can implement
 `PHPinnacle\Rosetta\Contracts\Connection`. Rosetta passes SQL and positional
 bindings to `select()` and `selectOne()` and expects rows as objects.
+`hasColumn()` checks a physical column on the table resolved by the connection.
 
 ## Scope
 

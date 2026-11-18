@@ -18,7 +18,7 @@ final class SystemMapper
      * @param  array<mixed>  $data
      * @return array<string, Field>
      */
-    public function map(array $data, MetadataKind $kind, string $id): array
+    public function map(array $data, MetadataKind $kind, string $id, bool $hasRecorderType = false): array
     {
         return match ($kind) {
             MetadataKind::Reference => $this->reference($data, $id),
@@ -27,7 +27,7 @@ final class SystemMapper
                 '_idrref' => $this->identifier(),
                 '_enumorder' => $this->integer(10),
             ],
-            MetadataKind::AccumulationRegister => $this->accumulation($data),
+            MetadataKind::AccumulationRegister => $this->accumulation($data, $hasRecorderType),
             MetadataKind::InformationRegister => $this->information($data),
             MetadataKind::Section => throw new LogicException('A tabular section requires section system mapping'),
         };
@@ -135,13 +135,13 @@ final class SystemMapper
      * @param  array<mixed>  $data
      * @return array<string, Field>
      */
-    private function accumulation(array $data): array
+    private function accumulation(array $data, bool $hasRecorderType): array
     {
         $system = [
             '_period' => new ScalarField(FieldType::DateTime),
         ];
 
-        if ($this->at($data, 2, 21) === 1) {
+        if ($hasRecorderType) {
             $system['_recordertref'] = $this->binary();
         }
 

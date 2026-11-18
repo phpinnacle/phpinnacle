@@ -181,7 +181,7 @@ final class MetadataLoader
 
     /**
      * @param  array<string, true>  $filter
-     * @return array<string, array{MetadataKind, string}>
+     * @return array<string, array{MetadataKind, string, string}>
      */
     private function tables(StorageMap $storageMap, array $filter = []): array
     {
@@ -189,8 +189,8 @@ final class MetadataLoader
 
         foreach (MetadataKind::roots() as $kind) {
             foreach ($storageMap->uuids($kind->storageToken()) as $code => $uuid) {
-                $table = strtolower(sprintf('_%s%d', $kind->storageToken(), $code));
-                $tables[$table] = [$kind, $uuid];
+                $table = sprintf('_%s%d', $kind->storageToken(), $code);
+                $tables[strtolower($table)] = [$kind, $uuid, $table];
             }
         }
 
@@ -207,7 +207,7 @@ final class MetadataLoader
     }
 
     /**
-     * @param  array<string, array{MetadataKind, string}>  $tables
+     * @param  array<string, array{MetadataKind, string, string}>  $tables
      * @return Generator<int, MetadataDefinition>
      */
     private function metadata(
@@ -222,10 +222,14 @@ final class MetadataLoader
             array_values(array_map(fn (array $table) => $table[1], $tables)),
         );
 
-        foreach ($tables as [$kind, $uuid]) {
+        foreach ($tables as [$kind, $uuid, $table]) {
+            $hasRecorderType =
+                $kind === MetadataKind::AccumulationRegister && $connection->hasColumn($table, '_recordertref');
+
             yield $mapper->map(
                 $this->parser->parse($contents[$uuid]),
                 $kind,
+                $hasRecorderType,
             );
         }
     }
