@@ -47,8 +47,15 @@ it('registers developer login only when configured outside production', function
         expect($route->methods())->toBe(['POST'])->and($route->uri())->toBe('admin/developer-auth');
     }
 
-    $html = FilamentView::renderHook(PanelsRenderHook::AUTH_LOGIN_FORM_AFTER)->toHtml();
+    $html = FilamentView::renderHook(
+        PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
+        scopes: \Filament\Auth\Pages\Login::class,
+    )->toHtml();
     expect(str_contains($html, 'developer@example.test'))->toBe($enabled);
+    expect(str_contains(
+        FilamentView::renderHook(PanelsRenderHook::AUTH_LOGIN_FORM_BEFORE)->toHtml(),
+        'developer@example.test',
+    ))->toBeFalse();
 })->with([
     ['testing', ['developer@example.test'], true],
     ['production', ['developer@example.test'], false],

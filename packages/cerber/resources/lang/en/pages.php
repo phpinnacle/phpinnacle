@@ -2,7 +2,7 @@
 
 return [
     'login' => [
-        'as' => 'Login as:',
+        'as' => 'Login without a password as:',
     ],
     'profile' => [
         'label' => 'Profile',
