@@ -6,6 +6,7 @@ use Closure;
 use Filament\Actions\Action;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Auth\MultiFactor\Email\EmailAuthentication;
+use Filament\Auth\Pages\Login as LoginPage;
 use Filament\Contracts\Plugin;
 use Filament\Panel;
 use Filament\Resources\Resource;
@@ -283,7 +284,11 @@ class CerberPlugin implements Plugin
             return;
         }
 
-        $panel->renderHook(PanelsRenderHook::AUTH_LOGIN_FORM_AFTER, fn () => $this->developersHook($panel));
+        $panel->renderHook(
+            PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
+            fn () => $this->developersHook($panel),
+            scopes: LoginPage::class,
+        );
         $panel->routes(fn () => [
             Route::post('/developer-auth', Http\Controllers\LoginController::class)
                 ->name('cerber-developer-auth')

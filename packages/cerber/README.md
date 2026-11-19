@@ -119,7 +119,7 @@ $panel->plugin(
 
 Use `withoutProviders()`, `withoutRoles()`, `withoutUsers()` or `withoutResources()` when the application supplies that UI itself. `modifyProfileForm()` receives the Filament schema and profile page for application-specific fields.
 
-`developers()` accepts a list of email addresses or an email-to-label map; `getDevelopers()` returns the configured map. Developer login is available only outside production and requires an existing verified email login whose owner can access the panel and requested tenant. The `DeveloperLogin` service authenticates that user without checking the password and regenerates the session; `CerberPlugin::auth()` delegates to it.
+`developers()` accepts a list of email addresses or an email-to-label map; `getDevelopers()` returns the configured map. Developer login is available only outside production and requires an existing verified email login whose owner can access the panel and requested tenant. When these buttons are configured, they appear below the password form under a bold heading, using the panel primary colour. The `DeveloperLogin` service authenticates that user without checking the password and regenerates the session; `CerberPlugin::auth()` delegates to it.
 
 ## Tenancy
 

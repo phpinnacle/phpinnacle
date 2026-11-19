@@ -4,6 +4,8 @@ All notable changes to `phpinnacle/cerber` will be documented in this file.
 
 ## Unreleased
 
+- Show developer passwordless login buttons below the sign-in form with a bold heading and primary-coloured actions.
+
 - Replace scope-based OAuth strategies with registered social-account contexts, session login, and a PKCE-protected JWT API.
 - Isolate provider bindings by context and add context-aware account linking and unlinking.
 - Allow active users to sign in through panel OAuth without an assigned role.
