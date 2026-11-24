@@ -26,12 +26,16 @@ final class MetadataMapper
 
     private readonly TypeMap $typeMap;
 
+    private readonly TableMap $tableMap;
+
     public function __construct(
         private readonly StorageMap $storageMap,
         ?TypeMap $typeMap = null,
+        ?TableMap $tableMap = null,
     ) {
         $this->systemMapper = new SystemMapper;
         $this->typeMap = $typeMap ?? TypeMap::empty();
+        $this->tableMap = $tableMap ?? TableMap::fromArray([]);
     }
 
     /** @param array<mixed> $data */
@@ -83,7 +87,7 @@ final class MetadataMapper
 
         return new MetadataDefinition(
             id: $id,
-            name: strtolower($name),
+            name: $this->tableMap->name($name),
             code: $code,
             kind: $kind,
             label: $label,
@@ -185,7 +189,7 @@ final class MetadataMapper
 
             $sections[] = new MetadataDefinition(
                 id: $id,
-                name: strtolower($ownerName . $name),
+                name: $this->tableMap->name($ownerName . $name),
                 code: $code,
                 kind: $kind,
                 label: $label,

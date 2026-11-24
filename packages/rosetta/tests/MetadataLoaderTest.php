@@ -9,6 +9,7 @@ use PHPinnacle\Rosetta\Contracts\Connection;
 use PHPinnacle\Rosetta\MetadataLoader;
 use PHPinnacle\Rosetta\SerializedDataParser;
 use PHPinnacle\Rosetta\StorageMap;
+use PHPinnacle\Rosetta\TableMap;
 use PHPinnacle\Rosetta\Tests\Fixtures\MetadataFixture;
 use PHPinnacle\Rosetta\TypeMap;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -17,11 +18,20 @@ use PHPUnit\Framework\TestCase;
 
 final class MetadataLoaderTest extends TestCase
 {
-    /** @return iterable<string, array{list<string>}> */
+    /** @return iterable<string, array{list<string>, string, list<object>}> */
     public static function onlyFilters(): iterable
     {
-        yield 'all tables by default' => [[]];
-        yield 'limited by physical name' => [['_reference259']];
+        yield 'all tables by default' => [[], '_reference259', []];
+        yield 'limited by physical name' => [['_reference259'], '_reference259', []];
+        yield 'limited by extension storage name' => [
+            ['_reference259x1'],
+            '_reference259x1',
+            [(object) [
+                'schema_id' => 1,
+                'status' => 100,
+                'data' => '{0,{1,{"Reference259","N",259,"",{0},{0},{0},1,"R",{0},{0},"",0,0}}}',
+            ]],
+        ];
     }
 
     #[Test]
@@ -114,11 +124,17 @@ final class MetadataLoaderTest extends TestCase
         );
     }
 
-    /** @param list<string> $only */
+    /**
+     * @param list<string> $only
+     * @param list<object> $storageRows
+     */
     #[Test]
     #[DataProvider('onlyFilters')]
-    public function it_loads_metadata_directly_from_compressed_database_rows(array $only): void
-    {
+    public function it_loads_metadata_directly_from_compressed_database_rows(
+        array $only,
+        string $name,
+        array $storageRows,
+    ): void {
         $serializedMap = MetadataFixture::storageMap();
         $structure = MetadataFixture::serializedStructure();
 
@@ -145,18 +161,19 @@ final class MetadataLoaderTest extends TestCase
                 default => throw new \LogicException('Unexpected metadata query'),
             });
         $connection
-            ->expects($this->once())
+            ->expects($this->exactly(2))
             ->method('select')
-            ->with(
-                'SELECT filename, binarydata AS data FROM Config WHERE filename IN (?)',
-                ['fc59acc3-f1f7-4e3f-96da-e580f2c5a88f'],
-            )
-            ->willReturn([
-                (object) [
-                    'filename' => 'fc59acc3-f1f7-4e3f-96da-e580f2c5a88f',
-                    'data' => gzdeflate($structure),
+            ->willReturnCallback(fn (string $query, array $bindings) => match ($query) {
+                'SELECT SchemaID AS schema_id, Status AS status, CurrentSchema AS data FROM SchemaStorage WHERE SchemaID > 0 ORDER BY SchemaID'
+                    => $storageRows,
+                'SELECT filename, binarydata AS data FROM Config WHERE filename IN (?)' => [
+                    (object) [
+                        'filename' => 'fc59acc3-f1f7-4e3f-96da-e580f2c5a88f',
+                        'data' => gzdeflate($structure),
+                    ],
                 ],
-            ]);
+                default => throw new \LogicException('Unexpected metadata query'),
+            });
 
         try {
             $progress = [];
@@ -176,7 +193,7 @@ final class MetadataLoaderTest extends TestCase
 
         $this->assertCount(1, $metadata);
         $this->assertSame('fc59acc3-f1f7-4e3f-96da-e580f2c5a88f', $metadata[0]->id);
-        $this->assertSame('_reference259', $metadata[0]->name);
+        $this->assertSame($name, $metadata[0]->name);
         $this->assertSame('_fld5801', $metadata[0]->properties[0]->name);
         $this->assertSame('_fld5802', $metadata[0]->properties[1]->name);
         $this->assertSame([[0, 1], [1, 1]], $progress);
@@ -202,7 +219,14 @@ final class MetadataLoaderTest extends TestCase
                 ],
             ]);
 
-        $metadata = new MetadataLoader($parser)->chunk($connection, $storageMap, TypeMap::empty(), 0, 20);
+        $metadata = new MetadataLoader($parser)->chunk(
+            $connection,
+            $storageMap,
+            TypeMap::empty(),
+            0,
+            20,
+            TableMap::fromArray([]),
+        );
 
         $this->assertCount(1, $metadata);
         $this->assertCount(1, $metadata[0]->sections);
@@ -250,7 +274,7 @@ final class MetadataLoaderTest extends TestCase
             ]);
 
         $metadata = new MetadataLoader(new SerializedDataParser)
-            ->chunk($connection, $storageMap, TypeMap::empty(), 0, 20);
+            ->chunk($connection, $storageMap, TypeMap::empty(), 0, 20, TableMap::fromArray([]));
 
         $this->assertCount(2, $metadata);
         $this->assertSame([$firstId, $secondId], array_column($metadata, 'id'));

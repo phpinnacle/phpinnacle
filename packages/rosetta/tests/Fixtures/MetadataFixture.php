@@ -6,6 +6,17 @@ use LogicException;
 
 final class MetadataFixture
 {
+    public static function extensionSchema(): string
+    {
+        return <<<'ONEC'
+            {0,{1,
+            {"Document38456","N",38456,"",{0},
+            {1,{"VT38459","I",0,"Document38456",{0},{0},{0},1,"S",{0},{0},"",0,0}},
+            {0},1,"R",{0},{0},"",0,0}
+            }}
+            ONEC;
+    }
+
     public static function storageMap(): string
     {
         return <<<'ONEC'

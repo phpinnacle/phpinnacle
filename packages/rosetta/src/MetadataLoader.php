@@ -29,13 +29,14 @@ final class MetadataLoader
         $filter = $this->filter($only);
         $storageMap = $this->storageMap($connection);
         $typeMap = $this->typeMap($connection);
-        $tables = $this->tables($storageMap, $filter);
+        $tableMap = $this->tableMap($connection);
+        $tables = $this->tables($storageMap, $filter, $tableMap);
 
         $total = count($tables);
         $processed = 0;
         $progress?->__invoke($processed, $total);
 
-        foreach ($this->metadata($connection, $storageMap, $typeMap, $tables) as $object) {
+        foreach ($this->metadata($connection, $storageMap, $typeMap, $tables, $tableMap) as $object) {
             $progress?->__invoke(++$processed, $total);
 
             yield $object;
@@ -142,25 +143,41 @@ final class MetadataLoader
         return TypeMap::fromArray($entries);
     }
 
-    /** @param list<string> $only */
-    public function count(StorageMap $storageMap, array $only = []): int
+    public function tableMap(Connection $connection): TableMap
     {
-        return count($this->tables($storageMap, $this->filter($only)));
+        return TableMap::fromSchemaStorage(
+            $connection->select(
+                'SELECT SchemaID AS schema_id, Status AS status, CurrentSchema AS data FROM SchemaStorage WHERE SchemaID > 0 ORDER BY SchemaID',
+            ),
+            $this->parser,
+        );
+    }
+
+    /** @param list<string> $only */
+    public function count(StorageMap $storageMap, array $only = [], ?TableMap $tableMap = null): int
+    {
+        return count($this->tables($storageMap, $this->filter($only), $tableMap ?? TableMap::fromArray([])));
     }
 
     /**
      * @return list<MetadataDefinition>
      */
+    // @mago-expect lint:excessive-parameter-list
     public function chunk(
         Connection $connection,
         StorageMap $storageMap,
         TypeMap $typeMap,
         int $offset,
         int $limit,
+        ?TableMap $tableMap = null,
     ): array {
-        $tables = array_slice($this->tables($storageMap), $offset, $limit, preserve_keys: true);
+        $tableMap ??= $this->tableMap($connection);
+        $tables = array_slice($this->tables($storageMap, [], $tableMap), $offset, $limit, preserve_keys: true);
 
-        return iterator_to_array($this->metadata($connection, $storageMap, $typeMap, $tables), preserve_keys: false);
+        return iterator_to_array(
+            $this->metadata($connection, $storageMap, $typeMap, $tables, $tableMap),
+            preserve_keys: false,
+        );
     }
 
     /**
@@ -183,13 +200,13 @@ final class MetadataLoader
      * @param  array<string, true>  $filter
      * @return array<string, array{MetadataKind, string, string}>
      */
-    private function tables(StorageMap $storageMap, array $filter = []): array
+    private function tables(StorageMap $storageMap, array $filter, TableMap $tableMap): array
     {
         $tables = [];
 
         foreach (MetadataKind::roots() as $kind) {
             foreach ($storageMap->uuids($kind->storageToken()) as $code => $uuid) {
-                $table = sprintf('_%s%d', $kind->storageToken(), $code);
+                $table = $tableMap->name(sprintf('_%s%d', $kind->storageToken(), $code));
                 $tables[strtolower($table)] = [$kind, $uuid, $table];
             }
         }
@@ -215,8 +232,9 @@ final class MetadataLoader
         StorageMap $storageMap,
         TypeMap $typeMap,
         array $tables,
+        TableMap $tableMap,
     ): Generator {
-        $mapper = new MetadataMapper($storageMap, $typeMap);
+        $mapper = new MetadataMapper($storageMap, $typeMap, $tableMap);
         $contents = $this->configData(
             $connection,
             array_values(array_map(fn (array $table) => $table[1], $tables)),

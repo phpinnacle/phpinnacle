@@ -6,7 +6,8 @@ objects. It has no Laravel, Filament, or other framework dependencies.
 
 ## Features
 
-- Reads and inflates `Params/DBNames` and `Config` directly from an infobase.
+- Reads and inflates `Params/DBNames` and `Config` directly from an infobase,
+  and reads active extension storage from `SchemaStorage`.
 - Parses the positional text serialization used by 1C configuration storage.
 - Maps configuration UUIDs to physical database table and column names.
 - Describes catalogs, documents, tabular sections, enumerations, accumulation
@@ -24,7 +25,7 @@ composer require phpinnacle/rosetta
 ```
 
 Rosetta requires PHP 8.4, PDO, and zlib. The source database must contain the
-standard 1C `Params` and `Config` tables.
+standard 1C `Params`, `Config`, and `SchemaStorage` tables.
 
 ## Reading metadata with PDO
 
@@ -82,6 +83,7 @@ queue or batch system.
 ```php
 $storageMap = $loader->storageMap($connection);
 $typeMap = $loader->typeMap($connection);
+$tableMap = $loader->tableMap($connection);
 $total = $loader->count($storageMap);
 
 for ($offset = 0; $offset < $total; $offset += 100) {
@@ -91,6 +93,7 @@ for ($offset = 0; $offset < $total; $offset += 100) {
         $typeMap,
         offset: $offset,
         limit: 100,
+        tableMap: $tableMap,
     );
 }
 ```
@@ -103,11 +106,32 @@ identifier, physical name and code, metadata kind, logical name, localized
 title, system fields, and custom properties. Catalogs and documents may contain tabular
 section definitions, while enumerations may contain possible values.
 
-Tabular sections use the owner's physical table name followed by the `VT` name
-from `DBNames`, for example `_reference396_vt8973`. Each section includes an owner
+`DBNames` supplies canonical storage identifiers. `SchemaStorage.CurrentSchema`
+identifies tables stored in extension slots: a canonical `_document123` in
+`SchemaID = 1` resolves to `_document123x1`, and its section resolves to
+`_document123_vt456x1`. Names come from the declared schema, without choosing by
+row counts, keys, or the existence of similarly named tables. Tables outside
+extension storage retain their non-suffixed names. Unfinished extension
+restructuring (`Status` other than `100`), malformed schemas, and conflicting
+slots fail the read instead of publishing a guessed name.
+
+Filtering uses these resolved physical names. When counting a filtered prepared
+map, pass `tableMap: $tableMap` to `count()`. `chunk()` reads the table map itself
+if none is supplied. Prepared table maps support `toArray()` and
+`TableMap::fromArray()` for consumer-owned serialization.
+
+Tabular sections combine the owner's canonical name with the `VT` name from
+`DBNames` before resolving physical storage, for example `_reference396_vt8973`.
+Each section includes an owner
 reference, `_keyfield`, and its `LineNo` column. JSON includes `sections` for
 documents and catalogs with tabular sections; catalogs without sections retain
 their existing JSON representation.
+
+Storage suffixes do not change field names, object UUIDs, reference identities,
+or section ownership. For example, `_document123_vt456x1` still has the owner
+column `_document123_idrref`. This resolves storage for metadata already read
+from `Config` and `DBNames`; it does not load extension-owned definitions or
+additional extension properties from `ConfigCAS` and `DBNames-Ext-*`.
 
 Catalog codes and document numbers retain their configured numeric or string
 type. Numeric codes and numbers expose their precision with zero scale; string

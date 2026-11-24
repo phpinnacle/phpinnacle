@@ -12,6 +12,7 @@ use PHPinnacle\Rosetta\Enums\MetadataKind;
 use PHPinnacle\Rosetta\MetadataLoader;
 use PHPinnacle\Rosetta\SerializedDataParser;
 use PHPinnacle\Rosetta\StorageMap;
+use PHPinnacle\Rosetta\TableMap;
 use PHPinnacle\Rosetta\Tests\Fixtures\MetadataFixture;
 use PHPinnacle\Rosetta\TypeMap;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -20,7 +21,7 @@ use PHPUnit\Framework\TestCase;
 
 final class PdoConnectionTest extends TestCase
 {
-    /** @return iterable<string, array{MetadataKind, int, string, string, array<string, string>}> */
+    /** @return iterable<string, array{MetadataKind, int, string, string, array<string, string>, 5?: int}> */
     public static function registerSchemas(): iterable
     {
         yield 'reported accumulation register with one recorder type' => [
@@ -43,6 +44,14 @@ final class PdoConnectionTest extends TestCase
             'RecorderReference',
             '_recorderrref bytea, _lineno numeric(9,0)',
             ['_recorderrref' => 'binary', '_lineno' => 'number'],
+        ];
+        yield 'extended accumulation register' => [
+            MetadataKind::AccumulationRegister,
+            4,
+            'ExtendedRegister',
+            '_recordertref bytea, _recorderrref bytea, _lineno numeric(9,0)',
+            ['_recordertref' => 'binary', '_recorderrref' => 'binary', '_lineno' => 'number'],
+            1,
         ];
         yield 'independent information register' => [
             MetadataKind::InformationRegister,
@@ -86,6 +95,7 @@ final class PdoConnectionTest extends TestCase
         $pdo = new PDO('sqlite::memory:');
         $pdo->exec('CREATE TABLE Params (filename TEXT PRIMARY KEY, binarydata BLOB NOT NULL)');
         $pdo->exec('CREATE TABLE Config (filename TEXT PRIMARY KEY, binarydata BLOB NOT NULL)');
+        $pdo->exec('CREATE TABLE SchemaStorage (SchemaID INTEGER, Status INTEGER, CurrentSchema BLOB)');
 
         $params = $pdo->prepare('INSERT INTO Params (filename, binarydata) VALUES (?, ?)');
         $params->execute(['DBNames', gzdeflate(MetadataFixture::storageMap())]);
@@ -110,21 +120,84 @@ final class PdoConnectionTest extends TestCase
         $this->assertSame('_fld5801', $metadata[0]->properties[0]->name);
     }
 
+    #[Test]
+    public function it_loads_active_storage_tables_without_changing_columns_or_reference_identities(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->exec('CREATE TABLE Config (filename TEXT, binarydata BLOB)');
+        $pdo->exec('CREATE TABLE SchemaStorage (SchemaID INTEGER, Status INTEGER, CurrentSchema BLOB)');
+        $pdo->exec('CREATE TABLE _document38456 (_idrref BLOB)');
+        $pdo->exec('CREATE TABLE _document38456x1 (_idrref BLOB PRIMARY KEY)');
+        $pdo->exec('CREATE TABLE _document38456x2 (_idrref BLOB PRIMARY KEY)');
+        $pdo->exec('CREATE TABLE _document38456_vt38459 (_document38456_idrref BLOB)');
+        $pdo->exec(
+            'CREATE TABLE _document38456_vt38459x1 (_document38456_idrref BLOB, _keyfield BLOB, _lineno38460 INTEGER, PRIMARY KEY (_document38456_idrref, _keyfield))',
+        );
+        $pdo->exec('CREATE TABLE _reference259 (_idrref BLOB PRIMARY KEY)');
+        $pdo->exec('CREATE TABLE _reference259x1 (_idrref BLOB PRIMARY KEY)');
+        $pdo->prepare('INSERT INTO SchemaStorage VALUES (1, 100, ?)')->execute([MetadataFixture::extensionSchema()]);
+        $storageMap = StorageMap::fromArray([
+            ...StorageMap::fromSerialized(MetadataFixture::storageMap(), new SerializedDataParser)->toArray(),
+            ...StorageMap::fromSerialized(MetadataFixture::documentStorageMap(), new SerializedDataParser)->toArray(),
+        ]);
+        $config = $pdo->prepare('INSERT INTO Config VALUES (?, ?)');
+
+        foreach ([
+            'root' => '{2,"configuration-id"}',
+            'configuration-id' => MetadataFixture::serializedConfigurationRoot([]),
+            'fc59acc3-f1f7-4e3f-96da-e580f2c5a88f' => MetadataFixture::serializedStructure(),
+            '7fc26ce3-6449-4483-81be-1e19faab744d' => MetadataFixture::serializedDocumentWithTabularSection(),
+        ] as $filename => $contents) {
+            $config->execute([$filename, gzdeflate($contents)]);
+        }
+
+        $connection = new PdoConnection($pdo);
+        $loader = new MetadataLoader(new SerializedDataParser);
+        $tableMap = TableMap::fromArray($loader->tableMap($connection)->toArray());
+
+        [$reference, $document] = $loader->chunk($connection, $storageMap, TypeMap::empty(), 0, 2, $tableMap);
+
+        $this->assertSame('_reference259', $reference->name);
+        $this->assertSame('_document38456x1', $document->name);
+        $this->assertSame('e32c4fa2-37ff-4a20-b3b8-c4ecb55a6a37', $document->referenceId);
+        $this->assertSame('_document38456_vt38459x1', $document->sections[0]->name);
+        $this->assertArrayHasKey('_document38456_idrref', $document->sections[0]->system);
+        $this->assertSame(
+            ['7fc26ce3-6449-4483-81be-1e19faab744d'],
+            $document->sections[0]->system['_document38456_idrref']->targets(),
+        );
+        $this->assertSame('_fld38461', $document->sections[0]->properties[0]->name);
+        $this->assertSame('_fld38462', $document->sections[0]->properties[1]->name);
+        $this->assertTrue($connection->hasColumn($document->sections[0]->name, '_document38456_idrref'));
+        $this->assertSame(1, $loader->count($storageMap, ['_document38456x1'], $tableMap));
+    }
+
     /** @param array<string, string> $expected */
     #[Test]
     #[DataProvider('registerSchemas')]
+    // @mago-expect lint:excessive-parameter-list
     public function it_describes_recorder_columns_from_the_register_table(
         MetadataKind $kind,
         int $code,
         string $label,
         string $columns,
         array $expected,
+        int $slot = 0,
     ): void {
         $id = 'register-id';
         $token = $kind->storageToken();
-        $table = strtolower(sprintf('_%s%d', $token, $code));
+        $table = strtolower(sprintf('_%s%d', $token, $code)) . ($slot === 0 ? '' : 'x' . $slot);
         $pdo = new PDO('sqlite::memory:');
         $pdo->exec('CREATE TABLE Config (filename TEXT PRIMARY KEY, binarydata BLOB NOT NULL)');
+        $pdo->exec('CREATE TABLE SchemaStorage (SchemaID INTEGER, Status INTEGER, CurrentSchema BLOB)');
+
+        if ($slot !== 0) {
+            $pdo->prepare('INSERT INTO SchemaStorage VALUES (?, 100, ?)')->execute([
+                $slot,
+                sprintf('{0,{1,{"%s%d","N",%d,"",{0},{0},{0},1,"R",{0},{0},"",0,0}}}', $token, $code, $code),
+            ]);
+        }
+
         $pdo->exec(sprintf('CREATE TABLE %s (%s)', $table, $columns));
         $pdo->prepare('INSERT INTO Config (filename, binarydata) VALUES (?, ?)')->execute([
             $id,
